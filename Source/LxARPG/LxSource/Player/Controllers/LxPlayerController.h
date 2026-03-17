@@ -32,6 +32,9 @@ public:
 	 */
 	void CreatePlayerCharacter();
 
+protected:
+	virtual void BeginPlay() override;
+
 private:
 	
 	/**

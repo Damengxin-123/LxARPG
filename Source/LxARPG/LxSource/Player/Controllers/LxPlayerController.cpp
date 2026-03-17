@@ -18,6 +18,19 @@ ALxPlayerController::ALxPlayerController()
 	}
 }
 
+
+void ALxPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+	if (m_pInputComponent)
+	{
+		if (ULxLocalPlayerSubsystem* LocalPlayerSubsystem = GET_LOCAL_PLAYER_SYSTEM())
+		{
+			LocalPlayerSubsystem->SetInputComponentQuote(m_pInputComponent);
+		}
+	}
+}
+
 void ALxPlayerController::CreatePlayerCharacter()
 {
 }

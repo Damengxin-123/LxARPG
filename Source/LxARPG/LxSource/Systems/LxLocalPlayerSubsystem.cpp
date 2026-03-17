@@ -3,6 +3,8 @@
 
 #include "LxLocalPlayerSubsystem.h"
 
+#include "LxARPG/LxSource/Model/Input/LxInputComponent.h"
+
 ULxLocalPlayerSubsystem* ULxLocalPlayerSubsystem::GetFromLocalPlayer(const ULocalPlayer* LocalPlayer)
 {
 	if (!LocalPlayer)
@@ -20,6 +22,7 @@ void ULxLocalPlayerSubsystem::RegisterInputReceive(FName InInputName,
 	{
 		return;
 	}
+	m_pInputComponentQuote->RegisterInputReceive(InInputName, InRegisterObj);
 }
 
 void ULxLocalPlayerSubsystem::UnregisterInputReceive(FName InInputName)
@@ -28,6 +31,7 @@ void ULxLocalPlayerSubsystem::UnregisterInputReceive(FName InInputName)
 	{
 		return;
 	}
+	m_pInputComponentQuote->UnregisterInputReceive(InInputName);
 }
 
 void ULxLocalPlayerSubsystem::SetInputComponentQuote(ULxInputComponent* InUInputComponentQuote)

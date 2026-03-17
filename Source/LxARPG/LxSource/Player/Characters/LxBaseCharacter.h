@@ -6,6 +6,8 @@
 #include "GameFramework/Character.h"
 #include "LxBaseCharacter.generated.h"
 
+class ULxCharacterMoveComponent;
+
 UCLASS(Blueprintable, DisplayName="基础角色")
 class LXARPG_API ALxBaseCharacter : public ACharacter
 {
@@ -25,4 +27,11 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	UFUNCTION(BlueprintCallable, Category="角色|移动")
+	ULxCharacterMoveComponent* GetCharacterMoveComponent() const { return m_pCharacterMoveComponent; }
+
+protected:
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|移动", DisplayName="角色移动组件")
+	TObjectPtr<ULxCharacterMoveComponent> m_pCharacterMoveComponent;
 };

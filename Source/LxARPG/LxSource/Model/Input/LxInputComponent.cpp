@@ -149,6 +149,7 @@ void ULxInputComponent::HandleContinuousAction(const FInputActionInstance& Insta
 		
 	FLxString("输入事件触发，ActionID: {0}, Value: {1}, {2}").Arg(ActionID).Arg(inputValue.m_sVector2D.X)
 	.Arg(inputValue.m_sVector2D.Y).LogeToScreenLog(ELxLogeLevelType::Debug);
+	SendInputEvent(ActionID, inputValue);
 }
 
 void ULxInputComponent::HandlePressAndReleaseAction(const FInputActionInstance& Instance, ETriggerEvent Trigge)
@@ -160,6 +161,7 @@ void ULxInputComponent::HandlePressAndReleaseAction(const FInputActionInstance& 
 	FLxInputValue inputValue(Value.Get<bool>(), Value.Get<float>(), Value.Get<FVector2D>(), Value.Get<FVector>());
 	inputValue.m_blValue = Trigge == ETriggerEvent::Started;
 	FLxString("输入事件触发，ActionID: {0}, Value: {1}").Arg(ActionID).Arg(inputValue.m_blValue).LogeToScreenLog(ELxLogeLevelType::Debug);
+	SendInputEvent(ActionID, inputValue);
 }
 
 void ULxInputComponent::RegisterInputReceive(FName InInputName,

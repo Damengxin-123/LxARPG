@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LxARPG/LxSource/Model/Input/LxInputReceiveInterface.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "LxLocalPlayerSubsystem.generated.h"
 
