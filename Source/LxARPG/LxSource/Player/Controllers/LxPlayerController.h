@@ -9,6 +9,7 @@
 
 class ALxBaseCharacter;
 class ULxInputComponent;
+class ULxPlayerSystemOperateComponent;
 
 /**
  * @class ALxPlayerController
@@ -91,6 +92,9 @@ private:
 
 	UPROPERTY(Blueprintable, EditAnywhere, Category="组件|输入组件",DisplayName="用户输入组件")
 	TObjectPtr<ULxInputComponent> m_pInputComponent;
+
+	UPROPERTY(Blueprintable, EditAnywhere, Category="组件|系统组件",DisplayName="系统操作组件")
+	TObjectPtr<ULxPlayerSystemOperateComponent> m_pSystemOperateComponent;
 	
 	/**
 	 * @brief 当前控制的角色指针。
