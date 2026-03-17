@@ -57,7 +57,8 @@ void ULxPlayerControlMoveComponent::HandleInputValue(FName InName, FLxInputValue
 		return;
 	}
 
-	if (InName == m_MoveInputActionID)
+	if (InName == m_MoveWInputActionID || InName == m_MoveAInputActionID
+		|| InName == m_MoveDInputActionID || InName == m_MoveSInputActionID)
 	{
 		m_pMoveComponent->HandleMoveInput(InValue.m_sVector2D);
 	}
@@ -81,7 +82,10 @@ void ULxPlayerControlMoveComponent::InitMonitorRegistration()
 	TScriptInterface<ILxInputReceiveInterface> InputReceive;
 	InputReceive.SetObject(this);
 	InputReceive.SetInterface(Cast<ILxInputReceiveInterface>(this));
-	m_pLocalPlayerSubsystem->RegisterInputReceive(m_MoveInputActionID, InputReceive);
+	m_pLocalPlayerSubsystem->RegisterInputReceive(m_MoveWInputActionID, InputReceive);
+	m_pLocalPlayerSubsystem->RegisterInputReceive(m_MoveAInputActionID, InputReceive);
+	m_pLocalPlayerSubsystem->RegisterInputReceive(m_MoveSInputActionID, InputReceive);
+	m_pLocalPlayerSubsystem->RegisterInputReceive(m_MoveDInputActionID, InputReceive);
 	m_pLocalPlayerSubsystem->RegisterInputReceive(m_JumpInputActionID, InputReceive);
 }
 
@@ -92,6 +96,9 @@ void ULxPlayerControlMoveComponent::UnregisterMonitor()
 		return;
 	}
 
-	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_MoveInputActionID);
+	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_MoveWInputActionID);
+	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_MoveAInputActionID);
+	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_MoveSInputActionID);
+	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_MoveDInputActionID);
 	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_JumpInputActionID);
 }

@@ -4,6 +4,7 @@
 #include "LxPlayerController.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 #include "LxARPG/LxSource/Model/Input/LxInputComponent.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 ALxPlayerController::ALxPlayerController()
 {
@@ -33,16 +34,21 @@ void ALxPlayerController::BeginPlay()
 
 void ALxPlayerController::CreatePlayerCharacter()
 {
+	
 }
 
 void ALxPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
+
+	m_pCurrentCharacter =  Cast<ALxBaseCharacter>(InPawn);
 }
 
 void ALxPlayerController::SetPawn(APawn* InPawn)
 {
 	Super::SetPawn(InPawn);
+
+	m_pCurrentCharacter =  Cast<ALxBaseCharacter>(InPawn);
 }
 
 void ALxPlayerController::OnUnPossess()
@@ -52,6 +58,7 @@ void ALxPlayerController::OnUnPossess()
 
 void ALxPlayerController::SyncControlledCharacter(APawn* InPawn)
 {
+	m_pCurrentCharacter =  Cast<ALxBaseCharacter>(InPawn);
 }
 
 void ALxPlayerController::CreateLocalPlayerCharacter()

@@ -28,8 +28,17 @@ public:
 	virtual void InitMonitorRegistration() override;
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="输入", DisplayName="移动输入行为ID")
-	FName m_MoveInputActionID = TEXT("Move");
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动", DisplayName="移动-前")
+	FName m_MoveWInputActionID = TEXT("Move-W");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动", DisplayName="移动-后")
+	FName m_MoveSInputActionID = TEXT("Move-S");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动", DisplayName="移动-左")
+	FName m_MoveAInputActionID = TEXT("Move-A");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动", DisplayName="移动-右")
+	FName m_MoveDInputActionID = TEXT("Move-D");
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="输入", DisplayName="跳跃输入行为ID")
 	FName m_JumpInputActionID = TEXT("Jump");
