@@ -5,10 +5,14 @@
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 #include "LxARPG/LxSource/Model/Input/LxInputComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Components/LxPlayerSystemOperateComponent.h"
+#include "LxARPG/LxSource/Systems/GameMode/LxARPGGameMode.h"
+#include "Engine/World.h"
 
 ALxPlayerController::ALxPlayerController()
 {
 	m_pInputComponent = CreateDefaultSubobject<ULxInputComponent>(TEXT("外部输入管理组件"));
+	m_pSystemOperateComponent = CreateDefaultSubobject<ULxPlayerSystemOperateComponent>(TEXT("系统操作组件"));
 	// 将输入组件注册到本地系统中
 	if (m_pInputComponent)
 	{
@@ -34,7 +38,13 @@ void ALxPlayerController::BeginPlay()
 
 void ALxPlayerController::CreatePlayerCharacter()
 {
-	
+	if (GetNetMode() == NM_Standalone)
+	{
+		CreateLocalPlayerCharacter();
+		return;
+	}
+
+	CreateServerPlayerCharacter();
 }
 
 void ALxPlayerController::OnPossess(APawn* InPawn)
@@ -63,8 +73,22 @@ void ALxPlayerController::SyncControlledCharacter(APawn* InPawn)
 
 void ALxPlayerController::CreateLocalPlayerCharacter()
 {
+	if (ALxARPGGameMode* GameMode = GetWorld() ? Cast<ALxARPGGameMode>(GetWorld()->GetAuthGameMode()) : nullptr)
+	{
+		if (APawn* NewPawn = GameMode->SpawnPlayerCharacter(this))
+		{
+			Possess(NewPawn);
+		}
+	}
 }
 
 void ALxPlayerController::CreateServerPlayerCharacter_Implementation()
 {
+	if (ALxARPGGameMode* GameMode = GetWorld() ? Cast<ALxARPGGameMode>(GetWorld()->GetAuthGameMode()) : nullptr)
+	{
+		if (APawn* NewPawn = GameMode->SpawnPlayerCharacter(this))
+		{
+			Possess(NewPawn);
+		}
+	}
 }
