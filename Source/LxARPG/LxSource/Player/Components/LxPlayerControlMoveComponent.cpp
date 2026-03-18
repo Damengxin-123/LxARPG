@@ -67,7 +67,7 @@ void ULxPlayerControlMoveComponent::HandleInputValue(FName InName, FLxInputValue
 	{
 		m_pMoveComponent->HandleJumpInput(InValue.m_blValue);
 	}
-	else if (InName == m_LookYInputActionID || InName == m_LookYInputActionID)
+	else if (InName == m_LookXInputActionID || InName == m_LookYInputActionID)
 	{
 		m_pMoveComponent->HandleLookInput(InValue.m_sVector2D);
 	}
