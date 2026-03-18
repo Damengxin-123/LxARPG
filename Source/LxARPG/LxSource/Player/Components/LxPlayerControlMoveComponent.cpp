@@ -20,24 +20,25 @@ void ULxPlayerControlMoveComponent::BaseComponentInitialize()
 	{
 		m_pMoveComponent = m_pOwnerCharacter->GetCharacterMoveComponent();
 	}
-
-	if (!m_pLocalPlayerSubsystem && m_pOwnerCharacter && m_pOwnerCharacter->Controller)
+	if (m_pOwnerCharacter->Controller)
 	{
-		if (const APlayerController* PlayerController = Cast<APlayerController>(m_pOwnerCharacter->Controller))
+		if (!m_pLocalPlayerSubsystem && m_pOwnerCharacter)
 		{
-			if (const ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
+			if (const APlayerController* PlayerController = Cast<APlayerController>(m_pOwnerCharacter->Controller))
 			{
-				m_pLocalPlayerSubsystem = ULxLocalPlayerSubsystem::GetFromLocalPlayer(LocalPlayer);
+				if (const ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
+				{
+					m_pLocalPlayerSubsystem = ULxLocalPlayerSubsystem::GetFromLocalPlayer(LocalPlayer);
+				}
 			}
 		}
 	}
+	InitMonitorRegistration();
 }
 
 void ULxPlayerControlMoveComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	BaseComponentInitialize();
-	InitMonitorRegistration();
 }
 
 void ULxPlayerControlMoveComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -50,7 +51,7 @@ void ULxPlayerControlMoveComponent::HandleInputValue(FName InName, FLxInputValue
 {
 	if (!m_pMoveComponent)
 	{
-		BaseComponentInitialize();
+		return;
 	}
 	if (!m_pMoveComponent)
 	{
@@ -66,13 +67,17 @@ void ULxPlayerControlMoveComponent::HandleInputValue(FName InName, FLxInputValue
 	{
 		m_pMoveComponent->HandleJumpInput(InValue.m_blValue);
 	}
+	else if (InName == m_LookYInputActionID || InName == m_LookYInputActionID)
+	{
+		m_pMoveComponent->HandleLookInput(InValue.m_sVector2D);
+	}
 }
 
 void ULxPlayerControlMoveComponent::InitMonitorRegistration()
 {
 	if (!m_pLocalPlayerSubsystem)
 	{
-		BaseComponentInitialize();
+		return;
 	}
 	if (!m_pLocalPlayerSubsystem)
 	{
@@ -87,6 +92,8 @@ void ULxPlayerControlMoveComponent::InitMonitorRegistration()
 	m_pLocalPlayerSubsystem->RegisterInputReceive(m_MoveSInputActionID, InputReceive);
 	m_pLocalPlayerSubsystem->RegisterInputReceive(m_MoveDInputActionID, InputReceive);
 	m_pLocalPlayerSubsystem->RegisterInputReceive(m_JumpInputActionID, InputReceive);
+	m_pLocalPlayerSubsystem->RegisterInputReceive(m_LookXInputActionID, InputReceive);
+	m_pLocalPlayerSubsystem->RegisterInputReceive(m_LookYInputActionID, InputReceive);
 }
 
 void ULxPlayerControlMoveComponent::UnregisterMonitor()
@@ -101,4 +108,6 @@ void ULxPlayerControlMoveComponent::UnregisterMonitor()
 	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_MoveSInputActionID);
 	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_MoveDInputActionID);
 	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_JumpInputActionID);
+	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_LookXInputActionID);
+	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_LookYInputActionID);
 }

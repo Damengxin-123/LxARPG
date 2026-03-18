@@ -16,7 +16,9 @@ class LXARPG_API ALxBaseCharacter : public ACharacter
 public:
 	// Sets default values for this character's properties
 	ALxBaseCharacter();
-
+	// 初始化角色逻辑信息，适用于在引擎的初始化逻辑走完之后，再进行初始化
+	virtual void InitialCharacterInformation() {};
+	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

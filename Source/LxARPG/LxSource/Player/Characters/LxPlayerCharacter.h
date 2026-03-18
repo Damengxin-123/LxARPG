@@ -14,6 +14,7 @@ class LXARPG_API ALxPlayerCharacter : public ALxBaseCharacter
 public:
 	ALxPlayerCharacter();
 
+	virtual void InitialCharacterInformation() override;
 protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|输入", DisplayName="玩家移动控制组件")
 	TObjectPtr<ULxPlayerControlMoveComponent> m_pPlayerControlMoveComponent;

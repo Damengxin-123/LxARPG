@@ -17,9 +17,7 @@ class LXARPG_API ALxARPGGameMode : public AGameModeBase
 public:
 
 	ALxARPGGameMode();
-
-protected:
-
+	
 	/** 游戏开始 */
 	virtual void BeginPlay() override;
 

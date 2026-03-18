@@ -31,6 +31,7 @@ public:
 	 * 该函数作为创建角色的总接口，负责根据当前的游戏环境（如单机或客户端-服务器模式）来实例化并初始化玩家角色。
 	 * 它可能调用其他更具体的函数来完成角色的创建过程，确保角色能够在适当的游戏模式下正确地被生成和配置。
 	 */
+	UFUNCTION(BlueprintCallable, Category="创建角色", DisplayName="创建玩家角色")
 	void CreatePlayerCharacter();
 
 protected:

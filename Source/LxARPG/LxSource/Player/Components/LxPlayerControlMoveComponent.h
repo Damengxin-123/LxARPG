@@ -28,20 +28,26 @@ public:
 	virtual void InitMonitorRegistration() override;
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动", DisplayName="移动-前")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动行为ID", DisplayName="移动-前")
 	FName m_MoveWInputActionID = TEXT("Move-W");
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动", DisplayName="移动-后")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动行为ID", DisplayName="移动-后")
 	FName m_MoveSInputActionID = TEXT("Move-S");
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动", DisplayName="移动-左")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动行为ID", DisplayName="移动-左")
 	FName m_MoveAInputActionID = TEXT("Move-A");
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动", DisplayName="移动-右")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|移动行为ID", DisplayName="移动-右")
 	FName m_MoveDInputActionID = TEXT("Move-D");
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="输入", DisplayName="跳跃输入行为ID")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|输入行为ID", DisplayName="跳跃")
 	FName m_JumpInputActionID = TEXT("Jump");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|输入行为ID", DisplayName="视角X")
+	FName m_LookXInputActionID = TEXT("Look-X");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="玩家输入|输入行为ID", DisplayName="视角Y")
+	FName m_LookYInputActionID = TEXT("Look-Y");
 
 private:
 	void UnregisterMonitor();

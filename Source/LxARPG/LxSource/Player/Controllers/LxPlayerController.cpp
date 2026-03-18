@@ -13,14 +13,7 @@ ALxPlayerController::ALxPlayerController()
 {
 	m_pInputComponent = CreateDefaultSubobject<ULxInputComponent>(TEXT("外部输入管理组件"));
 	m_pSystemOperateComponent = CreateDefaultSubobject<ULxPlayerSystemOperateComponent>(TEXT("系统操作组件"));
-	// 将输入组件注册到本地系统中
-	if (m_pInputComponent)
-	{
-		if (ULxLocalPlayerSubsystem* LocalPlayerSubsystem = GET_LOCAL_PLAYER_SYSTEM())
-		{
-			LocalPlayerSubsystem->SetInputComponentQuote(m_pInputComponent);
-		}
-	}
+
 }
 
 
@@ -52,6 +45,10 @@ void ALxPlayerController::OnPossess(APawn* InPawn)
 	Super::OnPossess(InPawn);
 
 	m_pCurrentCharacter =  Cast<ALxBaseCharacter>(InPawn);
+	if (m_pCurrentCharacter)
+	{
+		m_pCurrentCharacter->InitialCharacterInformation();
+	}
 }
 
 void ALxPlayerController::SetPawn(APawn* InPawn)
@@ -59,16 +56,25 @@ void ALxPlayerController::SetPawn(APawn* InPawn)
 	Super::SetPawn(InPawn);
 
 	m_pCurrentCharacter =  Cast<ALxBaseCharacter>(InPawn);
+	if (m_pCurrentCharacter)
+	{
+		m_pCurrentCharacter->InitialCharacterInformation();
+	}
 }
 
 void ALxPlayerController::OnUnPossess()
 {
 	Super::OnUnPossess();
+	m_pCurrentCharacter = nullptr;
 }
 
 void ALxPlayerController::SyncControlledCharacter(APawn* InPawn)
 {
 	m_pCurrentCharacter =  Cast<ALxBaseCharacter>(InPawn);
+	if (m_pCurrentCharacter)
+	{
+		m_pCurrentCharacter->InitialCharacterInformation();
+	}
 }
 
 void ALxPlayerController::CreateLocalPlayerCharacter()

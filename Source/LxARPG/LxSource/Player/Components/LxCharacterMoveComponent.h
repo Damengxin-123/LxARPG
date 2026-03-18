@@ -19,11 +19,14 @@ public:
 
 	virtual void BaseComponentInitialize() override;
 
-	UFUNCTION(BlueprintCallable, Category="角色|移动")
+	UFUNCTION(BlueprintCallable, Category="角色|移动", DisplayName="角色移动")
 	void HandleMoveInput(const FVector2D& InMoveValue);
 
-	UFUNCTION(BlueprintCallable, Category="角色|移动")
+	UFUNCTION(BlueprintCallable, Category="角色|移动", DisplayName="角色跳跃")
 	void HandleJumpInput(bool bPressed);
+
+	UFUNCTION(BlueprintCallable, Category="角色|视角", DisplayName="角色视角")
+	void HandleLookInput(const FVector2D& InMoveValue);
 
 private:
 	UPROPERTY()
