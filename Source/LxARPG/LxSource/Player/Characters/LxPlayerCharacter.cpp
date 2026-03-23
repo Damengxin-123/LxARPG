@@ -26,6 +26,8 @@ ALxPlayerCharacter::ALxPlayerCharacter()
 
 void ALxPlayerCharacter::InitialCharacterInformation()
 {
+	Super::InitialCharacterInformation();
+
 	if (m_pPlayerControlMoveComponent)
 	{
 		m_pPlayerControlMoveComponent->BaseComponentInitialize();
