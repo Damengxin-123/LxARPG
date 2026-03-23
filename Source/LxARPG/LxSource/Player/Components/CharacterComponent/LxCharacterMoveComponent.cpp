@@ -33,6 +33,8 @@ void ULxCharacterMoveComponent::HandleMoveInput(const FVector2D& InMoveValue)
 	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
+	m_pOwnerCharacter->SetCharacterState(ELxCharacterState::Moving);
+	
 	m_pOwnerCharacter->AddMovementInput(ForwardDirection, InMoveValue.Y);
 	m_pOwnerCharacter->AddMovementInput(RightDirection, InMoveValue.X);
 
@@ -84,10 +86,12 @@ void ULxCharacterMoveComponent::HandleJumpInput(bool bPressed)
 	if (bPressed)
 	{
 		m_pOwnerCharacter->Jump();
+		m_pOwnerCharacter->SetCharacterState(ELxCharacterState::JumpStart);
 	}
 	else
 	{
 		m_pOwnerCharacter->StopJumping();
+		m_pOwnerCharacter->SetCharacterState(ELxCharacterState::JumpEnd);
 	}
 }
 

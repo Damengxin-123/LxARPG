@@ -2,7 +2,7 @@
 
 #include "GameFramework/PlayerController.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
-#include "LxARPG/LxSource/Player/Components/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Player/Components/CharacterComponent/LxCharacterMoveComponent.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 
 ULxPlayerControlMoveComponent::ULxPlayerControlMoveComponent()

@@ -44,16 +44,6 @@ struct FLxTableRowBase : public FTableRowBase
 	 */
 	virtual void UpdateData(){};
 
-	/**
-	 * @brief 初始化ID
-	 *
-	 * 对数据表的ID进行初始化，可以传入数据表行名称作为ID。
-	 *
-	 * @param RowName 数据表行名称
-	 * @note 具体实现取决于具体的子类
-	 */
-	virtual void InitID(const FName& RowName){
-		RowID = RowName;
-	};
+
 };
 

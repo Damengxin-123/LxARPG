@@ -9,7 +9,7 @@
 
 class ULxInputComponent;
 
-#define GET_LOCAL_PLAYER_SYSTEM() ULxLocalPlayerSubsystem::GetFromLocalPlayer(GetWorld()->GetFirstLocalPlayerFromController())
+#define GET_LOCAL_PLAYER_SYSTEM() ULxLocalPlayerSubsystem::GetFromLocalPlayer(GetLocalPlayer())
 
 
 /**

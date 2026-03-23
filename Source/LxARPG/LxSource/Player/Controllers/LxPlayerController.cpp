@@ -5,7 +5,7 @@
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 #include "LxARPG/LxSource/Model/Input/LxInputComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
-#include "LxARPG/LxSource/Player/Components/LxPlayerSystemOperateComponent.h"
+#include "LxARPG/LxSource/Player/Components/ControllerComponent/LxPlayerSystemOperateComponent.h"
 #include "LxARPG/LxSource/Systems/GameMode/LxARPGGameMode.h"
 #include "Engine/World.h"
 
@@ -26,6 +26,15 @@ void ALxPlayerController::BeginPlay()
 		{
 			LocalPlayerSubsystem->SetInputComponentQuote(m_pInputComponent);
 		}
+	}
+	if (m_pSystemOperateComponent)
+	{
+		m_pSystemOperateComponent->BaseComponentInitialize();
+	}
+	if (m_pInputComponent)
+	{
+		
+		m_pInputComponent->BaseComponentInitialize();
 	}
 }
 
@@ -86,6 +95,26 @@ void ALxPlayerController::CreateLocalPlayerCharacter()
 			Possess(NewPawn);
 		}
 	}
+}
+
+void ALxPlayerController::ShowCursorFun()
+{
+	// 显示鼠标
+	FInputModeGameAndUI InputMode;
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+
+	SetInputMode(InputMode);
+	bShowMouseCursor = true;
+}
+
+void ALxPlayerController::HideCursorFun()
+{
+	// 隐藏鼠标
+	FInputModeGameOnly Mode;
+	SetInputMode(Mode);
+
+	bShowMouseCursor = false;
 }
 
 void ALxPlayerController::CreateServerPlayerCharacter_Implementation()

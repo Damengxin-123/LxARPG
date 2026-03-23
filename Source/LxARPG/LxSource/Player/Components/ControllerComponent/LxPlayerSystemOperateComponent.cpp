@@ -22,13 +22,13 @@ void ULxPlayerSystemOperateComponent::BaseComponentInitialize()
 			m_pLocalPlayerSubsystem = ULxLocalPlayerSubsystem::GetFromLocalPlayer(LocalPlayer);
 		}
 	}
+	InitMonitorRegistration();
 }
 
 void ULxPlayerSystemOperateComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	BaseComponentInitialize();
-	InitMonitorRegistration();
+
 }
 
 void ULxPlayerSystemOperateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -52,8 +52,14 @@ void ULxPlayerSystemOperateComponent::HandleInputValue(FName InName, FLxInputVal
 	{
 		return;
 	}
-
-	m_pPlayerController->bShowMouseCursor = InValue.m_blValue;
+	if (InValue.m_blValue)
+	{
+		m_pPlayerController->ShowCursorFun();
+	}
+	else
+	{
+		m_pPlayerController->HideCursorFun();
+	}
 }
 
 void ULxPlayerSystemOperateComponent::InitMonitorRegistration()

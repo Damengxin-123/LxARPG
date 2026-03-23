@@ -34,6 +34,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category="创建角色", DisplayName="创建玩家角色")
 	void CreatePlayerCharacter();
 
+	// 显示鼠标光标
+	inline void ShowCursorFun();
+	// 隐藏鼠标光标
+	inline void HideCursorFun();
+	
 protected:
 	virtual void BeginPlay() override;
 
@@ -96,7 +101,10 @@ private:
 
 	UPROPERTY(Blueprintable, EditAnywhere, Category="组件|系统组件",DisplayName="系统操作组件")
 	TObjectPtr<ULxPlayerSystemOperateComponent> m_pSystemOperateComponent;
+
+
 	
+private:
 	/**
 	 * @brief 当前控制的角色指针。
 	 *

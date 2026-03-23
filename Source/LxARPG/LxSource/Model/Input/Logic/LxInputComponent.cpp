@@ -135,7 +135,6 @@ void ULxInputComponent::BaseComponentInitialize()
 void ULxInputComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	BaseComponentInitialize();
 }
 
 
@@ -147,8 +146,8 @@ void ULxInputComponent::HandleContinuousAction(const FInputActionInstance& Insta
 
 	FLxInputValue inputValue(Value.Get<bool>(), Value.Get<float>(), Value.Get<FVector2D>(), Value.Get<FVector>());
 		
-	FLxString("输入事件触发，ActionID: {0}, Value: {1}, {2}").Arg(ActionID).Arg(inputValue.m_sVector2D.X)
-	.Arg(inputValue.m_sVector2D.Y).LogeToScreenLog(ELxLogeLevelType::Debug);
+	// FLxString("输入事件触发，ActionID: {0}, Value: {1}, {2}").Arg(ActionID).Arg(inputValue.m_sVector2D.X)
+	// .Arg(inputValue.m_sVector2D.Y).LogeToScreenLog(ELxLogeLevelType::Debug);
 	SendInputEvent(ActionID, inputValue);
 }
 
@@ -160,7 +159,7 @@ void ULxInputComponent::HandlePressAndReleaseAction(const FInputActionInstance& 
 
 	FLxInputValue inputValue(Value.Get<bool>(), Value.Get<float>(), Value.Get<FVector2D>(), Value.Get<FVector>());
 	inputValue.m_blValue = Trigge == ETriggerEvent::Started;
-	FLxString("输入事件触发，ActionID: {0}, Value: {1}").Arg(ActionID).Arg(inputValue.m_blValue).LogeToScreenLog(ELxLogeLevelType::Debug);
+	// FLxString("输入事件触发，ActionID: {0}, Value: {1}").Arg(ActionID).Arg(inputValue.m_blValue).LogeToScreenLog(ELxLogeLevelType::Debug);
 	SendInputEvent(ActionID, inputValue);
 }
 
@@ -171,7 +170,7 @@ void ULxInputComponent::RegisterInputReceive(FName InInputName,
 	{
 		if (m_mapInputReceivedObject.Contains(InInputName))
 		{
-			ERROR_TO_SCREEN(FLxString(TEXT("重复的输入行为ID : {0}")).Arg(InInputName));
+			// ERROR_TO_SCREEN(FLxString(TEXT("重复的输入行为ID : {0}")).Arg(InInputName));
 			return;
 		}
 		m_mapInputReceivedObject.Add(InInputName, InRegisterObj);
@@ -183,7 +182,7 @@ void ULxInputComponent::UnregisterInputReceive(FName InInputName)
 
 	if (!m_mapInputReceivedObject.Contains(InInputName))
 	{
-		ERROR_TO_SCREEN(FLxString(TEXT("并没有已注册的输入行为 : {0}")).Arg(InInputName));
+		// ERROR_TO_SCREEN(FLxString(TEXT("并没有已注册的输入行为 : {0}")).Arg(InInputName));
 		return;
 	}
 	m_mapInputReceivedObject.Remove(InInputName);
@@ -194,12 +193,12 @@ void ULxInputComponent::SendInputEvent(FName InInputActionID, FLxInputValue& InI
 {
 	if (!m_mapInputReceivedObject.Contains(InInputActionID))
 	{
-		ERROR_TO_SCREEN(FLxString(TEXT("没有模块对此输入行为进行监听 : {0}")).Arg(InInputActionID));
+		// ERROR_TO_SCREEN(FLxString(TEXT("没有模块对此输入行为进行监听 : {0}")).Arg(InInputActionID));
 		return;
 	}
 	if (m_mapInputReceivedObject[InInputActionID] == nullptr)
 	{
-		ERROR_TO_SCREEN(FLxString(TEXT("监听模块注册为空 : {0}")).Arg(InInputActionID));
+		// ERROR_TO_SCREEN(FLxString(TEXT("监听模块注册为空 : {0}")).Arg(InInputActionID));
 		return;
 	}
 	m_mapInputReceivedObject[InInputActionID]->HandleInputValue(InInputActionID, InINputValue);
