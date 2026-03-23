@@ -108,7 +108,7 @@ enum class ELxCharacterValueType : uint8
 	FloatNumeric			UMETA(DisplayName="浮动数值型"),
 	/** 百分比型 */
 	FixedPercentage		UMETA(DisplayName="百分比型"),
-	FloatPercentage		UMETA(DisplayName="百分比型"),
+	FloatPercentage		UMETA(DisplayName="浮动百分比型"),
 	/** 机制型属性 */
 	Mechanism		UMETA(DisplayName="机制型"),
 };
