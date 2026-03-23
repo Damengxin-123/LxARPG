@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxInputReceiveInterface.h"
 #include "LxARPG/LxSource/Core/Database/LxComponentBase.h"
+#include "LxARPG/LxSource/Model/Input/DataType/LxInputReceiveInterface.h"
+
 #include "LxInputComponent.generated.h"
 
 class UInputAction;

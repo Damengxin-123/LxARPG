@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxComponentBase.h"
-#include "LxARPG/LxSource/Model/Input/LxInputReceiveInterface.h"
+#include "LxARPG/LxSource/Model/Input/DataType/LxInputReceiveInterface.h"
 #include "LxPlayerSystemOperateComponent.generated.h"
 
 class ALxPlayerController;

@@ -104,7 +104,7 @@ struct FLxAttributeSet : public FLxTableRowBase
 
 	/**
 	 * @var FLxAttributeValueSet m_fCurrentValueSet
-	 * @brief 当前属性值集合
+	 * @brief 当前属性值的属性
 	 *
 	 * 该变量用于存储经过计算后的当前有效属性值设置。这些属性值是在考虑了默认值、装备加成、buff加成、天赋加成和技能加成等因素后得出的最终结果。
 	 * 它包含了最大值、最小值以及浮动比例等信息，用于在游戏逻辑中进行各种属性相关的计算。

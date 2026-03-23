@@ -2,7 +2,7 @@
 
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "LxARPG/LxSource/Player/Components/CharacterComponent/LxPlayerControlMoveComponent.h"
+#include "LxARPG/LxSource/Model/ControlMove/LxPlayerControlMoveComponent.h"
 
 ALxPlayerCharacter::ALxPlayerCharacter()
 {

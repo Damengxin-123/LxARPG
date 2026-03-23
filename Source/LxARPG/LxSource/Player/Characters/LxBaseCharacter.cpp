@@ -4,7 +4,7 @@
 #include "LxBaseCharacter.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
-#include "LxARPG/LxSource/Player/Components/CharacterComponent/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
 
 
 // Sets default values

@@ -9,7 +9,7 @@
 #include "LxMaterialData.generated.h"
 
 /**
- * @struct FLxMaterialAttributes
+ * @struct FLxMaterialData
  * @brief 材料属性
  *
  * 继承自FLxItemAttributes，用于定义材料类型的属性。
@@ -17,7 +17,7 @@
  * @note 可在蓝图中使用
  */
 USTRUCT(BlueprintType)
-struct FLxMaterialAttributes : public FLxItemBase
+struct FLxMaterialData : public FLxItemBase
 {
 	GENERATED_BODY()
 

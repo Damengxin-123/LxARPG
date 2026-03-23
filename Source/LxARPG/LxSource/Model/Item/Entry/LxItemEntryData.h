@@ -6,7 +6,6 @@
 #include "LxItemEntryEnum.h"
 #include "LxARPG/LxSource/Core/Database/LxTableRowBase.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeSubData.h"
-#include "UObject/Object.h"
 #include "LxItemEntryData.generated.h"
 
 /**

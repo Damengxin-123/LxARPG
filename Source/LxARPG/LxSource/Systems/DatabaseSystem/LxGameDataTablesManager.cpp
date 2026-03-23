@@ -3,8 +3,6 @@
 
 #include "LxGameDataTablesManager.h"
 #include "LxDataTable.h"
-#include "LxARPG/LxSource/Core/Tools/LxString.h"
-#include "LxARPG/LxSource/Model/Input/LxInputData.h"
 
 ULxDataTable* ULxGameDataTablesManager::GetDataTables(const ELxDataTableTypeEnum InDataTableType) const
 {
@@ -12,11 +10,6 @@ ULxDataTable* ULxGameDataTablesManager::GetDataTables(const ELxDataTableTypeEnum
 	{
 		return m_mapTablesMap[InDataTableType];
 	}
-	// switch (InDataTableType)
-	// {
-	// case ELxDataTableTypeEnum::InputActionInfo:
-	// 	return InputDataBase;
-	// }
 	return nullptr;
 }
 
@@ -26,11 +19,6 @@ bool ULxGameDataTablesManager::TableIsLoadingCompleted(const ELxDataTableTypeEnu
 	{
 		return m_mapTablesMap[InDataTableType] != nullptr;
 	}
-	// switch (InDataTableType)
-	// {
-	// 	case ELxDataTableTypeEnum::InputActionInfo:
-	// 		return InputDataBase != nullptr;
-	// }
 	return false;
 } 
 
@@ -50,10 +38,5 @@ void ULxGameDataTablesManager::LoadDataTables()
 			table = nullptr;
 		}
 	}
-	//
-	//
-	// if (InputDataBase)
-	// {
-	// 	InputDataBase->LoadDataTables(ELxDataTableTypeEnum::InputActionInfo, TEXT("InputActionInfo"));
-	// }
+
 }

@@ -3,7 +3,7 @@
 
 #include "LxLocalPlayerSubsystem.h"
 
-#include "LxARPG/LxSource/Model/Input/LxInputComponent.h"
+#include "LxARPG/LxSource/Model/Input/Logic/LxInputComponent.h"
 
 ULxLocalPlayerSubsystem* ULxLocalPlayerSubsystem::GetFromLocalPlayer(const ULocalPlayer* LocalPlayer)
 {

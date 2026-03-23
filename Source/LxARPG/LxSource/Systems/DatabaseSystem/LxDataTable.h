@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "LxDataTableTypeEnum.h"
-#include "LxARPG/LxSource/Core/Database/LxDataTableBase.h"
-#include "LxARPG/LxSource/Model/Input/LxInputData.h"
 #include "StructUtils/InstancedStruct.h"
 #include "LxDataTable.generated.h"
 

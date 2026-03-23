@@ -3,9 +3,9 @@
 
 #include "LxPlayerController.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
-#include "LxARPG/LxSource/Model/Input/LxInputComponent.h"
+#include "LxARPG/LxSource/Model/Input/Logic/LxInputComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
-#include "LxARPG/LxSource/Player/Components/ControllerComponent/LxPlayerSystemOperateComponent.h"
+#include "LxARPG/LxSource/Model/SystemOperate/LxPlayerSystemOperateComponent.h"
 #include "LxARPG/LxSource/Systems/GameMode/LxARPGGameMode.h"
 #include "Engine/World.h"
 

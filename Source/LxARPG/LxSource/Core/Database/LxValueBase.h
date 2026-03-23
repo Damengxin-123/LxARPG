@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "LxValueBase.generated.h"
 
-using ValueType = int32;
 
 /**
  * @def ERR_ATTRIBUTE
@@ -31,14 +30,14 @@ struct FLxValueBase
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="数值", Category="数值设置")
-	ValueType m_nValue = ERR_ATTRIBUTE;
+	int32 m_nValue = ERR_ATTRIBUTE;
 
 	FLxValueBase* operator=(const FLxValueBase& NewValue)
 	{
 		m_nValue = NewValue.m_nValue;
 		return this;
 	}
-	FLxValueBase* operator=(const ValueType NewValue)
+	FLxValueBase* operator=(const int32 NewValue)
 	{
 		m_nValue = NewValue;
 		return this;
@@ -47,7 +46,7 @@ struct FLxValueBase
 	{
 		return m_nValue == InValue.m_nValue;
 	}
-	bool operator==(const ValueType InValue) const
+	bool operator==(const int32 InValue) const
 	{
 		return m_nValue == InValue;
 	}
@@ -55,7 +54,7 @@ struct FLxValueBase
 	{
 		return m_nValue != InValue.m_nValue;
 	}
-	bool operator!=(const ValueType InValue) const
+	bool operator!=(const int32 InValue) const
 	{
 		return m_nValue != InValue;
 	}
@@ -64,7 +63,7 @@ struct FLxValueBase
 		m_nValue += InValue.m_nValue;
 		return this;
 	}
-	FLxValueBase* operator+=(const ValueType InValue)
+	FLxValueBase* operator+=(const int32 InValue)
 	{
 		m_nValue += InValue;
 		return this;
@@ -74,7 +73,7 @@ struct FLxValueBase
 		m_nValue -= InValue.m_nValue;
 		return this;
 	}
-	FLxValueBase* operator-=(const ValueType InValue)
+	FLxValueBase* operator-=(const int32 InValue)
 	{
 		m_nValue -= InValue;
 		return this;
@@ -84,7 +83,7 @@ struct FLxValueBase
 		m_nValue *= InValue.m_nValue;
 		return this;
 	}
-	FLxValueBase* operator*=(const ValueType InValue)
+	FLxValueBase* operator*=(const int32 InValue)
 	{
 		m_nValue *= InValue;
 		return this;
@@ -94,48 +93,48 @@ struct FLxValueBase
 		m_nValue /= InValue.m_nValue;
 		return this;
 	}
-	FLxValueBase* operator/=(const ValueType InValue)
+	FLxValueBase* operator/=(const int32 InValue)
 	{
 		m_nValue /= InValue;
 		return this;
 	}
-	ValueType operator+(const FLxValueBase& InValue) const
+	int32 operator+(const FLxValueBase& InValue) const
 	{
 		return m_nValue + InValue.m_nValue;
 	}
-	ValueType operator+(const ValueType InValue) const
+	int32 operator+(const int32 InValue) const
 	{
 		return m_nValue + InValue;
 	}
-	ValueType operator-(const FLxValueBase& InValue) const
+	int32 operator-(const FLxValueBase& InValue) const
 	{
 		return m_nValue - InValue.m_nValue;
 	}
-	ValueType operator-(const ValueType InValue) const
+	int32 operator-(const int32 InValue) const
 	{
 		return m_nValue - InValue;
 	}
-	ValueType operator*(const FLxValueBase& InValue) const
+	int32 operator*(const FLxValueBase& InValue) const
 	{
 		return m_nValue * InValue.m_nValue;
 	}
-	ValueType operator*(const ValueType InValue) const
+	int32 operator*(const int32 InValue) const
 	{
 		return m_nValue * InValue;
 	}
-	ValueType operator*(const double InValue) const
+	int32 operator*(const double InValue) const
 	{
 		return FMath::RoundToInt(m_nValue * InValue);
 	}
-	ValueType operator/(const FLxValueBase& InValue) const
+	int32 operator/(const FLxValueBase& InValue) const
 	{
 		return m_nValue / InValue.m_nValue;
 	}
-	ValueType operator/(const ValueType InValue) const
+	int32 operator/(const int32 InValue) const
 	{
 		return m_nValue / InValue;
 	}
-	ValueType operator/(const double InValue) const
+	int32 operator/(const double InValue) const
 	{
 		return FMath::RoundToInt(m_nValue * InValue);
 	}

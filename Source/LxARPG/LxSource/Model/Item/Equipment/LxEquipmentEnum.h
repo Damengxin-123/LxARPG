@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "LxItemEntryEnum.generated.h"
+#include "LxEquipmentEnum.generated.h"
 
 /**
  * @enum ELxEquipmentType
