@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LxSkillEnum.h"
-#include "LxARPG/LxSource/Model/Item/ItemBase/LxItemDataType.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemDataType.h"
 #include "UObject/Object.h"
 #include "LxSkillData.generated.h"
 

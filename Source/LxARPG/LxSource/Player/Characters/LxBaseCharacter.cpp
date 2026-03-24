@@ -1,16 +1,18 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "LxBaseCharacter.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
 
 ALxBaseCharacter::ALxBaseCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	m_pCharacterMoveComponent = CreateDefaultSubobject<ULxCharacterMoveComponent>(TEXT("角色移动组件"));
-	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("角色属性组件"));
+	m_pCharacterMoveComponent = CreateDefaultSubobject<ULxCharacterMoveComponent>(TEXT("CharacterMoveComponent"));
+	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
+	m_pCharacterBackpackComponent = CreateDefaultSubobject<ULxCharacterBackpackComponent>(TEXT("CharacterBackpackComponent"));
+	m_pCharacterEquipmentComponent = CreateDefaultSubobject<ULxCharacterEquipmentComponent>(TEXT("CharacterEquipmentComponent"));
 }
 
 void ALxBaseCharacter::InitialCharacterInformation()
@@ -23,6 +25,16 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	if (m_pCharacterAttributeComponent)
 	{
 		m_pCharacterAttributeComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterBackpackComponent)
+	{
+		m_pCharacterBackpackComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterEquipmentComponent)
+	{
+		m_pCharacterEquipmentComponent->BaseComponentInitialize();
 	}
 }
 

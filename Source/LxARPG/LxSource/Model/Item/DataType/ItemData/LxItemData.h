@@ -3,7 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxARPG/LxSource/Model/Item/ItemBase/LxItemEnmuType.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemDataType.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterialData.h"
 #include "UObject/Object.h"
 #include "Runtime/CoreUObject/Public/StructUtils/InstancedStruct.h"
 #include "LxItemData.generated.h"

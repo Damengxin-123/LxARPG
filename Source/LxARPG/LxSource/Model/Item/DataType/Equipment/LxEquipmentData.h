@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "LxEquipmentEnum.h"
-#include "LxARPG/LxSource/Model/Item/Entry/LxItemEntryData.h"
-#include "LxARPG/LxSource/Model/Item/ItemBase/LxItemDataType.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemDataType.h"
 #include "LxEquipmentData.generated.h"
 
 /**

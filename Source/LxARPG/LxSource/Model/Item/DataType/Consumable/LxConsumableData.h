@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LxConsumableEnum.h"
-#include "LxARPG/LxSource/Model/Item/ItemBase/LxItemDataType.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemDataType.h"
 #include "LxConsumableData.generated.h"
 
 

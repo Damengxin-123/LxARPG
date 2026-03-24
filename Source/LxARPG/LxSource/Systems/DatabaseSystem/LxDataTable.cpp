@@ -5,9 +5,9 @@
 
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputData.h"
-#include "LxARPG/LxSource/Model/Item/Consumable/LxConsumableData.h"
-#include "LxARPG/LxSource/Model/Item/Equipment/LxEquipmentData.h"
-#include "LxARPG/LxSource/Model/Item/Material/LxMaterialData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterialData.h"
 
 
 void ULxDataTable::LoadDataTables(const ELxDataTableTypeEnum InTableType, const FString& InContextString)
