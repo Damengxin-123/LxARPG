@@ -164,6 +164,12 @@ FLxItemBase& ULxItemData::GetItemBase()
 	return *reinterpret_cast<FLxItemBase*>(m_fItemInfo.GetMutableMemory());
 
 }
+
+FInstancedStruct ULxItemData::GetItemDataCopy() const
+{
+	return m_fItemInfo;
+}
+
 FLxEquipmentData& ULxItemData::GetEquipmentItemData()
 {
 	static FLxEquipmentData nullItem;

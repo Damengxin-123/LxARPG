@@ -7,4 +7,19 @@
  */
 # define ERR_ATTRIBUTE -9999
 
+/*
+ * 背包格子总数
+ */
 #define ITEM_SLOT_COUNT 100
+
+/**
+ * @def BACKPACK_GRID_PANEL_ROW_COUNT
+ * @brief 背包网格面板每行个数
+ */
+#define BACKPACK_GRID_PANEL_ROW_COUNT 10
+
+/**
+ * @def QUICK_ACCESS_TOOLBAR_COUNT
+ * @brief HUD快捷栏物品格子数量
+ */
+#define QUICK_ACCESS_TOOLBAR_COUNT 10

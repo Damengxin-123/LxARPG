@@ -168,6 +168,14 @@ class LXARPG_API ULxItemData : public UObject
  	 */
 	UFUNCTION(BlueprintCallable, DisplayName="获取基类物品类型")
 	FLxItemBase& GetItemBase();
+	/**
+	 * @brief 获取一份当前物品结构体数据的拷贝
+	 *
+	 * 主要用于从仓库、商店等非玩家背包来源复制物品，
+	 * 再放入玩家背包或装备槽，避免直接复用原对象。
+	 */
+	UFUNCTION(BlueprintCallable, Category="Item")
+	FInstancedStruct GetItemDataCopy() const;
 
 	/**
 	 * @brief 获取当前装备的具体信息

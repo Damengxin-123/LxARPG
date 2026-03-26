@@ -90,6 +90,52 @@ bool ULxCharacterBackpackComponent::AddExistingItem(ULxItemData* InItemData)
 	return true;
 }
 
+bool ULxCharacterBackpackComponent::AddExistingItemAt(ULxItemData* InItemData, int32 InDestinationIndex)
+{
+	if (!m_bBackpackInitialized)
+	{
+		BaseComponentInitialize();
+	}
+
+	if (!InItemData || !InItemData->IsValid() || !IsValidBackpackIndex(InDestinationIndex))
+	{
+		return false;
+	}
+
+	ULxItemData* DestinationItem = m_vCharacterItems[InDestinationIndex];
+	if (!DestinationItem)
+	{
+		m_vCharacterItems[InDestinationIndex] = InItemData;
+		BroadcastBackpackChanged();
+		return true;
+	}
+
+	bool bSourceConsumed = false;
+	if (!TryStackItemIntoSlot(DestinationItem, InItemData, bSourceConsumed))
+	{
+		return false;
+	}
+
+	if (!bSourceConsumed)
+	{
+		return AddExistingItem(InItemData);
+	}
+
+	BroadcastBackpackChanged();
+	return true;
+}
+
+bool ULxCharacterBackpackComponent::AddItemAtFromExternal(ULxItemData* InItemData, int32 InDestinationIndex)
+{
+	if (!InItemData || !InItemData->IsValid())
+	{
+		return false;
+	}
+
+	ULxItemData* ItemCopy = ULxItemData::CreateNewItemData(this, InItemData->GetItemDataCopy());
+	return AddExistingItemAt(ItemCopy, InDestinationIndex);
+}
+
 bool ULxCharacterBackpackComponent::MoveItem(int32 InSourceIndex, int32 InDestinationIndex)
 {
 	if (!m_bBackpackInitialized)
@@ -308,6 +354,18 @@ bool ULxCharacterBackpackComponent::TryStackItemIntoInventory(ULxItemData* InIte
 	}
 
 	return !InItemData->IsValid();
+}
+
+bool ULxCharacterBackpackComponent::TryStackItemIntoSlot(ULxItemData* InTargetItem, ULxItemData* InSourceItem, bool& bOutSourceConsumed) const
+{
+	bOutSourceConsumed = false;
+	if (!StackItem(InTargetItem, InSourceItem))
+	{
+		return false;
+	}
+
+	bOutSourceConsumed = !InSourceItem->IsValid();
+	return true;
 }
 
 bool ULxCharacterBackpackComponent::StackItem(ULxItemData* InTargetItem, ULxItemData* InSourceItem) const
