@@ -1,8 +1,9 @@
 #include "LxCharacterAttributeComponent.h"
 
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "../DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
-#include "LxARPG/LxSource/Systems/DatabaseSystem/LxDataTable.h"
 #include "LxARPG/LxSource/Systems/DatabaseSystem/LxDataTableTypeEnum.h"
 #include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
 
@@ -20,7 +21,7 @@ void ULxCharacterAttributeComponent::BaseComponentInitialize()
 
 	if (!m_pOwnerCharacter)
 	{
-		m_pOwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
+		m_pOwnerCharacter = GetCharacterOwner();
 	}
 
 	ULxGameInstanceSubsystem* GameInstanceSubsystem = ULxGameInstanceSubsystem::GetInstance(GetWorld());
@@ -35,28 +36,34 @@ void ULxCharacterAttributeComponent::BaseComponentInitialize()
 		return;
 	}
 
-	ULxDataTable* AttributeDataTable = GameDataTablesManager->GetDataTables(ELxDataTableTypeEnum::CharacterAttribute);
-	if (!AttributeDataTable)
+	ULxDataTableConfigBase* DataTableConfig = GameDataTablesManager->GetDataTables(ELxDataTableTypeEnum::CharacterAttribute);
+	const ULxAttributeTableConfig* AttributeTableConfig = Cast<ULxAttributeTableConfig>(DataTableConfig);
+	if (!AttributeTableConfig)
+	{
+		return;
+	}
+
+	const TArray<FLxAttributeData>* AttributeDataList = AttributeTableConfig->GetAttributeDataList(CharacterRaceType);
+	if (!AttributeDataList)
 	{
 		return;
 	}
 
 	m_mapCharacterAttributeTable.Empty();
-
-	uint16 Index = 0;
-	for (AttributeDataTable->SetIteratorIndex(Index);
-		const FLxAttributeSet* AttributeData = AttributeDataTable->GetIteratorData<FLxAttributeSet>();
-		AttributeDataTable->SetIteratorIndex(++Index))
+	for (const FLxAttributeData& AttributeData : *AttributeDataList)
 	{
-		FLxAttributeSet NewAttributeData = *AttributeData;
-		NewAttributeData.InitData();
-		m_mapCharacterAttributeTable.Add(NewAttributeData.RowID, NewAttributeData);
+		if (AttributeData.AttributeInfo.AttributeID.IsNone())
+		{
+			continue;
+		}
+
+		m_mapCharacterAttributeTable.Add(AttributeData.AttributeInfo.AttributeID, AttributeData);
 	}
 
 	m_bAttributeInitialized = true;
 }
 
-FLxAttributeSet* ULxCharacterAttributeComponent::GetCharacterAttributeByID(const FName& InAttributeID)
+FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByID(const FName& InAttributeID)
 {
 	if (!m_bAttributeInitialized)
 	{
@@ -65,12 +72,12 @@ FLxAttributeSet* ULxCharacterAttributeComponent::GetCharacterAttributeByID(const
 	return m_mapCharacterAttributeTable.Find(InAttributeID);
 }
 
-const FLxAttributeSet* ULxCharacterAttributeComponent::GetCharacterAttributeByID(const FName& InAttributeID) const
+const FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByID(const FName& InAttributeID) const
 {
 	return m_mapCharacterAttributeTable.Find(InAttributeID);
 }
 
-TMap<FName, FLxAttributeSet>* ULxCharacterAttributeComponent::GetCharacterAttributeTable()
+TMap<FName, FLxAttributeData>* ULxCharacterAttributeComponent::GetCharacterAttributeTable()
 {
 	if (!m_bAttributeInitialized)
 	{
@@ -79,23 +86,18 @@ TMap<FName, FLxAttributeSet>* ULxCharacterAttributeComponent::GetCharacterAttrib
 	return &m_mapCharacterAttributeTable;
 }
 
-const TMap<FName, FLxAttributeSet>* ULxCharacterAttributeComponent::GetCharacterAttributeTable() const
+const TMap<FName, FLxAttributeData>* ULxCharacterAttributeComponent::GetCharacterAttributeTable() const
 {
 	return &m_mapCharacterAttributeTable;
 }
 
-bool ULxCharacterAttributeComponent::SetCharacterAttribute(const FName& InAttributeID, const FLxAttributeSet& InAttributeData)
+bool ULxCharacterAttributeComponent::SetCharacterAttribute(const FName& InAttributeID, const FLxAttributeData& InAttributeData)
 {
 	if (!m_bAttributeInitialized)
 	{
 		BaseComponentInitialize();
 	}
 
-	FLxAttributeSet NewAttributeData = InAttributeData;
-	NewAttributeData.RowID = InAttributeID;
-	NewAttributeData.InitData();
-	m_mapCharacterAttributeTable.FindOrAdd(InAttributeID) = NewAttributeData;
-	OnCharacterAttributeChanged.Broadcast(InAttributeID, NewAttributeData);
 	return true;
 }
 
@@ -106,16 +108,11 @@ bool ULxCharacterAttributeComponent::SetCharacterAttributeCurrentValue(const FNa
 		BaseComponentInitialize();
 	}
 
-	FLxAttributeSet* AttributeData = m_mapCharacterAttributeTable.Find(InAttributeID);
+	FLxAttributeData* AttributeData = m_mapCharacterAttributeTable.Find(InAttributeID);
 	if (!AttributeData)
 	{
 		return false;
 	}
 
-	const int32 OldValue = AttributeData->m_nCurrentValue;
-	AttributeData->m_nCurrentValue = InNewValue;
-
-	OnCharacterAttributeValueChanged.Broadcast(InAttributeID, OldValue, InNewValue);
-	OnCharacterAttributeChanged.Broadcast(InAttributeID, *AttributeData);
 	return true;
 }

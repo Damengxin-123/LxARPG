@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include "LxAttributeEnumType.h"
+#include "LxAttributeCoreType.h"
 #include "CoreMinimal.h"
-#include "LxAttributeSubData.h"
+#include "../../Style/DataType/LxTextLineStyleData.h"
 #include "LxARPG/LxSource/Core/Database/LxTableRowBase.h"
 #include "LxAttributeData.generated.h"
 
@@ -22,46 +22,32 @@
  *
  * @note 此表仅用于在编辑器中配置属性，不可直接使用。可在蓝图中使用。
  */
-USTRUCT(BlueprintType)
-struct FLxAttributeInfo : public FLxTableRowBase
+USTRUCT(BlueprintType, DisplayName="角色属性定义类型")
+struct FLxAttributeDefineInfo : public FTableRowBase
 {
 	GENERATED_BODY()
 
 	/**
-	 * @var ELxAttributeType m_nAttType
-	 * @brief 属性类型
+	 * @property FLxAttributeInfo AttributeInfo
+	 * @brief 用于存储和配置属性的基础信息
 	 *
-	 * 用于设置显示的标签，区分不同类型的属性。
+	 * 该属性包含了角色属性的唯一ID和类型，是定义角色具体属性时不可或缺的部分。
+	 * 通过编辑器或蓝图可以对其进行读写操作，以便于根据需要调整角色属性的基本设置。
+	 *
+	 * 在编辑器中，该字段显示为“属性基础信息”。
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "角色属性|属性值信息设置", DisplayName="属性类型")
-	ELxAttributeType m_nAttType = ELxAttributeType::None;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性基础信息")
+	FLxAttributeInfo AttributeInfo;
 
 	/**
-	 * @var ELxCharacterValueType m_nAttValueType
-	 * @brief 属性值类型
+	 * @var FLxAttributeShowInfo AttributeShowInfo
+	 * @brief 用于配置属性在UI中的可视化信息
 	 *
-	 * 用于区分属性值是数值型还是机制型。
+	 * 该变量包含属性的显示名称、描述以及是否可见等信息，用于控制属性在用户界面中的展示方式。
+	 * 可以通过编辑器或蓝图进行读写操作，以自定义属性的可视化设置。
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "角色属性|属性值信息设置", DisplayName="属性值类型")
-	ELxCharacterValueType m_nAttValueType = ELxCharacterValueType::FixedNumeric;
-
-	/**
-	 * @var FText m_strAttName
-	 * @brief 属性名称
-	 *
-	 * 用于UI显示，需要进行多语言化。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "角色属性|属性可视化设置", DisplayName="属性可视化名称")
-	FText   m_strAttText;
-
-	/**
-	 * @var bool m_bIsVisible
-	 * @brief 是否显示
-	 *
-	 * 控制属性是否在列表中依次显示。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "角色属性|属性可视化设置", DisplayName="是否在列表中依次显示")
-	bool	m_bIsVisible = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性可视化信息")
+	FLxAttributeShowInfo AttributeShowInfo;
 
 	/**
 	 * @var FDataTableRowHandle m_tabAttStyle
@@ -69,92 +55,117 @@ struct FLxAttributeInfo : public FLxTableRowBase
 	 *
 	 * 用于在属性显示UI中显示文字样式的标签行。
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "角色属性|属性可视化设置", DisplayName="文本行样式",meta=(RowType="LxTextStyleData"))
-	FDataTableRowHandle m_tabAttStyle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性标签样式引用",meta=(RowType="LxTextLineStyleData"))
+	FDataTableRowHandle AttributeStyleTableQuote;
 };
 
 /**
- * @struct FLxAttributeSet
- * @brief 角色属性设置表
- * 用于实际存放不同角色的属性定义的结构体
- * 用于存储和管理角色的单个属性，包括基础值、各种加成值和最终计算值。
- * 继承自FLxStructData，支持数据表配置。
+ * @struct FLxAttributeDefineValue
+ * @brief 用于定义角色属性的具体值及其引用信息
  *
- * @note 可在蓝图中使用
+ * 继承自FLxTableRowBase，该结构体主要用于配置角色的特定属性值。通过引用属性定义表和设置默认值，为角色提供详细的属性配置。
+ * 在编辑器中，此结构体可用于配置角色属性的具体数值，并支持在蓝图中的读写操作。
+ *
+ * @note 此结构体仅用于在编辑器中配置属性，不可直接使用。可在蓝图中使用。
  */
-USTRUCT(BlueprintType)
-struct FLxAttributeSet : public FLxTableRowBase
+USTRUCT(BlueprintType, DisplayName="角色属性值设计类型")
+struct FLxAttributeDefineValue : public FTableRowBase
 {
 	GENERATED_BODY()
-
-	/* ======================================== 设计阶段值 =================================================== */
 	/**
-	 * @var FDataTableRowHandle m_tabAttInfoQuote
-	 * @brief 引用的属性定义表
+	 * @var FDataTableRowHandle AttributeTableQuote
+	 * @brief 角色属性定义引用
 	 *
-	 * 用于引用属性信息表中的具体属性配置。
+	 * 该变量是一个数据表行句柄，用于引用角色属性定义信息。通过此句柄可以访问和操作与角色属性相关的数据表。
+	 * 在编辑器中，该变量显示为“角色属性定义引用”。
+	 *
+	 * @note 此引用仅用于在编辑器中配置属性，不可直接使用。可在蓝图中使用。
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "角色属性设置", DisplayName="属性表引用",meta=(RowType="LxAttributeInfo"))
-	FDataTableRowHandle m_tabAttInfoQuote;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "角色属性值设置", DisplayName="默认值设置")
-	FLxAttributeValueSet m_fDefaultValueSet;
-
-	/* ======================================== 逻辑运算内容 =================================================== */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="角色属性定义引用",meta=(RowType="LxAttributeDefineInfo"))
+	FDataTableRowHandle AttributeTableQuote;
 
 	/**
-	 * @var FLxAttributeValueSet m_fCurrentValueSet
-	 * @brief 当前属性值的属性
+	 * @var FLxAttributeValue AttributeValue
+	 * @brief 角色属性默认值设定
 	 *
-	 * 该变量用于存储经过计算后的当前有效属性值设置。这些属性值是在考虑了默认值、装备加成、buff加成、天赋加成和技能加成等因素后得出的最终结果。
-	 * 它包含了最大值、最小值以及浮动比例等信息，用于在游戏逻辑中进行各种属性相关的计算。
-	 * 计算规则：
-	 *		1、先计算基础数值增减，然后计算提高，最后计算总增；
-	 *		2、对于机制型数值，全部为开启则最终为开启，否则为关闭；
-	 *		3、对于属性值浮动比例，在计算式选取一个加成中最大的作为最终比例。
+	 * 该变量用于设置角色属性的默认值，包括数值上限、当前有效值、向上浮动比例、向下浮动比例以及属性值类型。
+	 * 通过编辑器或蓝图可以对其进行读写操作。在编辑器中，该变量显示为“角色属性默认值设定”。
 	 *
-	 * @note 支持蓝图读写操作
+	 * @note 确保设置的数值在合理范围内，以避免逻辑错误。此变量主要用于配置角色属性的默认值。
 	 */
-	FLxAttributeValueSet m_fCurrentValueSet;
-
-	/**
-	 * @var AttValueType m_nCurrentValue
-	 * @brief 当前属性的有效值
-	 *
-	 * 当前属性有效值存储 用于存储经过计算之后的属性值的有效值
-	 * 属性有效值指在参与系统计算时使用的值，
-	 * 例如当前生命值，他会受到最大最小值限制，例如最大生命值和最小生命之限制
-	 * 也会受浮动比例影响，产生例如攻击力：8 ~ 15这样的属性值区间 
-	 *
-	 * @note 支持蓝图读写操作
-	 */
-	int32 m_nCurrentValue;
-
-	/**
-	 * @var FLxAttributeInfo m_sAttInfo
-	 * @brief 当前属性设置关联的属性定义表
-	 *
-	 * 在初始化时，为其设置属性信息表中同名结构体。
-	 */
-	FLxAttributeInfo m_fAttInfoData;
-
-	/**
-	 * @brief 初始化数据
-	 *
-	 * 在结构体创建时，初始化某些值，例如：当使用数据表值填充此结构体后，需要从引用的表行中读取数据等。
-	 */
-	virtual void InitData() override
-	{
-		if (!m_tabAttInfoQuote.IsNull())
-		{
-			if (const FLxAttributeInfo* RowData = m_tabAttInfoQuote.GetRow<FLxAttributeInfo>(TEXT("Read ItemRowHandle")))
-			{
-				m_fAttInfoData = *RowData;
-			}
-		}
-		m_fCurrentValueSet = m_fDefaultValueSet;
-		m_nCurrentValue = m_fCurrentValueSet.m_nMaxValue;
-	}
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="角色属性默认值设定")
+	FLxAttributeValue AttributeValue;
 };
+
+/**
+ * @struct FLxAttributeData
+ * @brief 角色属性值缓存类型
+ *
+ * 该结构体用于存储和管理角色属性的相关信息，包括属性的基础信息、可视化信息、文本样式、默认值以及计算后的值。
+ * 通过编辑器或蓝图可以对其进行读写操作，以自定义角色属性的各个方面。
+ *
+ * @note 此结构体主要用于在编辑器中配置角色属性，不可直接使用。可在蓝图中使用。
+ */
+USTRUCT(BlueprintType, DisplayName="角色属性值缓存类型")
+struct FLxAttributeData
+{
+	GENERATED_BODY()
+	/**
+	 * @var FLxAttributeInfo AttributeInfo
+	 * @brief 用于存储属性的基础信息
+	 *
+	 * 该变量包含属性的唯一ID和类型，是定义角色属性时的基础配置项。
+	 * 通过编辑器或蓝图可以对其进行读写操作，以自定义属性的基本设置。
+	 *
+	 * @note 确保在设置此变量时使用唯一的FName值作为属性ID，并使用有效的ELxAttributeType枚举值作为属性类型。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性基础信息")
+	FLxAttributeInfo AttributeInfo;
+
+	/**
+ * @var FLxAttributeShowInfo AttributeShowInfo
+ * @brief 用于配置属性在UI中的可视化信息
+ *
+ * 该变量包含属性的显示名称、描述以及是否可见等信息，用于控制属性在用户界面中的展示方式。
+ * 可以通过编辑器或蓝图进行读写操作，以自定义属性的可视化设置。
+ */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性可视化信息")
+	FLxAttributeShowInfo AttributeShowInfo;
+
+	/**
+	 * @var FLxTextLineStyleData* AttributeTextStyle
+	 * @brief 用于设置属性文本的样式
+	 *
+	 * 该指针指向一个`FLxTextLineStyleData`结构体，用于配置属性在UI中的显示样式，包括字体、颜色、阴影等。
+	 * 通过编辑器或蓝图可以对其进行读写操作，以自定义属性文本的显示效果。
+	 *
+	 * @note 该变量默认为`nullptr`，需要手动设置指向有效的`FLxTextLineStyleData`实例。
+	 */
+	FLxTextLineStyleData* AttributeTextStyle = nullptr;
+
+	/**
+ 	 * @var FLxAttributeValue AttributeValue
+ 	 * @brief 角色属性默认值设定
+ 	 *
+ 	 * 该变量用于设置角色属性的默认值，包括数值上限、当前有效值、向上浮动比例、向下浮动比例以及属性值类型。
+ 	 * 通过编辑器或蓝图可以对其进行读写操作。在编辑器中，该变量显示为“角色属性默认值设定”。
+ 	 *
+ 	 * @note 确保设置的数值在合理范围内，以避免逻辑错误。此变量主要用于配置角色属性的默认值。
+ 	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="角色属性默认值")
+	FLxAttributeValue AttributeValue;
+
+	/**
+	 * @var FLxAttributeValue CalculatedAttributeValue
+	 * @brief 角色属性计算后的值
+	 *
+	 * 该变量存储了角色属性经过计算后的最终值，包括数值上限、当前有效值、向上浮动比例、向下浮动比例以及属性值类型。
+	 * 通过编辑器或蓝图可以对其进行读写操作。在编辑器中，该变量显示为“角色属性计算后的值”。
+	 *
+	 * @note 计算后的值是基于默认值和其他影响因素（如装备加成、状态效果等）综合得出的，确保其在合理范围内以避免逻辑错误。
+	 */
+	FLxAttributeValue CalculatedAttributeValue;
+};
+
 
 

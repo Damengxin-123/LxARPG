@@ -25,7 +25,18 @@ class LXARPG_API ULxBackpackWidget : public ULxUIBaseObject
 	GENERATED_BODY()
 
 public:
+	/**
+	 * @brief 初始化背包界面逻辑对象。
+	 *
+	 * 用于执行界面初次创建时的准备工作。
+	 */
 	virtual void InitializeUIComponents() override;
+
+	/**
+	 * @brief 根据当前角色刷新背包界面数据。
+	 *
+	 * @param PlayerCharacter 当前需要显示背包信息的角色对象。
+	 */
 	virtual void UpdateUIComponents(ALxBaseCharacter* PlayerCharacter) override;
 
 	/** 响应背包或装备数据变化并重建列表。 */

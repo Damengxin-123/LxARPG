@@ -20,11 +20,42 @@ class LXARPG_API ULxPlayerControlMoveComponent : public ULxComponentBase, public
 public:
 	ULxPlayerControlMoveComponent();
 
+	/**
+	 * @brief 初始化玩家移动控制组件。
+	 *
+	 * 会缓存所属角色、移动组件和本地玩家子系统，并准备输入监听注册。
+	 */
 	virtual void BaseComponentInitialize() override;
+
+	/**
+	 * @brief 游戏开始时触发。
+	 *
+	 * 预留给运行时初始化或调试扩展使用。
+	 */
 	virtual void BeginPlay() override;
+
+	/**
+	 * @brief 组件结束运行时触发。
+	 *
+	 * @param EndPlayReason 本次结束播放的原因。
+	 */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/**
+	 * @brief 处理本组件监听到的输入值。
+	 *
+	 * 根据输入行为名称把输入转发给角色移动组件，驱动移动、跳跃和视角行为。
+	 *
+	 * @param InName 输入行为名称。
+	 * @param InValue 输入行为对应的值。
+	 */
 	virtual void HandleInputValue(FName InName, FLxInputValue InValue) override;
+
+	/**
+	 * @brief 向本地玩家子系统注册本组件需要监听的输入行为。
+	 *
+	 * 会注册移动、跳跃和视角相关输入。
+	 */
 	virtual void InitMonitorRegistration() override;
 
 protected:
@@ -50,6 +81,11 @@ protected:
 	FName m_LookYInputActionID = TEXT("Look-Y");
 
 private:
+	/**
+	 * @brief 取消本组件的全部输入监听注册。
+	 *
+	 * 组件销毁或结束运行时调用，避免残留无效监听。
+	 */
 	void UnregisterMonitor();
 
 	UPROPERTY()

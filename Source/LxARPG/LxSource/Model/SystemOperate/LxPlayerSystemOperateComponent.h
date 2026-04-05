@@ -19,11 +19,40 @@ class LXARPG_API ULxPlayerSystemOperateComponent : public ULxComponentBase, publ
 public:
 	ULxPlayerSystemOperateComponent();
 
+	/**
+	 * @brief 初始化玩家系统操作组件。
+	 *
+	 * 缓存玩家控制器和本地玩家子系统，并注册系统级输入监听。
+	 */
 	virtual void BaseComponentInitialize() override;
+
+	/**
+	 * @brief 游戏开始时触发。
+	 */
 	virtual void BeginPlay() override;
+
+	/**
+	 * @brief 组件结束运行时触发。
+	 *
+	 * @param EndPlayReason 本次结束播放的原因。
+	 */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/**
+	 * @brief 处理系统级输入值。
+	 *
+	 * 当前主要用于按下或释放指定按键时控制鼠标显示与隐藏。
+	 *
+	 * @param InName 输入行为名称。
+	 * @param InValue 输入行为对应的值。
+	 */
 	virtual void HandleInputValue(FName InName, FLxInputValue InValue) override;
+
+	/**
+	 * @brief 注册系统操作组件需要监听的输入行为。
+	 *
+	 * 当前会注册显示鼠标相关的输入行为。
+	 */
 	virtual void InitMonitorRegistration() override;
 
 protected:
@@ -34,6 +63,9 @@ private:
 
 	
 	// 注销输入监听
+	/**
+	 * @brief 取消系统级输入监听注册。
+	 */
 	void UnregisterMonitor();
 
 

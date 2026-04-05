@@ -17,7 +17,18 @@ class LXARPG_API ULxAnimInstanceBase : public UAnimInstance
 {
 	GENERATED_BODY()
 public:
+	/**
+	 * @brief 初始化动画实例。
+	 *
+	 * 会在动画蓝图实例创建后缓存所属角色并建立状态动画映射。
+	 */
 	virtual void NativeInitializeAnimation() override;
+
+	/**
+	 * @brief 每帧更新动画实例状态。
+	 *
+	 * @param DeltaSeconds 当前帧与上一帧之间的时间差。
+	 */
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
 	UPROPERTY(BlueprintReadOnly, Category="角色状态", DisplayName="角色状态")
@@ -27,6 +38,12 @@ public:
 	TArray<FLxStateAnimConfig> m_vStateAnimConfigs;
 
 	UFUNCTION(BlueprintCallable, Category="动画", DisplayName="获取状态动画")
+	/**
+	 * @brief 根据角色状态获取对应动画序列。
+	 *
+	 * @param InState 目标角色状态。
+	 * @return 返回该状态配置的动画序列，未找到时返回 nullptr。
+	 */
 	UAnimSequence* GetAnimSequence(ELxCharacterState InState) const;
 	
 protected:

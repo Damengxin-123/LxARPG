@@ -76,6 +76,14 @@ public:
 /*===================== 构造函数 =====================*/
 /*===================== 字符替换函数  函数替换时会查找当前通过构造函数已设置的特殊字符串段 : {0}、{1}、{2}...，并将其替换为传入的参数值。 =====================*/
 
+	/**
+	 * @brief 将下一个格式占位符替换为指定值。
+	 *
+	 * 这一组重载用于链式替换字符串中的 `{0}`、`{1}` 等占位符。
+	 *
+	 * @param Value 要写入占位符位置的值。
+	 * @return 返回当前字符串对象引用，便于继续链式调用。
+	 */
 	FLxString& Arg(const char* Value);
 	FLxString& Arg(const wchar_t* Value);
 	FLxString& Arg(const FString& Value);
@@ -116,16 +124,55 @@ public:
 /*===================== 流式追加运算符函数 =====================*/
 /*===================== UE5内部字符类型输出函数 =====================*/
 
+	/**
+	 * @brief 将内部字符串转换为 FString。
+	 *
+	 * @return 返回当前内部字符串的 FString 副本。
+	 */
 	FString 		ToFString() const;
+	/**
+	 * @brief 将内部字符串转换为 FName。
+	 *
+	 * @return 返回基于当前字符串构造的 FName。
+	 */
 	FName   		ToFName() const;
+	/**
+	 * @brief 将内部字符串转换为 FText。
+	 *
+	 * @return 返回基于当前字符串构造的 FText。
+	 */
 	FText   		ToFText() const;
+	/**
+	 * @brief 获取内部字符串的 TCHAR 指针。
+	 *
+	 * @return 返回可供 UE 字符串接口使用的 TCHAR 指针。
+	 */
 	const TCHAR*	ToChar() const;
+	/**
+	 * @brief 将内部字符串转换为整数。
+	 *
+	 * @return 返回字符串转换后的整数值。
+	 */
 	int				ToInt() const;
 	
 /*===================== 字符串处理函数 =====================*/
 	
+	/**
+	 * @brief 清空内部字符串内容。
+	 */
 	void	Clear();
+	/**
+	 * @brief 判断内部字符串是否为空。
+	 *
+	 * @return 若字符串为空则返回 true，否则返回 false。
+	 */
 	bool	IsEmpty() const;
+	/**
+	 * @brief 判断当前字符串是否包含指定子串。
+	 *
+	 * @param Value 要查找的子串。
+	 * @return 包含返回 true，否则返回 false。
+	 */
 	bool	Contains(const FLxString& Value) const;
 
 /*===================== 字符串处理函数 =====================*/

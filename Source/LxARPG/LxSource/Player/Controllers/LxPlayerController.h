@@ -35,11 +35,22 @@ public:
 	void CreatePlayerCharacter();
 
 	// 显示鼠标光标
+	/**
+	 * @brief 显示鼠标光标并切换到游戏与界面混合输入模式。
+	 */
 	inline void ShowCursorFun();
 	// 隐藏鼠标光标
+	/**
+	 * @brief 隐藏鼠标光标并切换回纯游戏输入模式。
+	 */
 	inline void HideCursorFun();
 	
 protected:
+	/**
+	 * @brief 玩家控制器开始运行时触发。
+	 *
+	 * 会初始化输入组件、系统操作组件以及本地玩家子系统引用。
+	 */
 	virtual void BeginPlay() override;
 
 private:

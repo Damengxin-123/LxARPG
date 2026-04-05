@@ -2,9 +2,9 @@
 
 
 #include "LxGameDataTablesManager.h"
-#include "LxDataTable.h"
+#include "LxARPG/LxSource/Core/Database/LxDataTableConfigBase.h"
 
-ULxDataTable* ULxGameDataTablesManager::GetDataTables(const ELxDataTableTypeEnum InDataTableType) const
+ULxDataTableConfigBase* ULxGameDataTablesManager::GetDataTables(const ELxDataTableTypeEnum InDataTableType) const
 {
 	if (m_mapTablesMap.Contains(InDataTableType))
 	{
@@ -24,15 +24,15 @@ bool ULxGameDataTablesManager::TableIsLoadingCompleted(const ELxDataTableTypeEnu
 
 void ULxGameDataTablesManager::LoadDataTables()
 {
-	ULxDataTable* table = nullptr;
+	ULxDataTableConfigBase* table = nullptr;
 	for (auto& tableName : m_mapTablesSetting)
 	{
 		if (tableName.Value)
 		{
-			table = NewObject<ULxDataTable>(this, tableName.Value);
+			table = NewObject<ULxDataTableConfigBase>(this, tableName.Value);
 			if (table)
 			{
-				table->LoadDataTables(tableName.Key, TEXT("LoadDataTables"));
+				table->InitDataTableLoading();
 				m_mapTablesMap.Add(tableName.Key, table);
 			}
 			table = nullptr;

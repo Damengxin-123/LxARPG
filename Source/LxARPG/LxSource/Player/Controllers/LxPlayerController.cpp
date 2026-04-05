@@ -20,6 +20,11 @@ ALxPlayerController::ALxPlayerController()
 void ALxPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+	if (ULxLocalPlayerSubsystem* LocalPlayerSubsystem = GET_LOCAL_PLAYER_SYSTEM())
+	{
+		LocalPlayerSubsystem->SetPlayerControllerQuote(this);
+		LocalPlayerSubsystem->SetControlledCharacter(m_pCurrentCharacter);
+	}
 	if (m_pInputComponent)
 	{
 		if (ULxLocalPlayerSubsystem* LocalPlayerSubsystem = GET_LOCAL_PLAYER_SYSTEM())
@@ -53,28 +58,24 @@ void ALxPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	m_pCurrentCharacter =  Cast<ALxBaseCharacter>(InPawn);
-	if (m_pCurrentCharacter)
-	{
-		m_pCurrentCharacter->InitialCharacterInformation();
-	}
+	SyncControlledCharacter(InPawn);
 }
 
 void ALxPlayerController::SetPawn(APawn* InPawn)
 {
 	Super::SetPawn(InPawn);
 
-	m_pCurrentCharacter =  Cast<ALxBaseCharacter>(InPawn);
-	if (m_pCurrentCharacter)
-	{
-		m_pCurrentCharacter->InitialCharacterInformation();
-	}
+	SyncControlledCharacter(InPawn);
 }
 
 void ALxPlayerController::OnUnPossess()
 {
 	Super::OnUnPossess();
 	m_pCurrentCharacter = nullptr;
+	if (ULxLocalPlayerSubsystem* LocalPlayerSubsystem = GET_LOCAL_PLAYER_SYSTEM())
+	{
+		LocalPlayerSubsystem->SetControlledCharacter(nullptr);
+	}
 }
 
 void ALxPlayerController::SyncControlledCharacter(APawn* InPawn)
@@ -83,6 +84,10 @@ void ALxPlayerController::SyncControlledCharacter(APawn* InPawn)
 	if (m_pCurrentCharacter)
 	{
 		m_pCurrentCharacter->InitialCharacterInformation();
+	}
+	if (ULxLocalPlayerSubsystem* LocalPlayerSubsystem = GET_LOCAL_PLAYER_SYSTEM())
+	{
+		LocalPlayerSubsystem->SetControlledCharacter(m_pCurrentCharacter);
 	}
 }
 

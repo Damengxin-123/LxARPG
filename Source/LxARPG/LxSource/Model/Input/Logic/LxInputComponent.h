@@ -20,10 +20,17 @@ public:
 	// Sets default values for this component's properties
 	ULxInputComponent();
 
+	/**
+	 * @brief 初始化输入组件。
+	 *
+	 * 会创建输入映射上下文、加载输入配置、绑定输入动作并接入增强输入系统。
+	 */
 	virtual void BaseComponentInitialize() override;
 	
 protected:
-	// Called when the game starts
+	/**
+	 * @brief 游戏开始时触发输入组件生命周期。
+	 */
 	virtual void BeginPlay() override;
 
 public:
@@ -32,9 +39,20 @@ public:
 	                           FActorComponentTickFunction* ThisTickFunction) override{};
 
 	UFUNCTION()
+	/**
+	 * @brief 处理持续触发类型的输入事件。
+	 *
+	 * @param Instance 当前输入动作实例，包含来源动作和输入值。
+	 */
 	void HandleContinuousAction(const FInputActionInstance& Instance);
 
 	UFUNCTION()
+	/**
+	 * @brief 处理按下/释放类型的输入事件。
+	 *
+	 * @param Instance 当前输入动作实例。
+	 * @param Trigge 当前触发阶段，通常为 Started 或 Completed。
+	 */
 	void HandlePressAndReleaseAction(const FInputActionInstance& Instance, ETriggerEvent Trigge);
 	
 	// 注册用户输入事件
@@ -45,6 +63,12 @@ public:
 
 private:
 
+	/**
+	 * @brief 分发输入事件给已注册的监听对象。
+	 *
+	 * @param InInputActionID 输入行为 ID。
+	 * @param InINputValue 输入行为对应的值。
+	 */
 	void SendInputEvent(FName InInputActionID, FLxInputValue& InINputValue);
 
 	UPROPERTY()

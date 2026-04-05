@@ -19,6 +19,11 @@ class LXARPG_API ULxCharacterBackpackComponent : public ULxComponentBase
 public:
 	ULxCharacterBackpackComponent();
 
+	/**
+	 * @brief 初始化角色背包组件。
+	 *
+	 * 负责缓存所属角色并初始化背包格子数据。
+	 */
 	virtual void BaseComponentInitialize() override;
 
 	/** 按物品类型和行 ID 创建物品并放入背包。 */
@@ -42,27 +47,79 @@ public:
 	bool AddItemAtFromExternal(ULxItemData* InItemData, int32 InDestinationIndex);
 
 	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
+	/**
+	 * @brief 在背包内移动或交换物品。
+	 *
+	 * @param InSourceIndex 源格子索引。
+	 * @param InDestinationIndex 目标格子索引。
+	 * @return 操作成功返回 true，否则返回 false。
+	 */
 	bool MoveItem(int32 InSourceIndex, int32 InDestinationIndex);
 
 	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
+	/**
+	 * @brief 消耗指定格子中的物品。
+	 *
+	 * @param InIndex 目标背包格子索引。
+	 * @return 消耗成功返回 true，否则返回 false。
+	 */
 	bool ConsumeItemAt(int32 InIndex);
 
 	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
+	/**
+	 * @brief 删除指定格子中的物品。
+	 *
+	 * @param InIndex 目标背包格子索引。
+	 * @return 删除成功返回 true，否则返回 false。
+	 */
 	bool RemoveItemAt(int32 InIndex);
 
 	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
+	/**
+	 * @brief 对背包内物品进行整理排序。
+	 *
+	 * 会把有效物品前移并清理空槽位。
+	 */
 	void SortingOfItems();
 
 	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
+	/**
+	 * @brief 获取指定格子的物品对象。
+	 *
+	 * @param InIndex 背包格子索引。
+	 * @return 若索引有效则返回物品对象，否则返回 nullptr。
+	 */
 	ULxItemData* GetItemAt(int32 InIndex) const;
 	
+	/**
+	 * @brief 获取背包内部物品数组的可写引用。
+	 *
+	 * @return 返回背包物品数组引用。
+	 */
 	TArray<TObjectPtr<ULxItemData>>& GetItems();
 	
+	/**
+	 * @brief 查询指定类型的全部物品。
+	 *
+	 * @param InItemType 要筛选的物品类型。
+	 * @return 返回匹配类型的物品数组副本。
+	 */
 	TArray<TObjectPtr<ULxItemData>> QueryTypeItem(ELxItemType InItemType) const;
 
 	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
+	/**
+	 * @brief 获取背包格子总数。
+	 *
+	 * @return 当前背包可用格子数量。
+	 */
 	int32 GetBackpackSlotCount() const;
 
+	/**
+	 * @brief 取出指定格子的物品并清空该格子。
+	 *
+	 * @param InIndex 目标背包格子索引。
+	 * @return 返回被取出的物品对象，失败时返回 nullptr。
+	 */
 	ULxItemData* TakeItemAt(int32 InIndex);
 
 	UPROPERTY(BlueprintAssignable, Category="Character|Backpack")

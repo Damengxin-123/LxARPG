@@ -105,10 +105,10 @@ enum class ELxCharacterValueType : uint8
 {
 	/** 数值型属性 */
 	FixedNumeric			UMETA(DisplayName="固定数值型"),
-	FloatNumeric			UMETA(DisplayName="浮动数值型"),
+	FloatNumeric			UMETA(DisplayName="数值区间型"),
 	/** 百分比型 */
 	FixedPercentage		UMETA(DisplayName="百分比型"),
-	FloatPercentage		UMETA(DisplayName="浮动百分比型"),
+	Probabilistic		UMETA(DisplayName="概率型"),
 	/** 机制型属性 */
 	Mechanism		UMETA(DisplayName="机制型"),
 };

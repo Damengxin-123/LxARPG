@@ -17,15 +17,35 @@ class LXARPG_API ULxCharacterMoveComponent : public ULxComponentBase
 public:
 	ULxCharacterMoveComponent();
 
+	/**
+	 * @brief 初始化角色移动组件。
+	 *
+	 * 负责缓存所属角色引用，供后续移动、跳跃和视角控制使用。
+	 */
 	virtual void BaseComponentInitialize() override;
 
 	UFUNCTION(BlueprintCallable, Category="角色|移动", DisplayName="角色移动")
+	/**
+	 * @brief 处理角色移动输入。
+	 *
+	 * @param InMoveValue 二维移动输入值，通常分别表示前后和左右方向。
+	 */
 	void HandleMoveInput(const FVector2D& InMoveValue);
 
 	UFUNCTION(BlueprintCallable, Category="角色|移动", DisplayName="角色跳跃")
+	/**
+	 * @brief 处理角色跳跃输入。
+	 *
+	 * @param bPressed 为 true 表示开始跳跃，为 false 表示结束跳跃输入。
+	 */
 	void HandleJumpInput(bool bPressed);
 
 	UFUNCTION(BlueprintCallable, Category="角色|视角", DisplayName="角色视角")
+	/**
+	 * @brief 处理角色视角输入。
+	 *
+	 * @param InMoveValue 二维视角输入值，通常分别表示水平和垂直旋转。
+	 */
 	void HandleLookInput(const FVector2D& InMoveValue);
 
 	

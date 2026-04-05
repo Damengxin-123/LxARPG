@@ -16,6 +16,11 @@ class LXARPG_API ALxPlayerCharacter : public ALxBaseCharacter
 public:
 	ALxPlayerCharacter();
 
+	/**
+	 * @brief 初始化玩家角色专属信息。
+	 *
+	 * 在基类初始化基础上，补充玩家移动控制与相机相关初始化。
+	 */
 	virtual void InitialCharacterInformation() override;
 
 	UFUNCTION(BlueprintCallable, Category="角色|相机")
