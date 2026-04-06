@@ -36,7 +36,7 @@ public:
 	 *
 	 * @return 如果初始化成功返回true，否则返回false。
 	 */
-	virtual bool InitItemLogic(const FLxItemDefineBase* pItemInfo, UObject* pParent){ return false; };
+	virtual bool InitItemLogic(const FLxItemDefineBase* pItemInfo){ return false; };
 
 	/**
 	 * @brief 获取物品数据基类的指针
@@ -150,7 +150,7 @@ ItemLogicType* ULxItemLogicBase::CreateItemLogicObject(const FLxItemDefineBase* 
 	}
 
 	// ========= 初始化 =========
-	if (!NewItem->InitItemLogic(pItemInfo, pParent))
+	if (!NewItem->InitItemLogic(pItemInfo))
 	{
 		UE_LOG(LogTemp, Error,
 			TEXT("InitItemLogic failed. Type: %s"),

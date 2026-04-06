@@ -1,10 +1,10 @@
 #include "LxCharacterBackpackComponent.h"
 
 #include "LxARPG/LxSource/Core/Database/LxConstValue.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumable.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemData/LxItemData.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterialData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterial.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
 #include "LxARPG/LxSource/Systems/DatabaseSystem/LxDataTable.h"
@@ -444,7 +444,7 @@ ULxItemData* ULxCharacterBackpackComponent::CreateItemByRowID(ELxItemType InItem
 	case ELxItemType::Material:
 		{
 			const ULxDataTable* DataTable = GameDataTablesManager->GetDataTables(ELxDataTableTypeEnum::MaterialData);
-			const FLxMaterialData* RowData = DataTable ? DataTable->GetData<FLxMaterialData>(InItemRowID) : nullptr;
+			const FLxMaterial* RowData = DataTable ? DataTable->GetData<FLxMaterial>(InItemRowID) : nullptr;
 			return RowData ? ULxItemData::CreateNewMaterialItemData(this, *RowData) : nullptr;
 		}
 	default:

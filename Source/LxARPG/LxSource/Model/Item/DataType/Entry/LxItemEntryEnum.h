@@ -12,7 +12,7 @@
  *
  * @note 可在蓝图中使用
  */
-UENUM(BlueprintType, DisplayName="物品条目类型")
+UENUM(BlueprintType, DisplayName="物品词条加成方式")
 enum class ELxItemEntryType : uint8
 {
 	/**
@@ -37,3 +37,24 @@ enum class ELxItemEntryType : uint8
 	Mechanism			UMETA(DisplayName = "机制型"),
 };
 
+/**
+ * @enum ELxItemEntryTarget
+ * @brief 物品词条加成对象
+ *
+ * 该枚举定义了物品词条加成可以作用的不同目标，用于指定加成如何影响物品的属性。
+ *
+ * - ToValueLimit: 加成应用于值的上限。
+ * - ToValue: 加成应用于有效值。
+ * - ToUpwardFloatingRatio: 加成应用于向上浮动比例。
+ * - ToDownwardFloatingRatio: 加成应用于向下浮动比例。
+ *
+ * @note 可在蓝图中使用
+ */
+UENUM(BlueprintType, DisplayName="物品词条加成对象")
+enum class ELxItemEntryTarget : uint8
+{
+	ToValueLimit 					UMETA(DisplayName = "作用于值的上限"),
+	ToValue 						UMETA(DisplayName = "作用于有效值"),
+	ToUpwardFloatingRatio 			UMETA(DisplayName = "作用于向上浮动比例"),
+	ToDownwardFloatingRatio 		UMETA(DisplayName = "作用于向下浮动比例"),
+};

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LxItemEnmuType.h"
 #include "UObject/Object.h"
 #include "LxItemCoreType.generated.h"
 
