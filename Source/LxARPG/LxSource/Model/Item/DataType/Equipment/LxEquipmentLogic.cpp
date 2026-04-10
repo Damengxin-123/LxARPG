@@ -9,7 +9,7 @@
 
 namespace
 {
-// 将“词条引用”解析为运行时可直接使用的词条数据
+// 将“词条引用”解析为运行时可直接使用的词条数�?
 bool BuildItemEntryData(const FLxItemEntryQuote& InEntryQuote, FLxItemEntryData& OutEntryData)
 {
 	// 先从引用里取词条定义
@@ -24,7 +24,7 @@ bool BuildItemEntryData(const FLxItemEntryQuote& InEntryQuote, FLxItemEntryData&
 	OutEntryData.Description = EntryDefine->Description;
 	OutEntryData.TextStyle = EntryDefine->TextStyleTableQuote.GetRow<FLxTextLineStyleData>(TEXT("ULxEquipmentLogic"));
 
-	// 解析词条作用到的属性定义（可能为空）
+	// 解析词条作用到的属性定义（可能为空
 	const FLxAttributeDefineInfo* AttributeDefine = EntryDefine->AttributeDefineTableQuote.GetRow<FLxAttributeDefineInfo>(TEXT("ULxEquipmentLogic"));
 	OutEntryData.AttributeID = AttributeDefine ? AttributeDefine->AttributeInfo.AttributeID : NAME_None;
 
@@ -43,13 +43,13 @@ bool ULxEquipmentLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
 		return false;
 	}
 
-	// 仅处理装备类型，避免把其他物品定义误当装备解析
+	// 仅处理装备类型，避免把其他物品定义误当装备解
 	if (pItemInfo->ItemInfo.ItemType != ELxItemType::Equipment || pItemInfo->ItemInfo.ItemID.IsNone())
 	{
 		return false;
 	}
 
-	// 按约定将基类定义解释为装备定义
+	// 按约定将基类定义解释为装备定�?
 	const FLxEquipmentDefine* EquipmentDefine = static_cast<const FLxEquipmentDefine*>(pItemInfo);
 
 	// 清空并重建运行时装备缓存
@@ -65,7 +65,7 @@ bool ULxEquipmentLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
 	}
 	m_EquipmentData.EquipmentInfo = EquipmentDefine->EquipmentInfo;
 
-	// 构建基础词条与扩展词条缓存
+	// 构建基础词条与扩展词条缓�?
 	m_EquipmentData.EquipmentEntyInfo.EquipmentExtendEntryList.Empty();
 	BuildItemEntryData(EquipmentDefine->EquipmentEntyQuoteInfo.EquipmentBasicEntryQuote,
 		m_EquipmentData.EquipmentEntyInfo.EquipmentBasicEntry);
@@ -83,7 +83,7 @@ bool ULxEquipmentLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
 	return true;
 }
 
-const FLxItemDateBase* ULxEquipmentLogic::GetItemDataBase() const
+FLxItemDateBase* ULxEquipmentLogic::GetItemDataBase()
 {
 	// 统一通过 m_EquipmentData 向外提供数据
 	return &m_EquipmentData;
@@ -95,100 +95,12 @@ bool ULxEquipmentLogic::UseItem()
 	return false;
 }
 
-bool ULxEquipmentLogic::ItemIsStack()
+FLxEquipmentData* ULxEquipmentLogic::GetEquipmentData()
 {
-	// 堆叠能力由装备数据中的堆叠配置决定
-	return m_EquipmentData.ItemStackInfo.ItemCanStack;
+	return &m_EquipmentData;
 }
 
-bool ULxEquipmentLogic::StackItem(ULxItemLogicBase* SourceItemLogic)
-{
-	// 基础合法性校验
-	if (SourceItemLogic == nullptr || SourceItemLogic == this)
-	{
-		return false;
-	}
 
-	if (!ItemIsStack())
-	{
-		return false;
-	}
 
-	ULxEquipmentLogic* SourceEquipmentLogic = Cast<ULxEquipmentLogic>(SourceItemLogic);
-	if (SourceEquipmentLogic == nullptr)
-	{
-		return false;
-	}
 
-	// 必须是同一 ItemID 才允许堆叠
-	if (m_EquipmentData.ItemInfo.ItemID != SourceEquipmentLogic->m_EquipmentData.ItemInfo.ItemID)
-	{
-		return false;
-	}
 
-	const int32 MaxCount = m_EquipmentData.ItemStackInfo.ItemMaxCount;
-	const int32 Remaining = MaxCount - m_EquipmentData.ItemCount;
-	if (Remaining <= 0)
-	{
-		return false;
-	}
-
-	const int32 MoveCount = FMath::Min(Remaining, SourceEquipmentLogic->m_EquipmentData.ItemCount);
-	if (MoveCount <= 0)
-	{
-		return false;
-	}
-
-	m_EquipmentData.ItemCount += MoveCount;
-	SourceEquipmentLogic->m_EquipmentData.ItemCount -= MoveCount;
-
-	// 通知两边数据变化
-	OnItemInfoChanged.Broadcast();
-	SourceEquipmentLogic->OnItemInfoChanged.Broadcast();
-	return true;
-}
-
-bool ULxEquipmentLogic::ItemIsValid()
-{
-	// 基于缓存数据判断装备是否有效
-	return m_EquipmentData.ItemInfo.ItemType == ELxItemType::Equipment
-		&& !m_EquipmentData.ItemInfo.ItemID.IsNone()
-		&& m_EquipmentData.ItemCount > 0
-		&& m_EquipmentData.ItemCount != ERR_ATTRIBUTE;
-}
-
-bool ULxEquipmentLogic::operator<(const ULxItemLogicBase* Other) const
-{
-	const ULxEquipmentLogic* OtherEquipment = Cast<ULxEquipmentLogic>(Other);
-	if (OtherEquipment == nullptr)
-	{
-		return false;
-	}
-
-	if (m_EquipmentData.ItemRarity.RarityValue != OtherEquipment->m_EquipmentData.ItemRarity.RarityValue)
-	{
-		// 优先按稀有度排序
-		return m_EquipmentData.ItemRarity.RarityValue < OtherEquipment->m_EquipmentData.ItemRarity.RarityValue;
-	}
-
-	// 稀有度相同按 ItemID 做稳定排序
-	return m_EquipmentData.ItemInfo.ItemID.LexicalLess(OtherEquipment->m_EquipmentData.ItemInfo.ItemID);
-}
-
-bool ULxEquipmentLogic::operator>(const ULxItemLogicBase* Other) const
-{
-	const ULxEquipmentLogic* OtherEquipment = Cast<ULxEquipmentLogic>(Other);
-	if (OtherEquipment == nullptr)
-	{
-		return false;
-	}
-
-	if (m_EquipmentData.ItemRarity.RarityValue != OtherEquipment->m_EquipmentData.ItemRarity.RarityValue)
-	{
-		// 优先按稀有度排序
-		return m_EquipmentData.ItemRarity.RarityValue > OtherEquipment->m_EquipmentData.ItemRarity.RarityValue;
-	}
-
-	// 稀有度相同按 ItemID 做稳定排序
-	return OtherEquipment->m_EquipmentData.ItemInfo.ItemID.LexicalLess(m_EquipmentData.ItemInfo.ItemID);
-}

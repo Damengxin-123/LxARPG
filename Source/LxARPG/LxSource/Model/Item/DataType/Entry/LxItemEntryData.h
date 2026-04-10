@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LxItemEntryEnum.h"
-#include "LxARPG/LxSource/Core/Database/LxTableRowBase.h"
+#include "LxARPG/LxSource/Model/Style/DataType/LxTextLineStyleData.h"
 #include "LxItemEntryData.generated.h"
 
 /**

@@ -4,7 +4,6 @@
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "../DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
-#include "LxARPG/LxSource/Systems/DatabaseSystem/LxDataTableTypeEnum.h"
 #include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
 
 ULxCharacterAttributeComponent::ULxCharacterAttributeComponent()
@@ -36,8 +35,7 @@ void ULxCharacterAttributeComponent::BaseComponentInitialize()
 		return;
 	}
 
-	ULxDataTableConfigBase* DataTableConfig = GameDataTablesManager->GetDataTables(ELxDataTableTypeEnum::CharacterAttribute);
-	const ULxAttributeTableConfig* AttributeTableConfig = Cast<ULxAttributeTableConfig>(DataTableConfig);
+	const ULxAttributeTableConfig* AttributeTableConfig = GameDataTablesManager->m_pCharacterAttributeTableConfig;
 	if (!AttributeTableConfig)
 	{
 		return;

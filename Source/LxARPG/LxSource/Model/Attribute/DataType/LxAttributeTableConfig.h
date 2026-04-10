@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Core/Database/LxDataTableConfigBase.h"
 #include "LxAttributeTableConfig.generated.h"
 

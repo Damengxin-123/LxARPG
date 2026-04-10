@@ -69,101 +69,16 @@ bool ULxConsumableLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
 	return true;
 }
 
-const FLxItemDateBase* ULxConsumableLogic::GetItemDataBase() const
+FLxItemDateBase* ULxConsumableLogic::GetItemDataBase()
 {
 	return &m_ConsumableData;
 }
 
 bool ULxConsumableLogic::UseItem()
 {
-	return false;
-}
-
-bool ULxConsumableLogic::ItemIsStack()
-{
-	return m_ConsumableData.ItemStackInfo.ItemCanStack;
-}
-
-bool ULxConsumableLogic::StackItem(ULxItemLogicBase* SourceItemLogic)
-{
-	if (SourceItemLogic == nullptr || SourceItemLogic == this)
-	{
-		return false;
-	}
-
-	if (!ItemIsStack())
-	{
-		return false;
-	}
-
-	ULxConsumableLogic* SourceConsumableLogic = Cast<ULxConsumableLogic>(SourceItemLogic);
-	if (SourceConsumableLogic == nullptr)
-	{
-		return false;
-	}
-
-	if (m_ConsumableData.ItemInfo.ItemID != SourceConsumableLogic->m_ConsumableData.ItemInfo.ItemID)
-	{
-		return false;
-	}
-
-	const int32 MaxCount = m_ConsumableData.ItemStackInfo.ItemMaxCount;
-	const int32 Remaining = MaxCount - m_ConsumableData.ItemCount;
-	if (Remaining <= 0)
-	{
-		return false;
-	}
-
-	const int32 MoveCount = FMath::Min(Remaining, SourceConsumableLogic->m_ConsumableData.ItemCount);
-	if (MoveCount <= 0)
-	{
-		return false;
-	}
-
-	m_ConsumableData.ItemCount += MoveCount;
-	SourceConsumableLogic->m_ConsumableData.ItemCount -= MoveCount;
-
-	OnItemInfoChanged.Broadcast();
-	SourceConsumableLogic->OnItemInfoChanged.Broadcast();
+	m_ConsumableData.ItemCount --;
 	return true;
 }
 
-bool ULxConsumableLogic::ItemIsValid()
-{
-	return m_ConsumableData.ItemInfo.ItemType == ELxItemType::Consumable
-		&& !m_ConsumableData.ItemInfo.ItemID.IsNone()
-		&& m_ConsumableData.ItemCount > 0
-		&& m_ConsumableData.ItemCount != ERR_ATTRIBUTE;
-}
 
-bool ULxConsumableLogic::operator<(const ULxItemLogicBase* Other) const
-{
-	const ULxConsumableLogic* OtherConsumable = Cast<ULxConsumableLogic>(Other);
-	if (OtherConsumable == nullptr)
-	{
-		return false;
-	}
 
-	if (m_ConsumableData.ItemRarity.RarityValue != OtherConsumable->m_ConsumableData.ItemRarity.RarityValue)
-	{
-		return m_ConsumableData.ItemRarity.RarityValue < OtherConsumable->m_ConsumableData.ItemRarity.RarityValue;
-	}
-
-	return m_ConsumableData.ItemInfo.ItemID.LexicalLess(OtherConsumable->m_ConsumableData.ItemInfo.ItemID);
-}
-
-bool ULxConsumableLogic::operator>(const ULxItemLogicBase* Other) const
-{
-	const ULxConsumableLogic* OtherConsumable = Cast<ULxConsumableLogic>(Other);
-	if (OtherConsumable == nullptr)
-	{
-		return false;
-	}
-
-	if (m_ConsumableData.ItemRarity.RarityValue != OtherConsumable->m_ConsumableData.ItemRarity.RarityValue)
-	{
-		return m_ConsumableData.ItemRarity.RarityValue > OtherConsumable->m_ConsumableData.ItemRarity.RarityValue;
-	}
-
-	return OtherConsumable->m_ConsumableData.ItemInfo.ItemID.LexicalLess(m_ConsumableData.ItemInfo.ItemID);
-}

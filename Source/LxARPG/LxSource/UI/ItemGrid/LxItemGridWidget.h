@@ -1,25 +1,23 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/IUserObjectListEntry.h"
 #include "Blueprint/UserWidget.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxUIDataType.h"
 #include "LxItemGridWidget.generated.h"
 
-class ALxBaseCharacter;
-class ULxCharacterBackpackComponent;
-class ULxCharacterEquipmentComponent;
-class ULxBackpackData;
-class ULxItemData;
-class ULxItemDragDropOperation;
+class ULxItemUIData;
+class ULxItemLogicBase;
+class ULxItemSlotData;
+class ULxItemDragInfo;
 class ULxItemDragIconWidget;
+class UTexture2D;
 
 /** 当格子物品数据发生变化时通知蓝图刷新显示。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnItemGridDataChanged, ULxItemData*, ItemData, int32, SlotIndex, EItemSlotWidgetType, SlotType, int32, SlotSubType, bool, bHasItem);
-/** 当鼠标进入或离开格子时通知蓝图更新悬停状态。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnItemGridHoverChanged, ULxItemData*, ItemData, int32, SlotIndex, EItemSlotWidgetType, SlotType, bool, bIsHovered);
-/** 当一次拖放交互处理结束后通知蓝图结果。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnItemGridDropHandled, bool, bSuccess, ULxItemData*, ItemData, EItemSlotWidgetType, SourceType, int32, SourceIndex, EItemSlotWidgetType, TargetType);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnItemGridDataChanged);
+
+
 
 /**
  * @brief 物品格子控件
@@ -33,116 +31,131 @@ class LXARPG_API ULxItemGridWidget : public UUserWidget, public IUserObjectListE
 	GENERATED_BODY()
 
 public:
-	/** ListView 设置列表项对象时同步格子数据。 */
+	/**
+	 * @brief 当列表项对象设置时调用，用于初始化或更新当前格子的数据。
+	 * 该方法在列表项对象被设置到当前格子时被调用，可以用来根据新的列表项对象更新格子的显示或其他相关数据。
+	 * @param ListItemObject 指向新设置的列表项对象的指针，通常是一个包含物品信息的对象。
+	 */
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
 
-	/** 主动设置当前格子绑定的数据对象。 */
-	UFUNCTION(BlueprintCallable, Category="Item Grid")
-	void SetGridDataObject(ULxBackpackData* InGridDataObject);
 
-	/** 获取当前格子中保存的物品数据。 */
-	UFUNCTION(BlueprintPure, Category="Item Grid")
-	ULxItemData* GetCurrentItemData() const { return CurrentItemData; }
+	/**
+	 * @brief 获取当前格子中物品的基础信息。
+	 * 该方法返回一个包含当前格子中物品所有基础信息的结构体引用。这些信息包括物品的基本属性、堆叠信息、数量、可视化信息和稀有度信息等。
+	 * @return 返回一个`FLxItemDateBase`类型的常量引用，包含当前格子中物品的所有基础信息。
+	 */
+	UFUNCTION(BlueprintPure, DisplayName="获取物品基础信息")
+	const FLxItemDateBase& GetCurrentItemData() const;
 
-	/** 获取当前格子的索引。 */
-	UFUNCTION(BlueprintPure, Category="Item Grid")
-	int32 GetSlotIndex() const { return SlotIndex; }
-
-	/** 获取当前格子的类型。 */
-	UFUNCTION(BlueprintPure, Category="Item Grid")
-	EItemSlotWidgetType GetSlotWidgetType() const { return SlotWidgetType; }
-
-	/** 获取当前格子的限制子类型。 */
-	UFUNCTION(BlueprintPure, Category="Item Grid")
-	int32 GetSlotSubType() const { return SlotSubType; }
-
-	/** 使用当前格子中的物品。 */
+	/**
+	 * @brief 使用当前格子中的物品。
+	 * 该方法尝试使用当前格子中存放的物品。如果成功使用，则返回`true`；否则返回`false`。
+	 * @return 如果成功使用了物品则返回`true`，否则返回`false`。
+	 */
 	UFUNCTION(BlueprintCallable, Category="Item Grid")
 	bool UseItem() const;
 
-	/** 拖拽时用于显示图标的蓝图类。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item Grid")
-	TSubclassOf<ULxItemDragIconWidget> ItemDragIconWidgetClass;
+	/**
+	 * @brief 检查当前格子中的物品是否有效。
+	 * 该方法用于判断当前格子中是否有有效的物品数据。如果`CurrentSlotData`不为空且其`IsValid`方法返回`true`，则认为当前格子中的物品是有效的。
+	 * @return 如果当前格子中的物品有效，则返回`true`；否则返回`false`。
+	 */
+	UFUNCTION(BlueprintPure, Category="Item Grid")
+	bool ItemIsVaild() const;
 
-	/** 格子数据变化事件，供蓝图更新显示。 */
+	/** 获取当前格子应显示的图标，没有物品时返回默认图标。 */
+	UFUNCTION(BlueprintPure, Category="Item Grid")
+	UTexture2D* GetDisplayIcon() const;
+
+
+	/** * @brief 当格子中的物品数据发生变化时触发的事件。
+	 * 此委托用于通知蓝图脚本，当格子内的物品数据（如数量、类型等）发生改变时进行相应的更新或刷新操作。
+	 * 可以在蓝图中绑定此事件来响应数据变化，例如更新UI显示或执行其他逻辑处理。
+	 */
 	UPROPERTY(BlueprintAssignable, Category="Item Grid")
 	FOnItemGridDataChanged OnItemGridDataChanged;
 
-	/** 格子悬停状态变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="Item Grid")
-	FOnItemGridHoverChanged OnItemGridHoverChanged;
-
-	/** 格子拖放处理结束事件。 */
-	UPROPERTY(BlueprintAssignable, Category="Item Grid")
-	FOnItemGridDropHandled OnItemGridDropHandled;
-
+	// /**
+	//  * @brief 当鼠标悬停在格子上或离开格子时触发的事件。
+	//  * 此委托用于通知蓝图脚本，当鼠标进入或离开当前格子时进行相应的操作，如显示提示信息、改变格子样式等。
+	//  * 可以在蓝图中绑定此事件来响应鼠标悬停状态的变化，从而实现更丰富的用户交互体验。
+	//  */
+	// UPROPERTY(BlueprintAssignable, Category="Item Grid")
+	// FOnItemGridHoverChanged OnItemGridHoverChanged;
+	//
+	// /** 格子拖放处理结束事件。 */
+	// UPROPERTY(BlueprintAssignable, Category="Item Grid")
+	// FOnItemGridDropHandled OnItemGridDropHandled;
 protected:
-	/** 处理鼠标按下，用于右键使用和左键开始拖拽。 */
+	/**
+	 * @brief 拖拽UI类型
+	 * 该属性定义了在拖拽物品时使用的UI小部件类。通过设置此属性，可以指定一个自定义的`ULxItemDragIconWidget`子类来作为拖拽操作中的视觉表示。
+	 * 该属性可以在编辑器中设置，并且可以通过蓝图读写。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="拖拽UI类型")
+	TSubclassOf<ULxItemDragIconWidget> ItemDragIconWidgetClass;
+
+	/** 空槽位时显示的默认图标，由蓝图决定如何使用。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Item Grid", DisplayName="默认图标")
+	TSoftObjectPtr<UTexture2D> DefaultIcon;
+
+	/**
+	 * @brief 处理鼠标按钮按下事件。
+	 * 该方法在鼠标按钮在当前格子上被按下时调用，可以用来实现鼠标点击响应逻辑，例如选择格子或开始拖拽操作等。
+	 * @param InGeometry 当前小部件的几何信息。
+	 * @param InMouseEvent 鼠标事件信息，包括按下的按钮、位置等。
+	 * @return 返回一个`FReply`对象，用于处理输入事件的结果。可以通过返回不同的`FReply`来控制进一步的用户交互行为。
+	 */
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	/** 处理拖拽检测，创建拖拽操作对象。 */
+	/**
+	 * @brief 当检测到拖拽操作时调用此方法。
+	 * 该方法在用户开始拖拽当前格子中的物品时被触发，用于初始化并返回一个`UDragDropOperation`对象来处理拖拽过程。
+	 * @param InGeometry 当前小部件的几何信息。
+	 * @param InMouseEvent 触发拖拽操作的鼠标事件信息。
+	 * @param OutOperation 输出参数，用于接收创建的`UDragDropOperation`实例，该实例将管理整个拖拽操作。
+	 */
 	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
-	/** 处理目标格子接收拖放。 */
+	/**
+	 * @brief 处理拖拽释放事件。
+	 * 该方法在用户将拖拽的物品释放到当前格子时被调用，用于处理放置逻辑并决定是否接受放置的物品。
+	 * @param InGeometry 当前小部件的几何信息。
+	 * @param InDragDropEvent 拖拽事件信息，包括拖拽源、目标等。
+	 * @param InOperation 拖拽操作对象，包含了拖拽过程中所需的所有信息和状态。
+	 * @return 返回一个布尔值表示是否成功处理了拖拽释放。如果返回`true`，则表示接受了放置的物品；如果返回`false`，则表示拒绝了放置。
+	 */
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
-	/** 处理鼠标进入格子。 */
+	/**
+	 * @brief 当鼠标进入当前格子时调用此方法。
+	 * 该方法在鼠标指针进入当前格子区域时被触发，可以用来实现鼠标悬停效果，如显示提示信息或改变格子样式等。
+	 * @param InGeometry 当前小部件的几何信息。
+	 * @param InMouseEvent 鼠标事件信息，包括位置、按钮状态等。
+	 */
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-	/** 处理鼠标离开格子。 */
+	/**
+	 * @brief 当鼠标离开当前格子时调用此方法。
+	 * 该方法在鼠标指针离开当前格子区域时被触发，可以用来实现鼠标悬停效果的取消，如隐藏提示信息或恢复格子样式等。
+	 * @param InMouseEvent 鼠标事件信息，包括位置、按钮状态等。
+	 */
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 
-	/** 蓝图实现的格子数据刷新事件。 */
-	UFUNCTION(BlueprintImplementableEvent, Category="Item Grid")
-	void ReceiveGridDataChanged(ULxItemData* ItemData, int32 InSlotIndex, EItemSlotWidgetType InSlotType, int32 InSlotSubType, bool bHasItem);
-
-	/** 蓝图实现的格子悬停状态刷新事件。 */
-	UFUNCTION(BlueprintImplementableEvent, Category="Item Grid")
-	void ReceiveGridHoverChanged(ULxItemData* ItemData, int32 InSlotIndex, EItemSlotWidgetType InSlotType, bool bIsHovered);
 
 private:
-	/** 绑定当前物品的数据变化事件。 */
-	void BindCurrentItem();
-	/** 解绑当前物品的数据变化事件。 */
-	void UnbindCurrentItem();
-	/** 将当前格子数据变化通知给委托和蓝图。 */
-	void RefreshGridData();
-	/** 判断当前格子是否允许发起拖拽。 */
-	bool CanStartDrag() const;
-	/** 统一分发拖放处理逻辑。 */
-	bool HandleDropOperation(ULxItemDragDropOperation* DragOperation);
-	/** 处理拖拽到背包格子的逻辑。 */
-	bool HandleInventoryDrop(ULxItemDragDropOperation* DragOperation, ALxBaseCharacter* OwnerCharacter);
-	/** 处理拖拽到快捷栏格子的逻辑。 */
-	bool HandleShortcutDrop(ULxItemDragDropOperation* DragOperation);
-	/** 处理拖拽到装备格子的逻辑。 */
-	bool HandleEquipmentDrop(ULxItemDragDropOperation* DragOperation, ALxBaseCharacter* OwnerCharacter);
-	/** 处理拖拽到技能格子的逻辑，当前仅保留占位。 */
-	bool HandleSkillDrop(ULxItemDragDropOperation* DragOperation);
-	/** 处理拖拽到仓库格子的逻辑，当前禁止拖入。 */
-	bool HandleWarehouseDrop(ULxItemDragDropOperation* DragOperation);
-	/** 判断物品是否满足当前装备格的类型限制。 */
-	bool IsEquipmentItemCompatible(ULxItemData* InItemData) const;
-	/** 获取当前控件所属的玩家角色。 */
-	ALxBaseCharacter* ResolveOwnerCharacter() const;
-	/** 获取当前玩家角色的背包组件。 */
-	ULxCharacterBackpackComponent* ResolveBackpackComponent(ALxBaseCharacter* OwnerCharacter) const;
-	/** 获取当前玩家角色的装备组件。 */
-	ULxCharacterEquipmentComponent* ResolveEquipmentComponent(ALxBaseCharacter* OwnerCharacter) const;
 
-	/** 响应当前物品数量或有效性变化。 */
+	void InitItemData(UObject* ListItemObject);
+
+	/** * 处理当前槽位发生变化的事件。
+	 * 该方法会在当前槽位数据发生改变时被调用，用于刷新绑定的物品信息并广播格子数据变化。
+	 */
 	UFUNCTION()
-	void HandleItemQuantityChangeEvent(ULxItemData* InItemData, bool bIsValid);
+	void HandleCurrentSlotChanged();
 
-private:
-	/** 当前格子绑定的列表项数据对象。 */
+	void BroadcastGridDataChanged() const;
+
+	
+	
+	/** 指向当前格子绑定的槽位数据对象。用于存储和管理与该格子关联的具体数据。 */
 	UPROPERTY()
-	TObjectPtr<ULxBackpackData> GridDataObject = nullptr;
+	TObjectPtr<ULxItemSlotData> CurrentSlotData = nullptr;
 
-	/** 当前格子中关联的物品数据。 */
-	UPROPERTY()
-	TObjectPtr<ULxItemData> CurrentItemData = nullptr;
 
-	/** 当前格子的索引。 */
-	int32 SlotIndex = INDEX_NONE;
-	/** 当前格子的功能类型。 */
-	EItemSlotWidgetType SlotWidgetType = EItemSlotWidgetType::EIT_None;
-	/** 当前格子的限制子类型。 */
-	int32 SlotSubType = INDEX_NONE;
 };

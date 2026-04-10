@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxCharacterAttributeComponent.generated.h"
 
 class ALxBaseCharacter;

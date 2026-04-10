@@ -1,49 +1,97 @@
 #include "LxItemGridWidget.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentData.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentEnum.h"
-#include "LxARPG/LxSource/Model/Item/DataType/ItemData/LxItemData.h"
-#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
-#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
-#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
-#include "LxARPG/LxSource/UI/ItemGrid/LxBackpackData.h"
-#include "LxARPG/LxSource/UI/ItemGrid/LxItemDragDropOperation.h"
+#include "Input/Reply.h"
+#include "InputCoreTypes.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemLogicBase.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
+#include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
+#include "LxARPG/LxSource/UI/ItemGrid/LxItemDragInfo.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemDragIconWidget.h"
+
+namespace
+{
+EItemSlotWidgetType ConvertSlotTypeToWidgetType(const ULxItemSlotData* SlotData)
+{
+	if (SlotData == nullptr)
+	{
+		return EItemSlotWidgetType::EIT_None;
+	}
+
+	switch (SlotData->ItemSlotType)
+	{
+	case ELxItemSlotType::Backpack:
+	case ELxItemSlotType::Transaction:
+	case ELxItemSlotType::TreasureChest:
+		return EItemSlotWidgetType::Inventory;
+	case ELxItemSlotType::Equipment:
+		return EItemSlotWidgetType::Equipment;
+	case ELxItemSlotType::Warehouse:
+		return EItemSlotWidgetType::Warehouse;
+	case ELxItemSlotType::Shortcut:
+		return EItemSlotWidgetType::Shortcut;
+	default:
+		return EItemSlotWidgetType::EIT_None;
+	}
+}
+}
 
 void ULxItemGridWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
-	IUserObjectListEntry::NativeOnListItemObjectSet(ListItemObject);
-	SetGridDataObject(Cast<ULxBackpackData>(ListItemObject));
+	InitItemData(ListItemObject);
 }
 
-void ULxItemGridWidget::SetGridDataObject(ULxBackpackData* InGridDataObject)
+const FLxItemDateBase& ULxItemGridWidget::GetCurrentItemData() const
 {
-	UnbindCurrentItem();
+	static const FLxItemDateBase EmptyItemData;
 
-	GridDataObject = InGridDataObject;
-	CurrentItemData = GridDataObject ? GridDataObject->m_pItemData : nullptr;
-	SlotIndex = GridDataObject ? GridDataObject->m_nIndex : INDEX_NONE;
-	SlotWidgetType = GridDataObject ? GridDataObject->m_nItemType : EItemSlotWidgetType::EIT_None;
-	SlotSubType = GridDataObject ? GridDataObject->m_nItemSubType : INDEX_NONE;
+	if (CurrentSlotData == nullptr || !CurrentSlotData->IsValid())
+	{
+		return EmptyItemData;
+	}
 
-	BindCurrentItem();
-	RefreshGridData();
+	 return *CurrentSlotData->ItemDataPtr->GetItemDataBase();
 }
 
 bool ULxItemGridWidget::UseItem() const
 {
-	return CurrentItemData ? CurrentItemData->UseItem() : false;
+	if (!CurrentSlotData || !CurrentSlotData->IsValid())
+	{
+		return false;
+	}
+
+	CurrentSlotData->UseItem();
+	return true;
+}
+
+bool ULxItemGridWidget::ItemIsVaild() const
+{
+	return CurrentSlotData != nullptr && CurrentSlotData->IsValid();
+}
+
+UTexture2D* ULxItemGridWidget::GetDisplayIcon() const
+{
+	if (ItemIsVaild())
+	{
+		const FLxItemDateBase& ItemData = GetCurrentItemData();
+		if (!ItemData.ItemShowInfo.ItemIcon.IsNull())
+		{
+			return ItemData.ItemShowInfo.ItemIcon.LoadSynchronous();
+		}
+	}
+
+	return DefaultIcon.IsNull() ? nullptr : DefaultIcon.LoadSynchronous();
 }
 
 FReply ULxItemGridWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
-		UseItem();
+		return UseItem() ? FReply::Handled() : FReply::Unhandled();
 	}
 
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && CanStartDrag())
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && ItemIsVaild() && CurrentSlotData->CanGetItemData())
 	{
 		return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
 	}
@@ -51,252 +99,110 @@ FReply ULxItemGridWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
-void ULxItemGridWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
+void ULxItemGridWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,
+	UDragDropOperation*& OutOperation)
 {
-	if (CanStartDrag())
+	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
+
+	// 拖拽发起时，判断当前格子是否为空，或者当前格子类型为不可拖拽的格子
+	if (!ItemIsVaild() || !CurrentSlotData->CanGetItemData())
 	{
-		ULxItemDragDropOperation* DragOperation = NewObject<ULxItemDragDropOperation>(this);
-		DragOperation->ItemIndex = SlotIndex;
-		DragOperation->SlotWidgetType = SlotWidgetType;
-		DragOperation->SlotSubType = SlotSubType;
-		DragOperation->ItemData = CurrentItemData;
-		DragOperation->SourceWidget = this;
-
-		if (ItemDragIconWidgetClass)
-		{
-			if (ULxItemDragIconWidget* DragIconWidget = CreateWidget<ULxItemDragIconWidget>(GetWorld(), ItemDragIconWidgetClass))
-			{
-				DragIconWidget->SetIcon(CurrentItemData->GetItemBase().ItemIconPath.LoadSynchronous());
-				DragOperation->DefaultDragVisual = DragIconWidget;
-			}
-		}
-
-		OutOperation = DragOperation;
+		OutOperation = nullptr;
+		return;
+	}
+	// 创建拖拽事件信息对象
+	ULxItemDragInfo* DragOperation = NewObject<ULxItemDragInfo>(this);
+	if (DragOperation == nullptr)
+	{
+		OutOperation = nullptr;
+		return;
 	}
 
-	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
+	// 设置拖拽信息对象参数
+	DragOperation->SourceSlot = CurrentSlotData;
+
+	// 创建拖拽时图标
+	if (ItemDragIconWidgetClass)
+	{
+		if (ULxItemDragIconWidget* DragVisual = CreateWidget<ULxItemDragIconWidget>(this, ItemDragIconWidgetClass))
+		{
+			DragVisual->SetIcon(GetDisplayIcon());
+			DragOperation->DefaultDragVisual = DragVisual;
+		}
+	}
+
+	OutOperation = DragOperation;
 }
 
-bool ULxItemGridWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+bool ULxItemGridWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
+	UDragDropOperation* InOperation)
 {
-	const bool bHandled = HandleDropOperation(Cast<ULxItemDragDropOperation>(InOperation));
-	return bHandled || Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
+	const ULxItemDragInfo* DragOperation = Cast<ULxItemDragInfo>(InOperation);
+	// 判断拖拽事件处理参数是否有效 拖拽数据对象 本格子槽位指针  发起方槽位指针
+	if (DragOperation == nullptr || CurrentSlotData == nullptr || DragOperation->SourceSlot == nullptr)
+	{
+		return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
+	}
+
+	// 判断拖拽双方是否是同一个格子
+	if (DragOperation->SourceSlot == CurrentSlotData)
+	{
+		return false;
+	}
+	// 调用槽位类型的接口进行堆叠
+	switch (CurrentSlotData->ItemEnterToThis(DragOperation->SourceSlot))
+	{
+		case ELxItemSlotDropResult::Swapped:
+		case ELxItemSlotDropResult::StackedAll:
+		case ELxItemSlotDropResult::StackedPartial:
+		case ELxItemSlotDropResult::EnterSuccess:
+			return true;
+		default:
+			return false;
+	}
 }
 
 void ULxItemGridWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
-	OnItemGridHoverChanged.Broadcast(CurrentItemData, SlotIndex, SlotWidgetType, true);
-	ReceiveGridHoverChanged(CurrentItemData, SlotIndex, SlotWidgetType, true);
+	// OnItemGridHoverChanged.Broadcast(CurrentItemData, CurrentSlotIndex, CurrentSlotWidgetType, true);
 }
 
 void ULxItemGridWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 {
 	Super::NativeOnMouseLeave(InMouseEvent);
-	OnItemGridHoverChanged.Broadcast(CurrentItemData, SlotIndex, SlotWidgetType, false);
-	ReceiveGridHoverChanged(CurrentItemData, SlotIndex, SlotWidgetType, false);
+	// OnItemGridHoverChanged.Broadcast(CurrentItemData, CurrentSlotIndex, CurrentSlotWidgetType, false);
 }
 
-void ULxItemGridWidget::BindCurrentItem()
+void ULxItemGridWidget::InitItemData(UObject* ListItemObject)
 {
-	if (CurrentItemData)
+	if (CurrentSlotData)
 	{
-		CurrentItemData->OnItemQuantityChange.AddDynamic(this, &ULxItemGridWidget::HandleItemQuantityChangeEvent);
+		CurrentSlotData->OnSlotChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
 	}
+
+	CurrentSlotData = nullptr;
+
+	if (ULxItemUIData* BackpackData = Cast<ULxItemUIData>(ListItemObject))
+	{
+		CurrentSlotData = BackpackData->m_pSlotData;
+	}
+
+
+	if (CurrentSlotData)
+	{
+		CurrentSlotData->OnSlotChanged.AddDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
+	}
+	
 }
 
-void ULxItemGridWidget::UnbindCurrentItem()
+
+void ULxItemGridWidget::HandleCurrentSlotChanged() 
 {
-	if (CurrentItemData)
-	{
-		CurrentItemData->OnItemQuantityChange.RemoveDynamic(this, &ULxItemGridWidget::HandleItemQuantityChangeEvent);
-	}
+	BroadcastGridDataChanged();
 }
 
-void ULxItemGridWidget::RefreshGridData()
+void ULxItemGridWidget::BroadcastGridDataChanged() const
 {
-	const bool bHasItem = CurrentItemData != nullptr && CurrentItemData->IsValid();
-	OnItemGridDataChanged.Broadcast(CurrentItemData, SlotIndex, SlotWidgetType, SlotSubType, bHasItem);
-	ReceiveGridDataChanged(CurrentItemData, SlotIndex, SlotWidgetType, SlotSubType, bHasItem);
-}
-
-bool ULxItemGridWidget::CanStartDrag() const
-{
-	return CurrentItemData != nullptr
-		&& CurrentItemData->IsValid()
-		&& SlotWidgetType != EItemSlotWidgetType::Shortcut
-		&& SlotWidgetType != EItemSlotWidgetType::Skill;
-}
-
-bool ULxItemGridWidget::HandleDropOperation(ULxItemDragDropOperation* DragOperation)
-{
-	if (!DragOperation || !DragOperation->ItemData)
-	{
-		return false;
-	}
-
-	if (DragOperation->SourceWidget == this)
-	{
-		return false;
-	}
-
-	ALxBaseCharacter* OwnerCharacter = ResolveOwnerCharacter();
-	bool bSuccess = false;
-
-	switch (SlotWidgetType)
-	{
-	case EItemSlotWidgetType::Inventory:
-		bSuccess = HandleInventoryDrop(DragOperation, OwnerCharacter);
-		break;
-	case EItemSlotWidgetType::Shortcut:
-		bSuccess = HandleShortcutDrop(DragOperation);
-		break;
-	case EItemSlotWidgetType::Equipment:
-		bSuccess = HandleEquipmentDrop(DragOperation, OwnerCharacter);
-		break;
-	case EItemSlotWidgetType::Skill:
-		bSuccess = HandleSkillDrop(DragOperation);
-		break;
-	case EItemSlotWidgetType::Warehouse:
-		bSuccess = HandleWarehouseDrop(DragOperation);
-		break;
-	default:
-		break;
-	}
-
-	OnItemGridDropHandled.Broadcast(bSuccess, DragOperation->ItemData, DragOperation->SlotWidgetType, DragOperation->ItemIndex, SlotWidgetType);
-	return bSuccess;
-}
-
-bool ULxItemGridWidget::HandleInventoryDrop(ULxItemDragDropOperation* DragOperation, ALxBaseCharacter* OwnerCharacter)
-{
-	ULxCharacterBackpackComponent* BackpackComponent = ResolveBackpackComponent(OwnerCharacter);
-	if (!BackpackComponent || SlotIndex == INDEX_NONE)
-	{
-		return false;
-	}
-
-	switch (DragOperation->SlotWidgetType)
-	{
-	case EItemSlotWidgetType::Inventory:
-		return BackpackComponent->MoveItem(DragOperation->ItemIndex, SlotIndex);
-	case EItemSlotWidgetType::Equipment:
-		{
-			ULxCharacterEquipmentComponent* EquipmentComponent = ResolveEquipmentComponent(OwnerCharacter);
-			if (!EquipmentComponent || DragOperation->ItemIndex == INDEX_NONE)
-			{
-				return false;
-			}
-
-			return EquipmentComponent->UnequipItemToBackpackAt(static_cast<ELxEquipmentType>(DragOperation->ItemIndex), SlotIndex);
-		}
-	case EItemSlotWidgetType::Warehouse:
-	case EItemSlotWidgetType::Skill:
-	case EItemSlotWidgetType::EIT_None:
-		return BackpackComponent->AddItemAtFromExternal(DragOperation->ItemData, SlotIndex);
-	default:
-		return false;
-	}
-}
-
-bool ULxItemGridWidget::HandleShortcutDrop(ULxItemDragDropOperation* DragOperation)
-{
-	if (!GridDataObject || DragOperation->SlotWidgetType == EItemSlotWidgetType::Warehouse)
-	{
-		return false;
-	}
-
-	UnbindCurrentItem();
-	GridDataObject->m_pItemData = DragOperation->ItemData;
-	CurrentItemData = DragOperation->ItemData;
-	BindCurrentItem();
-	RefreshGridData();
-	return true;
-}
-
-bool ULxItemGridWidget::HandleEquipmentDrop(ULxItemDragDropOperation* DragOperation, ALxBaseCharacter* OwnerCharacter)
-{
-	if (!IsEquipmentItemCompatible(DragOperation->ItemData))
-	{
-		return false;
-	}
-
-	ULxCharacterEquipmentComponent* EquipmentComponent = ResolveEquipmentComponent(OwnerCharacter);
-	if (!EquipmentComponent)
-	{
-		return false;
-	}
-
-	const ELxEquipmentType EquipmentType = static_cast<ELxEquipmentType>(SlotSubType);
-	switch (DragOperation->SlotWidgetType)
-	{
-	case EItemSlotWidgetType::Inventory:
-		return EquipmentComponent->EquipItemFromBackpackToSlot(DragOperation->ItemIndex, EquipmentType);
-	case EItemSlotWidgetType::Warehouse:
-	case EItemSlotWidgetType::EIT_None:
-		return EquipmentComponent->EquipItemFromExternal(DragOperation->ItemData, EquipmentType);
-	default:
-		return false;
-	}
-}
-
-bool ULxItemGridWidget::HandleSkillDrop(ULxItemDragDropOperation* DragOperation)
-{
-	return false;
-}
-
-bool ULxItemGridWidget::HandleWarehouseDrop(ULxItemDragDropOperation* DragOperation)
-{
-	return false;
-}
-
-bool ULxItemGridWidget::IsEquipmentItemCompatible(ULxItemData* InItemData) const
-{
-	if (!InItemData || InItemData->GetItemType() != ELxItemType::Equipment)
-	{
-		return false;
-	}
-
-	const FLxEquipmentData& EquipmentData = InItemData->GetEquipmentItemData();
-	return static_cast<int32>(EquipmentData.EquipmentType) == SlotSubType;
-}
-
-ALxBaseCharacter* ULxItemGridWidget::ResolveOwnerCharacter() const
-{
-	if (APlayerController* PlayerController = GetOwningPlayer())
-	{
-		return Cast<ALxBaseCharacter>(PlayerController->GetPawn());
-	}
-
-	return nullptr;
-}
-
-ULxCharacterBackpackComponent* ULxItemGridWidget::ResolveBackpackComponent(ALxBaseCharacter* OwnerCharacter) const
-{
-	return OwnerCharacter ? OwnerCharacter->GetCharacterBackpackComponent() : nullptr;
-}
-
-ULxCharacterEquipmentComponent* ULxItemGridWidget::ResolveEquipmentComponent(ALxBaseCharacter* OwnerCharacter) const
-{
-	return OwnerCharacter ? OwnerCharacter->GetCharacterEquipmentComponent() : nullptr;
-}
-
-void ULxItemGridWidget::HandleItemQuantityChangeEvent(ULxItemData* InItemData, bool bIsValid)
-{
-	if (InItemData != CurrentItemData)
-	{
-		return;
-	}
-
-	if (!bIsValid)
-	{
-		UnbindCurrentItem();
-		CurrentItemData = nullptr;
-		if (GridDataObject)
-		{
-			GridDataObject->m_pItemData = nullptr;
-		}
-	}
-
-	RefreshGridData();
+	OnItemGridDataChanged.Broadcast();
 }

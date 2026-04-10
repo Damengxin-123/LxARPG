@@ -4,8 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "LxComponentBase.h"
-#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxCharacterComponentBase.generated.h"
+
+class ALxBaseCharacter;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class LXARPG_API ULxCharacterComponentBase : public ULxComponentBase
@@ -14,23 +15,8 @@ class LXARPG_API ULxCharacterComponentBase : public ULxComponentBase
 
 public:
 	// Sets default values for this component's properties
-	ULxCharacterComponentBase();
+	ULxCharacterComponentBase(){};
 
 protected:
-	ALxBaseCharacter* GetCharacterOwner() const
-	{
-		AActor* OwnerActor = GetOwner();
-		while (OwnerActor)
-		{
-			if (ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(OwnerActor))
-			{
-				return OwnerCharacter;
-			}
-
-			OwnerActor = OwnerActor->GetAttachParentActor();
-		}
-
-		return nullptr;
-	};
-	
+	ALxBaseCharacter* GetCharacterOwner() const;
 };

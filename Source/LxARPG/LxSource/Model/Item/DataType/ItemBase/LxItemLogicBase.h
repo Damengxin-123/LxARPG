@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "LxItemBase.h"
 #include "LxItemLogicBase.generated.h"
 
 // 事件委托
@@ -32,7 +33,6 @@ public:
 	 * 该函数用于初始化物品逻辑，基于提供的物品信息和父对象。
 	 * 此函数在使用时，可以传入子类型的物品结构体指针，但是需要在继承此函数之后，对出入的数据进行的解析进行单独设计
 	 * @param pItemInfo 指向物品定义的指针，包含初始化所需的信息。
-	 * @param pParent 父对象的指针，通常是指拥有该物品逻辑的对象。
 	 *
 	 * @return 如果初始化成功返回true，否则返回false。
 	 */
@@ -46,7 +46,7 @@ public:
 	 *
 	 * @return 返回指向FLxItemDateBase的常量指针，如果未实现则返回nullptr。
 	 */
-	virtual const FLxItemDateBase* GetItemDataBase() const { return nullptr; };
+	virtual FLxItemDateBase* GetItemDataBase() { return nullptr; };
 
 	/**
 	 * @brief 使用物品
@@ -66,7 +66,7 @@ public:
 	 *
 	 * @return 如果物品支持堆叠则返回true，否则返回false。
 	 */
-	virtual bool ItemIsStack() { return false; };
+	virtual bool ItemIsStack(ULxItemLogicBase* InItemLogic);
 
 	/**
 	 * @brief 尝试将另一个物品逻辑堆叠到当前物品上
@@ -78,7 +78,7 @@ public:
 	 *
 	 * @return 如果堆叠操作成功则返回true，否则返回false。
 	 */
-	virtual bool StackItem(ULxItemLogicBase* SourceItemLogic) { return false; };
+	virtual bool StackItem(ULxItemLogicBase* SourceItemLogic);
 
 	/**
 	 * @brief 检查物品是否有效
@@ -88,7 +88,7 @@ public:
 	 *
 	 * @return 如果物品有效则返回true，否则返回false。
 	 */
-	virtual bool ItemIsValid() { return false; };
+	virtual bool ItemIsValid();
 
 	/**
 	 * @brief用于处理物品信息变更的委托
@@ -105,7 +105,8 @@ public:
 	 * @param Other 运算符右侧的操作数
 	 * @return 返回运算结果。返回值的具体类型取决于运算符的实现和上下文需求
 	 */
-	virtual bool operator<(const ULxItemLogicBase* Other) const { return false; };
+	virtual bool operator<(const ULxItemLogicBase* Other) const;
+	
 
 	/**
 	 * @brief重载运算符
@@ -113,8 +114,19 @@ public:
 	 * @param Other 运算符右侧的操作数
 	 * @return 返回运算结果，具体类型取决于运算符的实现
 	 */
-	virtual bool operator>(const ULxItemLogicBase* Other) const { return false; };
-	
+	virtual bool operator>(const ULxItemLogicBase* Other) const;
+
+	/**
+	 * @brief重载等于运算符
+	 *
+	 * 此函数用于比较两个ULxItemLogicBase对象是否相等。默认实现总是返回false，表示两个对象不相等。
+	 * 子类可以根据具体需求重写此方法以提供实际的比较逻辑。
+	 *
+	 * @param Other 运算符右侧的操作数，指向另一个ULxItemLogicBase对象的指针。
+	 *
+	 * @return 如果两个对象相等则返回true，否则返回false。默认实现总是返回false。
+	 */
+	virtual bool IsTheSameKind(const ULxItemLogicBase* Other) const { return false; };
 };
 
 template <typename ItemLogicType>

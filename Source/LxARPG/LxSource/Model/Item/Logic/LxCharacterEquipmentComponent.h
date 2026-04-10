@@ -7,15 +7,21 @@
 #include "LxCharacterEquipmentComponent.generated.h"
 
 class ALxBaseCharacter;
-class ULxItemData;
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCharacterEquipmentChanged);
+class ULxEquipmentSlotData;
+class ULxEquipmentLogic;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable)
 class LXARPG_API ULxCharacterEquipmentComponent : public ULxComponentBase
 {
 	GENERATED_BODY()
 
+	/**
+	 * @brief 构造函数，用于创建角色装备组件实例。
+	 *
+	 * 初始化角色装备组件的基本设置。此构造函数主要用于设置默认属性和初始化必要的变量。
+	 *
+	 * @return 无返回值
+	 */
 public:
 	ULxCharacterEquipmentComponent();
 
@@ -26,82 +32,45 @@ public:
 	 */
 	virtual void BaseComponentInitialize() override;
 
-	/** 将背包中的装备放入其对应的装备位。 */
-	UFUNCTION(BlueprintCallable, Category="Character|Equipment")
-	bool EquipItemFromBackpack(int32 InBackpackIndex);
+	TArray<TObjectPtr<ULxEquipmentSlotData>>& GetEquipmentSlots();
 
-	/** 将背包中的装备放入指定装备位。 */
-	UFUNCTION(BlueprintCallable, Category="Character|Equipment")
-	bool EquipItemFromBackpackToSlot(int32 InBackpackIndex, ELxEquipmentType InEquipmentType);
-
-	/** 将来自非背包来源的装备复制后放入指定装备位。 */
-	UFUNCTION(BlueprintCallable, Category="Character|Equipment")
-	bool EquipItemFromExternal(ULxItemData* InItemData, ELxEquipmentType InEquipmentType);
-
-	/** 将指定装备位上的装备卸下到背包。 */
-	UFUNCTION(BlueprintCallable, Category="Character|Equipment")
-	bool UnequipItemToBackpack(ELxEquipmentType InEquipmentType);
-
-	/** 将指定装备位上的装备卸下到背包指定格。 */
-	UFUNCTION(BlueprintCallable, Category="Character|Equipment")
-	bool UnequipItemToBackpackAt(ELxEquipmentType InEquipmentType, int32 InBackpackIndex);
-
-	UFUNCTION(BlueprintCallable, Category="Character|Equipment")
-	/**
-	 * @brief 获取指定装备位上的物品对象。
-	 *
-	 * @param InEquipmentType 要查询的装备位类型。
-	 * @return 若装备位有效则返回其上的物品对象，否则返回 nullptr。
-	 */
-	ULxItemData* GetEquipmentAt(ELxEquipmentType InEquipmentType) const;
-	
-	/**
-	 * @brief 获取全部装备数组的可写引用。
-	 *
-	 * @return 返回当前全部装备数组引用。
-	 */
-	TArray<TObjectPtr<ULxItemData>>& GetAllEquipment();
-
-	UFUNCTION(BlueprintCallable, Category="Character|Equipment")
-	/**
-	 * @brief 汇总当前已装备物品提供的词条列表。
-	 *
-	 * @return 返回全部装备词条组成的数组副本。
-	 */
-	TArray<FLxItemEntry> GetTotalEquipmentEntryList() const;
-
-	UFUNCTION(BlueprintCallable, Category="Character|Equipment")
-	/**
-	 * @brief 获取装备槽总数。
-	 *
-	 * @return 当前角色支持的装备槽数量。
-	 */
-	int32 GetEquipmentSlotCount() const;
-
-	UPROPERTY(BlueprintAssignable, Category="Character|Equipment")
-	FOnCharacterEquipmentChanged OnEquipmentChanged;
+protected:
+	UPROPERTY(Blueprintable, BlueprintReadWrite, DisplayName="装备槽位配置")
+	TArray<ELxEquipmentType> EquipmentSlotsConfig;
 
 private:
-	/** 初始化装备槽位数组。 */
-	void InitializeEquipmentSlots();
-	/** 判断装备位类型是否合法。 */
-	bool IsValidEquipmentType(ELxEquipmentType InEquipmentType) const;
-	/** 将装备位类型转换为数组索引。 */
-	int32 GetEquipmentIndex(ELxEquipmentType InEquipmentType) const;
-	/** 将已解析好的装备物品放入指定装备位。 */
-	bool EquipResolvedItem(ULxItemData* InItemData, ELxEquipmentType InEquipmentType);
+	/**
+	 * @brief 初始化装备槽位。
+	 *
+	 * 该方法用于初始化角色的装备槽位。如果当前没有定义任何装备槽位配置，则会调用 `SetDefauitEquipmentSlotsConfig` 方法来设置默认的装备槽位配置，确保每个角色都有一个基本的装备槽位布局。
+	 *
+	 * @note 此方法通常在组件初始化过程中被自动调用，以保证所有角色至少拥有基础的装备槽位配置。
+	 */
+	inline void InitializeEquipmentSlots();
+
+	/**
+	 * @brief 设置默认的装备槽位配置。
+	 *
+	 * 该方法用于为角色装备组件设置一套默认的装备槽位配置。如果当前没有定义装备槽位配置，则调用此方法来填充默认值，确保每个角色都有一个基本的装备槽位布局。
+	 *
+	 * @note 此方法通常在初始化过程中自动调用，以保证所有角色至少拥有基础的装备槽位配置。
+	 */
+	inline void SetDefauitEquipmentSlotsConfig();
+	
 	/** 广播装备数据发生变化。 */
 	void BroadcastEquipmentChanged();
 
-private:
+
+	
 	/** 当前拥有此装备组件的角色。 */
 	UPROPERTY()
 	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter;
 
+	// 背包槽位数组
+	UPROPERTY()
+	TArray<TObjectPtr<ULxEquipmentSlotData>> m_vEquipmentSlots;
+	
 	/** 当前角色各个装备位上的装备数据。 */
 	UPROPERTY()
-	TArray<TObjectPtr<ULxItemData>> m_vEquipmentItems;
-
-	/** 装备组件是否已经完成初始化。 */
-	bool m_bEquipmentInitialized = false;
+	TArray<TObjectPtr<ULxEquipmentLogic>> m_vEquipmentList;
 };

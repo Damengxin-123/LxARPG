@@ -8,7 +8,6 @@
 #include "LxARPG/LxSource/Core/Tools/LxString.h"
 #include "LxARPG/LxSource/Systems/DatabaseSystem/LxDataTable.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
-#include "LxARPG/LxSource/Systems/DatabaseSystem/LxDataTableTypeEnum.h"
 #include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
 
 
@@ -43,7 +42,7 @@ void ULxInputComponent::BaseComponentInitialize()
 			ERROR_TO_SCREEN("GameDataTablesManager is null!");
 			return;
 		}
-		ULxDataTable* InputDataTable = GameDataTablesManager->GetDataTables(ELxDataTableTypeEnum::InputActionInfo);
+		ULxDataTable* InputDataTable = Cast<ULxDataTable>(GameDataTablesManager->m_pInputActionInfoTableConfig);
 		if (!InputDataTable)
 		{
 			ERROR_TO_SCREEN("InputDataTable is null!");

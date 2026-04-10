@@ -1,18 +1,18 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "LxARPG/LxSource/Core/Database/LxComponentBase.h"
+#include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
-#include "StructUtils/InstancedStruct.h"
 #include "LxCharacterBackpackComponent.generated.h"
 
+class ULxItemLogicBase;
+class ULxItemSlotData;
 class ALxBaseCharacter;
-class ULxItemData;
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCharacterBackpackChanged);
+struct FLxItemDefineBase;
+struct FLxItemDateBase;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable)
-class LXARPG_API ULxCharacterBackpackComponent : public ULxComponentBase
+class LXARPG_API ULxCharacterBackpackComponent : public ULxCharacterComponentBase
 {
 	GENERATED_BODY()
 
@@ -20,140 +20,108 @@ public:
 	ULxCharacterBackpackComponent();
 
 	/**
-	 * @brief 初始化角色背包组件。
+	 * @brief 初始化背包组件。
 	 *
-	 * 负责缓存所属角色并初始化背包格子数据。
+	 * 该方法用于初始化ULxCharacterBackpackComponent。它首先调用基类的BaseComponentInitialize()方法，然后调用InitializeBackpack()来完成背包的初始化工作。
+	 *
+	 * @note 此方法应在组件设置阶段被调用，并且根据组件的生命周期可能被多次调用。
 	 */
 	virtual void BaseComponentInitialize() override;
 
-	/** 按物品类型和行 ID 创建物品并放入背包。 */
-	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
-	bool AddItemByRowID(ELxItemType InItemType, FName InItemRowID, int32 InItemCount = 1);
-
-	/** 按结构体数据创建物品并放入背包。 */
-	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
-	bool AddItemByStruct(const FInstancedStruct& InItemData);
-
-	/** 将现有物品对象放入背包空位或可堆叠位置。 */
-	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
-	bool AddExistingItem(ULxItemData* InItemData);
-
-	/** 将现有物品对象放入指定背包格。 */
-	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
-	bool AddExistingItemAt(ULxItemData* InItemData, int32 InDestinationIndex);
-
-	/** 将来自非背包来源的物品复制后放入指定背包格。 */
-	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
-	bool AddItemAtFromExternal(ULxItemData* InItemData, int32 InDestinationIndex);
-
-	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
 	/**
-	 * @brief 在背包内移动或交换物品。
+	 * @brief 向背包中添加指定ID的物品。
 	 *
-	 * @param InSourceIndex 源格子索引。
-	 * @param InDestinationIndex 目标格子索引。
-	 * @return 操作成功返回 true，否则返回 false。
+	 * 该函数尝试将指定数量的特定类型和ID的物品添加到角色的背包中。如果背包空间不足或参数无效，则添加操作可能失败。
+	 *
+	 * @param InItemType 物品类型，例如装备、消耗品等。
+	 * @param InItemID 物品唯一标识符。
+	 * @param InItemCount 要添加的物品数量，默认为1。
+	 * @return 如果成功添加物品返回true，否则返回false。
 	 */
-	bool MoveItem(int32 InSourceIndex, int32 InDestinationIndex);
+	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="添加物品到背包-ID")
+	bool AddItemByRowID(ELxItemType InItemType, FName InItemID, int32 InItemCount = 1);
 
-	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
 	/**
-	 * @brief 消耗指定格子中的物品。
+	 * @brief从背包中移除指定ID的物品。
 	 *
-	 * @param InIndex 目标背包格子索引。
-	 * @return 消耗成功返回 true，否则返回 false。
+	 * 该方法尝试从角色的背包中移除特定类型和ID的指定数量的物品。如果背包中没有足够的该物品或参数无效，则移除操作可能失败。
+	 *
+	 * @param InItemType 物品类型，例如装备、消耗品等。
+	 * @param InItemID 物品唯一标识符。
+	 * @param InItemCount 要移除的物品数量。
+	 * @return 如果成功移除物品返回true，否则返回false。
 	 */
-	bool ConsumeItemAt(int32 InIndex);
+	bool RemoveItemAt(ELxItemType InItemType, FName InItemID, int32 InItemCount);
 
-	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
 	/**
-	 * @brief 删除指定格子中的物品。
+	 * @brief 检查背包中是否有指定数量的特定物品。
 	 *
-	 * @param InIndex 目标背包格子索引。
-	 * @return 删除成功返回 true，否则返回 false。
+	 * 该方法用于检查角色背包中是否包含指定类型和ID的物品，并且数量至少为指定的数量。如果满足条件，则返回true，否则返回false。
+	 *
+	 * @param InItemType 物品类型，例如装备、消耗品等。
+	 * @param InItemID 物品唯一标识符。
+	 * @param InItemCount 要检查的物品数量，默认为1。
+	 * @return 如果背包中存在至少指定数量的指定物品返回true，否则返回false。
 	 */
-	bool RemoveItemAt(int32 InIndex);
+	bool CheckHaveItem(ELxItemType InItemType, FName InItemID, int32 InItemCount = 1) const;
 
-	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
 	/**
-	 * @brief 对背包内物品进行整理排序。
+	 * @brief 对背包中的物品进行排序。
 	 *
-	 * 会把有效物品前移并清理空槽位。
+	 * 该方法用于对角色背包中的所有物品按照某种规则进行排序。具体的排序逻辑由实现者定义，可能基于物品类型、ID或其他属性。
+	 *
+	 * @note 此方法可以被外部调用以重新组织背包内物品的顺序，例如在用户界面中手动触发排序操作后。
 	 */
 	void SortingOfItems();
 
-	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
 	/**
-	 * @brief 获取指定格子的物品对象。
+	 * @brief 获取背包中所有的物品。
 	 *
-	 * @param InIndex 背包格子索引。
-	 * @return 若索引有效则返回物品对象，否则返回 nullptr。
+	 * 该方法返回一个包含背包中所有物品的数组。每个元素都是指向ULxItemSlotData对象的指针，表示背包中的一个槽位及其所包含的物品数据。
+	 *
+	 * @return 返回一个const引用，指向存储背包中所有物品槽位数据的TArray。
 	 */
-	ULxItemData* GetItemAt(int32 InIndex) const;
+	TArray<TObjectPtr<ULxItemSlotData>>& GetAllItems();
+
+	/**
+	 * @brief 查询指定类型的物品。
+	 *
+	 * 该方法用于从背包中查询所有属于特定类型的物品。返回的数组包含了所有符合条件的ULxItemSlotData对象的引用，这些对象代表了背包中的槽位及其所包含的物品数据。
+	 *
+	 * @param InItemType 要查询的物品类型，例如装备、消耗品等。
+	 * @return 返回一个const引用，指向存储符合查询条件的所有物品槽位数据的TArray。
+	 */
+	TArray<TObjectPtr<ULxItemSlotData>>& QueryItemsOnItemType(ELxItemType InItemType);
 	
-	/**
-	 * @brief 获取背包内部物品数组的可写引用。
-	 *
-	 * @return 返回背包物品数组引用。
-	 */
-	TArray<TObjectPtr<ULxItemData>>& GetItems();
+protected:
+	// 默认的背包槽位数量
+	UPROPERTY(Blueprintable, BlueprintReadWrite, DisplayName="背包槽位数量")
+	int32 BackpackSlotCount = 100;
 	
-	/**
-	 * @brief 查询指定类型的全部物品。
-	 *
-	 * @param InItemType 要筛选的物品类型。
-	 * @return 返回匹配类型的物品数组副本。
-	 */
-	TArray<TObjectPtr<ULxItemData>> QueryTypeItem(ELxItemType InItemType) const;
-
-	UFUNCTION(BlueprintCallable, Category="Character|Backpack")
-	/**
-	 * @brief 获取背包格子总数。
-	 *
-	 * @return 当前背包可用格子数量。
-	 */
-	int32 GetBackpackSlotCount() const;
-
-	/**
-	 * @brief 取出指定格子的物品并清空该格子。
-	 *
-	 * @param InIndex 目标背包格子索引。
-	 * @return 返回被取出的物品对象，失败时返回 nullptr。
-	 */
-	ULxItemData* TakeItemAt(int32 InIndex);
-
-	UPROPERTY(BlueprintAssignable, Category="Character|Backpack")
-	FOnCharacterBackpackChanged OnBackpackChanged;
-
 private:
-	/** 初始化背包槽位数组。 */
-	void InitializeBackpackSlots();
-	/** 判断索引是否在背包范围内。 */
-	bool IsValidBackpackIndex(int32 InIndex) const;
-	/** 查找一个空的背包格索引。 */
-	int32 FindEmptySlotIndex() const;
-	/** 尝试将物品堆叠到背包中的已有物品上。 */
-	bool TryStackItemIntoInventory(ULxItemData* InItemData);
-	/** 尝试将源物品堆叠到指定目标物品上。 */
-	bool TryStackItemIntoSlot(ULxItemData* InTargetItem, ULxItemData* InSourceItem, bool& bOutSourceConsumed) const;
-	/** 执行两个物品之间的堆叠。 */
-	bool StackItem(ULxItemData* InTargetItem, ULxItemData* InSourceItem) const;
-	/** 判断两个物品是否允许堆叠。 */
-	bool CanItemsStack(ULxItemData* InTargetItem, ULxItemData* InSourceItem) const;
-	/** 根据行 ID 从表中创建物品对象。 */
-	ULxItemData* CreateItemByRowID(ELxItemType InItemType, FName InItemRowID);
-	/** 广播背包内容发生变化。 */
-	void BroadcastBackpackChanged();
+	/**
+	 * @brief 完成背包组件的初始化工作。
+	 *
+	 * 该方法负责设置ULxCharacterBackpackComponent所需的所有初始配置，包括但不限于创建背包槽位、初始化物品数组等。它通常在BaseComponentInitialize()方法中被调用以确保背包组件正确初始化。
+	 *
+	 * @note 此方法属于内部实现细节，不应由外部代码直接调用。
+	 */
+	void InitializeBackpack();
 
-private:
-	/** 当前拥有此背包组件的角色。 */
+	// 背包过滤、查询缓存数组
 	UPROPERTY()
-	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter;
-
-	/** 背包中的物品数组。 */
+	TArray<TObjectPtr<ULxItemSlotData>> m_vFilteringCache;
+	
+	// 背包槽位数组
 	UPROPERTY()
-	TArray<TObjectPtr<ULxItemData>> m_vCharacterItems;
+	TArray<TObjectPtr<ULxItemSlotData>> m_vBackpackSlots;
 
-	/** 背包是否已经完成初始化。 */
-	bool m_bBackpackInitialized = false;
+	// 背包内物品数组
+	UPROPERTY()
+	TArray<TObjectPtr<ULxItemLogicBase>> m_vItemList;
+
+	// 当前组件依附的角色对象
+	UPROPERTY()
+	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter = nullptr;
+	
 };

@@ -1,42 +1,38 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "LxGameDataTablesManager.h"
+
 #include "LxARPG/LxSource/Core/Database/LxDataTableConfigBase.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Buff/LxBuffDefineTableConfig.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableDefineTableConfig.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryDefineTableConfig.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentDefineTableConfig.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterialDefineTableConfig.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillDefineTableConfig.h"
+#include "LxARPG/LxSource/Model/Style/TableConfig/LxTextLineStyleDataConfig.h"
 
-ULxDataTableConfigBase* ULxGameDataTablesManager::GetDataTables(const ELxDataTableTypeEnum InDataTableType) const
-{
-	if (m_mapTablesMap.Contains(InDataTableType))
-	{
-		return m_mapTablesMap[InDataTableType];
-	}
-	return nullptr;
-}
-
-bool ULxGameDataTablesManager::TableIsLoadingCompleted(const ELxDataTableTypeEnum InDataTableType) const
-{
-	if (m_mapTablesMap.Contains(InDataTableType))
-	{
-		return m_mapTablesMap[InDataTableType] != nullptr;
-	}
-	return false;
-} 
 
 void ULxGameDataTablesManager::LoadDataTables()
 {
-	ULxDataTableConfigBase* table = nullptr;
-	for (auto& tableName : m_mapTablesSetting)
+	ULxDataTableConfigBase* ConfigList[] =
 	{
-		if (tableName.Value)
+		m_pInputActionInfoTableConfig.Get(),
+		m_pCharacterAttributeTableConfig.Get(),
+		m_pTextLineStyleDataConfig.Get(),
+		m_pItemEntryDefineTableConfig.Get(),
+		m_pEquipmentDefineTableConfig.Get(),
+		m_pConsumableDefineTableConfig.Get(),
+		m_pMaterialDefineTableConfig.Get(),
+		m_pSkillDefineTableConfig.Get(),
+		m_pBuffDefineTableConfig.Get(),
+	};
+
+	for (ULxDataTableConfigBase* Config : ConfigList)
+	{
+		if (Config)
 		{
-			table = NewObject<ULxDataTableConfigBase>(this, tableName.Value);
-			if (table)
-			{
-				table->InitDataTableLoading();
-				m_mapTablesMap.Add(tableName.Key, table);
-			}
-			table = nullptr;
+			Config->InitDataTableLoading();
 		}
 	}
-
 }

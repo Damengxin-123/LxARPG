@@ -1,4 +1,4 @@
-#include "LxAttributeWidget.h"
+﻿#include "LxAttributeWidget.h"
 
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -25,19 +25,19 @@ void ULxAttributeWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
 
 	if (m_pCharacterAttributeComponent)
 	{
-		m_pCharacterAttributeComponent->OnCharacterAttributeChanged.RemoveDynamic(this, &ULxAttributeWidget::HandleAttributeChanged);
+		m_pCharacterAttributeComponent->OnDataChange.RemoveDynamic(this, &ULxAttributeWidget::HandleAttributeChanged);
 	}
 
 	m_pCharacterAttributeComponent = PlayerCharacter ? PlayerCharacter->GetCharacterAttributeComponent() : nullptr;
 	if (m_pCharacterAttributeComponent)
 	{
-		m_pCharacterAttributeComponent->OnCharacterAttributeChanged.AddDynamic(this, &ULxAttributeWidget::HandleAttributeChanged);
+		m_pCharacterAttributeComponent->OnDataChange.AddDynamic(this, &ULxAttributeWidget::HandleAttributeChanged);
 	}
 
 	ShowRoleProperties();
 }
 
-void ULxAttributeWidget::HandleAttributeChanged(FName AttributeID, const FLxAttributeSet& AttributeData)
+void ULxAttributeWidget::HandleAttributeChanged()
 {
 	ShowRoleProperties();
 }
@@ -53,7 +53,7 @@ void ULxAttributeWidget::ShowRoleProperties()
 		return;
 	}
 
-	const TMap<FName, FLxAttributeSet>* AttributeTable = m_pCharacterAttributeComponent->GetCharacterAttributeTable();
+	const TMap<FName, FLxAttributeData>* AttributeTable = m_pCharacterAttributeComponent->GetCharacterAttributeTable();
 	if (!AttributeTable)
 	{
 		OnAttributeItemListChanged.Broadcast(ItemList);
@@ -61,11 +61,11 @@ void ULxAttributeWidget::ShowRoleProperties()
 		return;
 	}
 
-	TArray<const FLxAttributeSet*> AttributeArray;
+	TArray<const FLxAttributeData*> AttributeArray;
 	AttributeArray.Reserve(AttributeTable->Num());
-	for (const TPair<FName, FLxAttributeSet>& Pair : *AttributeTable)
+	for (const TPair<FName, FLxAttributeData>& Pair : *AttributeTable)
 	{
-		if (Pair.Value.m_fAttInfoData.m_bIsVisible)
+		if (Pair.Value.AttributeShowInfo.IsVisible)
 		{
 			AttributeArray.Add(&Pair.Value);
 		}
@@ -82,12 +82,12 @@ void ULxAttributeWidget::ShowRoleProperties()
 	ReceiveAttributeItemListChanged(ItemList);
 }
 
-void ULxAttributeWidget::AppendAttributeGroup(TArray<ULxUITextData*>& OutItemList, const TArray<const FLxAttributeSet*>& InAttributes, ELxAttributeType InAttributeType, const FString& InTitle, bool& bIsDarkColor) const
+void ULxAttributeWidget::AppendAttributeGroup(TArray<ULxUITextData*>& OutItemList, const TArray<const FLxAttributeData*>& InAttributes, ELxAttributeType InAttributeType, const FString& InTitle, bool& bIsDarkColor) const
 {
-	TArray<const FLxAttributeSet*> GroupAttributes;
-	for (const FLxAttributeSet* Attribute : InAttributes)
+	TArray<const FLxAttributeData*> GroupAttributes;
+	for (const FLxAttributeData* Attribute : InAttributes)
 	{
-		if (Attribute && Attribute->m_fAttInfoData.m_nAttType == InAttributeType)
+		if (Attribute && Attribute->AttributeInfo.AttributeType == InAttributeType)
 		{
 			GroupAttributes.Add(Attribute);
 		}
@@ -102,12 +102,13 @@ void ULxAttributeWidget::AppendAttributeGroup(TArray<ULxUITextData*>& OutItemLis
 	TitleData->m_Title = InTitle;
 	OutItemList.Add(TitleData);
 
-	for (const FLxAttributeSet* Attribute : GroupAttributes)
+	for (const FLxAttributeData* Attribute : GroupAttributes)
 	{
 		ULxUITextData* DataItem = NewObject<ULxUITextData>(const_cast<ULxAttributeWidget*>(this));
-		DataItem->m_pCharacterAttributeDataPtr = const_cast<FLxAttributeSet*>(Attribute);
+		DataItem->m_pCharacterAttributeDataPtr = const_cast<FLxAttributeData*>(Attribute);
 		DataItem->m_bIsDarkColor = bIsDarkColor;
 		OutItemList.Add(DataItem);
 		bIsDarkColor = !bIsDarkColor;
 	}
 }
+

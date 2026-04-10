@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
@@ -12,11 +12,10 @@ class ULxUITextData;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAttributeItemListChanged, const TArray<ULxUITextData*>&, ItemList);
 
 /**
- * @brief 角色属性界面逻辑对象
+ * @brief 瑙掕壊灞炴€х晫闈㈤€昏緫瀵硅薄
  *
- * C++ 层负责从角色属性组件中整理属性列表数据，
- * 并通过事件委托通知蓝图子类刷新 ListView/TileView 等界面控件。
- */
+ * C++ 灞傝礋璐ｄ粠瑙掕壊灞炴€х粍浠朵腑鏁寸悊灞炴€у垪琛ㄦ暟鎹紝
+ * 骞堕€氳繃浜嬩欢濮旀墭閫氱煡钃濆浘瀛愮被鍒锋柊 ListView/TileView 绛夌晫闈㈡帶浠躲€? */
 UCLASS()
 class LXARPG_API ULxAttributeWidget : public ULxUIBaseObject
 {
@@ -24,46 +23,42 @@ class LXARPG_API ULxAttributeWidget : public ULxUIBaseObject
 
 public:
 	/**
-	 * @brief 初始化角色属性界面逻辑对象。
-	 */
+	 * @brief 鍒濆鍖栬鑹插睘鎬х晫闈㈤€昏緫瀵硅薄銆?	 */
 	virtual void InitializeUIComponents() override;
 
 	/**
-	 * @brief 重置角色属性界面的显示数据。
-	 *
-	 * 清空当前列表并广播空数据给界面层。
-	 */
+	 * @brief 閲嶇疆瑙掕壊灞炴€х晫闈㈢殑鏄剧ず鏁版嵁銆?	 *
+	 * 娓呯┖褰撳墠鍒楄〃骞跺箍鎾┖鏁版嵁缁欑晫闈㈠眰銆?	 */
 	virtual void ResetUIComponents() override;
 
 	/**
-	 * @brief 根据当前角色刷新属性界面数据。
-	 *
-	 * @param PlayerCharacter 当前需要显示属性信息的角色对象。
-	 */
+	 * @brief 鏍规嵁褰撳墠瑙掕壊鍒锋柊灞炴€х晫闈㈡暟鎹€?	 *
+	 * @param PlayerCharacter 褰撳墠闇€瑕佹樉绀哄睘鎬т俊鎭殑瑙掕壊瀵硅薄銆?	 */
 	virtual void UpdateUIComponents(ALxBaseCharacter* PlayerCharacter) override;
 
-	/** 当角色属性发生变化时重建属性显示列表。 */
+	/** 褰撹鑹插睘鎬у彂鐢熷彉鍖栨椂閲嶅缓灞炴€ф樉绀哄垪琛ㄣ€?*/
 	UFUNCTION()
-	void HandleAttributeChanged(FName AttributeID, const FLxAttributeSet& AttributeData);
+	void HandleAttributeChanged();
 
-	/** 广播当前角色属性条目列表，供蓝图传递给列表控件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色属性|数据广播")
+	/** 骞挎挱褰撳墠瑙掕壊灞炴€ф潯鐩垪琛紝渚涜摑鍥句紶閫掔粰鍒楄〃鎺т欢銆?*/
+	UPROPERTY(BlueprintAssignable, Category="Character Attribute")
 	FOnAttributeItemListChanged OnAttributeItemListChanged;
 
 protected:
-	/** 蓝图实现的属性列表刷新事件。 */
-	UFUNCTION(BlueprintImplementableEvent, Category="角色属性")
+	/** 钃濆浘瀹炵幇鐨勫睘鎬у垪琛ㄥ埛鏂颁簨浠躲€?*/
+	UFUNCTION(BlueprintImplementableEvent, Category="Character Attribute")
 	void ReceiveAttributeItemListChanged(const TArray<ULxUITextData*>& ItemList);
 
 private:
-	/** 构建角色属性显示列表。 */
+	/** 鏋勫缓瑙掕壊灞炴€ф樉绀哄垪琛ㄣ€?*/
 	void ShowRoleProperties();
 
-	/** 将指定分类下的属性追加到显示列表中。 */
-	void AppendAttributeGroup(TArray<ULxUITextData*>& OutItemList, const TArray<const FLxAttributeSet*>& InAttributes, ELxAttributeType InAttributeType, const FString& InTitle, bool& bIsDarkColor) const;
+	/** 灏嗘寚瀹氬垎绫讳笅鐨勫睘鎬ц拷鍔犲埌鏄剧ず鍒楄〃涓€?*/
+	void AppendAttributeGroup(TArray<ULxUITextData*>& OutItemList, const TArray<const FLxAttributeData*>& InAttributes, ELxAttributeType InAttributeType, const FString& InTitle, bool& bIsDarkColor) const;
 
 private:
-	/** 当前角色的属性组件。 */
+	/** 褰撳墠瑙掕壊鐨勫睘鎬х粍浠躲€?*/
 	UPROPERTY()
 	TObjectPtr<ULxCharacterAttributeComponent> m_pCharacterAttributeComponent = nullptr;
 };
+

@@ -33,7 +33,7 @@ bool ULxBuffLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
 	return true;
 }
 
-const FLxItemDateBase* ULxBuffLogic::GetItemDataBase() const
+FLxItemDateBase* ULxBuffLogic::GetItemDataBase()
 {
 	return &m_BuffData;
 }
@@ -43,91 +43,6 @@ bool ULxBuffLogic::UseItem()
 	return false;
 }
 
-bool ULxBuffLogic::ItemIsStack()
-{
-	return m_BuffData.ItemStackInfo.ItemCanStack;
-}
 
-bool ULxBuffLogic::StackItem(ULxItemLogicBase* SourceItemLogic)
-{
-	if (SourceItemLogic == nullptr || SourceItemLogic == this)
-	{
-		return false;
-	}
 
-	if (!ItemIsStack())
-	{
-		return false;
-	}
 
-	ULxBuffLogic* SourceBuffLogic = Cast<ULxBuffLogic>(SourceItemLogic);
-	if (SourceBuffLogic == nullptr)
-	{
-		return false;
-	}
-
-	if (m_BuffData.ItemInfo.ItemID != SourceBuffLogic->m_BuffData.ItemInfo.ItemID)
-	{
-		return false;
-	}
-
-	const int32 MaxCount = m_BuffData.ItemStackInfo.ItemMaxCount;
-	const int32 Remaining = MaxCount - m_BuffData.ItemCount;
-	if (Remaining <= 0)
-	{
-		return false;
-	}
-
-	const int32 MoveCount = FMath::Min(Remaining, SourceBuffLogic->m_BuffData.ItemCount);
-	if (MoveCount <= 0)
-	{
-		return false;
-	}
-
-	m_BuffData.ItemCount += MoveCount;
-	SourceBuffLogic->m_BuffData.ItemCount -= MoveCount;
-
-	OnItemInfoChanged.Broadcast();
-	SourceBuffLogic->OnItemInfoChanged.Broadcast();
-	return true;
-}
-
-bool ULxBuffLogic::ItemIsValid()
-{
-	return m_BuffData.ItemInfo.ItemType == ELxItemType::Buff
-		&& !m_BuffData.ItemInfo.ItemID.IsNone()
-		&& m_BuffData.ItemCount > 0
-		&& m_BuffData.ItemCount != ERR_ATTRIBUTE;
-}
-
-bool ULxBuffLogic::operator<(const ULxItemLogicBase* Other) const
-{
-	const ULxBuffLogic* OtherBuff = Cast<ULxBuffLogic>(Other);
-	if (OtherBuff == nullptr)
-	{
-		return false;
-	}
-
-	if (m_BuffData.ItemRarity.RarityValue != OtherBuff->m_BuffData.ItemRarity.RarityValue)
-	{
-		return m_BuffData.ItemRarity.RarityValue < OtherBuff->m_BuffData.ItemRarity.RarityValue;
-	}
-
-	return m_BuffData.ItemInfo.ItemID.LexicalLess(OtherBuff->m_BuffData.ItemInfo.ItemID);
-}
-
-bool ULxBuffLogic::operator>(const ULxItemLogicBase* Other) const
-{
-	const ULxBuffLogic* OtherBuff = Cast<ULxBuffLogic>(Other);
-	if (OtherBuff == nullptr)
-	{
-		return false;
-	}
-
-	if (m_BuffData.ItemRarity.RarityValue != OtherBuff->m_BuffData.ItemRarity.RarityValue)
-	{
-		return m_BuffData.ItemRarity.RarityValue > OtherBuff->m_BuffData.ItemRarity.RarityValue;
-	}
-
-	return OtherBuff->m_BuffData.ItemInfo.ItemID.LexicalLess(m_BuffData.ItemInfo.ItemID);
-}

@@ -1,9 +1,7 @@
-/**
+﻿/**
  * @file LxUITextData.h
- * @brief UI文本数据类定义
- *
- * 此文件定义了UI文本数据类ULxUITextData，用于管理UI文本显示相关的数据。
- */
+ * @brief UI鏂囨湰鏁版嵁绫诲畾涔? *
+ * 姝ゆ枃浠跺畾涔変簡UI鏂囨湰鏁版嵁绫籙LxUITextData锛岀敤浜庣鐞哢I鏂囨湰鏄剧ず鐩稿叧鐨勬暟鎹€? */
 
 // Fill out your copyright notice in the Description page of Project Settings.
 
@@ -19,11 +17,9 @@
 
 /**
  * @class ULxUITextData
- * @brief UI文本数据类
- *
- * 用于为使用TileView类型的控件提供数据。
- *
- * @note 继承自UObject
+ * @brief UI鏂囨湰鏁版嵁绫? *
+ * 鐢ㄤ簬涓轰娇鐢═ileView绫诲瀷鐨勬帶浠舵彁渚涙暟鎹€? *
+ * @note 缁ф壙鑷猆Object
  */
 UCLASS()
 class ULxUITextData : public UObject
@@ -33,35 +29,33 @@ class ULxUITextData : public UObject
 public:
 
 	/**
-	 * @var FLxAttributeSet* m_pCharacterAttributeDataPtr
-	 * @brief 角色属性指针
-	 */
-	FLxAttributeSet* m_pCharacterAttributeDataPtr = nullptr;
+	 * @var FLxAttributeData* m_pCharacterAttributeDataPtr
+	 * @brief 瑙掕壊灞炴€ф寚閽?	 */
+	FLxAttributeData* m_pCharacterAttributeDataPtr = nullptr;
 
 	/**
-	 * @var const FLxItemEntry* m_pItemEntryDataPtr
-	 * @brief 物品词条指针
+	 * @var const FLxItemEntryData* m_pItemEntryDataPtr
+	 * @brief 鐗╁搧璇嶆潯鎸囬拡
 	 */
-	const FLxItemEntry* m_pItemEntryDataPtr = nullptr;
+	const FLxItemEntryData* m_pItemEntryDataPtr = nullptr;
 
 	/**
 	 * @var FString m_Title
-	 * @brief 标题字符串
-	 */
+	 * @brief 鏍囬瀛楃涓?	 */
 	FString m_Title;
 
 	/**
 	 * @var FString m_strChatText
-	 * @brief 聊天信息
+	 * @brief 鑱婂ぉ淇℃伅
 	 */
 	FString m_strChatText;
 
 	/**
 	 * @var bool m_bIsDarkColor
-	 * @brief 文本框背景显示颜色是否为深色
+	 * @brief 鏂囨湰妗嗚儗鏅樉绀洪鑹叉槸鍚︿负娣辫壊
 	 *
-	 * 用于在有多条文本显示时区分显示。
-	 */
+	 * 鐢ㄤ簬鍦ㄦ湁澶氭潯鏂囨湰鏄剧ず鏃跺尯鍒嗘樉绀恒€?	 */
 	bool m_bIsDarkColor = false;
 
 };
+

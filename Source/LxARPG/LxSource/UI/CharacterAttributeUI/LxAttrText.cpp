@@ -1,4 +1,4 @@
-#include "LxAttrText.h"
+﻿#include "LxAttrText.h"
 
 #include "LxARPG/LxSource/Core/Database/LxConstValue.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
@@ -12,16 +12,16 @@ namespace
 	const FName TitleStyleName(TEXT("Title"));
 	const FName ChatStyleName(TEXT("Chat"));
 
-	int32 ResolveDisplayValue(const FLxAttributeValueSet& InValueSet)
+	int32 ResolveDisplayValue(const FLxItemEntryValueInfo& InValueSet)
 	{
-		if (InValueSet.m_nMaxValue != ERR_ATTRIBUTE)
+		if (InValueSet.ValueLimit != ERR_ATTRIBUTE)
 		{
-			return InValueSet.m_nMaxValue;
+			return InValueSet.ValueLimit;
 		}
 
-		if (InValueSet.m_nMinValue != ERR_ATTRIBUTE)
+		if (InValueSet.Value != ERR_ATTRIBUTE)
 		{
-			return InValueSet.m_nMinValue;
+			return InValueSet.Value;
 		}
 
 		return 0;
@@ -86,30 +86,29 @@ bool ULxAttrText::BuildAttributeDisplay(FText& OutDisplayText, FName& OutStyleNa
 		return false;
 	}
 
-	const FLxAttributeSet* AttributeData = m_pUIData->m_pCharacterAttributeDataPtr;
-	const FLxAttributeInfo& AttributeInfo = AttributeData->m_fAttInfoData;
+	const FLxAttributeData* AttributeData = m_pUIData->m_pCharacterAttributeDataPtr;
 
 	FString ValueString;
-	switch (AttributeInfo.m_nAttValueType)
+	switch (AttributeData->CalculatedAttributeValue.ValueType)
 	{
 	case ELxCharacterValueType::FixedNumeric:
 	case ELxCharacterValueType::FloatNumeric:
-		ValueString = FString::FromInt(AttributeData->m_nCurrentValue);
+		ValueString = FString::FromInt(AttributeData->CalculatedAttributeValue.Value);
 		break;
 	case ELxCharacterValueType::FixedPercentage:
-	case ELxCharacterValueType::FloatPercentage:
-		ValueString = FString::Printf(TEXT("%d%%"), AttributeData->m_nCurrentValue);
+	case ELxCharacterValueType::Probabilistic:
+		ValueString = FString::Printf(TEXT("%d%%"), AttributeData->CalculatedAttributeValue.Value);
 		break;
 	case ELxCharacterValueType::Mechanism:
-		ValueString = AttributeData->m_nCurrentValue != 0 ? TEXT("True") : TEXT("False");
+		ValueString = AttributeData->CalculatedAttributeValue.Value != 0 ? TEXT("True") : TEXT("False");
 		break;
 	default:
-		ValueString = FString::FromInt(AttributeData->m_nCurrentValue);
+		ValueString = FString::FromInt(AttributeData->CalculatedAttributeValue.Value);
 		break;
 	}
 
-	OutDisplayText = FText::FromString(FString::Printf(TEXT("%s : %s"), *AttributeInfo.m_strAttText.ToString(), *ValueString));
-	OutStyleName = AttributeInfo.m_tabAttStyle.RowName;
+	OutDisplayText = FText::FromString(FString::Printf(TEXT("%s : %s"), *AttributeData->AttributeShowInfo.AttributeName.ToString(), *ValueString));
+	OutStyleName = (AttributeData->AttributeTextStyle ? AttributeData->AttributeTextStyle->ID : NAME_None);
 	return true;
 }
 
@@ -120,11 +119,11 @@ bool ULxAttrText::BuildEntryDisplay(FText& OutDisplayText, FName& OutStyleName) 
 		return false;
 	}
 
-	const FLxItemEntry* EntryData = m_pUIData->m_pItemEntryDataPtr;
-	const int32 DisplayValue = ResolveDisplayValue(EntryData->m_fEntryValue);
+	const FLxItemEntryData* EntryData = m_pUIData->m_pItemEntryDataPtr;
+	const int32 DisplayValue = ResolveDisplayValue(EntryData->ItemEntryDefineValue);
 
 	FString ValueString;
-	switch (EntryData->EntryType)
+	switch (EntryData->ItemEntryDefineValue.EntryType)
 	{
 	case ELxItemEntryType::BasicImprove:
 	case ELxItemEntryType::AdditionalImprove:
@@ -141,8 +140,8 @@ bool ULxAttrText::BuildEntryDisplay(FText& OutDisplayText, FName& OutStyleName) 
 		break;
 	}
 
-	OutDisplayText = FText::FromString(FString::Printf(TEXT("%s : %s"), *EntryData->EntryText.ToString(), *ValueString));
-	OutStyleName = EntryData->EntryStyleName != NAME_None ? EntryData->EntryStyleName : EntryData->EntryStyleRow.RowName;
+	OutDisplayText = FText::FromString(FString::Printf(TEXT("%s : %s"), *EntryData->DisplayName.ToString(), *ValueString));
+	OutStyleName = (EntryData->TextStyle ? EntryData->TextStyle->ID : NAME_None);
 	return true;
 }
 
@@ -171,3 +170,4 @@ bool ULxAttrText::BuildPlainTextDisplay(FText& OutDisplayText, FName& OutStyleNa
 
 	return false;
 }
+

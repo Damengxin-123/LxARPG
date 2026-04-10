@@ -1,49 +1,55 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxDataTableTypeEnum.h"
 #include "LxARPG/LxSource/Core/Database/LxDataTableBase.h"
 #include "LxGameDataTablesManager.generated.h"
 
 class ULxDataTableConfigBase;
-/**
- * 加载本地数据表格 总表
- */
+class ULxAttributeTableConfig;
+class ULxTextLineStyleDataConfig;
+class ULxItemEntryDefineTableConfig;
+class ULxEquipmentDefineTableConfig;
+class ULxConsumableDefineTableConfig;
+class ULxMaterialDefineTableConfig;
+class ULxSkillDefineTableConfig;
+class ULxBuffDefineTableConfig;
+
 UCLASS(Blueprintable, DisplayName="数据表格管理对象")
-class LXARPG_API ULxGameDataTablesManager : public ULxDataTableBase
+class LXARPG_API ULxGameDataTablesManager : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
 public:
-	/**
-	 * 获取指定类型的数据表
-	 *
-	 * @param InDataTableType 数据表类型枚举
-	 * @return 返回对应类型的ULxDataTable对象，如果未找到则返回nullptr
-	 */
-	ULxDataTableConfigBase* GetDataTables(const ELxDataTableTypeEnum InDataTableType) const;
+	// Legacy table-config slots that are consumed directly by modules.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="DataTableConfig", DisplayName="Input Action Info Config")
+	TObjectPtr<ULxDataTableConfigBase> m_pInputActionInfoTableConfig = nullptr;
 
-	/**
-	 * @brief 判断指定类型的数据表是否已加载完成。
-	 *
-	 * @param InDataTableType 要检查的数据表类型。
-	 * @return 已加载完成返回 true，否则返回 false。
-	 */
-	bool TableIsLoadingCompleted(const ELxDataTableTypeEnum InDataTableType) const;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="DataTableConfig", DisplayName="Character Attribute Config")
+	TObjectPtr<ULxAttributeTableConfig> m_pCharacterAttributeTableConfig = nullptr;
 
-	UPROPERTY(EditDefaultsOnly, Category="数据表|数据表类型map", DisplayName="数据表类型设置")
-	TMap<ELxDataTableTypeEnum, TSubclassOf<ULxDataTableConfigBase>> m_mapTablesSetting;
+	// Per-derived ULxDataTableConfigBase config slots.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="DataTableConfig", DisplayName="Text Line Style Config")
+	TObjectPtr<ULxTextLineStyleDataConfig> m_pTextLineStyleDataConfig = nullptr;
 
-	/**
-	 * @brief 加载全部配置的数据表对象。
-	 *
-	 * 会根据类型配置实例化并缓存各类数据表加载对象。
-	 */
-	virtual void LoadDataTables() override;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="DataTableConfig", DisplayName="Item Entry Define Config")
+	TObjectPtr<ULxItemEntryDefineTableConfig> m_pItemEntryDefineTableConfig = nullptr;
 
-private:
-	UPROPERTY()
-	TMap<ELxDataTableTypeEnum, TObjectPtr<ULxDataTableConfigBase>> m_mapTablesMap;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="DataTableConfig", DisplayName="Equipment Define Config")
+	TObjectPtr<ULxEquipmentDefineTableConfig> m_pEquipmentDefineTableConfig = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="DataTableConfig", DisplayName="Consumable Define Config")
+	TObjectPtr<ULxConsumableDefineTableConfig> m_pConsumableDefineTableConfig = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="DataTableConfig", DisplayName="Material Define Config")
+	TObjectPtr<ULxMaterialDefineTableConfig> m_pMaterialDefineTableConfig = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="DataTableConfig", DisplayName="Skill Define Config")
+	TObjectPtr<ULxSkillDefineTableConfig> m_pSkillDefineTableConfig = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="DataTableConfig", DisplayName="Buff Define Config")
+	TObjectPtr<ULxBuffDefineTableConfig> m_pBuffDefineTableConfig = nullptr;
+
+	virtual void LoadDataTables();
 };

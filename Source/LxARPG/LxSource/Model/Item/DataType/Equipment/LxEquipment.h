@@ -77,3 +77,6 @@ struct FLxEquipmentData : public FLxItemDateBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="装备词条信息")
 	FLxEquipmentEntyInfo EquipmentEntyInfo;
 };
+
+
+

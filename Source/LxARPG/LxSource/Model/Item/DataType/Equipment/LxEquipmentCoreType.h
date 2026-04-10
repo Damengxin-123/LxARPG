@@ -64,9 +64,22 @@ struct FLxEquipmentEntyQuote
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="装备扩展词条引用")
 	TArray<FLxItemEntryQuote> EquipmentExtendEntryQuote;
+
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="扩展词条最大数量")
+	uint8 EquipmentExtendEntryMaxCount = 0;
 	
 };
 
+/**
+ * @struct FLxEquipmentEntyInfo
+ * @brief 装备词条信息
+ *
+ * 该结构体用于存储装备的默认词条和扩展词条列表。通过编辑器或蓝图可以对其进行读写操作。
+ * 在编辑器中，该变量显示为“装备词条信息”。
+ *
+ * @note 确保所有引用的词条定义存在并且有效，以避免运行时错误。
+ */
 USTRUCT(BlueprintType, DisplayName="装备词条信息")
 struct FLxEquipmentEntyInfo
 {
@@ -76,5 +89,8 @@ struct FLxEquipmentEntyInfo
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="装备扩展词条")
 	TArray<FLxItemEntryData> EquipmentExtendEntryList;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="扩展词条最大数量")
+	uint8 EquipmentExtendEntryMaxCount = 0;
 };
 

@@ -1,15 +1,14 @@
-#include "LxCharacterBackpackComponent.h"
+﻿#include "LxCharacterBackpackComponent.h"
 
 #include "LxARPG/LxSource/Core/Database/LxConstValue.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumable.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentData.h"
-#include "LxARPG/LxSource/Model/Item/DataType/ItemData/LxItemData.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterial.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Buff/LxBuffLogic.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableLogic.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentLogic.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemLogicBase.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterialLogic.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillLogic.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
-#include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
-#include "LxARPG/LxSource/Systems/DatabaseSystem/LxDataTable.h"
-#include "LxARPG/LxSource/Systems/DatabaseSystem/LxDataTableTypeEnum.h"
-#include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
 
 ULxCharacterBackpackComponent::ULxCharacterBackpackComponent()
 {
@@ -18,441 +17,124 @@ ULxCharacterBackpackComponent::ULxCharacterBackpackComponent()
 
 void ULxCharacterBackpackComponent::BaseComponentInitialize()
 {
-	if (m_bBackpackInitialized)
-	{
-		return;
-	}
-
-	if (!m_pOwnerCharacter)
-	{
-		m_pOwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
-	}
-
-	InitializeBackpackSlots();
-	m_bBackpackInitialized = true;
+	Super::BaseComponentInitialize();
+	m_pOwnerCharacter = GetCharacterOwner();
+	InitializeBackpack();
 }
 
-bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, FName InItemRowID, int32 InItemCount)
+bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, FName InItemID, int32 InItemCount)
 {
-	if (InItemCount <= 0)
-	{
-		return false;
-	}
-
-	ULxItemData* ItemData = CreateItemByRowID(InItemType, InItemRowID);
-	if (!ItemData)
-	{
-		return false;
-	}
-
-	ItemData->GetItemBase().ItemCount = InItemCount;
-	return AddExistingItem(ItemData);
+	// 此处需要去查询默认物品数据表，然后创建物品数据
+	return false;
 }
 
-bool ULxCharacterBackpackComponent::AddItemByStruct(const FInstancedStruct& InItemData)
+bool ULxCharacterBackpackComponent::RemoveItemAt(ELxItemType InItemType, FName InItemID, int32 InItemCount)
 {
-	if (!InItemData.IsValid())
+	for (auto& item : m_vItemList)
 	{
-		return false;
+		if (item->GetItemDataBase()->ItemInfo.ItemType == InItemType && item->GetItemDataBase()->ItemInfo.ItemID == InItemID)
+		{
+			if (item->GetItemDataBase()->ItemCount >= InItemCount)
+			{
+				// 此处需要进行物品数量的减少，和物品的移除
+				return true;
+			}
+			else
+			{
+				// 此处需要进行物品数量的减少，和物品的移除
+				return true;
+			}
+		}
 	}
-
-	ULxItemData* ItemData = ULxItemData::CreateNewItemData(this, InItemData);
-	return AddExistingItem(ItemData);
+	return false;
 }
 
-bool ULxCharacterBackpackComponent::AddExistingItem(ULxItemData* InItemData)
+bool ULxCharacterBackpackComponent::CheckHaveItem(ELxItemType InItemType, FName InItemID, int32 InItemCount) const
 {
-	if (!m_bBackpackInitialized)
+	for (auto& item : m_vItemList)
 	{
-		BaseComponentInitialize();
+		if (item->GetItemDataBase()->ItemInfo.ItemType == InItemType && item->GetItemDataBase()->ItemInfo.ItemID == InItemID)
+		{
+			if (item->GetItemDataBase()->ItemCount >= InItemCount)
+			{
+				// 物品数量满足
+				return true;
+			}
+			else
+			{
+				// 当前不太满足，需要继续遍历剩余物品
+				InItemCount -= item->GetItemDataBase()->ItemCount;
+				continue;
+			}
+		}
 	}
-
-	if (!InItemData || !InItemData->IsValid())
-	{
-		return false;
-	}
-
-	TryStackItemIntoInventory(InItemData);
-	if (!InItemData->IsValid())
-	{
-		BroadcastBackpackChanged();
-		return true;
-	}
-
-	const int32 EmptyIndex = FindEmptySlotIndex();
-	if (EmptyIndex == INDEX_NONE)
-	{
-		return false;
-	}
-
-	m_vCharacterItems[EmptyIndex] = InItemData;
-	BroadcastBackpackChanged();
-	return true;
-}
-
-bool ULxCharacterBackpackComponent::AddExistingItemAt(ULxItemData* InItemData, int32 InDestinationIndex)
-{
-	if (!m_bBackpackInitialized)
-	{
-		BaseComponentInitialize();
-	}
-
-	if (!InItemData || !InItemData->IsValid() || !IsValidBackpackIndex(InDestinationIndex))
-	{
-		return false;
-	}
-
-	ULxItemData* DestinationItem = m_vCharacterItems[InDestinationIndex];
-	if (!DestinationItem)
-	{
-		m_vCharacterItems[InDestinationIndex] = InItemData;
-		BroadcastBackpackChanged();
-		return true;
-	}
-
-	bool bSourceConsumed = false;
-	if (!TryStackItemIntoSlot(DestinationItem, InItemData, bSourceConsumed))
-	{
-		return false;
-	}
-
-	if (!bSourceConsumed)
-	{
-		return AddExistingItem(InItemData);
-	}
-
-	BroadcastBackpackChanged();
-	return true;
-}
-
-bool ULxCharacterBackpackComponent::AddItemAtFromExternal(ULxItemData* InItemData, int32 InDestinationIndex)
-{
-	if (!InItemData || !InItemData->IsValid())
-	{
-		return false;
-	}
-
-	ULxItemData* ItemCopy = ULxItemData::CreateNewItemData(this, InItemData->GetItemDataCopy());
-	return AddExistingItemAt(ItemCopy, InDestinationIndex);
-}
-
-bool ULxCharacterBackpackComponent::MoveItem(int32 InSourceIndex, int32 InDestinationIndex)
-{
-	if (!m_bBackpackInitialized)
-	{
-		BaseComponentInitialize();
-	}
-
-	if (!IsValidBackpackIndex(InSourceIndex) || !IsValidBackpackIndex(InDestinationIndex) || InSourceIndex == InDestinationIndex)
-	{
-		return false;
-	}
-
-	ULxItemData* SourceItem = m_vCharacterItems[InSourceIndex];
-	if (!SourceItem)
-	{
-		return false;
-	}
-
-	ULxItemData* DestinationItem = m_vCharacterItems[InDestinationIndex];
-	if (!DestinationItem)
-	{
-		m_vCharacterItems[InDestinationIndex] = SourceItem;
-		m_vCharacterItems[InSourceIndex] = nullptr;
-		BroadcastBackpackChanged();
-		return true;
-	}
-
-	if (!StackItem(DestinationItem, SourceItem))
-	{
-		Swap(m_vCharacterItems[InSourceIndex], m_vCharacterItems[InDestinationIndex]);
-	}
-	else if (!SourceItem->IsValid())
-	{
-		m_vCharacterItems[InSourceIndex] = nullptr;
-	}
-
-	BroadcastBackpackChanged();
-	return true;
-}
-
-bool ULxCharacterBackpackComponent::ConsumeItemAt(int32 InIndex)
-{
-	if (!m_bBackpackInitialized)
-	{
-		BaseComponentInitialize();
-	}
-
-	if (!IsValidBackpackIndex(InIndex))
-	{
-		return false;
-	}
-
-	ULxItemData* ItemData = m_vCharacterItems[InIndex];
-	if (!ItemData || ItemData->GetItemType() != ELxItemType::Consumable)
-	{
-		return false;
-	}
-
-	FLxItemBase& ItemBase = ItemData->GetItemBase();
-	if (ItemBase.ItemCount <= 0)
-	{
-		return false;
-	}
-
-	--ItemBase.ItemCount;
-	if (ItemBase.ItemCount <= 0)
-	{
-		m_vCharacterItems[InIndex] = nullptr;
-	}
-
-	BroadcastBackpackChanged();
-	return true;
-}
-
-bool ULxCharacterBackpackComponent::RemoveItemAt(int32 InIndex)
-{
-	if (!m_bBackpackInitialized)
-	{
-		BaseComponentInitialize();
-	}
-
-	if (!IsValidBackpackIndex(InIndex) || !m_vCharacterItems[InIndex])
-	{
-		return false;
-	}
-
-	m_vCharacterItems[InIndex] = nullptr;
-	BroadcastBackpackChanged();
-	return true;
+	return InItemCount <= 0;
 }
 
 void ULxCharacterBackpackComponent::SortingOfItems()
 {
-	if (!m_bBackpackInitialized)
+	// 使用一个简单的冒泡排序
+	for (int i = 0;i < m_vItemList.Num() - 1; i++)
 	{
-		BaseComponentInitialize();
-	}
-
-	// 通过数据结构体中自带的比较函数进行排序
-	for (int i = 0; i < m_vCharacterItems.Num(); i ++)
-	{
-		for (int j = 0; j < m_vCharacterItems.Num() - i - 1; j ++)
+		for (int j = 0; j < m_vItemList.Num() - 1; j ++)
 		{
-			if (m_vCharacterItems[j] == nullptr && m_vCharacterItems[j + 1] != nullptr)
+			if (m_vItemList[j] < m_vItemList[j + 1])
 			{
-				m_vCharacterItems[j] = m_vCharacterItems[j + 1];
-				m_vCharacterItems[j + 1] = nullptr;
-				continue;
-			}
-			if (m_vCharacterItems[j] == nullptr || m_vCharacterItems[j + 1] == nullptr)
-			{
-				continue;
-			}
-			if (m_vCharacterItems[j]->GetItemBase() > m_vCharacterItems[j + 1]->GetItemBase())
-			{
-				ULxItemData* temp = m_vCharacterItems[j];
-				m_vCharacterItems[j] = m_vCharacterItems[j + 1];
-				m_vCharacterItems[j + 1] = temp;
-				temp = nullptr;
+				std::swap(m_vItemList[i], m_vItemList[j]);
 			}
 		}
 	}
+	// 先清空所有槽位
+	for (auto& slot : m_vBackpackSlots)
+	{
+		slot->ClearItem();
+	}
+	// 将排序后的物品放入槽位中
+	for (int i = 0;i < m_vItemList.Num() - 1; i++)
+	{
+		m_vBackpackSlots[i]->SetItem(m_vItemList[i]);
+	}
+}
+
+TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterBackpackComponent::GetAllItems()
+{
+	return m_vBackpackSlots;
+}
+
+TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterBackpackComponent::QueryItemsOnItemType(ELxItemType InItemType)
+{
+	m_vFilteringCache.Empty();
+	// 遍历所有槽位，将符合条件的物品类型，放入缓存中，
+	for (auto& slot : m_vFilteringCache)
+	{
+		if (slot->ItemDataPtr && slot->ItemDataPtr->GetItemDataBase()->ItemInfo.ItemType == InItemType)
+		{
+			m_vFilteringCache.Add(slot);
+		}
+	}
+	return m_vFilteringCache;
+}
+
+void ULxCharacterBackpackComponent::InitializeBackpack()
+{
+	// 初始化变量
 	
-	BroadcastBackpackChanged();
-}
+	m_vFilteringCache.Empty();
+	m_vBackpackSlots.Empty();
+	m_vItemList.Empty();
 
-ULxItemData* ULxCharacterBackpackComponent::GetItemAt(int32 InIndex) const
-{
-	if (!IsValidBackpackIndex(InIndex))
+	// 此处应当查询存档系统，获取此角色的物品信息
+
+	// 初始化物品栏槽位
+	for (int32 i = 0; i < BackpackSlotCount; ++i)
 	{
-		return nullptr;
+		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
+		NewSlot->ItemSlotType = ELxItemSlotType::Backpack;
+		NewSlot->ID = i;
+		m_vBackpackSlots.Add(NewSlot);
 	}
-
-	return m_vCharacterItems[InIndex];
+	// 此处应当查询存档系统，获取此角色的背包物品存放情况，然后用于初始化所有的槽位
+	
+	
 }
 
-TArray<TObjectPtr<ULxItemData>>& ULxCharacterBackpackComponent::GetItems()
-{
-	return m_vCharacterItems;
-}
-
-TArray<TObjectPtr<ULxItemData>> ULxCharacterBackpackComponent::QueryTypeItem(ELxItemType InItemType) const
-{
-	TArray<TObjectPtr<ULxItemData>> Result;
-
-	for (ULxItemData* ItemData : m_vCharacterItems)
-	{
-		if (!ItemData)
-		{
-			continue;
-		}
-
-		if (InItemType == ELxItemType::None || ItemData->GetItemType() == InItemType)
-		{
-			Result.Add(ItemData);
-		}
-	}
-
-	return Result;
-}
-
-int32 ULxCharacterBackpackComponent::GetBackpackSlotCount() const
-{
-	return ITEM_SLOT_COUNT;
-}
-
-ULxItemData* ULxCharacterBackpackComponent::TakeItemAt(int32 InIndex)
-{
-	if (!m_bBackpackInitialized)
-	{
-		BaseComponentInitialize();
-	}
-
-	if (!IsValidBackpackIndex(InIndex))
-	{
-		return nullptr;
-	}
-
-	ULxItemData* ItemData = m_vCharacterItems[InIndex];
-	m_vCharacterItems[InIndex] = nullptr;
-	if (ItemData)
-	{
-		BroadcastBackpackChanged();
-	}
-	return ItemData;
-}
-
-void ULxCharacterBackpackComponent::InitializeBackpackSlots()
-{
-	m_vCharacterItems.SetNumZeroed(GetBackpackSlotCount());
-}
-
-bool ULxCharacterBackpackComponent::IsValidBackpackIndex(int32 InIndex) const
-{
-	return m_vCharacterItems.IsValidIndex(InIndex);
-}
-
-int32 ULxCharacterBackpackComponent::FindEmptySlotIndex() const
-{
-	return m_vCharacterItems.Find(nullptr);
-}
-
-bool ULxCharacterBackpackComponent::TryStackItemIntoInventory(ULxItemData* InItemData)
-{
-	for (ULxItemData* ExistingItem : m_vCharacterItems)
-	{
-		if (!ExistingItem)
-		{
-			continue;
-		}
-
-		if (StackItem(ExistingItem, InItemData) && !InItemData->IsValid())
-		{
-			return true;
-		}
-	}
-
-	return !InItemData->IsValid();
-}
-
-bool ULxCharacterBackpackComponent::TryStackItemIntoSlot(ULxItemData* InTargetItem, ULxItemData* InSourceItem, bool& bOutSourceConsumed) const
-{
-	bOutSourceConsumed = false;
-	if (!StackItem(InTargetItem, InSourceItem))
-	{
-		return false;
-	}
-
-	bOutSourceConsumed = !InSourceItem->IsValid();
-	return true;
-}
-
-bool ULxCharacterBackpackComponent::StackItem(ULxItemData* InTargetItem, ULxItemData* InSourceItem) const
-{
-	if (!CanItemsStack(InTargetItem, InSourceItem))
-	{
-		return false;
-	}
-
-	FLxItemBase& TargetBase = InTargetItem->GetItemBase();
-	FLxItemBase& SourceBase = InSourceItem->GetItemBase();
-	const int32 RemainingSpace = TargetBase.ItemMaxCount - TargetBase.ItemCount;
-	if (RemainingSpace <= 0)
-	{
-		return false;
-	}
-
-	const int32 TransferCount = FMath::Min(RemainingSpace, SourceBase.ItemCount);
-	TargetBase.ItemCount += TransferCount;
-	SourceBase.ItemCount -= TransferCount;
-
-	return TransferCount > 0;
-}
-
-bool ULxCharacterBackpackComponent::CanItemsStack(ULxItemData* InTargetItem, ULxItemData* InSourceItem) const
-{
-	if (!InTargetItem || !InSourceItem || InTargetItem == InSourceItem)
-	{
-		return false;
-	}
-
-	FLxItemBase& TargetBase = InTargetItem->GetItemBase();
-	FLxItemBase& SourceBase = InSourceItem->GetItemBase();
-
-	return TargetBase.IsValid()
-		&& SourceBase.IsValid()
-		&& TargetBase.ItemCanStack
-		&& SourceBase.ItemCanStack
-		&& TargetBase.RowID == SourceBase.RowID
-		&& TargetBase.ItemCount < TargetBase.ItemMaxCount;
-}
-
-ULxItemData* ULxCharacterBackpackComponent::CreateItemByRowID(ELxItemType InItemType, FName InItemRowID)
-{
-	if (InItemRowID.IsNone())
-	{
-		return nullptr;
-	}
-
-	ULxGameInstanceSubsystem* GameInstanceSubsystem = ULxGameInstanceSubsystem::GetInstance(GetWorld());
-	if (!GameInstanceSubsystem)
-	{
-		return nullptr;
-	}
-
-	const ULxGameDataTablesManager* GameDataTablesManager = GameInstanceSubsystem->GetGameDataManager();
-	if (!GameDataTablesManager)
-	{
-		return nullptr;
-	}
-
-	switch (InItemType)
-	{
-	case ELxItemType::Equipment:
-		{
-			const ULxDataTable* DataTable = GameDataTablesManager->GetDataTables(ELxDataTableTypeEnum::EquipmentData);
-			const FLxEquipmentData* RowData = DataTable ? DataTable->GetData<FLxEquipmentData>(InItemRowID) : nullptr;
-			return RowData ? ULxItemData::CreateNewEquipmentItemData(this, *RowData) : nullptr;
-		}
-	case ELxItemType::Consumable:
-		{
-			const ULxDataTable* DataTable = GameDataTablesManager->GetDataTables(ELxDataTableTypeEnum::ConsumableData);
-			const FLxConsumableData* RowData = DataTable ? DataTable->GetData<FLxConsumableData>(InItemRowID) : nullptr;
-			return RowData ? ULxItemData::CreateNewConsumableItemData(this, *RowData) : nullptr;
-		}
-	case ELxItemType::Material:
-		{
-			const ULxDataTable* DataTable = GameDataTablesManager->GetDataTables(ELxDataTableTypeEnum::MaterialData);
-			const FLxMaterial* RowData = DataTable ? DataTable->GetData<FLxMaterial>(InItemRowID) : nullptr;
-			return RowData ? ULxItemData::CreateNewMaterialItemData(this, *RowData) : nullptr;
-		}
-	default:
-		return nullptr;
-	}
-}
-
-void ULxCharacterBackpackComponent::BroadcastBackpackChanged()
-{
-	OnBackpackChanged.Broadcast();
-}
