@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "LxEquipmentLogic.h"
@@ -9,7 +9,7 @@
 
 namespace
 {
-// 将“词条引用”解析为运行时可直接使用的词条数�?
+// 将“词条引用”解析为运行时可直接使用的词条数
 bool BuildItemEntryData(const FLxItemEntryQuote& InEntryQuote, FLxItemEntryData& OutEntryData)
 {
 	// 先从引用里取词条定义
@@ -49,7 +49,7 @@ bool ULxEquipmentLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
 		return false;
 	}
 
-	// 按约定将基类定义解释为装备定�?
+	// 按约定将基类定义解释为装备定
 	const FLxEquipmentDefine* EquipmentDefine = static_cast<const FLxEquipmentDefine*>(pItemInfo);
 
 	// 清空并重建运行时装备缓存
@@ -65,7 +65,7 @@ bool ULxEquipmentLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
 	}
 	m_EquipmentData.EquipmentInfo = EquipmentDefine->EquipmentInfo;
 
-	// 构建基础词条与扩展词条缓�?
+	// 构建基础词条与扩展词条缓
 	m_EquipmentData.EquipmentEntyInfo.EquipmentExtendEntryList.Empty();
 	BuildItemEntryData(EquipmentDefine->EquipmentEntyQuoteInfo.EquipmentBasicEntryQuote,
 		m_EquipmentData.EquipmentEntyInfo.EquipmentBasicEntry);

@@ -6,6 +6,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "LxARPG/LxSource/Core/Tools/LxString.h"
+#include "LxARPG/LxSource/Model/Input/DataType/LxInputActionInfoTableConfig.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
 #include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
 
@@ -41,10 +42,10 @@ void ULxInputComponent::BaseComponentInitialize()
 			ERROR_TO_SCREEN("GameDataTablesManager is null!");
 			return;
 		}
-		ULxDataTable* InputDataTable = Cast<ULxDataTable>(GameDataTablesManager->m_pInputActionInfoTableConfig);
-		if (!InputDataTable)
+		const ULxInputActionInfoTableConfig* InputActionInfoTableConfig = GameDataTablesManager->m_pInputActionInfoTableConfig;
+		if (!InputActionInfoTableConfig)
 		{
-			ERROR_TO_SCREEN("InputDataTable is null!");
+			ERROR_TO_SCREEN("InputActionInfoTableConfig is null!");
 			return;
 		}
 		APlayerController* Parent = Cast<APlayerController>(GetOwner());
@@ -69,15 +70,13 @@ void ULxInputComponent::BaseComponentInitialize()
 			return;
 		}
 		UInputAction* Action = nullptr;
-		uint16 index = 0;
-		for (InputDataTable->SetIteratorIndex(index);
-			const FLxInputActionInfo* InputActionInfo = InputDataTable->GetIteratorData<FLxInputActionInfo>();
-			InputDataTable->SetIteratorIndex( ++index))
+		for (const TPair<FName, FLxInputActionInfo>& InputActionInfoPair : InputActionInfoTableConfig->GetInputActionInfoMap())
 		{
-			Action = NewObject<UInputAction>(this, InputActionInfo->RowID);
+			const FLxInputActionInfo* InputActionInfo = &InputActionInfoPair.Value;
+			Action = NewObject<UInputAction>(this, InputActionInfo->InputActionID);
 			Action->ValueType = InputActionInfo->ValueType;
 
-			m_mapUserInputActionTable.Add(InputActionInfo->RowID, Action);
+			m_mapUserInputActionTable.Add(InputActionInfo->InputActionID, Action);
 
 			// 绑定输入接收函数
 			switch (InputActionInfo->InteractionType)

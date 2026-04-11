@@ -9,11 +9,15 @@
 #include "LxInputData.generated.h"
 
 
-USTRUCT(BlueprintType)
-struct FLxInputActionInfo : public FLxTableRowBase
+USTRUCT(BlueprintType, DisplayName="输入行为信息")
+struct FLxInputActionInfo : public FTableRowBase
 {
 	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="输入行为信息", DisplayName="输入行为ID")
+	FName InputActionID;
+	
+	
 	// 输入行为的可视化名称，用于在UI设置界面中显示，需要进行多语言化
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="输入行为信息|可视化名称", DisplayName="可视化名称")
 	FText DisplayName;
@@ -24,7 +28,7 @@ struct FLxInputActionInfo : public FLxTableRowBase
 
 	// 输入行为输入的方式
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="输入行为信息|输入的方式",DisplayName="输入的方式")
-	ELxInputInteractionType InteractionType =ELxInputInteractionType::Continuous;
+	ELxInputInteractionType InteractionType = ELxInputInteractionType::Continuous;
 
 	// 输入行为的默认按键 仅包含单方向按键，例如鼠标滚轮只支持上或者下滚动
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="输入行为信息|默认按键",DisplayName="默认按键")
@@ -52,7 +56,41 @@ USTRUCT(BlueprintType)
 struct FLxInputValue
 {
 	GENERATED_BODY()
+	/**
+	 * @var bool m_blValue
+	 * @brief 存储布尔类型的输入值
+	 *
+	 * 该变量用于保存布尔型的输入状态，通常表示开/关或真/假的状态。
+	 * 适用于需要二进制逻辑判断的输入场景。
+	 */
+	bool m_blValue = false;;
 
+	/**
+	 * @var float m_nVector1D
+	 * @brief 存储一维向量的输入值
+	 *
+	 * 该变量用于保存一维方向上的数值，通常表示一个单一维度上的位置或强度。
+	 * 适用于需要在一维空间内进行定位或度量的输入场景。
+	 */
+	float m_nVector1D = 0;
+
+	/**
+	 * @var FVector2D m_sVector2D
+	 * @brief 存储二维向量的输入值
+	 *
+	 * 该变量用于保存二维平面上的坐标点或方向，由两个浮点数表示X和Y轴上的位置。
+	 * 适用于需要在二维空间内进行定位、移动或度量的输入场景。
+	 */
+	FVector2D m_sVector2D = {0, 0};
+
+	/**
+	 * @var FVector m_sVector3D
+	 * @brief 存储三维向量的输入值
+	 *
+	 * 该变量用于保存三维空间中的坐标点或方向，由三个浮点数表示X、Y和Z轴上的位置。
+	 * 适用于需要在三维空间内进行定位、移动或度量的输入场景。
+	 */
+	FVector m_sVector3D = {0, 0, 0};
 	/**
 	 * @brief 默认构造函数
 	 */
@@ -115,41 +153,7 @@ struct FLxInputValue
 
 	}
 
-	/**
-	 * @var bool m_blValue
-	 * @brief 存储布尔类型的输入值
-	 *
-	 * 该变量用于保存布尔型的输入状态，通常表示开/关或真/假的状态。
-	 * 适用于需要二进制逻辑判断的输入场景。
-	 */
-	bool m_blValue = false;;
-
-	/**
-	 * @var float m_nVector1D
-	 * @brief 存储一维向量的输入值
-	 *
-	 * 该变量用于保存一维方向上的数值，通常表示一个单一维度上的位置或强度。
-	 * 适用于需要在一维空间内进行定位或度量的输入场景。
-	 */
-	float m_nVector1D = 0;
-
-	/**
-	 * @var FVector2D m_sVector2D
-	 * @brief 存储二维向量的输入值
-	 *
-	 * 该变量用于保存二维平面上的坐标点或方向，由两个浮点数表示X和Y轴上的位置。
-	 * 适用于需要在二维空间内进行定位、移动或度量的输入场景。
-	 */
-	FVector2D m_sVector2D = {0, 0};
-
-	/**
-	 * @var FVector m_sVector3D
-	 * @brief 存储三维向量的输入值
-	 *
-	 * 该变量用于保存三维空间中的坐标点或方向，由三个浮点数表示X、Y和Z轴上的位置。
-	 * 适用于需要在三维空间内进行定位、移动或度量的输入场景。
-	 */
-	FVector m_sVector3D = {0, 0, 0};
+	
 };
 
 /**
