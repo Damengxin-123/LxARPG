@@ -75,17 +75,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="Item Grid")
 	FOnItemGridDataChanged OnItemGridDataChanged;
 
-	// /**
-	//  * @brief 当鼠标悬停在格子上或离开格子时触发的事件。
-	//  * 此委托用于通知蓝图脚本，当鼠标进入或离开当前格子时进行相应的操作，如显示提示信息、改变格子样式等。
-	//  * 可以在蓝图中绑定此事件来响应鼠标悬停状态的变化，从而实现更丰富的用户交互体验。
-	//  */
-	// UPROPERTY(BlueprintAssignable, Category="Item Grid")
-	// FOnItemGridHoverChanged OnItemGridHoverChanged;
-	//
-	// /** 格子拖放处理结束事件。 */
-	// UPROPERTY(BlueprintAssignable, Category="Item Grid")
-	// FOnItemGridDropHandled OnItemGridDropHandled;
 protected:
 	/**
 	 * @brief 拖拽UI类型

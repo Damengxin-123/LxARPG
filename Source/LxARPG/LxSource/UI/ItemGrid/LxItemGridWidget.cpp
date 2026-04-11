@@ -10,33 +10,6 @@
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemDragInfo.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemDragIconWidget.h"
 
-namespace
-{
-EItemSlotWidgetType ConvertSlotTypeToWidgetType(const ULxItemSlotData* SlotData)
-{
-	if (SlotData == nullptr)
-	{
-		return EItemSlotWidgetType::EIT_None;
-	}
-
-	switch (SlotData->ItemSlotType)
-	{
-	case ELxItemSlotType::Backpack:
-	case ELxItemSlotType::Transaction:
-	case ELxItemSlotType::TreasureChest:
-		return EItemSlotWidgetType::Inventory;
-	case ELxItemSlotType::Equipment:
-		return EItemSlotWidgetType::Equipment;
-	case ELxItemSlotType::Warehouse:
-		return EItemSlotWidgetType::Warehouse;
-	case ELxItemSlotType::Shortcut:
-		return EItemSlotWidgetType::Shortcut;
-	default:
-		return EItemSlotWidgetType::EIT_None;
-	}
-}
-}
-
 void ULxItemGridWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
 	InitItemData(ListItemObject);
@@ -44,7 +17,7 @@ void ULxItemGridWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 
 const FLxItemDateBase& ULxItemGridWidget::GetCurrentItemData() const
 {
-	static const FLxItemDateBase EmptyItemData;
+	static FLxItemDateBase EmptyItemData;
 
 	if (CurrentSlotData == nullptr || !CurrentSlotData->IsValid())
 	{

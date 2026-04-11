@@ -10,6 +10,8 @@
 class ALxBaseCharacter;
 class ALxPlayerController;
 
+// UI基类更新事件，用于当c++UI类型需要更新显示内容，通知继承他的蓝图时使用
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnUiBaseUpdateEvent);
 /**
  * @brief 所有 UI 对象的基础类
  */

@@ -65,31 +65,79 @@ public:
 	 */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	UFUNCTION(BlueprintCallable, Category="Character|Movement")
+	/**
+	 * @brief 获取角色移动组件。
+	 *
+	 * 该方法用于获取当前角色的移动组件实例，以便于访问和操作角色的移动相关功能和数据。
+	 *
+	 * @return 返回指向ULxCharacterMoveComponent的指针，如果移动组件未被初始化则返回nullptr。
+	 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取移动组件")
 	ULxCharacterMoveComponent* GetCharacterMoveComponent() const { return m_pCharacterMoveComponent; }
 
-	UFUNCTION(BlueprintCallable, Category="Character|Attribute")
+	/**
+	 * @brief 获取角色属性组件。
+	 *
+	 * 该方法用于获取当前角色的属性组件实例，以便于访问和操作角色的各项属性数据。
+	 *
+	 * @return 返回指向ULxCharacterAttributeComponent的指针，如果属性组件未被初始化则返回nullptr。
+	 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色属性组件")
 	ULxCharacterAttributeComponent* GetCharacterAttributeComponent() const { return m_pCharacterAttributeComponent; }
 
-	UFUNCTION(BlueprintCallable, Category="Character|Item")
+	/**
+	 * @brief 获取角色背包组件。
+	 *
+	 * 该方法用于获取当前角色的背包组件实例，以便于访问背包相关的功能和数据。
+	 *
+	 * @return 返回指向ULxCharacterBackpackComponent的指针，如果背包组件未被初始化则返回nullptr。
+	 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色背包组件")
 	ULxCharacterBackpackComponent* GetCharacterBackpackComponent() const { return m_pCharacterBackpackComponent; }
 
-	UFUNCTION(BlueprintCallable, Category="Character|Item")
+	/**
+	 * @brief 获取角色装备组件。
+	 *
+	 * 该方法用于获取当前角色的装备组件实例，以便于访问和操作角色的装备相关功能和数据。
+	 *
+	 * @return 返回指向ULxCharacterEquipmentComponent的指针，如果装备组件未被初始化则返回nullptr。
+	 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色装备组件")
 	ULxCharacterEquipmentComponent* GetCharacterEquipmentComponent() const { return m_pCharacterEquipmentComponent; }
 
 protected:
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components|Movement")
+	/**
+	 * @brief 角色移动组件。
+	 *
+	 * 该属性指向角色的移动组件实例，用于管理和控制角色的移动行为。通过此组件可以访问和修改与角色移动相关的功能和数据。
+	 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色移动组件")
 	TObjectPtr<ULxCharacterMoveComponent> m_pCharacterMoveComponent;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components|Attribute")
+	/**
+	 * @brief 角色属性组件。
+	 *
+	 * 该属性指向角色的属性组件实例，用于管理和控制角色的各项属性数据。通过此组件可以访问和修改与角色属性相关的功能和数据。
+	 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色属性组件")
 	TObjectPtr<ULxCharacterAttributeComponent> m_pCharacterAttributeComponent;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components|Item")
+	/**
+	 * @brief 角色背包组件。
+	 *
+	 * 该属性指向角色的背包组件实例，用于管理和控制角色背包相关的功能和数据。通过此组件可以访问和修改与角色背包相关的功能和数据。
+	 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色背包组件")
 	TObjectPtr<ULxCharacterBackpackComponent> m_pCharacterBackpackComponent;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components|Item")
+	/**
+	 * @brief 角色装备组件。
+	 *
+	 * 该属性指向角色的装备组件实例，用于管理和控制角色装备相关的功能和数据。通过此组件可以访问和修改与角色装备相关的功能和数据。
+	 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色装备组件")
 	TObjectPtr<ULxCharacterEquipmentComponent> m_pCharacterEquipmentComponent;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(BlueprintReadOnly, EditAnywhere)
 	ELxCharacterState m_nCharacterState = ELxCharacterState::Idle;
 };

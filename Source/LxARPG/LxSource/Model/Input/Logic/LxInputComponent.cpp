@@ -6,7 +6,6 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "LxARPG/LxSource/Core/Tools/LxString.h"
-#include "LxARPG/LxSource/Systems/DatabaseSystem/LxDataTable.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
 #include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
 

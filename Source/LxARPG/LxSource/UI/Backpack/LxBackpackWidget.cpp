@@ -11,267 +11,93 @@
 void ULxBackpackWidget::InitializeUIComponents()
 {
 	Super::InitializeUIComponents();
-	if (ShortcutSlotCount <= 0)
-	{
-		ShortcutSlotCount = QUICK_ACCESS_TOOLBAR_COUNT;
-	}
-	InitializeLocalSlots();
+	// 暂时没有啥要更新的
 }
 
 void ULxBackpackWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
 {
 	Super::UpdateUIComponents(PlayerCharacter);
-	RebindCharacterComponents(PlayerCharacter);
-	HandleBackpackDataUpdate();
 }
-
-void ULxBackpackWidget::HandleBackpackDataUpdate()
+void ULxBackpackWidget::UpdatedBackpack()
 {
-	ShowItemList();
-	ShowEquipmentList();
-	ShowShortcutList();
-	ShowWarehouseList();
-	ShowSkillList();
+	// 获取到当前控制器持有的角色的背包组件和装备组件
+	if (m_pPlayerCharacter)
+	{
+		m_pCharacterBackpackComponent = m_pPlayerCharacter->GetCharacterBackpackComponent();
+		m_pCharacterEquipmentComponent = m_pPlayerCharacter->GetCharacterEquipmentComponent();
+	}
+	// 暂时不用绑定组件的事件，而是由物品格子自己更新物品槽位内的物品信息
+	// 获取装备槽位和物品槽位 进行缓存
+	if (m_pCharacterBackpackComponent)
+	{
+		m_vItemSlotList = m_pCharacterBackpackComponent->GetAllItems();
+	}
+	if (m_pCharacterEquipmentComponent)
+	{
+		m_vEquipmentSlotList = m_pCharacterEquipmentComponent->GetEquipmentSlots();
+	}
+	// 判断，如果获取到了物品和装备，则发出更新事件
+	if (!m_vItemSlotList.IsEmpty())
+	{
+		OnItemListUpdated.Broadcast();
+	}
+	if (!m_vEquipmentSlotList.IsEmpty())
+	{
+		OnEquipmentListUpdated.Broadcast();
+	}
 }
-
-void ULxBackpackWidget::HandleLocalSlotsDataUpdate()
-{
-	ShowShortcutList();
-	ShowWarehouseList();
-	ShowSkillList();
-}
-
 void ULxBackpackWidget::SortingOfItems()
 {
+	// 先调用排序函数
 	if (m_pCharacterBackpackComponent)
 	{
 		m_pCharacterBackpackComponent->SortingOfItems();
 	}
+	// 然后再获取物品列表缓存
+	if (m_pCharacterEquipmentComponent)
+	{
+		m_vItemSlotList = m_pCharacterBackpackComponent->GetAllItems();
+	}
+	// 判断，如果获取到了物品和装备，则发出更新事件
+	if (!m_vItemSlotList.IsEmpty())
+	{
+		OnItemListUpdated.Broadcast();
+	}
+}
+
+TArray<UObject*> ULxBackpackWidget::GetItemUIDataList()
+{
+	TArray<UObject*> ItemUIDataList;
+	for (auto& item :  m_vItemSlotList)
+	{
+		ULxItemUIData* ItemUIData = NewObject<ULxItemUIData>(this);
+		ItemUIData->m_pSlotData = item;
+		ItemUIDataList.Add(ItemUIData);
+	}
+	return ItemUIDataList;
+}
+
+TArray<UObject*> ULxBackpackWidget::GetEquipmentUIDataList()
+{
+	TArray<UObject*> EquipmentUIDataList;
+	for (auto& equ :  m_vEquipmentSlotList)
+	{
+		ULxItemUIData* EquipmentUIData = NewObject<ULxItemUIData>(this);
+		EquipmentUIData->m_pSlotData = equ;
+		EquipmentUIDataList.Add(EquipmentUIData);
+	}
+	return EquipmentUIDataList;
 }
 
 void ULxBackpackWidget::SwitchItemType(ELxItemType NewType)
 {
-	m_CurrentItemType = NewType;
-	ShowItemList();
-}
-
-void ULxBackpackWidget::ShowItemList()
-{
-	TArray<ULxItemUIData*> ItemList;
-
-	if (!m_pCharacterBackpackComponent)
-	{
-		OnInventoryItemListChanged.Broadcast(ItemList);
-		return;
-	}
-
-	TArray<TObjectPtr<ULxItemSlotData>>& BackpackSlots = m_pCharacterBackpackComponent->GetAllItems();
-	ItemList.Reserve(BackpackSlots.Num());
-
-	for (int32 SlotIndex = 0; SlotIndex < BackpackSlots.Num(); ++SlotIndex)
-	{
-		ULxItemSlotData* SlotData = BackpackSlots[SlotIndex];
-		ULxItemLogicBase* ItemData = SlotData ? SlotData->ItemDataPtr : nullptr;
-
-		if (m_CurrentItemType != ELxItemType::None)
-		{
-			const FLxItemDateBase* ItemBaseData = ItemData ? ItemData->GetItemDataBase() : nullptr;
-			if (!ItemBaseData || ItemBaseData->ItemInfo.ItemType != m_CurrentItemType)
-			{
-				continue;
-			}
-		}
-
-		ULxItemUIData* BackpackData = NewObject<ULxItemUIData>(this);
-		BackpackData->InitializeGridData(SlotIndex, SlotData, EItemSlotWidgetType::Inventory, INDEX_NONE);
-		ItemList.Add(BackpackData);
-	}
-
-	OnInventoryItemListChanged.Broadcast(ItemList);
-}
-
-void ULxBackpackWidget::ShowEquipmentList()
-{
-	TArray<ULxItemUIData*> ItemList;
-
-	if (!m_pCharacterEquipmentComponent)
-	{
-		OnEquipmentItemListChanged.Broadcast(ItemList);
-		return;
-	}
-
-	TArray<TObjectPtr<ULxEquipmentSlotData>>& EquipmentSlots = m_pCharacterEquipmentComponent->GetEquipmentSlots();
-	ItemList.Reserve(EquipmentSlots.Num());
-
-	for (int32 SlotIndex = 0; SlotIndex < EquipmentSlots.Num(); ++SlotIndex)
-	{
-		ULxEquipmentSlotData* EquipmentSlotData = EquipmentSlots[SlotIndex];
-		const int32 SlotSubType = EquipmentSlotData ? static_cast<int32>(EquipmentSlotData->EquipmentType) : INDEX_NONE;
-
-		ULxItemUIData* BackpackData = NewObject<ULxItemUIData>(this);
-		BackpackData->InitializeGridData(SlotIndex, EquipmentSlotData, EItemSlotWidgetType::Equipment, SlotSubType);
-		ItemList.Add(BackpackData);
-	}
-
-	OnEquipmentItemListChanged.Broadcast(ItemList);
-}
-
-void ULxBackpackWidget::ShowShortcutList()
-{
-	TArray<ULxItemUIData*> ItemList;
-	ItemList.Reserve(m_vShortcutSlots.Num());
-
-	for (int32 SlotIndex = 0; SlotIndex < m_vShortcutSlots.Num(); ++SlotIndex)
-	{
-		ULxItemUIData* Data = NewObject<ULxItemUIData>(this);
-		Data->InitializeGridData(SlotIndex, m_vShortcutSlots[SlotIndex], EItemSlotWidgetType::Shortcut, INDEX_NONE);
-		ItemList.Add(Data);
-	}
-
-	OnShortcutItemListChanged.Broadcast(ItemList);
-}
-
-void ULxBackpackWidget::ShowWarehouseList()
-{
-	TArray<ULxItemUIData*> ItemList;
-	ItemList.Reserve(m_vWarehouseSlots.Num());
-
-	for (int32 SlotIndex = 0; SlotIndex < m_vWarehouseSlots.Num(); ++SlotIndex)
-	{
-		ULxItemUIData* Data = NewObject<ULxItemUIData>(this);
-		Data->InitializeGridData(SlotIndex, m_vWarehouseSlots[SlotIndex], EItemSlotWidgetType::Warehouse, INDEX_NONE);
-		ItemList.Add(Data);
-	}
-
-	OnWarehouseItemListChanged.Broadcast(ItemList);
-}
-
-void ULxBackpackWidget::ShowSkillList()
-{
-	TArray<ULxItemUIData*> ItemList;
-	ItemList.Reserve(m_vSkillSlots.Num());
-
-	for (int32 SlotIndex = 0; SlotIndex < m_vSkillSlots.Num(); ++SlotIndex)
-	{
-		ULxItemUIData* Data = NewObject<ULxItemUIData>(this);
-		Data->InitializeGridData(SlotIndex, m_vSkillSlots[SlotIndex], EItemSlotWidgetType::Skill, INDEX_NONE);
-		ItemList.Add(Data);
-	}
-
-	OnSkillItemListChanged.Broadcast(ItemList);
-}
-
-void ULxBackpackWidget::RebindCharacterComponents(ALxBaseCharacter* PlayerCharacter)
-{
 	if (m_pCharacterBackpackComponent)
 	{
-		m_pCharacterBackpackComponent->OnDataChange.RemoveDynamic(this, &ULxBackpackWidget::HandleBackpackDataUpdate);
+		m_vItemSlotList = m_pCharacterBackpackComponent->QueryItemsOnItemType(NewType);
 	}
-
-	if (m_pCharacterEquipmentComponent)
+	// 判断，如果获取到了物品和装备，则发出更新事件
+	if (!m_vItemSlotList.IsEmpty())
 	{
-		m_pCharacterEquipmentComponent->OnDataChange.RemoveDynamic(this, &ULxBackpackWidget::HandleBackpackDataUpdate);
-	}
-
-	m_pCharacterBackpackComponent = PlayerCharacter ? PlayerCharacter->GetCharacterBackpackComponent() : nullptr;
-	m_pCharacterEquipmentComponent = PlayerCharacter ? PlayerCharacter->GetCharacterEquipmentComponent() : nullptr;
-
-	if (m_pCharacterBackpackComponent)
-	{
-		m_pCharacterBackpackComponent->OnDataChange.AddDynamic(this, &ULxBackpackWidget::HandleBackpackDataUpdate);
-	}
-
-	if (m_pCharacterEquipmentComponent)
-	{
-		m_pCharacterEquipmentComponent->OnDataChange.AddDynamic(this, &ULxBackpackWidget::HandleBackpackDataUpdate);
-	}
-}
-
-void ULxBackpackWidget::InitializeLocalSlots()
-{
-	UnbindLocalSlots();
-
-	m_vShortcutSlots.Empty();
-	m_vWarehouseSlots.Empty();
-	m_vSkillSlots.Empty();
-
-	for (int32 i = 0; i < ShortcutSlotCount; ++i)
-	{
-		ULxItemSlotData* Slot = NewObject<ULxItemSlotData>(this);
-		Slot->ItemSlotType = ELxItemSlotType::Shortcut;
-		Slot->ID = i;
-		m_vShortcutSlots.Add(Slot);
-	}
-
-	for (int32 i = 0; i < WarehouseSlotCount; ++i)
-	{
-		ULxItemSlotData* Slot = NewObject<ULxItemSlotData>(this);
-		Slot->ItemSlotType = ELxItemSlotType::Warehouse;
-		Slot->ID = i;
-		m_vWarehouseSlots.Add(Slot);
-	}
-
-	for (int32 i = 0; i < SkillSlotCount; ++i)
-	{
-		ULxSkillSlotData* Slot = NewObject<ULxSkillSlotData>(this);
-		Slot->ItemSlotType = ELxItemSlotType::Shortcut;
-		Slot->ID = i;
-		m_vSkillSlots.Add(Slot);
-	}
-
-	BindLocalSlots();
-}
-
-void ULxBackpackWidget::BindLocalSlots()
-{
-	for (ULxItemSlotData* Slot : m_vShortcutSlots)
-	{
-		if (Slot)
-		{
-			Slot->OnSlotChanged.AddDynamic(this, &ULxBackpackWidget::HandleLocalSlotsDataUpdate);
-		}
-	}
-
-	for (ULxItemSlotData* Slot : m_vWarehouseSlots)
-	{
-		if (Slot)
-		{
-			Slot->OnSlotChanged.AddDynamic(this, &ULxBackpackWidget::HandleLocalSlotsDataUpdate);
-		}
-	}
-
-	for (ULxSkillSlotData* Slot : m_vSkillSlots)
-	{
-		if (Slot)
-		{
-			Slot->OnSlotChanged.AddDynamic(this, &ULxBackpackWidget::HandleLocalSlotsDataUpdate);
-		}
-	}
-}
-
-void ULxBackpackWidget::UnbindLocalSlots()
-{
-	for (ULxItemSlotData* Slot : m_vShortcutSlots)
-	{
-		if (Slot)
-		{
-			Slot->OnSlotChanged.RemoveDynamic(this, &ULxBackpackWidget::HandleLocalSlotsDataUpdate);
-		}
-	}
-
-	for (ULxItemSlotData* Slot : m_vWarehouseSlots)
-	{
-		if (Slot)
-		{
-			Slot->OnSlotChanged.RemoveDynamic(this, &ULxBackpackWidget::HandleLocalSlotsDataUpdate);
-		}
-	}
-
-	for (ULxSkillSlotData* Slot : m_vSkillSlots)
-	{
-		if (Slot)
-		{
-			Slot->OnSlotChanged.RemoveDynamic(this, &ULxBackpackWidget::HandleLocalSlotsDataUpdate);
-		}
+		OnItemListUpdated.Broadcast();
 	}
 }
