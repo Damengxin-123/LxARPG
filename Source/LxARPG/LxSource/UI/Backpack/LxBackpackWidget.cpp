@@ -17,6 +17,7 @@ void ULxBackpackWidget::InitializeUIComponents()
 void ULxBackpackWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
 {
 	Super::UpdateUIComponents(PlayerCharacter);
+	UpdatedBackpack();
 }
 void ULxBackpackWidget::UpdatedBackpack()
 {

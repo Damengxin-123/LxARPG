@@ -1,114 +1,88 @@
-﻿#include "LxAttributeWidget.h"
+#include "LxAttributeWidget.h"
 
+#include "Algo/Sort.h"
+#include "LxARPG/LxSource/Core/Tools/LxAttributeValueTool.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
-#include "LxARPG/LxSource/UI/TextUI/LxUITextData.h"
-
+#include "LxARPG/LxSource/UI/UICore/LxUITextData.h"
 
 void ULxAttributeWidget::InitializeUIComponents()
 {
 	Super::InitializeUIComponents();
 }
 
-void ULxAttributeWidget::ResetUIComponents()
-{
-	Super::ResetUIComponents();
-
-	TArray<ULxUITextData*> EmptyList;
-	OnAttributeItemListChanged.Broadcast(EmptyList);
-	ReceiveAttributeItemListChanged(EmptyList);
-}
-
 void ULxAttributeWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
 {
 	Super::UpdateUIComponents(PlayerCharacter);
-
-	if (m_pCharacterAttributeComponent)
+	if (PlayerCharacter)
 	{
-		m_pCharacterAttributeComponent->OnDataChange.RemoveDynamic(this, &ULxAttributeWidget::HandleAttributeChanged);
+		m_pCharacterAttributeComponent = PlayerCharacter->FindComponentByClass<ULxCharacterAttributeComponent>();
+		if (m_pCharacterAttributeComponent)
+		{
+			m_pCharacterAttributeComponent->OnDataChange.AddDynamic(this, &ULxAttributeWidget::HandleAttributeChanged);
+			HandleAttributeChanged();
+		}
 	}
-
-	m_pCharacterAttributeComponent = PlayerCharacter ? PlayerCharacter->GetCharacterAttributeComponent() : nullptr;
-	if (m_pCharacterAttributeComponent)
-	{
-		m_pCharacterAttributeComponent->OnDataChange.AddDynamic(this, &ULxAttributeWidget::HandleAttributeChanged);
-	}
-
-	ShowRoleProperties();
 }
 
 void ULxAttributeWidget::HandleAttributeChanged()
 {
-	ShowRoleProperties();
+	OnAttributeUpdate.Broadcast();
 }
 
-void ULxAttributeWidget::ShowRoleProperties()
+TArray<ULxUITextData*> ULxAttributeWidget::GetAttributesUIDataList()
 {
-	TArray<ULxUITextData*> ItemList;
+	TArray<ULxUITextData*> UIDataList;
 
 	if (!m_pCharacterAttributeComponent)
 	{
-		OnAttributeItemListChanged.Broadcast(ItemList);
-		ReceiveAttributeItemListChanged(ItemList);
-		return;
+		return UIDataList;
 	}
 
-	const TMap<FName, FLxAttributeData>* AttributeTable = m_pCharacterAttributeComponent->GetCharacterAttributeTable();
-	if (!AttributeTable)
+	const TMap<FName, FLxAttributeData>* CharacterAttributeTable = m_pCharacterAttributeComponent->GetCharacterAttributeTable();
+	if (!CharacterAttributeTable)
 	{
-		OnAttributeItemListChanged.Broadcast(ItemList);
-		ReceiveAttributeItemListChanged(ItemList);
-		return;
+		return UIDataList;
 	}
 
-	TArray<const FLxAttributeData*> AttributeArray;
-	AttributeArray.Reserve(AttributeTable->Num());
-	for (const TPair<FName, FLxAttributeData>& Pair : *AttributeTable)
+	TArray<const FLxAttributeData*> VisibleAttributeList;
+	VisibleAttributeList.Reserve(CharacterAttributeTable->Num());
+	for (const TPair<FName, FLxAttributeData>& AttributePair : *CharacterAttributeTable)
 	{
-		if (Pair.Value.AttributeShowInfo.IsVisible)
+		const FLxAttributeData& AttributeData = AttributePair.Value;
+		// 只生成需要在属性面板中展示的条目。
+		if (!AttributeData.AttributeShowInfo.IsVisible)
 		{
-			AttributeArray.Add(&Pair.Value);
+			continue;
 		}
+
+		VisibleAttributeList.Add(&AttributeData);
 	}
-	bool bIsDarkColor = false;
-	AppendAttributeGroup(ItemList, AttributeArray, ELxAttributeType::Basic_Att, TEXT("基础属性"), bIsDarkColor);
-	AppendAttributeGroup(ItemList, AttributeArray, ELxAttributeType::Atk_Att, TEXT("攻击属性"), bIsDarkColor);
-	AppendAttributeGroup(ItemList, AttributeArray, ELxAttributeType::Def_Att, TEXT("防御属性"), bIsDarkColor);
-	AppendAttributeGroup(ItemList, AttributeArray, ELxAttributeType::Ele_Att, TEXT("元素亲和"), bIsDarkColor);
-	AppendAttributeGroup(ItemList, AttributeArray, ELxAttributeType::Bel_Att, TEXT("信仰亲和"), bIsDarkColor);
-	AppendAttributeGroup(ItemList, AttributeArray, ELxAttributeType::Other_Att, TEXT("其他属性"), bIsDarkColor);
 
-	OnAttributeItemListChanged.Broadcast(ItemList);
-	ReceiveAttributeItemListChanged(ItemList);
-}
-
-void ULxAttributeWidget::AppendAttributeGroup(TArray<ULxUITextData*>& OutItemList, const TArray<const FLxAttributeData*>& InAttributes, ELxAttributeType InAttributeType, const FString& InTitle, bool& bIsDarkColor) const
-{
-	TArray<const FLxAttributeData*> GroupAttributes;
-	for (const FLxAttributeData* Attribute : InAttributes)
+	// 按属性类型枚举值排序，保证属性列表在 UI 中稳定、有序地显示。
+	Algo::Sort(VisibleAttributeList, [](const FLxAttributeData* Left, const FLxAttributeData* Right)
 	{
-		if (Attribute && Attribute->AttributeInfo.AttributeType == InAttributeType)
+		return static_cast<uint8>(Left->AttributeInfo.AttributeType) < static_cast<uint8>(Right->AttributeInfo.AttributeType);
+	});
+
+	UIDataList.Reserve(VisibleAttributeList.Num());
+	bool IsDarkColor = true;
+	for (const FLxAttributeData* AttributeData : VisibleAttributeList)
+	{
+		ULxUITextData* AttributeUIData = NewObject<ULxUITextData>(this);
+		if (!AttributeUIData)
 		{
-			GroupAttributes.Add(Attribute);
+			continue;
 		}
+
+		// 文本主体使用属性配置中的富文本描述，数值部分单独填充给列表项控件。
+		AttributeUIData->RichTextDescriptionGroupData = const_cast<FLxRichTextDescriptionGroupData*>(&AttributeData->AttributeShowInfo.AttributeName);
+		AttributeUIData->ValueText = FLxAttributeValueTool::BuildAttributeValueText(*AttributeData);
+		AttributeUIData->IsDarkColor = IsDarkColor;
+		UIDataList.Add(AttributeUIData);
+		IsDarkColor = !IsDarkColor;
+		// 交替设置。
 	}
 
-	if (GroupAttributes.IsEmpty())
-	{
-		return;
-	}
-
-	ULxUITextData* TitleData = NewObject<ULxUITextData>(const_cast<ULxAttributeWidget*>(this));
-	TitleData->m_Title = InTitle;
-	OutItemList.Add(TitleData);
-
-	for (const FLxAttributeData* Attribute : GroupAttributes)
-	{
-		ULxUITextData* DataItem = NewObject<ULxUITextData>(const_cast<ULxAttributeWidget*>(this));
-		DataItem->m_pCharacterAttributeDataPtr = const_cast<FLxAttributeData*>(Attribute);
-		DataItem->m_bIsDarkColor = bIsDarkColor;
-		OutItemList.Add(DataItem);
-		bIsDarkColor = !bIsDarkColor;
-	}
+	return UIDataList;
 }
-

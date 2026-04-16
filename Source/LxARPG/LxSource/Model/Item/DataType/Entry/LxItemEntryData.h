@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LxItemEntryEnum.h"
+#include "LxARPG/LxSource/Model/Style/DataType/LxRichTextDescriptionData.h"
 #include "LxARPG/LxSource/Model/Style/DataType/LxTextLineStyleData.h"
 #include "LxItemEntryData.generated.h"
 
@@ -28,7 +29,7 @@ struct FLxItemEntryValueInfo
  	 * @note 确保设置的数值上限合理，以避免超出预期范围导致的逻辑错误。
  	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="数值上限")
-	int32 ValueLimit = 0;
+	float ValueLimit = 0;
 	/**
 	 * @brief 当前有效值
 	 *
@@ -38,7 +39,7 @@ struct FLxItemEntryValueInfo
 	 * @note 确保设置的数值在合理范围内，以避免逻辑错误。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="当前有效值")
-	int32 Value = 0;
+	float Value = 0;
 	/**
 	 * @brief 向上浮动比例
 	 *
@@ -130,7 +131,7 @@ struct FLxItemEntryDefine : public FTableRowBase
 	 * @note 确保词条名称具有描述性和唯一性，以便于在项目中进行识别和引用。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "词条可视化信息", DisplayName="词条名称")
-	FText DisplayName;
+	FLxRichTextDescriptionGroupData DisplayNameData;
 	/**
 	 * @brief 词条描述信息
 	 *
@@ -141,17 +142,7 @@ struct FLxItemEntryDefine : public FTableRowBase
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "词条可视化信息", DisplayName="词条描述信息")
 	FText Description;
-
-	/**
-	 * @brief词条显示样式引用
-	 *
-	 * 该变量用于引用词条的显示样式数据。通过编辑器或蓝图可以对其进行读写操作。
-	 * 在编辑器中，该变量显示为“词条显示样式引用”。
-	 *
-	 * @note 确保引用的数据表行类型为 `LxTextLineStyleData`，以确保正确的样式信息被应用。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="词条显示样式引用", meta=(RowType="LxTextLineStyleData"))
-	FDataTableRowHandle TextStyleTableQuote;
+	
 	/**
 	 * @brief词条作用属性引用
 	 *
@@ -240,7 +231,7 @@ struct FLxItemEntryData
 	 * @note 确保词条名称具有描述性和唯一性，以便于在项目中进行识别和引用。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "词条可视化信息", DisplayName="词条名称")
-	FText DisplayName;
+	FLxRichTextDescriptionGroupData DisplayNameData;
 	/**
 	 * @brief 词条描述信息
 	 *
@@ -252,8 +243,6 @@ struct FLxItemEntryData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "词条可视化信息", DisplayName="词条描述信息")
 	FText Description;
 
-	// 词条样式指针
-	FLxTextLineStyleData*  TextStyle = nullptr;
 	// 词条作用属性ID
 	FName AttributeID;
 	// 词条值

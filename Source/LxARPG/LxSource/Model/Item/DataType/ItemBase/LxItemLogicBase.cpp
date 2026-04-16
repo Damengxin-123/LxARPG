@@ -3,6 +3,32 @@
 
 #include "LxItemLogicBase.h"
 
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryData.h"
+
+bool ULxItemLogicBase::BuildItemEntryData(const FLxItemEntryQuote& InEntryQuote, FLxItemEntryData& OutEntryData)
+{
+	// 先从引用里取词条定义
+	const FLxItemEntryDefine* EntryDefine = InEntryQuote.ItemEntryDefineTableQuote.GetRow<FLxItemEntryDefine>(TEXT("ULxEquipmentLogic"));
+	if (EntryDefine == nullptr || EntryDefine->EntryID.IsNone())
+	{
+		return false;
+	}
+
+	OutEntryData.EntryID = EntryDefine->EntryID;
+	OutEntryData.DisplayNameData = EntryDefine->DisplayNameData;
+	OutEntryData.Description = EntryDefine->Description;
+
+	// 解析词条作用到的属性定义（可能为空
+	const FLxAttributeDefineInfo* AttributeDefine = EntryDefine->AttributeDefineTableQuote.GetRow<FLxAttributeDefineInfo>(TEXT("ULxEquipmentLogic"));
+	OutEntryData.AttributeID = AttributeDefine ? AttributeDefine->AttributeInfo.AttributeID : NAME_None;
+
+	OutEntryData.ItemEntryDefineValue = EntryDefine->ItemEntryDefineValue;
+	OutEntryData.EffectiveRatio = InEntryQuote.UpwardFloatingRatio;
+
+	return true;
+}
+
 bool ULxItemLogicBase::ItemIsStack(ULxItemLogicBase* InItemLogic)
 {
 	if (InItemLogic == nullptr || InItemLogic == this)

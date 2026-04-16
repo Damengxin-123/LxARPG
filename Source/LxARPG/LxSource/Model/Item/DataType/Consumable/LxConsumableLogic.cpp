@@ -6,30 +6,6 @@
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Model/Style/DataType/LxTextLineStyleData.h"
 
-namespace
-{
-bool BuildItemEntryData(const FLxItemEntryQuote& InEntryQuote, FLxItemEntryData& OutEntryData)
-{
-	const FLxItemEntryDefine* EntryDefine = InEntryQuote.ItemEntryDefineTableQuote.GetRow<FLxItemEntryDefine>(TEXT("ULxConsumableLogic"));
-	if (EntryDefine == nullptr || EntryDefine->EntryID.IsNone())
-	{
-		return false;
-	}
-
-	OutEntryData.EntryID = EntryDefine->EntryID;
-	OutEntryData.DisplayName = EntryDefine->DisplayName;
-	OutEntryData.Description = EntryDefine->Description;
-	OutEntryData.TextStyle = EntryDefine->TextStyleTableQuote.GetRow<FLxTextLineStyleData>(TEXT("ULxConsumableLogic"));
-
-	const FLxAttributeDefineInfo* AttributeDefine = EntryDefine->AttributeDefineTableQuote.GetRow<FLxAttributeDefineInfo>(TEXT("ULxConsumableLogic"));
-	OutEntryData.AttributeID = AttributeDefine ? AttributeDefine->AttributeInfo.AttributeID : NAME_None;
-
-	OutEntryData.ItemEntryDefineValue = EntryDefine->ItemEntryDefineValue;
-	OutEntryData.EffectiveRatio = InEntryQuote.UpwardFloatingRatio;
-	return true;
-}
-}
-
 bool ULxConsumableLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
 {
 	if (pItemInfo == nullptr)

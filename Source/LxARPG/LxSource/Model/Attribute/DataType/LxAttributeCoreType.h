@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LxAttributeEnumType.h"
+#include "LxARPG/LxSource/Model/Style/DataType/LxRichTextDescriptionData.h"
 #include "UObject/Object.h"
 #include "LxAttributeCoreType.generated.h"
 
@@ -57,22 +58,24 @@ USTRUCT(BlueprintType, DisplayName="属性可视化信息")
 struct FLxAttributeShowInfo
 {
 	GENERATED_BODY()
-	/**
+	/** FLxRichTextDescriptionData
  	 * @var FText m_strAttName
  	 * @brief 属性名称
  	 *
  	 * 用于UI显示，需要进行多语言化。
  	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性可视化名称")
-	FText   AttributeName;
+	FLxRichTextDescriptionGroupData   AttributeName;
 
 	/**
-  	 * @var FText m_strAttName
-  	 * @brief 属性名称
-  	 *
-  	 * 用于UI显示，需要进行多语言化。
-  	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性可视化名称")
+	 * @brief 属性可视化描述
+	 *
+	 * 该字段用于存储属性的详细描述信息，适用于UI显示或文档说明。通过蓝图或编辑器可以对其进行读写操作。
+	 * 在编辑器中，此字段显示为“属性可视化描述”。
+	 *
+	 * @note 确保提供的描述信息准确且符合项目需求，以便于开发者和用户理解。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性可视化描述")
 	FText   AttributeDescription;
 	/**
    	 * @var bool m_bIsVisible
@@ -105,7 +108,7 @@ struct FLxAttributeValue
 	 * @note 确保设置的数值上限合理，以避免超出预期范围导致的逻辑错误。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="数值上限")
-	int32 ValueLimit = 0;
+	float ValueLimit = 0;
 	/**
 	 * @brief 当前有效值
 	 *
@@ -115,7 +118,7 @@ struct FLxAttributeValue
 	 * @note 确保设置的数值在合理范围内，以避免逻辑错误。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="当前有效值")
-	int32 Value = 0;
+	float Value = 0;
 	/**
 	 * @brief 向上浮动比例
 	 *

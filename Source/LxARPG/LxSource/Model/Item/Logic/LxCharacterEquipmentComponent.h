@@ -32,10 +32,23 @@ public:
 	 */
 	virtual void BaseComponentInitialize() override;
 
+	/**
+	 * @brief 获取角色的装备槽位列表。
+	 *
+	 * 该方法返回角色当前拥有的所有装备槽位的引用。每个装备槽位包含可以装备的物品类型信息和其他相关数据。
+	 *
+	 * @return 返回一个指向装备槽位数组的引用，数组中存储的是ULxEquipmentSlotData类型的对象指针。
+	 */
 	TArray<TObjectPtr<ULxEquipmentSlotData>>& GetEquipmentSlots();
 
-protected:
-	UPROPERTY(Blueprintable, BlueprintReadWrite, DisplayName="装备槽位配置")
+	/**
+	 * @brief 装备槽位配置。
+	 *
+	 * 该数组定义了角色可以装备的物品类型列表。每个元素代表一个装备槽位，对应于`ELxEquipmentType`枚举中的一个值，表示该槽位可以接受的装备类型。
+	 *
+	 * @note 此属性是可编辑的，并且可以在蓝图中读写。它用于设置或获取角色当前支持的装备槽位配置。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="装备槽位配置")
 	TArray<ELxEquipmentType> EquipmentSlotsConfig;
 
 private:
@@ -59,6 +72,23 @@ private:
 	
 	/** 广播装备数据发生变化。 */
 	void BroadcastEquipmentChanged();
+
+	/**
+	 * @brief 响应任意装备槽位内容变化。
+	 *
+	 * 当装备槽中的物品被放入、移除或替换时，
+	 * 重新整理当前装备列表并向外广播装备数据变化事件。
+	 */
+	UFUNCTION()
+	void HandleEquipmentSlotChanged();
+
+	/**
+	 * @brief 刷新当前角色的已装备列表缓存。
+	 *
+	 * 该函数会遍历所有装备槽，提取其中有效的装备逻辑对象，
+	 * 并将结果同步到运行时装备缓存数组中。
+	 */
+	void RefreshEquipmentList();
 
 
 	

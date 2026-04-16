@@ -40,8 +40,7 @@ void ULxAttributeTableConfig::InitDataTableLoading()
 			AttributeData.AttributeShowInfo = DefineInfo->AttributeShowInfo;
 			AttributeData.AttributeValue = DefineValue->AttributeValue;
 			AttributeData.CalculatedAttributeValue = DefineValue->AttributeValue;
-			AttributeData.AttributeTextStyle = DefineInfo->AttributeStyleTableQuote.GetRow<FLxTextLineStyleData>(TEXT("ULxAttributeTableConfig"));
-
+			
 			AttributeDataList.Add(AttributeData);
 		}
 	}

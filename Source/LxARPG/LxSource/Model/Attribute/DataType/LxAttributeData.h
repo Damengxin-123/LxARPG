@@ -48,15 +48,7 @@ struct FLxAttributeDefineInfo : public FTableRowBase
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性可视化信息")
 	FLxAttributeShowInfo AttributeShowInfo;
-
-	/**
-	 * @var FDataTableRowHandle m_tabAttStyle
-	 * @brief 样式标签
-	 *
-	 * 用于在属性显示UI中显示文字样式的标签行。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性标签样式引用",meta=(RowType="LxTextLineStyleData"))
-	FDataTableRowHandle AttributeStyleTableQuote;
+	
 };
 
 /**
@@ -131,17 +123,6 @@ struct FLxAttributeData
  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性可视化信息")
 	FLxAttributeShowInfo AttributeShowInfo;
-
-	/**
-	 * @var FLxTextLineStyleData* AttributeTextStyle
-	 * @brief 用于设置属性文本的样式
-	 *
-	 * 该指针指向一个`FLxTextLineStyleData`结构体，用于配置属性在UI中的显示样式，包括字体、颜色、阴影等。
-	 * 通过编辑器或蓝图可以对其进行读写操作，以自定义属性文本的显示效果。
-	 *
-	 * @note 该变量默认为`nullptr`，需要手动设置指向有效的`FLxTextLineStyleData`实例。
-	 */
-	FLxTextLineStyleData* AttributeTextStyle = nullptr;
 
 	/**
  	 * @var FLxAttributeValue AttributeValue

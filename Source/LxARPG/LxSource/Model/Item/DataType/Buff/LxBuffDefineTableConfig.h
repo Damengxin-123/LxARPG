@@ -16,7 +16,7 @@ class UDataTable;
  * 继承自ULxDataTableConfigBase，专门用于加载和提供对Buff定义数据表的访问。此类通过维护一个内部的数据映射来存储从数据表中读取的Buff定义信息，
  * 并对外提供了获取特定Buff定义的方法。
  */
-UCLASS()
+UCLASS(Blueprintable, DisplayName="Buff定义表格配置")
 class LXARPG_API ULxBuffDefineTableConfig : public ULxDataTableConfigBase
 {
 	GENERATED_BODY()

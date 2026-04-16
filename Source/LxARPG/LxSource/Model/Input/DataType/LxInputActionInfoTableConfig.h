@@ -9,7 +9,7 @@
 
 class UDataTable;
 
-UCLASS()
+UCLASS(Blueprintable, DisplayName="输入动作信息表格配置")
 class LXARPG_API ULxInputActionInfoTableConfig : public ULxDataTableConfigBase
 {
 	GENERATED_BODY()

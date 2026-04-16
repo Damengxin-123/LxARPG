@@ -9,7 +9,7 @@
 /**
  * @brief 数据表配置基类
  */
-UCLASS()
+UCLASS(Blueprintable, DisplayName="数据表配置基类")
 class LXARPG_API ULxDataTableConfigBase : public UPrimaryDataAsset
 {
 	GENERATED_BODY()

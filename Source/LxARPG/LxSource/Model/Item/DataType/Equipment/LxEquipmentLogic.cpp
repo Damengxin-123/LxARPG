@@ -3,37 +3,9 @@
 
 #include "LxEquipmentLogic.h"
 
-#include "LxARPG/LxSource/Core/Database/LxConstValue.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Model/Style/DataType/LxTextLineStyleData.h"
 
-namespace
-{
-// 将“词条引用”解析为运行时可直接使用的词条数
-bool BuildItemEntryData(const FLxItemEntryQuote& InEntryQuote, FLxItemEntryData& OutEntryData)
-{
-	// 先从引用里取词条定义
-	const FLxItemEntryDefine* EntryDefine = InEntryQuote.ItemEntryDefineTableQuote.GetRow<FLxItemEntryDefine>(TEXT("ULxEquipmentLogic"));
-	if (EntryDefine == nullptr || EntryDefine->EntryID.IsNone())
-	{
-		return false;
-	}
-
-	OutEntryData.EntryID = EntryDefine->EntryID;
-	OutEntryData.DisplayName = EntryDefine->DisplayName;
-	OutEntryData.Description = EntryDefine->Description;
-	OutEntryData.TextStyle = EntryDefine->TextStyleTableQuote.GetRow<FLxTextLineStyleData>(TEXT("ULxEquipmentLogic"));
-
-	// 解析词条作用到的属性定义（可能为空
-	const FLxAttributeDefineInfo* AttributeDefine = EntryDefine->AttributeDefineTableQuote.GetRow<FLxAttributeDefineInfo>(TEXT("ULxEquipmentLogic"));
-	OutEntryData.AttributeID = AttributeDefine ? AttributeDefine->AttributeInfo.AttributeID : NAME_None;
-
-	OutEntryData.ItemEntryDefineValue = EntryDefine->ItemEntryDefineValue;
-	OutEntryData.EffectiveRatio = InEntryQuote.UpwardFloatingRatio;
-
-	return true;
-}
-}
 
 bool ULxEquipmentLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
 {

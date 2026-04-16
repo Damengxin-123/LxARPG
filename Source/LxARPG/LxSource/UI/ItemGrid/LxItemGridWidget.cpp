@@ -27,6 +27,37 @@ const FLxItemDateBase& ULxItemGridWidget::GetCurrentItemData() const
 	 return *CurrentSlotData->ItemDataPtr->GetItemDataBase();
 }
 
+ELxItemSlotType ULxItemGridWidget::GetSlotType() const
+{
+	if (CurrentSlotData)
+	{
+		return CurrentSlotData->ItemSlotType;
+	}
+	return ELxItemSlotType::None;
+}
+
+int32 ULxItemGridWidget::GetItemType() const
+{
+	if (CurrentSlotData)
+	{
+		switch (CurrentSlotData->ItemSlotType)
+		{
+
+		case ELxItemSlotType::Equipment:
+			{
+				if (ULxEquipmentSlotData* equSlot = Cast<ULxEquipmentSlotData>(CurrentSlotData))
+				{
+					return static_cast<int32>(equSlot->EquipmentType);
+				}
+			}
+			break;
+			default:
+			return 0;
+		}
+	}
+	return 0;
+}
+
 bool ULxItemGridWidget::UseItem() const
 {
 	if (!CurrentSlotData || !CurrentSlotData->IsValid())
@@ -55,6 +86,32 @@ UTexture2D* ULxItemGridWidget::GetDisplayIcon() const
 	}
 
 	return DefaultIcon.IsNull() ? nullptr : DefaultIcon.LoadSynchronous();
+}
+
+int32 ULxItemGridWidget::GetItemCount() const
+{
+	if (ItemIsVaild())
+	{
+		const FLxItemDateBase& ItemData = GetCurrentItemData();
+		if (!ItemData.ItemShowInfo.ItemIcon.IsNull())
+		{
+			return ItemData.ItemCount;
+		}
+	}
+	return 0;
+}
+
+FLinearColor ULxItemGridWidget::GetItemRarityColor() const
+{
+	if (ItemIsVaild())
+	{
+		const FLxItemDateBase& ItemData = GetCurrentItemData();
+		if (!ItemData.ItemShowInfo.ItemIcon.IsNull())
+		{
+			return ItemData.ItemRarity.RarityColor;
+		}
+	}
+	return FLinearColor::White;
 }
 
 FReply ULxItemGridWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)

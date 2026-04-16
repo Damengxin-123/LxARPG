@@ -22,12 +22,12 @@ enum class ELxItemEntryType : uint8
 	BasicValue			UMETA(DisplayName = "基础数值型"),
 	/**
 	 * 提高基础型 - 表示可以提高基础值的百分比，仅用于基础属性
-	 * 当值为此类型时，计算时需要按照百分比值计算，即 /100
+	 * 
 	 */
 	BasicImprove		UMETA(DisplayName = "提高基础型"),
 	/**
 	 * 额外提高型 - 表示在当前属性计算结果上，再次进行百分比提高，作用于当前属性数值
-	 * 当值为此类型时，计算时需要按照百分比值计算，即 /100
+	 * 
 	 */
 	AdditionalImprove	UMETA(DisplayName = "额外提高型"),
 	/**

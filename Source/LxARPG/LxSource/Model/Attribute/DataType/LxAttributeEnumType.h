@@ -103,14 +103,21 @@ enum class ELxCharacterCampType : uint8
 UENUM(BlueprintType)
 enum class ELxCharacterValueType : uint8
 {
-	/** 数值型属性 */
+
+	// 固定数值型  直接使用有效数值的属性类型，例如 力量值 15
 	FixedNumeric			UMETA(DisplayName="固定数值型"),
-	FloatNumeric			UMETA(DisplayName="数值区间型"),
-	/** 百分比型 */
-	FixedPercentage		UMETA(DisplayName="百分比型"),
+	// 数值区间型  有效值下限为0，上限受最大值限制的值的类型，在使用时需要最大值和有效值一起使用，例如 生命值  500/1000
+	RangedNumeric			UMETA(DisplayName="数值区间型"),
+	// 数值浮动型  有效数值在一个上下区间内随机取值的类型，在使用时需要在区间内随机取一个值，例如 攻击力 8~12
+	FloatingNumeric		UMETA(DisplayName="数值浮动型"),
+	// 概率型	 有效值为一个触发某种机制的概率 例如 暴击率 20%
 	Probabilistic		UMETA(DisplayName="概率型"),
-	/** 机制型属性 */
-	Mechanism		UMETA(DisplayName="机制型"),
+	// 百分比型	 有效值为一个百分比数值的类型，例如 格挡减伤率  45%
+	Percentage			UMETA(DisplayName="百分比型"),
+	// 开关型	 有效值为布尔类型的类型 例如 是否免疫某种伤害 是、否
+	Switch				UMETA(DisplayName="开关型"),
+	// 设定型	 有效值为某种类似于枚举的类型 例如 种族 0=人族
+	Setting				UMETA(DisplayName="设定型"),
 };
 
 /**
@@ -223,4 +230,3 @@ enum class ELxBiologicalAttributes : uint8
 	/** 最大值 */
 	Ba_MaxValue			  UMETA(DisplayName = "最大值")
 };
-

@@ -9,7 +9,7 @@
 
 class UDataTable;
 
-UCLASS()
+UCLASS(Blueprintable, DisplayName="技能定义表格配置")
 class LXARPG_API ULxSkillDefineTableConfig : public ULxDataTableConfigBase
 {
 	GENERATED_BODY()

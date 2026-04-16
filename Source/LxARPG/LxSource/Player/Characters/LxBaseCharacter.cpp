@@ -17,6 +17,10 @@ ALxBaseCharacter::ALxBaseCharacter()
 
 void ALxBaseCharacter::InitialCharacterInformation()
 {
+	if (IsInitialized)
+	{
+		return;
+	}
 	if (m_pCharacterMoveComponent)
 	{
 		m_pCharacterMoveComponent->BaseComponentInitialize();
@@ -36,6 +40,7 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	{
 		m_pCharacterEquipmentComponent->BaseComponentInitialize();
 	}
+	IsInitialized  = true;
 }
 
 void ALxBaseCharacter::SetCharacterState(const ELxCharacterState InState)

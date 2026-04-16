@@ -14,7 +14,7 @@ class UDataTable;
  *
  * 支持配置多张 FLxItemEntryDefine 类型数据表，并在初始化时缓存到 EntryID 索引表中。
  */
-UCLASS()
+UCLASS(Blueprintable, DisplayName="词条定义表格配置")
 class LXARPG_API ULxItemEntryDefineTableConfig : public ULxDataTableConfigBase
 {
 	GENERATED_BODY()

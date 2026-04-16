@@ -9,7 +9,7 @@
 
 class UDataTable;
 
-UCLASS()
+UCLASS(Blueprintable, DisplayName="材料定义表格配置")
 class LXARPG_API ULxMaterialDefineTableConfig : public ULxDataTableConfigBase
 {
 	GENERATED_BODY()

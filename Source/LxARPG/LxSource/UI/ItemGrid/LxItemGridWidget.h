@@ -25,7 +25,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnItemGridDataChanged);
  * C++ 层只负责维护格子数据、响应拖拽和点击等交互逻辑，
  * 不直接操作具体 UI 显示。界面展示通过事件和蓝图实现事件完成。
  */
-UCLASS(BlueprintType, Blueprintable)
+UCLASS(BlueprintType, Blueprintable, DisplayName="物品格子控件")
 class LXARPG_API ULxItemGridWidget : public UUserWidget, public IUserObjectListEntry
 {
 	GENERATED_BODY()
@@ -48,6 +48,26 @@ public:
 	const FLxItemDateBase& GetCurrentItemData() const;
 
 	/**
+	 * @brief 获取当前格子的槽位类型。
+	 *
+	 * @return 返回一个ELxItemSlotType类型的引用，表示当前格子的槽位类型。如果没有设置，则返回ELxItemSlotType::None。
+	 */
+	UFUNCTION(BlueprintPure, DisplayName="获取槽位类型")
+	ELxItemSlotType GetSlotType() const;
+
+	/**
+	 * @brief 获取当前格子中物品的类型。
+	 *
+	 * 该方法检查当前格子中的物品数据，并根据物品槽位类型返回相应的物品类型。
+	 * 如果当前格子没有物品数据或物品类型无法识别，则返回0。
+	 *
+	 * @return 返回一个整数，表示当前格子中物品的类型。如果无物品或类型未知，则返回0。
+	 */
+	UFUNCTION(BlueprintPure, DisplayName="获取槽位内物品类型")
+	int32 GetItemType() const;
+	
+	
+	/**
 	 * @brief 使用当前格子中的物品。
 	 * 该方法尝试使用当前格子中存放的物品。如果成功使用，则返回`true`；否则返回`false`。
 	 * @return 如果成功使用了物品则返回`true`，否则返回`false`。
@@ -64,15 +84,21 @@ public:
 	bool ItemIsVaild() const;
 
 	/** 获取当前格子应显示的图标，没有物品时返回默认图标。 */
-	UFUNCTION(BlueprintPure, Category="Item Grid")
+	UFUNCTION(BlueprintPure, Category="Item Grid", DisplayName="获取显示图标")
 	UTexture2D* GetDisplayIcon() const;
+
+	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="获取物品数量")
+	int32 GetItemCount() const;
+
+	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="获取物品稀有度颜色")
+	FLinearColor GetItemRarityColor() const;
 
 
 	/** * @brief 当格子中的物品数据发生变化时触发的事件。
 	 * 此委托用于通知蓝图脚本，当格子内的物品数据（如数量、类型等）发生改变时进行相应的更新或刷新操作。
 	 * 可以在蓝图中绑定此事件来响应数据变化，例如更新UI显示或执行其他逻辑处理。
 	 */
-	UPROPERTY(BlueprintAssignable, Category="Item Grid")
+	UPROPERTY(BlueprintAssignable, Category="Item Grid", DisplayName="物品更新事件")
 	FOnItemGridDataChanged OnItemGridDataChanged;
 
 protected:

@@ -6,6 +6,8 @@
 #include "LxCharacterAttributeComponent.generated.h"
 
 class ALxBaseCharacter;
+class ULxEquipmentLogic;
+struct FLxItemEntryData;
 
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色属性组件")
@@ -78,11 +80,43 @@ public:
 	 * @param InNewValue 新的属性当前值。
 	 * @return 设置成功返回 true，属性不存在或更新失败返回 false。
 	 */
-	bool SetCharacterAttributeCurrentValue(const FName& InAttributeID, int32 InNewValue);
+	bool SetCharacterAttributeCurrentValue(const FName& InAttributeID, float InNewValue);
 
 	
 
 private:
+	/**
+	 * @brief 响应装备组件数据变化事件。
+	 *
+	 * 当角色装备数据发生变化时，重新计算装备词条带来的属性加成，
+	 * 并在计算完成后广播属性组件自身的数据更新事件。
+	 */
+	UFUNCTION()
+	void HandleEquipmentDataChange();
+
+	/**
+	 * @brief 根据当前所有已装备物品刷新角色最终属性。
+	 *
+	 * 该函数会先将所有属性的计算值还原为基础值，
+	 * 然后遍历全部装备词条并将其叠加到对应属性上。
+	 */
+	void RefreshCharacterAttributeByEquipment();
+
+	/**
+	 * @brief 获取角色当前已装备的全部装备逻辑对象。
+	 *
+	 * @param OutEquipmentList 输出参数，用于接收当前所有有效装备。
+	 */
+	void GetAllEquipmentList(TArray<ULxEquipmentLogic*>& OutEquipmentList) const;
+
+	/**
+	 * @brief 将单条装备词条应用到目标属性上。
+	 *
+	 * @param InOutAttributeData 待修改的角色属性数据。
+	 * @param InEntryData 需要应用的装备词条数据。
+	 */
+	static void ApplyEquipmentEntryToAttribute(FLxAttributeData& InOutAttributeData, const FLxItemEntryData& InEntryData);
+
 	UPROPERTY()
 	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter;
 

@@ -13,7 +13,7 @@
  *
  * This class is designed to provide a framework for loading and handling specific attribute data within a game or application. It inherits from ULxDataTableConfigBase, allowing it to leverage base functionalities while potentially adding or customizing features related to attribute management.
  */
-UCLASS()
+UCLASS(Blueprintable, DisplayName="属性表格配置")
 class LXARPG_API ULxAttributeTableConfig : public ULxDataTableConfigBase
 {
 	GENERATED_BODY()

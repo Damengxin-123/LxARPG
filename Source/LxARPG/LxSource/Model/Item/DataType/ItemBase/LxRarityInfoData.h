@@ -19,10 +19,14 @@
  * - 此结构体用于在蓝图中创建数据表，无需在代码中加载，在使用时直接通过表行信息全部获取即可
  */
 USTRUCT(BlueprintType, DisplayName="装备稀有度描述信息")
-struct FLxRarityInfo : public FLxTableRowBase
+struct FLxRarityInfo : public FTableRowBase
 {
 	GENERATED_BODY()
 
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "稀有度属性", DisplayName="稀有度ID")
+	FName RarityID;
+	
 	/**
 	 * @var uint8 RarityValue
 	 * @brief 稀有度数值

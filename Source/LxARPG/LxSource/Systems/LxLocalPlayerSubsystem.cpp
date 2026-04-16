@@ -7,7 +7,7 @@
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 #include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
-#include "LxARPG/LxSource/UI/LxUIManager.h"
+#include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
 
 void ULxLocalPlayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -93,6 +93,10 @@ void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPl
 
 void ULxLocalPlayerSubsystem::SetControlledCharacter(ALxBaseCharacter* InCharacter)
 {
+	if (m_pControlledCharacter == InCharacter)
+	{
+		return;
+	}
 	m_pControlledCharacter = InCharacter;
 
 	if (m_pUIManager)

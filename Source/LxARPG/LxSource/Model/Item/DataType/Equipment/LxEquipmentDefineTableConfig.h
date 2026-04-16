@@ -14,7 +14,7 @@ class UDataTable;
  *
  * 支持配置多张 FLxEquipmentDefine 类型数据表，并在初始化时缓存为 ItemID 索引。
  */
-UCLASS()
+UCLASS(Blueprintable, DisplayName="装备定义表格配置")
 class LXARPG_API ULxEquipmentDefineTableConfig : public ULxDataTableConfigBase
 {
 	GENERATED_BODY()

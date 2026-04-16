@@ -12,7 +12,7 @@ class ULxBackpackWidget;
 class ULxLocalPlayerSubsystem;
 class UUserWidget;
 
-UCLASS(Blueprintable, BlueprintType)
+UCLASS(Blueprintable, BlueprintType, DisplayName="UI管理器")
 class LXARPG_API ULxUIManager : public UObject, public ILxInputReceiveInterface
 {
 	GENERATED_BODY()

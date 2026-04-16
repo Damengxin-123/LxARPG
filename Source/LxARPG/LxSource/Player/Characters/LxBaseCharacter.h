@@ -140,4 +140,7 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere)
 	ELxCharacterState m_nCharacterState = ELxCharacterState::Idle;
+
+	// 标记角色是否已完成初始化，避免重复初始化或在未初始化时访问组件导致错误。
+	bool IsInitialized = false;
 };

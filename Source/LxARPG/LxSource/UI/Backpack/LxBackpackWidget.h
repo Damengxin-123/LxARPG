@@ -21,7 +21,7 @@ class ULxEquipmentSlotData;
  *
  * @note 继承自ULxUIBaseObject，实现了初始化和更新UI组件的方法。
  */
-UCLASS()
+UCLASS(Blueprintable, DisplayName="背包界面")
 class LXARPG_API ULxBackpackWidget : public ULxUIBaseObject
 {
 	GENERATED_BODY()

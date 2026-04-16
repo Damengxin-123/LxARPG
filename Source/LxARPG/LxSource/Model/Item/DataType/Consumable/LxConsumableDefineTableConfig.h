@@ -9,7 +9,7 @@
 
 class UDataTable;
 
-UCLASS()
+UCLASS(Blueprintable, DisplayName="消耗品定义表格配置")
 class LXARPG_API ULxConsumableDefineTableConfig : public ULxDataTableConfigBase
 {
 	GENERATED_BODY()

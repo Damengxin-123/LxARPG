@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryData.h"
 #include "LxItemBase.h"
 #include "LxItemLogicBase.generated.h"
 
@@ -27,6 +28,10 @@ public:
 	template<typename ItemLogicType>
 	static ItemLogicType* CreateItemLogicObject(const FLxItemDefineBase* pItemInfo, UObject* pParent);
 
+	// 将“词条引用”解析为运行时可直接使用的词条数
+	static bool BuildItemEntryData(const FLxItemEntryQuote& InEntryQuote, FLxItemEntryData& OutEntryData);
+	
+	
 	/**
 	 * @brief 初始化物品逻辑
 	 *
