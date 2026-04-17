@@ -3,6 +3,7 @@
 
 #include "LxLocalPlayerSubsystem.h"
 
+#include "Blueprint/UserWidget.h"
 #include "LxARPG/LxSource/Model/Input/Logic/LxInputComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
@@ -13,21 +14,16 @@ void ULxLocalPlayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	const ULxGameSettings* GameSettings = GetDefault<ULxGameSettings>();
-	if (!GameSettings || !GameSettings->UIManagerClass)
-	{
-		return;
-	}
 
-	m_pUIManager = NewObject<ULxUIManager>(this, GameSettings->UIManagerClass);
-	if (m_pUIManager)
-	{
-		m_pUIManager->InitializeManager(this);
-	}
 }
 
 void ULxLocalPlayerSubsystem::Deinitialize()
 {
+	if (m_pUIManager)
+	{
+		m_pUIManager->RemoveFromParent();
+	}
+
 	m_pUIManager = nullptr;
 	m_pControlledCharacter = nullptr;
 	m_pPlayerController = nullptr;
@@ -85,9 +81,31 @@ void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPl
 {
 	m_pPlayerController = InPlayerController;
 
+	if (!m_pPlayerController)
+	{
+		return;
+	}
+
+	if (!m_pUIManager)
+	{
+		const ULxGameSettings* GameSettings = GetDefault<ULxGameSettings>();
+		if (!GameSettings || !GameSettings->UIManagerClass)
+		{
+			return;
+		}
+
+		m_pUIManager = CreateWidget<ULxUIManager>(m_pPlayerController, GameSettings->UIManagerClass);
+		if (m_pUIManager)
+		{
+			m_pUIManager->InitializeManager(this);
+			m_pUIManager->AddToPlayerScreen();
+		}
+	}
+
 	if (m_pUIManager)
 	{
 		m_pUIManager->SetPlayerController(InPlayerController);
+		m_pUIManager->SetControlledCharacter(m_pControlledCharacter);
 	}
 }
 

@@ -1,16 +1,15 @@
 #include "LxUIManager.h"
 
-#include "Blueprint/UserWidget.h"
+#include "LxUIFunctionBase.h"
+#include "LxUIFunctionTypes.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
-#include "LxARPG/LxSource/UI/Backpack/LxBackpackWidget.h"
-#include "LxARPG/LxSource/UI/CharacterAttributeUI/LxAttributeWidget.h"
 
 void ULxUIManager::InitializeManager(ULxLocalPlayerSubsystem* InLocalPlayerSubsystem)
 {
 	m_pLocalPlayerSubsystem = InLocalPlayerSubsystem;
-	CreateUIWidgets();
+	InitializeFunctionObjects();
 	InitMonitorRegistration();
 	RefreshUI();
 }
@@ -18,44 +17,247 @@ void ULxUIManager::InitializeManager(ULxLocalPlayerSubsystem* InLocalPlayerSubsy
 void ULxUIManager::SetPlayerController(ALxPlayerController* InPlayerController)
 {
 	m_pPlayerController = InPlayerController;
-	CreateUIWidgets();
-	ApplyControllerToWidgets();
-	RefreshUI();
+	UpdatePlayerController(InPlayerController);
+
+	for (TPair<ELxUIFunctionType, TObjectPtr<ULxUIFunctionBase>>& FunctionPair : m_mapUITypeToFunction)
+	{
+		if (FunctionPair.Value)
+		{
+			FunctionPair.Value->SetPlayerController(InPlayerController);
+		}
+	}
+
+	UpdateCursorState();
 }
 
 void ULxUIManager::SetControlledCharacter(ALxBaseCharacter* InCharacter)
 {
 	m_pControlledCharacter = InCharacter;
-	ApplyCharacterToWidgets();
+	UpdateUIComponents(InCharacter);
+
+	for (TPair<ELxUIFunctionType, TObjectPtr<ULxUIFunctionBase>>& FunctionPair : m_mapUITypeToFunction)
+	{
+		if (FunctionPair.Value)
+		{
+			FunctionPair.Value->SetControlledCharacter(InCharacter);
+		}
+	}
 }
 
 void ULxUIManager::RefreshUI()
 {
-	CreateUIWidgets();
-	ApplyControllerToWidgets();
-	ApplyCharacterToWidgets();
+	for (TPair<ELxUIFunctionType, TObjectPtr<ULxUIFunctionBase>>& FunctionPair : m_mapUITypeToFunction)
+	{
+		if (!FunctionPair.Value)
+		{
+			continue;
+		}
+
+		FunctionPair.Value->SetPlayerController(m_pPlayerController);
+		FunctionPair.Value->SetControlledCharacter(m_pControlledCharacter);
+		FunctionPair.Value->RefreshManagedUIState();
+	}
+
+	UpdateCursorState();
 }
 
-void ULxUIManager::HandleInputValue(FName InName, FLxInputValue InValue)
+void ULxUIManager::RegisterChildUIWidget(ULxUIBaseObject* InChildUIWidget, FName InInputActionID, ELxUIFunctionType InUIType)
 {
-	if (!InValue.m_blValue)
+	if (!InChildUIWidget)
 	{
 		return;
 	}
 
-	if (InName == OpenBackpackInputActionID)
+	FLxManagedUIWidgetData* ExistData = FindManagedUIDataByWidget(InChildUIWidget);
+	ELxUIFunctionType PreviousUIType = InUIType;
+	FName PreviousInputActionID = NAME_None;
+
+	if (!ExistData)
 	{
-		ToggleBackpackUI();
+		FLxManagedUIWidgetData& NewData = RegisteredChildWidgets.AddDefaulted_GetRef();
+		NewData.UIWidget = InChildUIWidget;
+		ExistData = &NewData;
 	}
-	else if (InName == OpenCharacterInformationInputActionID)
+	else
 	{
-		ToggleAttributeUI();
+		PreviousUIType = ExistData->UIType;
+		PreviousInputActionID = ExistData->InputActionID;
 	}
+
+	if (ULxUIFunctionBase* PreviousFunction = GetOrCreateUIFunction(PreviousUIType))
+	{
+		if (PreviousUIType != InUIType || PreviousInputActionID != InInputActionID)
+		{
+			PreviousFunction->RemoveManagedUIWidget(InChildUIWidget);
+		}
+	}
+
+	ExistData->InputActionID = InInputActionID;
+	ExistData->UIType = InUIType;
+
+	ULxUIFunctionBase* TargetFunction = GetOrCreateUIFunction(InUIType);
+	if (!TargetFunction)
+	{
+		return;
+	}
+
+	TargetFunction->AddManagedUIWidget(InChildUIWidget, InInputActionID);
+
+	if (!PreviousInputActionID.IsNone() && PreviousInputActionID != InInputActionID)
+	{
+		m_mapInputActionToFunction.Remove(PreviousInputActionID);
+	}
+
+	if (!InInputActionID.IsNone())
+	{
+		m_mapInputActionToFunction.FindOrAdd(InInputActionID) = TargetFunction;
+		RegisterInputAction(InInputActionID);
+	}
+
+	UpdateCursorState();
+}
+
+void ULxUIManager::NotifyChildUIVisibilityChanged(ULxUIBaseObject* InChildUIWidget)
+{
+	FLxManagedUIWidgetData* WidgetData = FindManagedUIDataByWidget(InChildUIWidget);
+	if (!WidgetData)
+	{
+		return;
+	}
+
+	if (ULxUIFunctionBase* UIFunction = GetOrCreateUIFunction(WidgetData->UIType))
+	{
+		UIFunction->NotifyManagedUIVisibilityChanged(InChildUIWidget);
+	}
+
+	UpdateCursorState();
+}
+
+void ULxUIManager::SetChildUIVisible(ULxUIBaseObject* InChildUIWidget, bool bInVisible)
+{
+	FLxManagedUIWidgetData* WidgetData = FindManagedUIDataByWidget(InChildUIWidget);
+	if (!WidgetData)
+	{
+		return;
+	}
+
+	if (ULxUIFunctionBase* UIFunction = GetOrCreateUIFunction(WidgetData->UIType))
+	{
+		UIFunction->SetManagedUIVisible(InChildUIWidget, bInVisible);
+	}
+
+	UpdateCursorState();
+}
+
+void ULxUIManager::ToggleChildUI(ULxUIBaseObject* InChildUIWidget)
+{
+	FLxManagedUIWidgetData* WidgetData = FindManagedUIDataByWidget(InChildUIWidget);
+	if (!WidgetData)
+	{
+		return;
+	}
+
+	if (ULxUIFunctionBase* UIFunction = GetOrCreateUIFunction(WidgetData->UIType))
+	{
+		UIFunction->ToggleManagedUI(InChildUIWidget);
+	}
+
+	UpdateCursorState();
+}
+
+ULxCharacterPopupUIFunction* ULxUIManager::GetCharacterPopupUIFunction() const
+{
+	return Cast<ULxCharacterPopupUIFunction>(m_mapUITypeToFunction.FindRef(ELxUIFunctionType::CHaracterPopup));
+}
+
+void ULxUIManager::HandleInputValue(FName InName, FLxInputValue InValue)
+{
+	ULxUIFunctionBase* UIFunction = m_mapInputActionToFunction.FindRef(InName);
+	if (!UIFunction)
+	{
+		return;
+	}
+
+	UIFunction->HandlePlayerInputAction(InName, InValue);
+	UpdateCursorState();
 }
 
 void ULxUIManager::InitMonitorRegistration()
 {
-	if (!m_pLocalPlayerSubsystem || m_bInputRegistered || !m_pLocalPlayerSubsystem->HasInputComponentQuote())
+	if (!m_pLocalPlayerSubsystem || !m_pLocalPlayerSubsystem->HasInputComponentQuote())
+	{
+		return;
+	}
+
+	for (const FLxManagedUIWidgetData& WidgetData : RegisteredChildWidgets)
+	{
+		RegisterInputAction(WidgetData.InputActionID);
+	}
+}
+
+FLxManagedUIWidgetData* ULxUIManager::FindManagedUIDataByWidget(ULxUIBaseObject* InChildUIWidget)
+{
+	return RegisteredChildWidgets.FindByPredicate(
+		[InChildUIWidget](const FLxManagedUIWidgetData& WidgetData)
+		{
+			return WidgetData.UIWidget == InChildUIWidget;
+		});
+}
+
+ULxUIFunctionBase* ULxUIManager::GetOrCreateUIFunction(ELxUIFunctionType InUIType)
+{
+	if (ULxUIFunctionBase* ExistFunction = m_mapUITypeToFunction.FindRef(InUIType))
+	{
+		return ExistFunction;
+	}
+
+	ULxUIFunctionBase* NewFunction = nullptr;
+	switch (InUIType)
+	{
+	case ELxUIFunctionType::MainMenu:
+		NewFunction = NewObject<ULxMainMenuUIFunction>(this);
+		break;
+	case ELxUIFunctionType::CharacterFunction:
+		NewFunction = NewObject<ULxCharacterFunctionUIFunction>(this);
+		break;
+	case ELxUIFunctionType::CharacterInteraction:
+		NewFunction = NewObject<ULxCharacterInteractionUIFunction>(this);
+		break;
+	case ELxUIFunctionType::CharacterHUD:
+		NewFunction = NewObject<ULxCharacterHUDUIFunction>(this);
+		break;
+	case ELxUIFunctionType::CHaracterPopup:
+		NewFunction = NewObject<ULxCharacterPopupUIFunction>(this);
+		break;
+	default:
+		break;
+	}
+
+	if (!NewFunction)
+	{
+		return nullptr;
+	}
+
+	NewFunction->InitializeFunction(this);
+	NewFunction->SetPlayerController(m_pPlayerController);
+	NewFunction->SetControlledCharacter(m_pControlledCharacter);
+	m_mapUITypeToFunction.Add(InUIType, NewFunction);
+	return NewFunction;
+}
+
+void ULxUIManager::InitializeFunctionObjects()
+{
+	GetOrCreateUIFunction(ELxUIFunctionType::MainMenu);
+	GetOrCreateUIFunction(ELxUIFunctionType::CharacterFunction);
+	GetOrCreateUIFunction(ELxUIFunctionType::CharacterInteraction);
+	GetOrCreateUIFunction(ELxUIFunctionType::CharacterHUD);
+	GetOrCreateUIFunction(ELxUIFunctionType::CHaracterPopup);
+}
+
+void ULxUIManager::RegisterInputAction(FName InInputActionID)
+{
+	if (InInputActionID.IsNone() || !m_pLocalPlayerSubsystem || !m_pLocalPlayerSubsystem->HasInputComponentQuote()
+		|| RegisteredInputActionIDs.Contains(InInputActionID))
 	{
 		return;
 	}
@@ -63,104 +265,8 @@ void ULxUIManager::InitMonitorRegistration()
 	TScriptInterface<ILxInputReceiveInterface> InputReceive;
 	InputReceive.SetObject(this);
 	InputReceive.SetInterface(Cast<ILxInputReceiveInterface>(this));
-
-	m_pLocalPlayerSubsystem->RegisterInputReceive(OpenBackpackInputActionID, InputReceive);
-	m_pLocalPlayerSubsystem->RegisterInputReceive(OpenCharacterInformationInputActionID, InputReceive);
-	m_bInputRegistered = true;
-}
-
-void ULxUIManager::ToggleBackpackUI()
-{
-	CreateUIWidgets();
-	if (!m_pBackpackWidget)
-	{
-		return;
-	}
-
-	SetWidgetVisible(m_pBackpackWidget, !IsWidgetVisible(m_pBackpackWidget));
-	UpdateCursorState();
-}
-
-void ULxUIManager::ToggleAttributeUI()
-{
-	CreateUIWidgets();
-	if (!m_pAttributeWidget)
-	{
-		return;
-	}
-
-	SetWidgetVisible(m_pAttributeWidget, !IsWidgetVisible(m_pAttributeWidget));
-	UpdateCursorState();
-}
-
-void ULxUIManager::CreateUIWidgets()
-{
-	if (!m_pPlayerController)
-	{
-		return;
-	}
-
-	if (!m_pBackpackWidget && BackpackWidgetClass)
-	{
-		m_pBackpackWidget = CreateWidget<ULxBackpackWidget>(m_pPlayerController, BackpackWidgetClass);
-		if (m_pBackpackWidget)
-		{
-			m_pBackpackWidget->AddToViewport();
-			SetWidgetVisible(m_pBackpackWidget, false);
-		}
-	}
-
-	if (!m_pAttributeWidget && AttributeWidgetClass)
-	{
-		m_pAttributeWidget = CreateWidget<ULxAttributeWidget>(m_pPlayerController, AttributeWidgetClass);
-		if (m_pAttributeWidget)
-		{
-			m_pAttributeWidget->AddToViewport();
-			SetWidgetVisible(m_pAttributeWidget, false);
-		}
-	}
-}
-
-void ULxUIManager::ApplyCharacterToWidgets()
-{
-	if (m_pBackpackWidget)
-	{
-		m_pBackpackWidget->UpdateUIComponents(m_pControlledCharacter);
-	}
-
-	if (m_pAttributeWidget)
-	{
-		m_pAttributeWidget->UpdateUIComponents(m_pControlledCharacter);
-	}
-}
-
-void ULxUIManager::ApplyControllerToWidgets()
-{
-	if (m_pBackpackWidget)
-	{
-		m_pBackpackWidget->UpdatePlayerController(m_pPlayerController);
-	}
-
-	if (m_pAttributeWidget)
-	{
-		m_pAttributeWidget->UpdatePlayerController(m_pPlayerController);
-	}
-}
-
-void ULxUIManager::SetWidgetVisible(UUserWidget* InWidget, bool bInVisible)
-{
-	if (!InWidget)
-	{
-		return;
-	}
-
-	InWidget->SetVisibility(bInVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-}
-
-bool ULxUIManager::IsWidgetVisible(const UUserWidget* InWidget) const
-{
-	return InWidget && InWidget->GetVisibility() != ESlateVisibility::Collapsed
-		&& InWidget->GetVisibility() != ESlateVisibility::Hidden;
+	m_pLocalPlayerSubsystem->RegisterInputReceive(InInputActionID, InputReceive);
+	RegisteredInputActionIDs.Add(InInputActionID);
 }
 
 void ULxUIManager::UpdateCursorState() const
@@ -170,12 +276,14 @@ void ULxUIManager::UpdateCursorState() const
 		return;
 	}
 
-	if (IsWidgetVisible(m_pBackpackWidget) || IsWidgetVisible(m_pAttributeWidget))
+	for (const TPair<ELxUIFunctionType, TObjectPtr<ULxUIFunctionBase>>& FunctionPair : m_mapUITypeToFunction)
 	{
-		m_pPlayerController->ShowCursorFun();
+		if (FunctionPair.Value && FunctionPair.Value->ShouldDisplayCursor())
+		{
+			m_pPlayerController->ShowCursorFun();
+			return;
+		}
 	}
-	else
-	{
-		m_pPlayerController->HideCursorFun();
-	}
+
+	m_pPlayerController->HideCursorFun();
 }

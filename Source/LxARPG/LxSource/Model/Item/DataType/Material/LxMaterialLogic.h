@@ -40,7 +40,11 @@ public:
 	 */
 	virtual bool UseItem() override;
 
+	/** 获取材料缓存数据。 */
+	FLxMaterialData* GetMaterialData() { return &m_MaterialData; }
+
+	const FLxMaterialData* GetMaterialData() const { return &m_MaterialData; }
+
 private:
 	FLxMaterialData m_MaterialData;
 };
-

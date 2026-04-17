@@ -1,167 +1,136 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputReceiveInterface.h"
-#include "UObject/Object.h"
+#include "LxUIManagerEnum.h"
 #include "LxUIManager.generated.h"
 
 class ALxBaseCharacter;
 class ALxPlayerController;
-class ULxAttributeWidget;
-class ULxBackpackWidget;
 class ULxLocalPlayerSubsystem;
-class UUserWidget;
+class ULxUIFunctionBase;
+class ULxCharacterPopupUIFunction;
 
+/**
+ * @brief UI管理器中的子UI注册数据。
+ *
+ * 用于保存UI对象、对应输入行为ID以及所属功能类型。
+ */
+USTRUCT(BlueprintType, DisplayName="已注册子UI数据")
+struct FLxManagedUIWidgetData
+{
+	GENERATED_BODY()
+
+	/** 已注册的UI对象指针。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="UIManager", DisplayName="子UI对象")
+	TObjectPtr<ULxUIBaseObject> UIWidget = nullptr;
+
+	/** 控制该UI的输入行为ID。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="UIManager", DisplayName="输入行为ID")
+	FName InputActionID = NAME_None;
+
+	/** 该UI所属的功能类型。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="UIManager", DisplayName="UI功能类型")
+	ELxUIFunctionType UIType = ELxUIFunctionType::CharacterFunction;
+};
+
+/**
+ * @brief 顶层UI管理器。
+ *
+ * 负责统一管理各个UI功能对象，保留UI注册与输入接收入口，
+ * 再将逻辑转发给按ELxUIFunctionType拆分后的子功能对象。
+ */
 UCLASS(Blueprintable, BlueprintType, DisplayName="UI管理器")
-class LXARPG_API ULxUIManager : public UObject, public ILxInputReceiveInterface
+class LXARPG_API ULxUIManager : public ULxUIBaseObject, public ILxInputReceiveInterface
 {
 	GENERATED_BODY()
 
 public:
-	/**
-	 * @brief 初始化 UI 管理器。
-	 *
-	 * 保存本地玩家子系统引用，并尝试创建界面对象、注册输入监听和刷新界面状态。
-	 *
-	 * @param InLocalPlayerSubsystem 当前本地玩家对应的子系统，用于注册输入和获取运行时上下文。
-	 */
-	UFUNCTION(BlueprintCallable, Category="UIManager")
+	/** 初始化UI管理器。 */
+	UFUNCTION(BlueprintCallable, Category="UIManager", DisplayName="初始化UI管理器")
 	void InitializeManager(ULxLocalPlayerSubsystem* InLocalPlayerSubsystem);
 
-	/**
-	 * @brief 设置当前 UI 所属的玩家控制器。
-	 *
-	 * 当控制器可用后，管理器会基于该控制器创建界面实例，并将控制器引用同步到各个界面对象。
-	 *
-	 * @param InPlayerController 当前本地玩家控制器；为空时表示暂时没有可用控制器。
-	 */
-	UFUNCTION(BlueprintCallable, Category="UIManager")
+	/** 设置当前玩家控制器。 */
+	UFUNCTION(BlueprintCallable, Category="UIManager", DisplayName="设置玩家控制器")
 	void SetPlayerController(ALxPlayerController* InPlayerController);
 
-	/**
-	 * @brief 设置当前由控制器持有的角色。
-	 *
-	 * 管理器会把该角色同步给背包界面和属性界面，用于刷新显示数据。
-	 *
-	 * @param InCharacter 当前被控制的角色；为空时表示清空界面关联角色。
-	 */
-	UFUNCTION(BlueprintCallable, Category="UIManager")
+	/** 设置当前受控角色。 */
+	UFUNCTION(BlueprintCallable, Category="UIManager", DisplayName="设置受控角色")
 	void SetControlledCharacter(ALxBaseCharacter* InCharacter);
 
-	/**
-	 * @brief 刷新管理器持有的所有界面。
-	 *
-	 * 该函数会确保界面已创建，并把当前控制器与角色重新同步到各个界面对象。
-	 */
-	UFUNCTION(BlueprintCallable, Category="UIManager")
+	/** 刷新全部已注册功能对象和UI状态。 */
+	UFUNCTION(BlueprintCallable, Category="UIManager", DisplayName="刷新UI")
 	void RefreshUI();
 
-	/**
-	 * @brief 处理已注册的输入事件。
-	 *
-	 * 根据输入行为 ID 决定切换背包界面或角色属性界面，仅在按下触发时生效。
-	 *
-	 * @param InName 当前输入行为的名称。
-	 * @param InValue 当前输入行为携带的输入值，通常使用其中的布尔值判断按下/释放。
-	 */
+	/** 注册子UI，并按功能类型转交给对应子功能对象管理。 */
+	UFUNCTION(BlueprintCallable, Category="UIManager", DisplayName="注册子UI界面")
+	void RegisterChildUIWidget(ULxUIBaseObject* InChildUIWidget, FName InInputActionID, ELxUIFunctionType InUIType);
+
+	/** 通知指定子UI显隐状态已发生变化。 */
+	UFUNCTION(BlueprintCallable, Category="UIManager", DisplayName="通知子UI状态变化")
+	void NotifyChildUIVisibilityChanged(ULxUIBaseObject* InChildUIWidget);
+
+	/** 设置指定子UI的显示状态。 */
+	UFUNCTION(BlueprintCallable, Category="UIManager", DisplayName="设置子UI显示状态")
+	void SetChildUIVisible(ULxUIBaseObject* InChildUIWidget, bool bInVisible);
+
+	/** 切换指定子UI的显示状态。 */
+	UFUNCTION(BlueprintCallable, Category="UIManager", DisplayName="切换子UI显示状态")
+	void ToggleChildUI(ULxUIBaseObject* InChildUIWidget);
+
+	/** 获取当前全部已注册子UI数据。 */
+	UFUNCTION(BlueprintPure, Category="UIManager", DisplayName="获取已注册子UI列表")
+	TArray<FLxManagedUIWidgetData> GetRegisteredChildWidgets() const { return RegisteredChildWidgets; }
+
+	/** 获取角色弹窗功能对象。 */
+	UFUNCTION(BlueprintPure, Category="UIManager", DisplayName="获取角色弹窗功能对象")
+	ULxCharacterPopupUIFunction* GetCharacterPopupUIFunction() const;
+
+	/** 处理输入系统转发给UI管理器的输入事件。 */
 	virtual void HandleInputValue(FName InName, FLxInputValue InValue) override;
 
-	/**
-	 * @brief 注册 UI 管理器需要监听的输入行为。
-	 *
-	 * 会向本地玩家子系统注册打开背包和打开角色属性两个输入监听。
-	 */
+	/** 初始化UI管理器需要监听的输入。 */
 	virtual void InitMonitorRegistration() override;
 
-	/**
-	 * @brief 切换背包界面的显示状态。
-	 *
-	 * 若背包界面尚未创建，会先尝试创建；切换后会同步更新鼠标显示状态。
-	 */
-	UFUNCTION(BlueprintCallable, Category="UIManager")
-	void ToggleBackpackUI();
-
-	/**
-	 * @brief 切换角色属性界面的显示状态。
-	 *
-	 * 若属性界面尚未创建，会先尝试创建；切换后会同步更新鼠标显示状态。
-	 */
-	UFUNCTION(BlueprintCallable, Category="UIManager")
-	void ToggleAttributeUI();
-
-protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="UIManager|WidgetClass", DisplayName="Backpack Widget Class")
-	TSubclassOf<ULxBackpackWidget> BackpackWidgetClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="UIManager|WidgetClass", DisplayName="Attribute Widget Class")
-	TSubclassOf<ULxAttributeWidget> AttributeWidgetClass;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="UIManager|Input", DisplayName="Open Backpack Input Action ID")
-	FName OpenBackpackInputActionID = TEXT("背包");
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="UIManager|Input", DisplayName="Open Attribute Input Action ID")
-	FName OpenCharacterInformationInputActionID = TEXT("角色属性");
-
 private:
-	/**
-	 * @brief 创建管理器配置的界面实例。
-	 *
-	 * 使用当前玩家控制器和编辑器中配置的蓝图类创建背包与属性界面，并默认加入视口但隐藏。
-	 */
-	void CreateUIWidgets();
+	/** 根据UI对象查找其对应的注册数据。 */
+	FLxManagedUIWidgetData* FindManagedUIDataByWidget(ULxUIBaseObject* InChildUIWidget);
 
-	/**
-	 * @brief 将当前角色同步给所有已创建的界面对象。
-	 *
-	 * 背包界面和属性界面会基于该角色刷新各自的数据展示。
-	 */
-	void ApplyCharacterToWidgets();
+	/** 按功能类型获取或创建对应的子功能对象。 */
+	ULxUIFunctionBase* GetOrCreateUIFunction(ELxUIFunctionType InUIType);
 
-	/**
-	 * @brief 将当前玩家控制器同步给所有已创建的界面对象。
-	 *
-	 * 主要用于让界面持有控制器引用，便于后续 UI 与控制器交互。
-	 */
-	void ApplyControllerToWidgets();
+	/** 初始化全部基础功能类型对象。 */
+	void InitializeFunctionObjects();
 
-	/**
-	 * @brief 设置指定界面的可见性。
-	 *
-	 * @param InWidget 需要设置可见性的界面对象。
-	 * @param bInVisible 为 true 时显示界面，为 false 时折叠隐藏界面。
-	 */
-	void SetWidgetVisible(UUserWidget* InWidget, bool bInVisible);
+	/** 向本地玩家子系统注册指定输入行为监听。 */
+	void RegisterInputAction(FName InInputActionID);
 
-	/**
-	 * @brief 判断指定界面当前是否可见。
-	 *
-	 * @param InWidget 需要检查的界面对象。
-	 * @return 若界面存在且当前不是 Hidden/Collapsed，则返回 true；否则返回 false。
-	 */
-	bool IsWidgetVisible(const UUserWidget* InWidget) const;
-
-	/**
-	 * @brief 根据当前界面显示状态更新鼠标状态。
-	 *
-	 * 当任一 UI 界面打开时显示鼠标，否则恢复为纯游戏输入模式并隐藏鼠标。
-	 */
+	/** 汇总全部子功能对象的鼠标需求并更新鼠标状态。 */
 	void UpdateCursorState() const;
 
 private:
-	UPROPERTY(Transient)
+	/** 本地玩家子系统引用。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="UIManager", DisplayName="本地玩家子系统", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<ULxLocalPlayerSubsystem> m_pLocalPlayerSubsystem = nullptr;
 
-	UPROPERTY(Transient)
-	TObjectPtr<ALxPlayerController> m_pPlayerController = nullptr;
-
-	UPROPERTY(Transient)
+	/** 当前受控角色引用。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="UIManager", DisplayName="受控角色", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<ALxBaseCharacter> m_pControlledCharacter = nullptr;
 
-	UPROPERTY(Transient)
-	TObjectPtr<ULxBackpackWidget> m_pBackpackWidget = nullptr;
+	/** 当前已注册的子UI数据列表。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="UIManager", DisplayName="已注册子UI列表", meta=(AllowPrivateAccess="true"))
+	TArray<FLxManagedUIWidgetData> RegisteredChildWidgets;
 
-	UPROPERTY(Transient)
-	TObjectPtr<ULxAttributeWidget> m_pAttributeWidget = nullptr;
+	/** 输入行为ID到子功能对象的映射表。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="UIManager", DisplayName="输入行为映射表", meta=(AllowPrivateAccess="true"))
+	TMap<FName, TObjectPtr<ULxUIFunctionBase>> m_mapInputActionToFunction;
 
-	bool m_bInputRegistered = false;
+	/** UI功能类型到子功能对象的映射表。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="UIManager", DisplayName="功能类型映射表", meta=(AllowPrivateAccess="true"))
+	TMap<ELxUIFunctionType, TObjectPtr<ULxUIFunctionBase>> m_mapUITypeToFunction;
+
+	/** 已注册到输入系统的输入行为ID集合。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="UIManager", DisplayName="已注册输入行为ID集合", meta=(AllowPrivateAccess="true"))
+	TSet<FName> RegisteredInputActionIDs;
 };

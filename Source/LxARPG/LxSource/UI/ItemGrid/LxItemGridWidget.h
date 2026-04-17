@@ -12,6 +12,7 @@ class ULxItemLogicBase;
 class ULxItemSlotData;
 class ULxItemDragInfo;
 class ULxItemDragIconWidget;
+class ULxCharacterPopupUIFunction;
 class UTexture2D;
 
 /** 当格子物品数据发生变化时通知蓝图刷新显示。 */
@@ -146,6 +147,7 @@ protected:
 	 * @param InMouseEvent 鼠标事件信息，包括位置、按钮状态等。
 	 */
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	/**
 	 * @brief 当鼠标离开当前格子时调用此方法。
 	 * 该方法在鼠标指针离开当前格子区域时被触发，可以用来实现鼠标悬停效果的取消，如隐藏提示信息或恢复格子样式等。
@@ -155,6 +157,13 @@ protected:
 
 
 private:
+	ULxCharacterPopupUIFunction* GetCharacterPopupUIFunction() const;
+
+	void ShowItemTooltip(const FVector2D& InMouseScreenPosition) const;
+
+	void UpdateItemTooltipPosition(const FVector2D& InMouseScreenPosition) const;
+
+	void HideItemTooltip() const;
 
 	void InitItemData(UObject* ListItemObject);
 

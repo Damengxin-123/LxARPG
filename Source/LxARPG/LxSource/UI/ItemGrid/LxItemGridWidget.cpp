@@ -6,9 +6,12 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemLogicBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
+#include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemDragInfo.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemDragIconWidget.h"
+#include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
+#include "LxARPG/LxSource/UI/Manager/LxUIFunctionTypes.h"
 
 void ULxItemGridWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
@@ -195,13 +198,73 @@ bool ULxItemGridWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
 void ULxItemGridWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
-	// OnItemGridHoverChanged.Broadcast(CurrentItemData, CurrentSlotIndex, CurrentSlotWidgetType, true);
+	ShowItemTooltip(InMouseEvent.GetScreenSpacePosition());
+}
+
+FReply ULxItemGridWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	UpdateItemTooltipPosition(InMouseEvent.GetScreenSpacePosition());
+	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
 
 void ULxItemGridWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 {
 	Super::NativeOnMouseLeave(InMouseEvent);
-	// OnItemGridHoverChanged.Broadcast(CurrentItemData, CurrentSlotIndex, CurrentSlotWidgetType, false);
+	HideItemTooltip();
+}
+
+ULxCharacterPopupUIFunction* ULxItemGridWidget::GetCharacterPopupUIFunction() const
+{
+	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	if (!LocalPlayer)
+	{
+		return nullptr;
+	}
+
+	const ULxLocalPlayerSubsystem* LocalPlayerSubsystem = ULxLocalPlayerSubsystem::GetFromLocalPlayer(LocalPlayer);
+	if (!LocalPlayerSubsystem)
+	{
+		return nullptr;
+	}
+
+	const ULxUIManager* UIManager = LocalPlayerSubsystem->GetUIManager();
+	return UIManager ? UIManager->GetCharacterPopupUIFunction() : nullptr;
+}
+
+void ULxItemGridWidget::ShowItemTooltip(const FVector2D& InMouseScreenPosition) const
+{
+	if (!CurrentSlotData || !CurrentSlotData->IsValid() || !CurrentSlotData->ItemDataPtr)
+	{
+		HideItemTooltip();
+		return;
+	}
+
+	if (ULxCharacterPopupUIFunction* PopupFunction = GetCharacterPopupUIFunction())
+	{
+		PopupFunction->ShowItemTooltip(CurrentSlotData->ItemDataPtr, InMouseScreenPosition);
+	}
+}
+
+void ULxItemGridWidget::UpdateItemTooltipPosition(const FVector2D& InMouseScreenPosition) const
+{
+	if (!CurrentSlotData || !CurrentSlotData->IsValid() || !CurrentSlotData->ItemDataPtr)
+	{
+		HideItemTooltip();
+		return;
+	}
+
+	if (ULxCharacterPopupUIFunction* PopupFunction = GetCharacterPopupUIFunction())
+	{
+		PopupFunction->UpdateItemTooltipPosition(InMouseScreenPosition);
+	}
+}
+
+void ULxItemGridWidget::HideItemTooltip() const
+{
+	if (ULxCharacterPopupUIFunction* PopupFunction = GetCharacterPopupUIFunction())
+	{
+		PopupFunction->HideItemTooltip();
+	}
 }
 
 void ULxItemGridWidget::InitItemData(UObject* ListItemObject)

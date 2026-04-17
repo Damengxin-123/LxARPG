@@ -52,8 +52,9 @@ public:
 	 * @return 返回一个指向FLxEquipmentData类型的指针，包含了装备的所有属性信息。如果装备逻辑未正确初始化或数据为空，则返回空指针。
 	 */
 	FLxEquipmentData* GetEquipmentData();
+
+	const FLxEquipmentData* GetEquipmentData() const { return &m_EquipmentData; }
 private:
 	FLxEquipmentData m_EquipmentData;
 };
-
 

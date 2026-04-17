@@ -40,7 +40,11 @@ public:
 	 */
 	virtual bool UseItem() override;
 
+	/** 获取消耗品缓存数据。 */
+	FLxConsumableData* GetConsumableData() { return &m_ConsumableData; }
+
+	const FLxConsumableData* GetConsumableData() const { return &m_ConsumableData; }
+
 private:
 	FLxConsumableData m_ConsumableData;
 };
-
