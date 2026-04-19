@@ -39,7 +39,7 @@ TArray<ULxUITextData*> ULxAttributeWidget::GetAttributesUIDataList()
 		return UIDataList;
 	}
 
-	const TMap<FName, FLxAttributeData>* CharacterAttributeTable = m_pCharacterAttributeComponent->GetCharacterAttributeTable();
+	const TMap<ELxCharacterAttributeID, FLxAttributeData>* CharacterAttributeTable = m_pCharacterAttributeComponent->GetCharacterAttributeTable();
 	if (!CharacterAttributeTable)
 	{
 		return UIDataList;
@@ -47,7 +47,7 @@ TArray<ULxUITextData*> ULxAttributeWidget::GetAttributesUIDataList()
 
 	TArray<const FLxAttributeData*> VisibleAttributeList;
 	VisibleAttributeList.Reserve(CharacterAttributeTable->Num());
-	for (const TPair<FName, FLxAttributeData>& AttributePair : *CharacterAttributeTable)
+	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : *CharacterAttributeTable)
 	{
 		const FLxAttributeData& AttributeData = AttributePair.Value;
 		// 只生成需要在属性面板中展示的条目。

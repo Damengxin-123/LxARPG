@@ -5,6 +5,7 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipment.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentLogic.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
@@ -82,7 +83,7 @@ void ULxCharacterAttributeComponent::BaseComponentInitialize()
 	m_mapCharacterAttributeTable.Empty();
 	for (const FLxAttributeData& AttributeData : *AttributeDataList)
 	{
-		if (AttributeData.AttributeInfo.AttributeID.IsNone())
+		if (AttributeData.AttributeInfo.AttributeID == ELxCharacterAttributeID::X_None)
 		{
 			continue;
 		}
@@ -96,12 +97,18 @@ void ULxCharacterAttributeComponent::BaseComponentInitialize()
 		EquipmentComponent->OnDataChange.AddDynamic(this, &ULxCharacterAttributeComponent::HandleEquipmentDataChange);
 	}
 
+	if (ULxCharacterBackpackComponent* BackpackComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterBackpackComponent() : nullptr)
+	{
+		BackpackComponent->OnInstantRestore.RemoveDynamic(this, &ULxCharacterAttributeComponent::HandleBackpackInstantRestore);
+		BackpackComponent->OnInstantRestore.AddDynamic(this, &ULxCharacterAttributeComponent::HandleBackpackInstantRestore);
+	}
+
 	m_bAttributeInitialized = true;
 	RefreshCharacterAttributeByEquipment();
 	OnDataChange.Broadcast();
 }
 
-FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByID(const FName& InAttributeID)
+FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByID(const ELxCharacterAttributeID InAttributeID)
 {
 	if (!m_bAttributeInitialized)
 	{
@@ -110,12 +117,12 @@ FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByID(cons
 	return m_mapCharacterAttributeTable.Find(InAttributeID);
 }
 
-const FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByID(const FName& InAttributeID) const
+const FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByID(const ELxCharacterAttributeID InAttributeID) const
 {
 	return m_mapCharacterAttributeTable.Find(InAttributeID);
 }
 
-TMap<FName, FLxAttributeData>* ULxCharacterAttributeComponent::GetCharacterAttributeTable()
+TMap<ELxCharacterAttributeID, FLxAttributeData>* ULxCharacterAttributeComponent::GetCharacterAttributeTable()
 {
 	if (!m_bAttributeInitialized)
 	{
@@ -124,12 +131,12 @@ TMap<FName, FLxAttributeData>* ULxCharacterAttributeComponent::GetCharacterAttri
 	return &m_mapCharacterAttributeTable;
 }
 
-const TMap<FName, FLxAttributeData>* ULxCharacterAttributeComponent::GetCharacterAttributeTable() const
+const TMap<ELxCharacterAttributeID, FLxAttributeData>* ULxCharacterAttributeComponent::GetCharacterAttributeTable() const
 {
 	return &m_mapCharacterAttributeTable;
 }
 
-bool ULxCharacterAttributeComponent::SetCharacterAttribute(const FName& InAttributeID, const FLxAttributeData& InAttributeData)
+bool ULxCharacterAttributeComponent::SetCharacterAttribute(const ELxCharacterAttributeID InAttributeID, const FLxAttributeData& InAttributeData)
 {
 	if (!m_bAttributeInitialized)
 	{
@@ -139,7 +146,7 @@ bool ULxCharacterAttributeComponent::SetCharacterAttribute(const FName& InAttrib
 	return true;
 }
 
-bool ULxCharacterAttributeComponent::SetCharacterAttributeCurrentValue(const FName& InAttributeID, float InNewValue)
+bool ULxCharacterAttributeComponent::SetCharacterAttributeCurrentValue(const ELxCharacterAttributeID InAttributeID, float InNewValue)
 {
 	if (!m_bAttributeInitialized)
 	{
@@ -154,7 +161,24 @@ bool ULxCharacterAttributeComponent::SetCharacterAttributeCurrentValue(const FNa
 
 	AttributeData->CalculatedAttributeValue.Value = InNewValue;
 	NormalizeAttributeValueByType(AttributeData->CalculatedAttributeValue);
+	OnDataChange.Broadcast();
 	return true;
+}
+
+bool ULxCharacterAttributeComponent::RestoreCharacterAttributeCurrentValue(const ELxCharacterAttributeID InAttributeID, float InRestoreValue)
+{
+	if (!m_bAttributeInitialized)
+	{
+		BaseComponentInitialize();
+	}
+
+	const FLxAttributeData* AttributeData = GetCharacterAttributeByID(InAttributeID);
+	if (AttributeData == nullptr)
+	{
+		return false;
+	}
+
+	return SetCharacterAttributeCurrentValue(InAttributeID, AttributeData->CalculatedAttributeValue.Value + InRestoreValue);
 }
 
 void ULxCharacterAttributeComponent::HandleEquipmentDataChange()
@@ -169,46 +193,36 @@ void ULxCharacterAttributeComponent::HandleEquipmentDataChange()
 	OnDataChange.Broadcast();
 }
 
+void ULxCharacterAttributeComponent::HandleBackpackInstantRestore(ELxCharacterAttributeID InAttributeID, float InRestoreValue)
+{
+	RestoreCharacterAttributeCurrentValue(InAttributeID, InRestoreValue);
+}
+
 void ULxCharacterAttributeComponent::RefreshCharacterAttributeByEquipment()
 {
-	for (TPair<FName, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
+	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
 	{
 		AttributePair.Value.CalculatedAttributeValue = AttributePair.Value.AttributeValue;
 	}
 
-	TArray<ULxEquipmentLogic*> EquipmentList;
-	GetAllEquipmentList(EquipmentList);
-	for (ULxEquipmentLogic* EquipmentLogic : EquipmentList)
+	TArray<FLxItemEntryData> EquipmentEntryList;
+	if (ULxCharacterEquipmentComponent* EquipmentComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterEquipmentComponent() : nullptr)
 	{
-		if (EquipmentLogic == nullptr || !EquipmentLogic->ItemIsValid())
-		{
-			continue;
-		}
-
-		const FLxEquipmentData* EquipmentData = EquipmentLogic->GetEquipmentData();
-		if (EquipmentData == nullptr)
-		{
-			continue;
-		}
-
-		if (FLxAttributeData* BasicAttributeData = m_mapCharacterAttributeTable.Find(EquipmentData->EquipmentEntyInfo.EquipmentBasicEntry.AttributeID))
-		{
-			ApplyEquipmentEntryToAttribute(*BasicAttributeData, EquipmentData->EquipmentEntyInfo.EquipmentBasicEntry);
-		}
-
-		for (const FLxItemEntryData& EntryData : EquipmentData->EquipmentEntyInfo.EquipmentExtendEntryList)
-		{
-			FLxAttributeData* AttributeData = m_mapCharacterAttributeTable.Find(EntryData.AttributeID);
-			if (AttributeData == nullptr)
-			{
-				continue;
-			}
-
-			ApplyEquipmentEntryToAttribute(*AttributeData, EntryData);
-		}
+		EquipmentComponent->GetAttributeEffectEntries(EquipmentEntryList);
 	}
 
-	for (TPair<FName, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
+	for (const FLxItemEntryData& EntryData : EquipmentEntryList)
+	{
+		FLxAttributeData* AttributeData = m_mapCharacterAttributeTable.Find(EntryData.AttributeID);
+		if (AttributeData == nullptr)
+		{
+			continue;
+		}
+
+		ApplyEquipmentEntryToAttribute(*AttributeData, EntryData);
+	}
+
+	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
 	{
 		NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);
 	}
@@ -243,7 +257,7 @@ void ULxCharacterAttributeComponent::GetAllEquipmentList(TArray<ULxEquipmentLogi
 
 void ULxCharacterAttributeComponent::ApplyEquipmentEntryToAttribute(FLxAttributeData& InOutAttributeData, const FLxItemEntryData& InEntryData)
 {
-	if (InEntryData.AttributeID.IsNone())
+	if (InEntryData.AttributeID == ELxCharacterAttributeID::X_None)
 	{
 		return;
 	}

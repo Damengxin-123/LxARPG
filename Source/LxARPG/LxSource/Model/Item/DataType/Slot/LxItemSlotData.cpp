@@ -15,8 +15,7 @@ bool ULxItemSlotData::IsValid() const
 
 void ULxItemSlotData::UseItem()
 {
-	// 调用使用物品函数，如果使用有效，则发出更新事件
-	if (ItemDataPtr->UseItem())
+	if (ItemDataPtr && ItemDataPtr->ItemIsValid() && ItemDataPtr->UseItem())
 	{
 		OnSlotChanged.Broadcast();
 	}
@@ -24,11 +23,11 @@ void ULxItemSlotData::UseItem()
 
 bool ULxItemSlotData::SetItem(ULxItemLogicBase* InItemData)
 {
-	// 无效的物品数据不能设置进来，空物品视为清空物品槽位
 	if (InItemData != nullptr && !InItemData->ItemIsValid())
 	{
 		return false;
 	}
+
 	ItemDataPtr = InItemData;
 	OnSlotChanged.Broadcast();
 	return true;
@@ -104,51 +103,45 @@ bool ULxItemSlotData::CanGetItemData() const
 
 ELxItemSlotDropResult ULxItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSlot)
 {
-	// 判断对方是否有效，
 	if (InItemSlot == nullptr || !InItemSlot->IsValid())
 	{
 		return ELxItemSlotDropResult::FailedInvalidSource;
 	}
-	// 判断己方是否能放入物品
+
 	if (ItemSlotType == ELxItemSlotType::None ||
 		ItemSlotType == ELxItemSlotType::TreasureChest ||
 		ItemSlotType == ELxItemSlotType::Shortcut)
 	{
 		return ELxItemSlotDropResult::CannotEnter;
 	}
-	// 判断类型是否符合
+
 	if (!CanAcceptItem(InItemSlot->ItemDataPtr))
 	{
 		return ELxItemSlotDropResult::TypeError;
 	}
-	// 经过判断后，确认能放入此槽位
-	// 判断此槽位是否为空，为空则直接放入得了
+
 	if (ItemDataPtr == nullptr || !ItemDataPtr->ItemIsValid())
 	{
 		SetItem(InItemSlot->ItemDataPtr);
 		InItemSlot->ClearItem();
 		return ELxItemSlotDropResult::EnterSuccess;
 	}
-	// 双方不为空，则判断是否能堆叠，不能的话就直接
+
 	if (IsStack(InItemSlot->ItemDataPtr))
 	{
-		// 进行堆叠 堆叠函数会自动计算双方物品数量，并进行数量更改事件发布
 		ItemDataPtr->StackItem(InItemSlot->ItemDataPtr);
 		return ELxItemSlotDropResult::StackedAll;
 	}
-	else
-	{
-		// 交换物品
-		ULxItemLogicBase* TempItem = ItemDataPtr;
-		SetItem(InItemSlot->ItemDataPtr);
-		InItemSlot->SetItem(TempItem);
-		return ELxItemSlotDropResult::Swapped;
-	}
+
+	ULxItemLogicBase* TempItem = ItemDataPtr;
+	SetItem(InItemSlot->ItemDataPtr);
+	InItemSlot->SetItem(TempItem);
+	return ELxItemSlotDropResult::Swapped;
 }
 
 bool ULxEquipmentSlotData::CanAcceptItem(ULxItemLogicBase* InItemData) const
 {
-	if (InItemData ==  nullptr || !InItemData->ItemIsValid())
+	if (InItemData == nullptr || !InItemData->ItemIsValid())
 	{
 		return false;
 	}
@@ -168,3 +161,79 @@ bool ULxEquipmentSlotData::CanAcceptItem(ULxItemLogicBase* InItemData) const
 	return true;
 }
 
+ULxShortcutItemSlotData::ULxShortcutItemSlotData()
+{
+	ItemSlotType = ELxItemSlotType::Shortcut;
+}
+
+bool ULxShortcutItemSlotData::BindSourceSlot(ULxItemSlotData* InSourceSlot)
+{
+	if (SourceSlot == InSourceSlot)
+	{
+		HandleSourceSlotChanged();
+		return true;
+	}
+
+	SourceSlot = InSourceSlot;
+
+	if (BoundItem)
+	{
+		BoundItem->OnItemInfoChanged.RemoveDynamic(this, &ULxShortcutItemSlotData::HandleBoundItemChanged);
+	}
+
+	BoundItem = (SourceSlot && SourceSlot->IsValid()) ? SourceSlot->ItemDataPtr : nullptr;
+	ItemDataPtr = BoundItem;
+
+	if (BoundItem)
+	{
+		BoundItem->OnItemInfoChanged.RemoveDynamic(this, &ULxShortcutItemSlotData::HandleBoundItemChanged);
+		BoundItem->OnItemInfoChanged.AddDynamic(this, &ULxShortcutItemSlotData::HandleBoundItemChanged);
+	}
+
+	OnSlotChanged.Broadcast();
+	return true;
+}
+
+void ULxShortcutItemSlotData::UseItem()
+{
+	if (BoundItem && BoundItem->ItemIsValid() && BoundItem->UseItem())
+	{
+		HandleBoundItemChanged();
+		return;
+	}
+
+	Super::UseItem();
+}
+
+bool ULxShortcutItemSlotData::CanAcceptItem(ULxItemLogicBase* InItemData) const
+{
+	return InItemData != nullptr && InItemData->ItemIsValid();
+}
+
+ELxItemSlotDropResult ULxShortcutItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSlot)
+{
+	if (InItemSlot == nullptr || !InItemSlot->IsValid())
+	{
+		return ELxItemSlotDropResult::FailedInvalidSource;
+	}
+
+	if (!CanAcceptItem(InItemSlot->ItemDataPtr))
+	{
+		return ELxItemSlotDropResult::TypeError;
+	}
+
+	BindSourceSlot(InItemSlot);
+	return ELxItemSlotDropResult::EnterSuccess;
+}
+
+void ULxShortcutItemSlotData::HandleSourceSlotChanged()
+{
+	ItemDataPtr = (BoundItem && BoundItem->ItemIsValid()) ? BoundItem : nullptr;
+	OnSlotChanged.Broadcast();
+}
+
+void ULxShortcutItemSlotData::HandleBoundItemChanged()
+{
+	ItemDataPtr = (BoundItem && BoundItem->ItemIsValid()) ? BoundItem : nullptr;
+	OnSlotChanged.Broadcast();
+}

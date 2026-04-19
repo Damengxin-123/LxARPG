@@ -76,6 +76,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Item Grid")
 	bool UseItem() const;
 
+	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="设置槽位数据")
+	void SetItemSlotData(ULxItemSlotData* InSlotData);
+
 	/**
 	 * @brief 检查当前格子中的物品是否有效。
 	 * 该方法用于判断当前格子中是否有有效的物品数据。如果`CurrentSlotData`不为空且其`IsValid`方法返回`true`，则认为当前格子中的物品是有效的。
@@ -173,6 +176,9 @@ private:
 	UFUNCTION()
 	void HandleCurrentSlotChanged();
 
+	UFUNCTION()
+	void HandleCurrentItemChanged();
+
 	void BroadcastGridDataChanged() const;
 
 	
@@ -181,5 +187,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<ULxItemSlotData> CurrentSlotData = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<ULxItemLogicBase> CurrentItemData = nullptr;
 
+	void SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData);
+
+	void RebindCurrentItemChanged();
 };

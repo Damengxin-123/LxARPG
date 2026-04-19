@@ -3,6 +3,7 @@
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Input/Reply.h"
 #include "InputCoreTypes.h"
+#include "Blueprint/WidgetLayoutLibrary.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemLogicBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
@@ -70,6 +71,11 @@ bool ULxItemGridWidget::UseItem() const
 
 	CurrentSlotData->UseItem();
 	return true;
+}
+
+void ULxItemGridWidget::SetItemSlotData(ULxItemSlotData* InSlotData)
+{
+	SetCurrentSlotDataInternal(InSlotData);
 }
 
 bool ULxItemGridWidget::ItemIsVaild() const
@@ -203,7 +209,8 @@ void ULxItemGridWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FP
 
 FReply ULxItemGridWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	UpdateItemTooltipPosition(InMouseEvent.GetScreenSpacePosition());
+	FVector2D MousePos = UWidgetLayoutLibrary::GetMousePositionOnViewport(GetWorld());
+	UpdateItemTooltipPosition(MousePos);
 	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
 
@@ -269,28 +276,49 @@ void ULxItemGridWidget::HideItemTooltip() const
 
 void ULxItemGridWidget::InitItemData(UObject* ListItemObject)
 {
+	ULxItemSlotData* NewSlotData = nullptr;
+
+	if (ULxItemUIData* BackpackData = Cast<ULxItemUIData>(ListItemObject))
+	{
+		NewSlotData = BackpackData->m_pSlotData;
+	}
+
+	SetCurrentSlotDataInternal(NewSlotData);
+}
+
+void ULxItemGridWidget::SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData)
+{
+	if (CurrentItemData)
+	{
+		CurrentItemData->OnItemInfoChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
+		CurrentItemData = nullptr;
+	}
+
 	if (CurrentSlotData)
 	{
 		CurrentSlotData->OnSlotChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
 	}
 
-	CurrentSlotData = nullptr;
-
-	if (ULxItemUIData* BackpackData = Cast<ULxItemUIData>(ListItemObject))
-	{
-		CurrentSlotData = BackpackData->m_pSlotData;
-	}
-
+	CurrentSlotData = InSlotData;
 
 	if (CurrentSlotData)
 	{
+		CurrentSlotData->OnSlotChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
 		CurrentSlotData->OnSlotChanged.AddDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
 	}
-	
+
+	RebindCurrentItemChanged();
+	BroadcastGridDataChanged();
 }
 
 
 void ULxItemGridWidget::HandleCurrentSlotChanged() 
+{
+	RebindCurrentItemChanged();
+	BroadcastGridDataChanged();
+}
+
+void ULxItemGridWidget::HandleCurrentItemChanged()
 {
 	BroadcastGridDataChanged();
 }
@@ -298,4 +326,20 @@ void ULxItemGridWidget::HandleCurrentSlotChanged()
 void ULxItemGridWidget::BroadcastGridDataChanged() const
 {
 	OnItemGridDataChanged.Broadcast();
+}
+
+void ULxItemGridWidget::RebindCurrentItemChanged()
+{
+	if (CurrentItemData)
+	{
+		CurrentItemData->OnItemInfoChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
+		CurrentItemData = nullptr;
+	}
+
+	if (CurrentSlotData && CurrentSlotData->ItemDataPtr)
+	{
+		CurrentItemData = CurrentSlotData->ItemDataPtr;
+		CurrentItemData->OnItemInfoChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
+		CurrentItemData->OnItemInfoChanged.AddDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
+	}
 }

@@ -121,110 +121,105 @@ enum class ELxCharacterValueType : uint8
 };
 
 /**
- * @enum ELxBiologicalAttributes
+ * @enum ELxCharacterAttributeID
  * @brief 生物属性类型枚举
  *
  * 数值型属性的枚举。
  *
- * @note 作废，属性id已经改为直接使用字符串作为主键
+ * @note 
  * @note 可在蓝图中使用
  */
-UENUM(BlueprintType)
-enum class ELxBiologicalAttributes : uint8
+UENUM(BlueprintType, DisplayName="角色属性ID")
+enum class ELxCharacterAttributeID : uint8
 {
-	// 单位相关
+	X_None				  UMETA(DisplayName="空ID"),
+	/** 角色单位属性 */
 	/** 种族 */
-	BA_Race				  UMETA(DisplayName = "种族"),
+	A_Race				  UMETA(DisplayName = "种族"),
 	/** 阵营 */
-	BA_Camp				  UMETA(DisplayName = "阵营"),
+	A_Camp				  UMETA(DisplayName = "阵营"),
+	/** 负重 */
+	A_CarryWeight         UMETA(DisplayName = "负重"),
+	/** 幸运 */
+	A_Luck                UMETA(DisplayName = "幸运"),
+	// 角色单位属性最大值
+	A_Max				  UMETA(DisplayName = "角色单位属性最大值", Hidden),
 
-	// 基础属性
+	// 角色基础属性
 	/** 力量 */
-    BA_Power              UMETA(DisplayName = "力量"),
+    B_Power              UMETA(DisplayName = "力量"),
 	/** 敏捷 */
-    BA_Agility            UMETA(DisplayName = "敏捷"),
+    B_Agility            UMETA(DisplayName = "敏捷"),
 	/** 智慧 */
-    BA_Intelligence       UMETA(DisplayName = "智慧"),
+    B_Intelligence       UMETA(DisplayName = "智慧"),
 	/** 体质 */
-    BA_Constitution       UMETA(DisplayName = "体质"),
+    B_Constitution       UMETA(DisplayName = "体质"),
+	// 基础属性最大值
+	B_Max				 UMETA(DisplayName = "基础属性最大值", Hidden),
 
+	// 资源相关属性
+	// 生命值
+	C_HP				UMETA(DisplayName = "生命值"),
+	// 魔力值
+	C_MP				UMETA(DisplayName = "魔力值"),
+	// 体力值
+	C_Stamina			UMETA(DisplayName = "体力值"),
+	// 资源相关属性最大值
+	C_Max				UMETA(DisplayName = "资源相关属性最大值", Hidden),
 
-
-    // 攻击相关
+    // 攻击相关属性
 	/** 物理攻击力 */
-    BA_PhysicalAttack     UMETA(DisplayName = "物理攻击力"),
+    D_PhysicalAttack     UMETA(DisplayName = "物理攻击力"),
 	/** 暴击几率 */
-    BA_CriticalChance     UMETA(DisplayName = "暴击几率"),
+    D_CriticalChance     UMETA(DisplayName = "暴击几率"),
 	/** 暴击伤害 */
-    BA_CriticalDamage     UMETA(DisplayName = "暴击伤害"),
-	/** 魔力附加物理伤害 */
-    BA_MagicAddPhysical   UMETA(DisplayName = "魔力附加物理伤害"),
-	/** 魔力转换元素伤害 */
-    BA_MagicToElement     UMETA(DisplayName = "魔力转换元素伤害"),
+    D_CriticalDamage     UMETA(DisplayName = "暴击伤害"),
 	/** 攻击速度 */
-    BA_AttackSpeed        UMETA(DisplayName = "攻击速度"),
-	/** 魔力回复 */
-    BA_ManaRegen          UMETA(DisplayName = "魔力回复"),
+    D_AttackSpeed        UMETA(DisplayName = "攻击速度"),
+	// 攻击相关属性最大值
+	D_Max				 UMETA(DisplayName = "攻击相关属性最大值", Hidden),
 
     // 防御相关
-	/** 护盾上限 */
-    BA_ShieldMax          UMETA(DisplayName = "护盾上限"),
-	/** 护盾充能速度 */
-    BA_ShieldRechargeRate UMETA(DisplayName = "护盾充能速度"),
-	/** 护盾流失速度 */
-    BA_ShieldDecayRate    UMETA(DisplayName = "护盾流失速度"),
-	/** 护甲防御力 */
-    BA_ArmorDefense       UMETA(DisplayName = "护甲防御力"),
-	/** 生命值 */
-    BA_HP                 UMETA(DisplayName = "生命值"),
-	/** 最大生命值 */
-    BA_HPMax              UMETA(DisplayName = "最大生命值"),
-	/** 魔力值 */
-    BA_MP                 UMETA(DisplayName = "魔力值"),
-	/** 最大魔力值 */
-    BA_MPMax              UMETA(DisplayName = "最大魔力值"),
-	/** 格挡减伤率 */
-    BA_BlockReduction     UMETA(DisplayName = "格挡减伤率"),
-	/** 体力 */
-    BA_Stamina            UMETA(DisplayName = "体力"),
+	// 防御力
+	E_Defense			UMETA(DisplayName = "防御力"),
+	// 护盾
+	E_Shield			UMETA(DisplayName = "护盾"),
+	// 防御相关属性最大值
+	E_Max				UMETA(DisplayName = "防御相关属性最大值", Hidden),
 
-    // 元素亲和
-	/** 火元素亲和 */
-    BA_FireAffinity       UMETA(DisplayName = "火元素亲和"),
-	/** 水元素亲和 */
-    BA_WaterAffinity      UMETA(DisplayName = "水元素亲和"),
-	/** 电元素亲和 */
-    BA_ElectricAffinity   UMETA(DisplayName = "电元素亲和"),
-	/** 光元素亲和 */
-    BA_LightAffinity      UMETA(DisplayName = "光元素亲和"),
-	/** 风元素亲和 */
-    BA_WindAffinity       UMETA(DisplayName = "风元素亲和"),
-	/** 土元素亲和 */
-    BA_EarthAffinity      UMETA(DisplayName = "土元素亲和"),
-	/** 木元素亲和 */
-    BA_WoodAffinity       UMETA(DisplayName = "木元素亲和"),
+	// 元素相关
+	// 火元素亲和
+	F_Fire				UMETA(DisplayName = "火元素亲和"),
+	// 
+	F_Water				UMETA(DisplayName = "水元素亲和"),
+	// 电元素亲和
+	F_Electric			UMETA(DisplayName = "电元素亲和"),
+	// 元素相关属性最大值
+	F_Max				UMETA(DisplayName = "元素相关属性最大值", Hidden),
 
+	// 信仰相关属性
+	// 光明之神信仰
+	G_LightGod			UMETA(DisplayName = "光明之神信仰"),
+	// 自然之神信仰
+	G_Nature			UMETA(DisplayName = "自然之神信仰"),
+	// 信仰相关属性最大值
+	G_Max				UMETA(DisplayName = "信仰相关属性最大值", Hidden),
     // 信仰亲和
-	/** 光明之神信仰 */
-    BA_LightGodFaith      UMETA(DisplayName = "光明之神信仰"),
-	/** 自然之神信仰 */
-    BA_NatureGodFaith     UMETA(DisplayName = "自然之神信仰"),
-	/** 战争之神信仰 */
-    BA_WarGodFaith        UMETA(DisplayName = "战争之神信仰"),
-	/** 艺术之神信仰 */
-    BA_ArtGodFaith        UMETA(DisplayName = "艺术之神信仰"),
-	/** 命运之神信仰 */
-    BA_FateGodFaith       UMETA(DisplayName = "命运之神信仰"),
-	/** 财富之神信仰 */
-    BA_WealthGodFaith     UMETA(DisplayName = "财富之神信仰"),
-	/** 死亡之神信仰 */
-    BA_DeathGodFaith      UMETA(DisplayName = "死亡之神信仰"),
+	// /** 光明之神信仰 */
+ //    BA_LightGodFaith      UMETA(DisplayName = "光明之神信仰"),
+	// /** 自然之神信仰 */
+ //    BA_NatureGodFaith     UMETA(DisplayName = "自然之神信仰"),
+	// /** 战争之神信仰 */
+ //    BA_WarGodFaith        UMETA(DisplayName = "战争之神信仰"),
+	// /** 艺术之神信仰 */
+ //    BA_ArtGodFaith        UMETA(DisplayName = "艺术之神信仰"),
+	// /** 命运之神信仰 */
+ //    BA_FateGodFaith       UMETA(DisplayName = "命运之神信仰"),
+	// /** 财富之神信仰 */
+ //    BA_WealthGodFaith     UMETA(DisplayName = "财富之神信仰"),
+	// /** 死亡之神信仰 */
+ //    BA_DeathGodFaith      UMETA(DisplayName = "死亡之神信仰"),
 
-    // 其他属性
-	/** 负重 */
-    BA_CarryWeight        UMETA(DisplayName = "负重"),
-	/** 幸运 */
-    BA_Luck               UMETA(DisplayName = "幸运"),
 
 	// 最大值
 	/** 最大值 */

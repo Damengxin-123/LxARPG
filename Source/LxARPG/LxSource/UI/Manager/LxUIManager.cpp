@@ -1,5 +1,6 @@
 #include "LxUIManager.h"
 
+#include "Components/CanvasPanelSlot.h"
 #include "LxUIFunctionBase.h"
 #include "LxUIFunctionTypes.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -42,6 +43,8 @@ void ULxUIManager::SetControlledCharacter(ALxBaseCharacter* InCharacter)
 			FunctionPair.Value->SetControlledCharacter(InCharacter);
 		}
 	}
+
+	UpdateCursorState();
 }
 
 void ULxUIManager::RefreshUI()
@@ -165,9 +168,41 @@ void ULxUIManager::ToggleChildUI(ULxUIBaseObject* InChildUIWidget)
 	UpdateCursorState();
 }
 
+void ULxUIManager::UpdateManagedUIPosition_Implementation(ULxUIBaseObject* InChildUIWidget, FVector2D InScreenPosition)
+{
+	if (!InChildUIWidget)
+	{
+		return;
+	}
+
+	if (UCanvasPanelSlot* CanvasPanelSlot = Cast<UCanvasPanelSlot>(InChildUIWidget->Slot))
+	{
+		CanvasPanelSlot->SetPosition(InScreenPosition);
+	}
+}
+
+ULxCharacterHUDUIFunction* ULxUIManager::GetCharacterHUDUIFunction() const
+{
+	return Cast<ULxCharacterHUDUIFunction>(m_mapUITypeToFunction.FindRef(ELxUIFunctionType::CharacterHUD));
+}
+
 ULxCharacterPopupUIFunction* ULxUIManager::GetCharacterPopupUIFunction() const
 {
 	return Cast<ULxCharacterPopupUIFunction>(m_mapUITypeToFunction.FindRef(ELxUIFunctionType::CHaracterPopup));
+}
+
+void ULxUIManager::RegisterUIFunctionInputAction(ELxUIFunctionType InUIType, FName InInputActionID)
+{
+	if (InInputActionID.IsNone())
+	{
+		return;
+	}
+
+	if (ULxUIFunctionBase* TargetFunction = GetOrCreateUIFunction(InUIType))
+	{
+		m_mapInputActionToFunction.FindOrAdd(InInputActionID) = TargetFunction;
+		RegisterInputAction(InInputActionID);
+	}
 }
 
 void ULxUIManager::HandleInputValue(FName InName, FLxInputValue InValue)

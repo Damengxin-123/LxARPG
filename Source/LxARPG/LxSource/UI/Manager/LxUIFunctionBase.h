@@ -55,6 +55,19 @@ public:
 	/** 获取当前功能对象是否需要显示鼠标光标。 */
 	virtual bool ShouldDisplayCursor() const PURE_VIRTUAL(ULxUIFunctionBase::ShouldDisplayCursor, return false;);
 
+	/**
+	 * @brief 请求更新托管UI对象的位置。
+	 *
+	 * 该方法用于请求更新指定UI对象在屏幕上的位置。计算出的最终位置会考虑给定的偏移量和是否需要将位置限制在视口范围内。
+	 *
+	 * @param InChildUIWidget 需要更新位置的UI对象。
+	 * @param InAnchorScreenPosition UI对象锚点的初始屏幕位置。
+	 * @param InOffset 相对于锚点位置的偏移量。
+	 * @param bClampToViewport 是否将计算出的位置限制在当前视口内。
+	 */
+	void RequestManagedUIPosition(ULxUIBaseObject* InChildUIWidget, FVector2D InAnchorScreenPosition,
+	                              FVector2D InOffset = FVector2D::ZeroVector, bool bClampToViewport = false) const;
+
 protected:
 	/** 供子类覆写的初始化入口。 */
 	virtual void OnInitialize();

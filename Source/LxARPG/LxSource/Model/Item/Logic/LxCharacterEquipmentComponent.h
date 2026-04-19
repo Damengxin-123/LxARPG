@@ -41,6 +41,8 @@ public:
 	 */
 	TArray<TObjectPtr<ULxEquipmentSlotData>>& GetEquipmentSlots();
 
+	void GetAttributeEffectEntries(TArray<FLxItemEntryData>& OutEntryList) const;
+
 	/**
 	 * @brief 装备槽位配置。
 	 *

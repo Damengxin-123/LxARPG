@@ -30,7 +30,7 @@ struct FLxAttributeInfo
 	 * @note 确保在设置此属性时使用唯一的FName值以避免冲突。
 	 */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, DisplayName="属性唯一ID")
-	FName AttributeID;
+	ELxCharacterAttributeID AttributeID = ELxCharacterAttributeID::X_None;
 
 	/**
 	 * @brief 属性类型

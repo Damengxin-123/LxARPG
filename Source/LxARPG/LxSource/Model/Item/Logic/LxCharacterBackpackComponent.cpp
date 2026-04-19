@@ -3,6 +3,7 @@
 #include "LxARPG/LxSource/Core/Database/LxConstValue.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Buff/LxBuffDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Buff/LxBuffLogic.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumable.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableLogic.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentDefineTableConfig.h"
@@ -110,6 +111,139 @@ namespace
 ULxCharacterBackpackComponent::ULxCharacterBackpackComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+}
+
+void ULxCharacterBackpackComponent::HandleTrackedItemChanged()
+{
+	const bool bRemovedInvalidItems = CleanupInvalidItems();
+	if (bRemovedInvalidItems)
+	{
+		RefreshTrackedItemBindings();
+		OnDataChange.Broadcast();
+	}
+}
+
+void ULxCharacterBackpackComponent::HandleTrackedItemUsed(ULxItemLogicBase* UsedItem)
+{
+	if (UsedItem == nullptr || !UsedItem->ItemIsValid())
+	{
+		return;
+	}
+
+	FLxItemDateBase* ItemData = UsedItem->GetItemDataBase();
+	if (ItemData == nullptr)
+	{
+		return;
+	}
+
+	if (ItemData->ItemInfo.ItemType == ELxItemType::Consumable)
+	{
+		HandleConsumableUsed(UsedItem);
+	}
+}
+
+void ULxCharacterBackpackComponent::RefreshTrackedItemBindings()
+{
+	for (ULxItemLogicBase* ItemLogic : m_vItemList)
+	{
+		if (ItemLogic == nullptr)
+		{
+			continue;
+		}
+
+		ItemLogic->OnItemInfoChanged.RemoveDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemChanged);
+		ItemLogic->OnItemInfoChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemChanged);
+		ItemLogic->OnItemUsed.RemoveDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemUsed);
+		ItemLogic->OnItemUsed.AddDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemUsed);
+	}
+}
+
+void ULxCharacterBackpackComponent::HandleConsumableUsed(ULxItemLogicBase* UsedItem)
+{
+	const ULxConsumableLogic* ConsumableLogic = Cast<ULxConsumableLogic>(UsedItem);
+	if (ConsumableLogic == nullptr)
+	{
+		return;
+	}
+
+	const FLxConsumableData* ConsumableData = ConsumableLogic->GetConsumableData();
+	if (ConsumableData == nullptr)
+	{
+		return;
+	}
+
+	for (const FLxItemEntryData& EntryData : ConsumableData->ConsumableEntryInfo.ConsumableEntryList)
+	{
+		if (EntryData.ItemEntryLogicType != ELxItemEntryLogicType::InstantRestore)
+		{
+			continue;
+		}
+
+		if (EntryData.AttributeID == ELxCharacterAttributeID::X_None)
+		{
+			continue;
+		}
+
+		if (EntryData.ItemEntryDefineValue.EntryTarget != ELxItemEntryTarget::ToValue)
+		{
+			continue;
+		}
+
+		const float EffectiveValue = EntryData.ItemEntryDefineValue.Value * EntryData.EffectiveRatio;
+		if (FMath::IsNearlyZero(EffectiveValue))
+		{
+			continue;
+		}
+
+		OnInstantRestore.Broadcast(EntryData.AttributeID, EffectiveValue);
+	}
+}
+
+bool ULxCharacterBackpackComponent::CleanupInvalidItems()
+{
+	TArray<TObjectPtr<ULxItemLogicBase>> InvalidItems;
+
+	for (ULxItemLogicBase* ItemLogic : m_vItemList)
+	{
+		if (ItemLogic == nullptr || !ItemLogic->ItemIsValid())
+		{
+			InvalidItems.Add(ItemLogic);
+		}
+	}
+
+	if (InvalidItems.IsEmpty())
+	{
+		return false;
+	}
+
+	for (ULxItemLogicBase* InvalidItem : InvalidItems)
+	{
+		if (InvalidItem)
+		{
+			InvalidItem->OnItemInfoChanged.RemoveDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemChanged);
+			InvalidItem->OnItemUsed.RemoveDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemUsed);
+		}
+	}
+
+	for (ULxItemSlotData* Slot : m_vBackpackSlots)
+	{
+		if (Slot == nullptr || Slot->ItemDataPtr == nullptr)
+		{
+			continue;
+		}
+
+		if (!Slot->ItemDataPtr->ItemIsValid() || InvalidItems.Contains(Slot->ItemDataPtr))
+		{
+			Slot->ClearItem();
+		}
+	}
+
+	m_vItemList.RemoveAll([](ULxItemLogicBase* ItemLogic)
+	{
+		return ItemLogic == nullptr || !ItemLogic->ItemIsValid();
+	});
+
+	return true;
 }
 
 void ULxCharacterBackpackComponent::BaseComponentInitialize()
@@ -357,6 +491,8 @@ bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, FName
 		NewItemLogic->OnItemInfoChanged.Broadcast();
 	}
 
+	RefreshTrackedItemBindings();
+
 	// 物品新增流程完成后，统一广播背包数据变化事件。
 	OnDataChange.Broadcast();
 	return true;
@@ -407,6 +543,8 @@ bool ULxCharacterBackpackComponent::CheckHaveItem(ELxItemType InItemType, FName 
 
 void ULxCharacterBackpackComponent::SortingOfItems()
 {
+	CleanupInvalidItems();
+
 	// 使用一个简单的冒泡排序
 	for (int i = 0;i < m_vItemList.Num() - 1; i++)
 	{

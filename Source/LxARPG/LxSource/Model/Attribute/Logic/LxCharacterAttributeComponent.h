@@ -7,6 +7,7 @@
 
 class ALxBaseCharacter;
 class ULxEquipmentLogic;
+class ULxCharacterBackpackComponent;
 struct FLxItemEntryData;
 
 
@@ -40,7 +41,7 @@ public:
 	 * @param InAttributeID 要查询的属性 ID。
 	 * @return 若属性存在则返回对应属性数据指针，否则返回 nullptr。
 	 */
-	FLxAttributeData* GetCharacterAttributeByID(const FName& InAttributeID);
+	FLxAttributeData* GetCharacterAttributeByID(const ELxCharacterAttributeID InAttributeID);
 
 	/**
 	 * @brief 根据属性 ID 获取只读的属性数据。
@@ -48,21 +49,21 @@ public:
 	 * @param InAttributeID 要查询的属性 ID。
 	 * @return 若属性存在则返回只读属性数据指针，否则返回 nullptr。
 	 */
-	const FLxAttributeData* GetCharacterAttributeByID(const FName& InAttributeID) const;
+	const FLxAttributeData* GetCharacterAttributeByID(const ELxCharacterAttributeID InAttributeID) const;
 
 	/**
 	 * @brief 获取角色全部属性表的可写引用。
 	 *
 	 * @return 返回角色属性表指针，便于外部直接修改属性内容。
 	 */
-	TMap<FName, FLxAttributeData>* GetCharacterAttributeTable();
+	TMap<ELxCharacterAttributeID, FLxAttributeData>* GetCharacterAttributeTable();
 
 	/**
 	 * @brief 获取角色全部属性表的只读引用。
 	 *
 	 * @return 返回角色属性表只读指针，用于遍历或查询属性。
 	 */
-	const TMap<FName, FLxAttributeData>* GetCharacterAttributeTable() const;
+	const TMap<ELxCharacterAttributeID, FLxAttributeData>* GetCharacterAttributeTable() const;
 
 	/**
 	 * @brief 设置指定属性的完整数据。
@@ -71,7 +72,7 @@ public:
 	 * @param InAttributeData 要写入的新属性数据。
 	 * @return 设置成功返回 true，属性不存在或写入失败返回 false。
 	 */
-	bool SetCharacterAttribute(const FName& InAttributeID, const FLxAttributeData& InAttributeData);
+	bool SetCharacterAttribute(const ELxCharacterAttributeID InAttributeID, const FLxAttributeData& InAttributeData);
 
 	/**
 	 * @brief 设置指定属性的当前值。
@@ -80,7 +81,9 @@ public:
 	 * @param InNewValue 新的属性当前值。
 	 * @return 设置成功返回 true，属性不存在或更新失败返回 false。
 	 */
-	bool SetCharacterAttributeCurrentValue(const FName& InAttributeID, float InNewValue);
+	bool SetCharacterAttributeCurrentValue(const ELxCharacterAttributeID InAttributeID, float InNewValue);
+
+	bool RestoreCharacterAttributeCurrentValue(const ELxCharacterAttributeID InAttributeID, float InRestoreValue);
 
 	
 
@@ -93,6 +96,9 @@ private:
 	 */
 	UFUNCTION()
 	void HandleEquipmentDataChange();
+
+	UFUNCTION()
+	void HandleBackpackInstantRestore(ELxCharacterAttributeID InAttributeID, float InRestoreValue);
 
 	/**
 	 * @brief 根据当前所有已装备物品刷新角色最终属性。
@@ -121,7 +127,7 @@ private:
 	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter;
 
 	UPROPERTY()
-	TMap<FName, FLxAttributeData> m_mapCharacterAttributeTable;
+	TMap<ELxCharacterAttributeID, FLxAttributeData> m_mapCharacterAttributeTable;
 
 	bool m_bAttributeInitialized = false;
 };

@@ -1,7 +1,9 @@
 #include "LxUIFunctionTypes.h"
 
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemLogicBase.h"
+#include "LxARPG/LxSource/UI/ItemGrid/LxItemGridWidget.h"
 #include "LxARPG/LxSource/UI/ItemInfo/LxItemTooltipWidget.h"
+#include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
 
 bool ULxMainMenuUIFunction::ShouldDisplayCursor() const
 {
@@ -20,7 +22,77 @@ bool ULxCharacterInteractionUIFunction::ShouldDisplayCursor() const
 
 bool ULxCharacterHUDUIFunction::ShouldDisplayCursor() const
 {
-	return HasAnyVisibleManagedUI();
+	return false;
+}
+
+void ULxCharacterHUDUIFunction::SetControlledCharacter(ALxBaseCharacter* InControlledCharacter)
+{
+	Super::SetControlledCharacter(InControlledCharacter);
+
+	const bool bShouldBeVisible = InControlledCharacter != nullptr;
+	for (ULxUIBaseObject* ManagedWidget : ManagedWidgets)
+	{
+		if (!ManagedWidget)
+		{
+			continue;
+		}
+
+		ManagedWidget->SetVisibility(bShouldBeVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+		SyncVisibleManagedWidget(ManagedWidget);
+	}
+}
+
+void ULxCharacterHUDUIFunction::AddManagedUIWidget(ULxUIBaseObject* InChildUIWidget, FName InInputActionID)
+{
+	Super::AddManagedUIWidget(InChildUIWidget, InInputActionID);
+
+	if (!InChildUIWidget)
+	{
+		return;
+	}
+
+	InChildUIWidget->SetVisibility(GetCurrentControlledCharacter() ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+	SyncVisibleManagedWidget(InChildUIWidget);
+}
+
+void ULxCharacterHUDUIFunction::HandlePlayerInputAction(FName InInputActionID, const FLxInputValue& InValue)
+{
+	if (ULxItemGridWidget* TargetGridWidget = ShortcutInputToGridMap.FindRef(InInputActionID))
+	{
+		if (InValue.m_blValue)
+		{
+			TargetGridWidget->UseItem();
+		}
+		return;
+	}
+
+	Super::HandlePlayerInputAction(InInputActionID, InValue);
+}
+
+bool ULxCharacterHUDUIFunction::BindShortcutInputAction(ULxItemGridWidget* InItemGridWidget, FName InInputActionID)
+{
+	if (!InItemGridWidget || InInputActionID.IsNone() || !m_pOwnerUIManager)
+	{
+		return false;
+	}
+
+	TArray<FName> InputActionsToRemove;
+	for (const TPair<FName, TObjectPtr<ULxItemGridWidget>>& Pair : ShortcutInputToGridMap)
+	{
+		if (Pair.Value == InItemGridWidget && Pair.Key != InInputActionID)
+		{
+			InputActionsToRemove.Add(Pair.Key);
+		}
+	}
+
+	for (const FName& InputActionID : InputActionsToRemove)
+	{
+		ShortcutInputToGridMap.Remove(InputActionID);
+	}
+
+	ShortcutInputToGridMap.FindOrAdd(InInputActionID) = InItemGridWidget;
+	m_pOwnerUIManager->RegisterUIFunctionInputAction(ELxUIFunctionType::CharacterHUD, InInputActionID);
+	return true;
 }
 
 bool ULxCharacterPopupUIFunction::ShouldDisplayCursor() const
@@ -36,8 +108,8 @@ bool ULxCharacterPopupUIFunction::ShowItemTooltip(ULxItemLogicBase* InItemLogic,
 		return false;
 	}
 
-	ItemTooltipWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
-	ItemTooltipWidget->SetTooltipScreenPosition(InMouseScreenPosition + FVector2D(100.0f, 100.0f));
+	ItemTooltipWidget->SetVisibility(ESlateVisibility::Visible);
+	RequestManagedUIPosition(ItemTooltipWidget, InMouseScreenPosition, FVector2D(100.0f, 100.0f), true);
 	NotifyManagedUIVisibilityChanged(ItemTooltipWidget);
 	return true;
 }
@@ -50,7 +122,7 @@ void ULxCharacterPopupUIFunction::UpdateItemTooltipPosition(FVector2D InMouseScr
 		return;
 	}
 
-	ItemTooltipWidget->SetTooltipScreenPosition(InMouseScreenPosition + FVector2D(100.0f, 100.0f));
+	RequestManagedUIPosition(ItemTooltipWidget, InMouseScreenPosition, FVector2D(100.0f, 100.0f), true);
 }
 
 void ULxCharacterPopupUIFunction::HideItemTooltip()
@@ -61,7 +133,7 @@ void ULxCharacterPopupUIFunction::HideItemTooltip()
 		return;
 	}
 
-	ItemTooltipWidget->SetVisibility(ESlateVisibility::Collapsed);
+	ItemTooltipWidget->SetVisibility(ESlateVisibility::Hidden);
 	NotifyManagedUIVisibilityChanged(ItemTooltipWidget);
 }
 

@@ -52,9 +52,14 @@ FLxItemDateBase* ULxConsumableLogic::GetItemDataBase()
 
 bool ULxConsumableLogic::UseItem()
 {
-	m_ConsumableData.ItemCount --;
+	OnItemUsed.Broadcast(this);
+
+	if (m_ConsumableData.ConsumableCoreInfo.ConsumableType == ELxConsumableType::Consumable)
+	{
+		m_ConsumableData.ItemCount--;
+	}
+
+	OnItemInfoChanged.Broadcast();
 	return true;
 }
-
-
 

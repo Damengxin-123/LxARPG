@@ -1,6 +1,9 @@
 #include "LxUIFunctionBase.h"
 
+#include "Blueprint/WidgetLayoutLibrary.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
+#include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
+#include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
 
 void ULxUIFunctionBase::InitializeFunction(ULxUIManager* InOwnerUIManager)
 {
@@ -185,4 +188,48 @@ void ULxUIFunctionBase::SyncVisibleManagedWidget(ULxUIBaseObject* InChildUIWidge
 	{
 		VisibleManagedWidgets.Add(InChildUIWidget);
 	}
+}
+
+void ULxUIFunctionBase::RequestManagedUIPosition(ULxUIBaseObject* InChildUIWidget, FVector2D InAnchorScreenPosition,
+	FVector2D InOffset, bool bClampToViewport) const
+{
+	if (!InChildUIWidget || !m_pOwnerUIManager)
+	{
+		return;
+	}
+	// 防止反复设置位置
+	static FVector2D OldMousePos(0,0);
+	if (OldMousePos == InAnchorScreenPosition)
+	{
+		return;
+	}
+	OldMousePos = InAnchorScreenPosition;
+	// 获取控件尺寸
+	FVector2D WidgetSize = InChildUIWidget->GetDesiredSize();
+	
+	// 获取“UMG坐标空间”的视口尺寸
+	FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(m_pOwnerUIManager);
+	// 获取窗口缩放
+	float DPIScale = UWidgetLayoutLibrary::GetViewportScale(m_pOwnerUIManager);
+	// 计算真实窗口大小
+	ViewportSize = ViewportSize/ DPIScale;
+				
+	// 计算显示目标位置
+	FVector2D FinalPos = InAnchorScreenPosition + FVector2D(12, 12);
+	
+	// 如果右侧放不下 → 放左边
+	if (InAnchorScreenPosition.X + WidgetSize.X + 12 > ViewportSize.X)
+	{
+		FinalPos.X = InAnchorScreenPosition.X - WidgetSize.X - 12;
+	}
+	
+	// 如果下方放不下 → 放上边
+	if (InAnchorScreenPosition.Y + WidgetSize.Y + 12 > ViewportSize.Y)
+	{
+		FinalPos.Y = InAnchorScreenPosition.Y - WidgetSize.Y - 12;
+	}
+
+
+	// 设置计算后能够完全显示的位置
+	m_pOwnerUIManager->UpdateManagedUIPosition(InChildUIWidget, FinalPos);
 }

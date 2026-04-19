@@ -112,7 +112,7 @@ public:
 	bool IsValid() const;
 
 	UFUNCTION(BlueprintCallable, Category="Item Slot", DisplayName="使用物品")
-	void UseItem();
+	virtual void UseItem();
 	
 
 	/**
@@ -187,6 +187,40 @@ public:
 
 	virtual bool CanAcceptItem(ULxItemLogicBase* InItemData) const override;
 	
+};
+
+UCLASS(BlueprintType, DisplayName="快捷栏槽位数据")
+class LXARPG_API ULxShortcutItemSlotData : public ULxItemSlotData
+{
+	GENERATED_BODY()
+
+public:
+	ULxShortcutItemSlotData();
+
+	UFUNCTION(BlueprintCallable, Category="Item Slot", DisplayName="绑定快捷栏来源槽位")
+	bool BindSourceSlot(ULxItemSlotData* InSourceSlot);
+
+	UFUNCTION(BlueprintPure, Category="Item Slot", DisplayName="获取快捷栏来源槽位")
+	ULxItemSlotData* GetSourceSlot() const { return SourceSlot; }
+
+	virtual void UseItem() override;
+
+	virtual bool CanAcceptItem(ULxItemLogicBase* InItemData) const override;
+
+	virtual ELxItemSlotDropResult ItemEnterToThis(ULxItemSlotData* InItemSlot) override;
+
+protected:
+	UFUNCTION()
+	void HandleSourceSlotChanged();
+
+	UFUNCTION()
+	void HandleBoundItemChanged();
+
+	UPROPERTY()
+	TObjectPtr<ULxItemSlotData> SourceSlot = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<ULxItemLogicBase> BoundItem = nullptr;
 };
 
 // UCLASS(BlueprintType, DisplayName="技能槽位数据")

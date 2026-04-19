@@ -8,8 +8,11 @@
 #include "LxItemBase.h"
 #include "LxItemLogicBase.generated.h"
 
+class ULxItemLogicBase;
+
 // 事件委托
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnItemInfoChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemUsed, ULxItemLogicBase*, UsedItem);
 
 /**
  * @brief 物品逻辑基础类
@@ -102,6 +105,7 @@ public:
 	 * 可以绑定自定义的回调函数来响应这些变化。
 	 */
 	FOnItemInfoChanged OnItemInfoChanged;
+	FOnItemUsed OnItemUsed;
 
 	/**
 	 * @brief重载运算符

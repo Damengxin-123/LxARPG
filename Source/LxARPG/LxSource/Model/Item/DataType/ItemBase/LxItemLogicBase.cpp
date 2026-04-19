@@ -20,10 +20,10 @@ bool ULxItemLogicBase::BuildItemEntryData(const FLxItemEntryQuote& InEntryQuote,
 	OutEntryData.Description = EntryDefine->Description;
 
 	// 解析词条作用到的属性定义（可能为空
-	const FLxAttributeDefineInfo* AttributeDefine = EntryDefine->AttributeDefineTableQuote.GetRow<FLxAttributeDefineInfo>(TEXT("ULxEquipmentLogic"));
-	OutEntryData.AttributeID = AttributeDefine ? AttributeDefine->AttributeInfo.AttributeID : NAME_None;
-
+	OutEntryData.AttributeID = EntryDefine->AttributeTypeID ;
+	
 	OutEntryData.ItemEntryDefineValue = EntryDefine->ItemEntryDefineValue;
+	OutEntryData.ItemEntryLogicType = EntryDefine->ItemEntryLogicType;
 	OutEntryData.EffectiveRatio = InEntryQuote.UpwardFloatingRatio;
 
 	return true;

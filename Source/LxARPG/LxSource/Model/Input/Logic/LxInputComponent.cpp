@@ -69,6 +69,7 @@ void ULxInputComponent::BaseComponentInitialize()
 			ERROR_TO_SCREEN("EnhancedInput is null!");
 			return;
 		}
+		
 		UInputAction* Action = nullptr;
 		for (const TPair<FName, FLxInputActionInfo>& InputActionInfoPair : InputActionInfoTableConfig->GetInputActionInfoMap())
 		{
