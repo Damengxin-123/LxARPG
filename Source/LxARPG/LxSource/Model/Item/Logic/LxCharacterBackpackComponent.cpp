@@ -3,7 +3,7 @@
 #include "LxARPG/LxSource/Core/Database/LxConstValue.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Buff/LxBuffDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Buff/LxBuffLogic.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumable.h"
+#include "LxARPG/LxSource/Model/Entry/Logic/LxCharacterEntryComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableLogic.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentDefineTableConfig.h"
@@ -138,7 +138,8 @@ void ULxCharacterBackpackComponent::HandleTrackedItemUsed(ULxItemLogicBase* Used
 
 	if (ItemData->ItemInfo.ItemType == ELxItemType::Consumable)
 	{
-		HandleConsumableUsed(UsedItem);
+		// 背包组件不解释消耗品词条，只负责把“使用行为”往外抛。
+		OnItemUsed.Broadcast(UsedItem);
 	}
 }
 
@@ -158,46 +159,6 @@ void ULxCharacterBackpackComponent::RefreshTrackedItemBindings()
 	}
 }
 
-void ULxCharacterBackpackComponent::HandleConsumableUsed(ULxItemLogicBase* UsedItem)
-{
-	const ULxConsumableLogic* ConsumableLogic = Cast<ULxConsumableLogic>(UsedItem);
-	if (ConsumableLogic == nullptr)
-	{
-		return;
-	}
-
-	const FLxConsumableData* ConsumableData = ConsumableLogic->GetConsumableData();
-	if (ConsumableData == nullptr)
-	{
-		return;
-	}
-
-	for (const FLxItemEntryData& EntryData : ConsumableData->ConsumableEntryInfo.ConsumableEntryList)
-	{
-		if (EntryData.ItemEntryLogicType != ELxItemEntryLogicType::InstantRestore)
-		{
-			continue;
-		}
-
-		if (EntryData.AttributeID == ELxCharacterAttributeID::X_None)
-		{
-			continue;
-		}
-
-		if (EntryData.ItemEntryDefineValue.EntryTarget != ELxItemEntryTarget::ToValue)
-		{
-			continue;
-		}
-
-		const float EffectiveValue = EntryData.ItemEntryDefineValue.Value * EntryData.EffectiveRatio;
-		if (FMath::IsNearlyZero(EffectiveValue))
-		{
-			continue;
-		}
-
-		OnInstantRestore.Broadcast(EntryData.AttributeID, EffectiveValue);
-	}
-}
 
 bool ULxCharacterBackpackComponent::CleanupInvalidItems()
 {

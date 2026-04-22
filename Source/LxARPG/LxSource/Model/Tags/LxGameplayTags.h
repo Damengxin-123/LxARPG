@@ -1,0 +1,49 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "NativeGameplayTags.h"
+
+// Module identity tags.
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Module_Attribute);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Module_Entry);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Module_Buff);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Module_Item);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Module_Skill);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Module_State);
+
+// Attribute identity tags.
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Strength);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Wisdom);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Agility);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Constitution);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_AttackPower);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Health);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Mana);
+
+// Function category tags.
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Function_AttributeRecovery);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Function_AttributeEnhancement);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Function_GenerateBuff);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Function_ProvideState);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Function_SkillEnhancement);
+
+// Trait category tags.
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Element);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Element_Affinity);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Element_Fire);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Element_Water);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Element_Lightning);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Element_Nature);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Element_Rock);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Faith);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Faith_Affinity);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Faith_GodOfLight);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Faith_GodOfNature);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_Faith_GodOfFate);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_BasicAttribute);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_DefenseAttribute);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Trait_DamageAttribute);
+
+// Skill form tags.
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_SkillForm);

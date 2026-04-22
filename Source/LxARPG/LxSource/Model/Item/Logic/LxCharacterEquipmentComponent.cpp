@@ -5,16 +5,6 @@
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
-namespace
-{
-	bool IsAttributeEffectEntry(const FLxItemEntryData& InEntryData)
-	{
-		return InEntryData.AttributeID != ELxCharacterAttributeID::X_None
-			&& (InEntryData.ItemEntryLogicType == ELxItemEntryLogicType::None
-				|| InEntryData.ItemEntryLogicType == ELxItemEntryLogicType::AttributeModifier);
-	}
-}
-
 ULxCharacterEquipmentComponent::ULxCharacterEquipmentComponent()
 {
 }
@@ -39,36 +29,9 @@ TArray<TObjectPtr<ULxEquipmentSlotData>>& ULxCharacterEquipmentComponent::GetEqu
 	return m_vEquipmentSlots;
 }
 
-void ULxCharacterEquipmentComponent::GetAttributeEffectEntries(TArray<FLxItemEntryData>& OutEntryList) const
+const TArray<TObjectPtr<ULxEquipmentSlotData>>& ULxCharacterEquipmentComponent::GetEquipmentSlots() const
 {
-	OutEntryList.Reset();
-
-	for (ULxEquipmentLogic* EquipmentLogic : m_vEquipmentList)
-	{
-		if (EquipmentLogic == nullptr || !EquipmentLogic->ItemIsValid())
-		{
-			continue;
-		}
-
-		const FLxEquipmentData* EquipmentData = EquipmentLogic->GetEquipmentData();
-		if (EquipmentData == nullptr)
-		{
-			continue;
-		}
-
-		if (IsAttributeEffectEntry(EquipmentData->EquipmentEntyInfo.EquipmentBasicEntry))
-		{
-			OutEntryList.Add(EquipmentData->EquipmentEntyInfo.EquipmentBasicEntry);
-		}
-
-		for (const FLxItemEntryData& EntryData : EquipmentData->EquipmentEntyInfo.EquipmentExtendEntryList)
-		{
-			if (IsAttributeEffectEntry(EntryData))
-			{
-				OutEntryList.Add(EntryData);
-			}
-		}
-	}
+	return m_vEquipmentSlots;
 }
 
 inline void ULxCharacterEquipmentComponent::InitializeEquipmentSlots()

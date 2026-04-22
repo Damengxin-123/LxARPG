@@ -27,6 +27,14 @@ struct FLxAttributeDefineInfo : public FTableRowBase
 {
 	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
+	FGameplayTagContainer AttributeTags;
+
+	FLxAttributeDefineInfo()
+	{
+		AttributeTags.AddTag(LxTag_Module_Attribute);
+	}
+
 	/**
 	 * @property FLxAttributeInfo AttributeInfo
 	 * @brief 用于存储和配置属性的基础信息
@@ -102,6 +110,14 @@ USTRUCT(BlueprintType, DisplayName="角色属性值缓存类型")
 struct FLxAttributeData
 {
 	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
+	FGameplayTagContainer AttributeTags;
+
+	FLxAttributeData()
+	{
+		AttributeTags.AddTag(LxTag_Module_Attribute);
+	}
 	/**
 	 * @var FLxAttributeInfo AttributeInfo
 	 * @brief 用于存储属性的基础信息
@@ -147,6 +163,5 @@ struct FLxAttributeData
 	 */
 	FLxAttributeValue CalculatedAttributeValue;
 };
-
 
 

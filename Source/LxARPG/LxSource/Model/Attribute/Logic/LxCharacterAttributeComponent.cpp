@@ -1,12 +1,8 @@
 #include "LxCharacterAttributeComponent.h"
 
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryData.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipment.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentLogic.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
-#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
-#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
+#include "LxARPG/LxSource/Model/Entry/Logic/LxCharacterEntryComponent.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
 #include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
@@ -91,20 +87,20 @@ void ULxCharacterAttributeComponent::BaseComponentInitialize()
 		m_mapCharacterAttributeTable.Add(AttributeData.AttributeInfo.AttributeID, AttributeData);
 	}
 
-	if (ULxCharacterEquipmentComponent* EquipmentComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterEquipmentComponent() : nullptr)
+	if (ULxCharacterEntryComponent* EntryComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterEntryComponent() : nullptr)
 	{
-		EquipmentComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterAttributeComponent::HandleEquipmentDataChange);
-		EquipmentComponent->OnDataChange.AddDynamic(this, &ULxCharacterAttributeComponent::HandleEquipmentDataChange);
-	}
-
-	if (ULxCharacterBackpackComponent* BackpackComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterBackpackComponent() : nullptr)
-	{
-		BackpackComponent->OnInstantRestore.RemoveDynamic(this, &ULxCharacterAttributeComponent::HandleBackpackInstantRestore);
-		BackpackComponent->OnInstantRestore.AddDynamic(this, &ULxCharacterAttributeComponent::HandleBackpackInstantRestore);
+		// 属性组件不再主动扫描装备/背包，只接收词条组件统一分发的结果。
+		EntryComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterAttributeComponent::HandleEntryDataChange);
+		EntryComponent->OnDataChange.AddDynamic(this, &ULxCharacterAttributeComponent::HandleEntryDataChange);
+		EntryComponent->OnInstantRestoreEntryApplied.RemoveDynamic(this, &ULxCharacterAttributeComponent::HandleInstantRestoreEntryApplied);
+		EntryComponent->OnInstantRestoreEntryApplied.AddDynamic(this, &ULxCharacterAttributeComponent::HandleInstantRestoreEntryApplied);
+		EntryComponent->OnEntryPackageChanged.RemoveDynamic(this, &ULxCharacterAttributeComponent::HandleEntryPackageChanged);
+		EntryComponent->OnEntryPackageChanged.AddDynamic(this, &ULxCharacterAttributeComponent::HandleEntryPackageChanged);
+		m_vCharacterAttributeEntries = EntryComponent->GetEntryPackage().CharacterAttributeEntryList;
 	}
 
 	m_bAttributeInitialized = true;
-	RefreshCharacterAttributeByEquipment();
+	RefreshCharacterAttributeByEntries();
 	OnDataChange.Broadcast();
 }
 
@@ -181,7 +177,7 @@ bool ULxCharacterAttributeComponent::RestoreCharacterAttributeCurrentValue(const
 	return SetCharacterAttributeCurrentValue(InAttributeID, AttributeData->CalculatedAttributeValue.Value + InRestoreValue);
 }
 
-void ULxCharacterAttributeComponent::HandleEquipmentDataChange()
+void ULxCharacterAttributeComponent::HandleEntryDataChange()
 {
 	if (!m_bAttributeInitialized)
 	{
@@ -189,29 +185,36 @@ void ULxCharacterAttributeComponent::HandleEquipmentDataChange()
 		return;
 	}
 
-	RefreshCharacterAttributeByEquipment();
+	if (const ULxCharacterEntryComponent* EntryComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterEntryComponent() : nullptr)
+	{
+		// OnDataChange 可能先于 OnEntryPackageChanged 到达，这里主动同步一次最新打包结果，
+		// 避免属性刷新时仍然使用上一轮词条缓存。
+		m_vCharacterAttributeEntries = EntryComponent->GetEntryPackage().CharacterAttributeEntryList;
+	}
+
+	RefreshCharacterAttributeByEntries();
 	OnDataChange.Broadcast();
 }
 
-void ULxCharacterAttributeComponent::HandleBackpackInstantRestore(ELxCharacterAttributeID InAttributeID, float InRestoreValue)
+void ULxCharacterAttributeComponent::HandleInstantRestoreEntryApplied(ELxCharacterAttributeID InAttributeID, float InRestoreValue)
 {
 	RestoreCharacterAttributeCurrentValue(InAttributeID, InRestoreValue);
 }
 
-void ULxCharacterAttributeComponent::RefreshCharacterAttributeByEquipment()
+void ULxCharacterAttributeComponent::HandleEntryPackageChanged(const FLxCharacterEntryPackage& InEntryPackage)
+{
+	// 只缓存属性相关词条，其他类别交给各自系统消费。
+	m_vCharacterAttributeEntries = InEntryPackage.CharacterAttributeEntryList;
+}
+
+void ULxCharacterAttributeComponent::RefreshCharacterAttributeByEntries()
 {
 	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
 	{
 		AttributePair.Value.CalculatedAttributeValue = AttributePair.Value.AttributeValue;
 	}
 
-	TArray<FLxItemEntryData> EquipmentEntryList;
-	if (ULxCharacterEquipmentComponent* EquipmentComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterEquipmentComponent() : nullptr)
-	{
-		EquipmentComponent->GetAttributeEffectEntries(EquipmentEntryList);
-	}
-
-	for (const FLxItemEntryData& EntryData : EquipmentEntryList)
+	for (const FLxItemEntryData& EntryData : m_vCharacterAttributeEntries)
 	{
 		FLxAttributeData* AttributeData = m_mapCharacterAttributeTable.Find(EntryData.AttributeID);
 		if (AttributeData == nullptr)
@@ -219,7 +222,7 @@ void ULxCharacterAttributeComponent::RefreshCharacterAttributeByEquipment()
 			continue;
 		}
 
-		ApplyEquipmentEntryToAttribute(*AttributeData, EntryData);
+		ApplyEntryToAttribute(*AttributeData, EntryData);
 	}
 
 	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
@@ -228,34 +231,7 @@ void ULxCharacterAttributeComponent::RefreshCharacterAttributeByEquipment()
 	}
 }
 
-void ULxCharacterAttributeComponent::GetAllEquipmentList(TArray<ULxEquipmentLogic*>& OutEquipmentList) const
-{
-	OutEquipmentList.Reset();
-
-	ULxCharacterEquipmentComponent* EquipmentComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterEquipmentComponent() : nullptr;
-	if (EquipmentComponent == nullptr)
-	{
-		return;
-	}
-
-	for (ULxEquipmentSlotData* EquipmentSlot : EquipmentComponent->GetEquipmentSlots())
-	{
-		if (EquipmentSlot == nullptr || !EquipmentSlot->IsValid())
-		{
-			continue;
-		}
-
-		ULxEquipmentLogic* EquipmentLogic = Cast<ULxEquipmentLogic>(EquipmentSlot->ItemDataPtr);
-		if (EquipmentLogic == nullptr || !EquipmentLogic->ItemIsValid())
-		{
-			continue;
-		}
-
-		OutEquipmentList.Add(EquipmentLogic);
-	}
-}
-
-void ULxCharacterAttributeComponent::ApplyEquipmentEntryToAttribute(FLxAttributeData& InOutAttributeData, const FLxItemEntryData& InEntryData)
+void ULxCharacterAttributeComponent::ApplyEntryToAttribute(FLxAttributeData& InOutAttributeData, const FLxItemEntryData& InEntryData)
 {
 	if (InEntryData.AttributeID == ELxCharacterAttributeID::X_None)
 	{

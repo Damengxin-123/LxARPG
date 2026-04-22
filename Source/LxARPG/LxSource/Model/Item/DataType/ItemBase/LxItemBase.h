@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "LxItemCoreType.h"
 #include "LxItemEnmuType.h"
 #include "LxRarityInfoData.h"
 #include "LxARPG/LxSource/Core/Database/LxConstValue.h"
+#include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "UObject/Object.h"
 #include "LxItemBase.generated.h"
 
@@ -19,6 +21,14 @@ USTRUCT(BlueprintType, DisplayName="物品属性定义基础类型")
 struct FLxItemDefineBase : public FTableRowBase
 {
 	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="标签", DisplayName="物品标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
+	FGameplayTagContainer ItemTags;
+
+	FLxItemDefineBase()
+	{
+		ItemTags.AddTag(LxTag_Module_Item);
+	}
 
 	/**
 	 * @brief 物品基础信息
@@ -61,6 +71,14 @@ USTRUCT(BlueprintType, DisplayName="物品属性缓存类型")
 struct FLxItemDateBase
 {
 	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="标签", DisplayName="物品标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
+	FGameplayTagContainer ItemTags;
+
+	FLxItemDateBase()
+	{
+		ItemTags.AddTag(LxTag_Module_Item);
+	}
 	
 	/**
  	 * @brief 物品基础信息

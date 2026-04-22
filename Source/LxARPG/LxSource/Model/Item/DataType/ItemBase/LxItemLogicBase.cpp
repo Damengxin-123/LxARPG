@@ -4,7 +4,7 @@
 #include "LxItemLogicBase.h"
 
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryData.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 
 bool ULxItemLogicBase::BuildItemEntryData(const FLxItemEntryQuote& InEntryQuote, FLxItemEntryData& OutEntryData)
 {

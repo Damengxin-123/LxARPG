@@ -7,7 +7,7 @@
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputActionInfoTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Buff/LxBuffDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableDefineTableConfig.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryDefineTableConfig.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterialDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillDefineTableConfig.h"

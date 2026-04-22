@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryData.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "UObject/Object.h"
 #include "LxUITextData.generated.h"
 

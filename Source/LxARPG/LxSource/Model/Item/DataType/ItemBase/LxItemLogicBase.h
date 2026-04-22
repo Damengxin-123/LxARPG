@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryData.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxItemBase.h"
 #include "LxItemLogicBase.generated.h"
 

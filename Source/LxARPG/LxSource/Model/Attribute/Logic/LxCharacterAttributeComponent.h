@@ -6,8 +6,8 @@
 #include "LxCharacterAttributeComponent.generated.h"
 
 class ALxBaseCharacter;
-class ULxEquipmentLogic;
-class ULxCharacterBackpackComponent;
+class ULxCharacterEntryComponent;
+struct FLxCharacterEntryPackage;
 struct FLxItemEntryData;
 
 
@@ -89,45 +89,62 @@ public:
 
 private:
 	/**
-	 * @brief 响应装备组件数据变化事件。
+	 * @brief 响应词条组件数据变化事件。
 	 *
-	 * 当角色装备数据发生变化时，重新计算装备词条带来的属性加成，
+	 * 当已安装词条发生变化时，重新计算词条带来的属性加成，
 	 * 并在计算完成后广播属性组件自身的数据更新事件。
 	 */
 	UFUNCTION()
-	void HandleEquipmentDataChange();
-
-	UFUNCTION()
-	void HandleBackpackInstantRestore(ELxCharacterAttributeID InAttributeID, float InRestoreValue);
+	void HandleEntryDataChange();
 
 	/**
-	 * @brief 根据当前所有已装备物品刷新角色最终属性。
+	 * @brief 处理立即恢复属性词条的应用。
+	 *
+	 * 该函数在有立即恢复属性的词条被应用时调用，用于更新角色指定属性的当前值。
+	 * 它会调用 `RestoreCharacterAttributeCurrentValue` 函数来实际执行属性值的恢复操作。
+	 *
+	 * @param InAttributeID 需要恢复的属性 ID。
+	 * @param InRestoreValue 要恢复到该属性上的数值。
+	 */
+	UFUNCTION()
+	void HandleInstantRestoreEntryApplied(ELxCharacterAttributeID InAttributeID, float InRestoreValue);
+
+	/**
+	 * @brief 处理词条包变更事件。
+	 *
+	 * 该函数在词条组件的词条包发生变化时被调用，用于更新角色属性相关的词条列表。
+	 * 它接收一个 `FLxCharacterEntryPackage` 参数，该参数包含了最新的词条数据。
+	 *
+	 * @param InEntryPackage 包含最新词条数据的词条包。
+	 */
+	UFUNCTION()
+	void HandleEntryPackageChanged(const FLxCharacterEntryPackage& InEntryPackage);
+
+	/**
+	 * @brief 根据当前所有已安装词条刷新角色最终属性。
 	 *
 	 * 该函数会先将所有属性的计算值还原为基础值，
-	 * 然后遍历全部装备词条并将其叠加到对应属性上。
+	 * 然后遍历全部已安装词条并将其叠加到对应属性上。
 	 */
-	void RefreshCharacterAttributeByEquipment();
+	void RefreshCharacterAttributeByEntries();
 
 	/**
-	 * @brief 获取角色当前已装备的全部装备逻辑对象。
-	 *
-	 * @param OutEquipmentList 输出参数，用于接收当前所有有效装备。
-	 */
-	void GetAllEquipmentList(TArray<ULxEquipmentLogic*>& OutEquipmentList) const;
-
-	/**
-	 * @brief 将单条装备词条应用到目标属性上。
+	 * @brief 将单条词条应用到目标属性上。
 	 *
 	 * @param InOutAttributeData 待修改的角色属性数据。
-	 * @param InEntryData 需要应用的装备词条数据。
+	 * @param InEntryData 需要应用的词条数据。
 	 */
-	static void ApplyEquipmentEntryToAttribute(FLxAttributeData& InOutAttributeData, const FLxItemEntryData& InEntryData);
+	static void ApplyEntryToAttribute(FLxAttributeData& InOutAttributeData, const FLxItemEntryData& InEntryData);
 
 	UPROPERTY()
 	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter;
 
 	UPROPERTY()
 	TMap<ELxCharacterAttributeID, FLxAttributeData> m_mapCharacterAttributeTable;
+
+	/** 由词条组件打包后下发的“作用于角色属性”的词条缓存。 */
+	UPROPERTY()
+	TArray<FLxItemEntryData> m_vCharacterAttributeEntries;
 
 	bool m_bAttributeInitialized = false;
 };

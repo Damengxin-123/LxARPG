@@ -3,6 +3,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Model/Entry/Logic/LxCharacterEntryComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
 
@@ -10,9 +11,10 @@ ALxBaseCharacter::ALxBaseCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	m_pCharacterMoveComponent = CreateDefaultSubobject<ULxCharacterMoveComponent>(TEXT("CharacterMoveComponent"));
-	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
 	m_pCharacterBackpackComponent = CreateDefaultSubobject<ULxCharacterBackpackComponent>(TEXT("CharacterBackpackComponent"));
 	m_pCharacterEquipmentComponent = CreateDefaultSubobject<ULxCharacterEquipmentComponent>(TEXT("CharacterEquipmentComponent"));
+	m_pCharacterEntryComponent = CreateDefaultSubobject<ULxCharacterEntryComponent>(TEXT("CharacterEntryComponent"));
+	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
 }
 
 void ALxBaseCharacter::InitialCharacterInformation()
@@ -26,11 +28,6 @@ void ALxBaseCharacter::InitialCharacterInformation()
 		m_pCharacterMoveComponent->BaseComponentInitialize();
 	}
 
-	if (m_pCharacterAttributeComponent)
-	{
-		m_pCharacterAttributeComponent->BaseComponentInitialize();
-	}
-
 	if (m_pCharacterBackpackComponent)
 	{
 		m_pCharacterBackpackComponent->BaseComponentInitialize();
@@ -39,6 +36,16 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	if (m_pCharacterEquipmentComponent)
 	{
 		m_pCharacterEquipmentComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterEntryComponent)
+	{
+		m_pCharacterEntryComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterAttributeComponent)
+	{
+		m_pCharacterAttributeComponent->BaseComponentInitialize();
 	}
 	IsInitialized  = true;
 }

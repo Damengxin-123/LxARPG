@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "LxEquipmentEnum.h"
 #include "../ItemBase/LxItemBase.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryData.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxEquipmentCoreType.generated.h"
 
 

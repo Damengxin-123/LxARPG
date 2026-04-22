@@ -1,7 +1,7 @@
 #include "LxItemTooltipWidget.h"
 
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableLogic.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryData.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentLogic.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemLogicBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterialLogic.h"

@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxComponentBase.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Entry/LxItemEntryData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentEnum.h"
 #include "LxCharacterEquipmentComponent.generated.h"
 
@@ -41,7 +40,7 @@ public:
 	 */
 	TArray<TObjectPtr<ULxEquipmentSlotData>>& GetEquipmentSlots();
 
-	void GetAttributeEffectEntries(TArray<FLxItemEntryData>& OutEntryList) const;
+	const TArray<TObjectPtr<ULxEquipmentSlotData>>& GetEquipmentSlots() const;
 
 	/**
 	 * @brief 装备槽位配置。

@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
 #include "LxCharacterBackpackComponent.generated.h"
 
@@ -12,7 +11,7 @@ class ALxBaseCharacter;
 struct FLxItemDefineBase;
 struct FLxItemDateBase;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBackpackInstantRestore, ELxCharacterAttributeID, AttributeID, float, RestoreValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBackpackItemUsed, ULxItemLogicBase*, UsedItem);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable)
 class LXARPG_API ULxCharacterBackpackComponent : public ULxCharacterComponentBase
@@ -22,8 +21,9 @@ class LXARPG_API ULxCharacterBackpackComponent : public ULxCharacterComponentBas
 public:
 	ULxCharacterBackpackComponent();
 
-	UPROPERTY(BlueprintAssignable, DisplayName="背包即时恢复事件")
-	FOnBackpackInstantRestore OnInstantRestore;
+	/** 背包只上报“物品被使用了”，具体效果解释交给词条组件。 */
+	UPROPERTY(BlueprintAssignable, DisplayName="背包物品使用事件")
+	FOnBackpackItemUsed OnItemUsed;
 
 	/**
 	 * @brief 初始化背包组件。
@@ -112,8 +112,6 @@ private:
 	void HandleTrackedItemUsed(ULxItemLogicBase* UsedItem);
 
 	void RefreshTrackedItemBindings();
-
-	void HandleConsumableUsed(ULxItemLogicBase* UsedItem);
 
 	bool CleanupInvalidItems();
 

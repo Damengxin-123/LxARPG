@@ -106,13 +106,13 @@ void ULxCharacterHUDWidget::RefreshAttributeCache()
 	{
 		if (FLxAttributeData* HP = CharacterAttributeComponent->GetCharacterAttributeByID(ELxCharacterAttributeID::C_HP))
 		{
-			CurrentHP = HP->AttributeValue.Value;
-			MaxHP = HP->AttributeValue.ValueLimit;
+			CurrentHP = HP->CalculatedAttributeValue.Value;
+			MaxHP = HP->CalculatedAttributeValue.ValueLimit;
 		}
 		if (FLxAttributeData* MP = CharacterAttributeComponent->GetCharacterAttributeByID(ELxCharacterAttributeID::C_MP))
 		{
-			CurrentMP = MP->AttributeValue.Value;
-			MaxMP = MP->AttributeValue.ValueLimit;
+			CurrentMP = MP->CalculatedAttributeValue.Value;
+			MaxMP = MP->CalculatedAttributeValue.ValueLimit;
 		}
 	}
 }
