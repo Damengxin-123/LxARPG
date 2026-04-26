@@ -97,6 +97,29 @@ UTexture2D* ULxItemGridWidget::GetDisplayIcon() const
 	return DefaultIcon.IsNull() ? nullptr : DefaultIcon.LoadSynchronous();
 }
 
+void ULxItemGridWidget::SetDefaultIcon(UTexture2D* InDefaultIcon)
+{
+	DefaultIcon = InDefaultIcon;
+	BroadcastGridDataChanged();
+}
+
+bool ULxItemGridWidget::GetEquipmentType(ELxEquipmentType& OutEquipmentType) const
+{
+	if (!CurrentSlotData || CurrentSlotData->ItemSlotType != ELxItemSlotType::Equipment)
+	{
+		return false;
+	}
+
+	const ULxEquipmentSlotData* EquipmentSlotData = Cast<ULxEquipmentSlotData>(CurrentSlotData);
+	if (!EquipmentSlotData)
+	{
+		return false;
+	}
+
+	OutEquipmentType = EquipmentSlotData->EquipmentType;
+	return true;
+}
+
 int32 ULxItemGridWidget::GetItemCount() const
 {
 	if (ItemIsVaild())
@@ -135,7 +158,8 @@ FReply ULxItemGridWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 		return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
 	}
 
-	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	// return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	return FReply::Handled();
 }
 
 void ULxItemGridWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,

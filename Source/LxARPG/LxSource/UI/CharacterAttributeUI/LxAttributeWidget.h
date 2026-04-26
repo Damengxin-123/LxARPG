@@ -35,6 +35,9 @@ public:
 	UFUNCTION(BlueprintCallable, DisplayName="获取属性UI数据列表")
 	TArray<ULxUITextData*> GetAttributesUIDataList();
 
+	UFUNCTION(BlueprintCallable, DisplayName="按属性ID获取角色属性")
+	bool GetAttributeDataByID(ELxCharacterAttributeID InAttributeID, FLxAttributeData& OutAttributeData);
+
 	UPROPERTY(BlueprintAssignable, DisplayName="属性更新事件")
 	FOnUiBaseUpdateEvent OnAttributeUpdate;
 	
@@ -43,4 +46,3 @@ private:
 	UPROPERTY()
 	TObjectPtr<ULxCharacterAttributeComponent> m_pCharacterAttributeComponent = nullptr;
 };
-

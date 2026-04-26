@@ -4,6 +4,7 @@
 #include "LxEquipmentLogic.h"
 
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Entry/Logic/LxItemEntryLogic.h"
 #include "LxARPG/LxSource/Model/Style/DataType/LxTextLineStyleData.h"
 
 
@@ -38,16 +39,16 @@ bool ULxEquipmentLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
 	m_EquipmentData.EquipmentInfo = EquipmentDefine->EquipmentInfo;
 
 	// 构建基础词条与扩展词条缓
+	m_EquipmentData.EquipmentEntyInfo.EquipmentBasicEntry = nullptr;
 	m_EquipmentData.EquipmentEntyInfo.EquipmentExtendEntryList.Empty();
-	BuildItemEntryData(EquipmentDefine->EquipmentEntyQuoteInfo.EquipmentBasicEntryQuote,
-		m_EquipmentData.EquipmentEntyInfo.EquipmentBasicEntry);
+	m_EquipmentData.EquipmentEntyInfo.EquipmentBasicEntry =
+		ULxItemEntryLogic::CreateItemEntryLogicObject(EquipmentDefine->EquipmentEntyQuoteInfo.EquipmentBasicEntryQuote, this);
 
 	for (const FLxItemEntryQuote& EntryQuote : EquipmentDefine->EquipmentEntyQuoteInfo.EquipmentExtendEntryQuote)
 	{
-		FLxItemEntryData EntryData;
-		if (BuildItemEntryData(EntryQuote, EntryData))
+		if (ULxItemEntryLogic* EntryLogic = ULxItemEntryLogic::CreateItemEntryLogicObject(EntryQuote, this))
 		{
-			m_EquipmentData.EquipmentEntyInfo.EquipmentExtendEntryList.Add(EntryData);
+			m_EquipmentData.EquipmentEntyInfo.EquipmentExtendEntryList.Add(EntryLogic);
 		}
 	}
 
@@ -71,7 +72,6 @@ FLxEquipmentData* ULxEquipmentLogic::GetEquipmentData()
 {
 	return &m_EquipmentData;
 }
-
 
 
 

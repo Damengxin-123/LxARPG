@@ -31,5 +31,6 @@ enum class ELxItemSlotType  : uint8
 	Transaction 	UMETA(DisplayName = "交易容器（不能交换位置）"),
 	// 快捷方式（只进不出）
 	Shortcut  		UMETA(DisplayName = "快捷方式（只进不出）"),
+	BuffDisplay		UMETA(DisplayName = "Buff Display"),
 };
 

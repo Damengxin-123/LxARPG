@@ -55,6 +55,6 @@ public:
 
 	const FLxEquipmentData* GetEquipmentData() const { return &m_EquipmentData; }
 private:
+	UPROPERTY()
 	FLxEquipmentData m_EquipmentData;
 };
-

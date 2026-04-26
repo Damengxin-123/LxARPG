@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/IUserObjectListEntry.h"
 #include "Blueprint/UserWidget.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentEnum.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxUIDataType.h"
 #include "LxItemGridWidget.generated.h"
@@ -91,9 +92,44 @@ public:
 	UFUNCTION(BlueprintPure, Category="Item Grid", DisplayName="获取显示图标")
 	UTexture2D* GetDisplayIcon() const;
 
+	/**
+	 * 设置网格的默认图标。
+	 *
+	 * @param InDefaultIcon 用于设置为默认图标的纹理对象。
+	 */
+	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="设置默认图标")
+	void SetDefaultIcon(UTexture2D* InDefaultIcon);
+
+	/**
+	 * @brief 获取当前格子中装备的类型。
+	 *
+	 * 该方法检查当前格子中的物品数据，并根据物品槽位类型返回相应的装备类型。
+	 * 如果当前格子没有物品数据或物品类型无法识别，则返回false。
+	 *
+	 * @param OutEquipmentType 输出参数，用于接收当前格子中装备的类型。
+	 * @return 返回一个布尔值，表示是否成功获取到装备类型。如果成功获取到装备类型则返回true，否则返回false。
+	 */
+	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="获取装备部位")
+	bool GetEquipmentType(ELxEquipmentType& OutEquipmentType) const;
+
+	/**
+	 * @brief 获取当前格子中物品的数量。
+	 *
+	 * 该方法首先检查物品是否有效。如果有效，则获取当前物品的数据，并检查物品图标是否为空。
+	 * 如果物品图标不为空，则返回物品数量；否则，返回0。
+	 *
+	 * @return 当前格子中物品的数量。如果物品无效或图标为空，则返回0。
+	 */
 	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="获取物品数量")
 	int32 GetItemCount() const;
 
+	/**
+	 * @brief 获取当前格子中物品的稀有度颜色
+	 *
+	 * 该方法用于获取当前格子中显示物品的稀有度颜色。如果格子中的物品有效且具有稀有度信息，则返回对应的稀有度颜色；否则，返回白色。
+	 *
+	 * @return 返回一个FLinearColor对象，表示物品的稀有度颜色。若无有效物品或稀有度信息，则返回白色。
+	 */
 	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="获取物品稀有度颜色")
 	FLinearColor GetItemRarityColor() const;
 

@@ -1,7 +1,6 @@
-#include "LxAttributeWidget.h"
+﻿#include "LxAttributeWidget.h"
 
 #include "Algo/Sort.h"
-#include "LxARPG/LxSource/Core/Tools/LxAttributeValueTool.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/UI/UICore/LxUITextData.h"
@@ -30,6 +29,23 @@ void ULxAttributeWidget::HandleAttributeChanged()
 	OnAttributeUpdate.Broadcast();
 }
 
+bool ULxAttributeWidget::GetAttributeDataByID(ELxCharacterAttributeID InAttributeID, FLxAttributeData& OutAttributeData)
+{
+	if (!m_pCharacterAttributeComponent)
+	{
+		return false;
+	}
+
+	const FLxAttributeData* AttributeData = m_pCharacterAttributeComponent->GetCharacterAttributeByID(InAttributeID);
+	if (!AttributeData)
+	{
+		return false;
+	}
+
+	OutAttributeData = *AttributeData;
+	return true;
+}
+
 TArray<ULxUITextData*> ULxAttributeWidget::GetAttributesUIDataList()
 {
 	TArray<ULxUITextData*> UIDataList;
@@ -50,7 +66,6 @@ TArray<ULxUITextData*> ULxAttributeWidget::GetAttributesUIDataList()
 	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : *CharacterAttributeTable)
 	{
 		const FLxAttributeData& AttributeData = AttributePair.Value;
-		// 只生成需要在属性面板中展示的条目。
 		if (!AttributeData.AttributeShowInfo.IsVisible)
 		{
 			continue;
@@ -59,7 +74,6 @@ TArray<ULxUITextData*> ULxAttributeWidget::GetAttributesUIDataList()
 		VisibleAttributeList.Add(&AttributeData);
 	}
 
-	// 按属性类型枚举值排序，保证属性列表在 UI 中稳定、有序地显示。
 	Algo::Sort(VisibleAttributeList, [](const FLxAttributeData* Left, const FLxAttributeData* Right)
 	{
 		return static_cast<uint8>(Left->AttributeInfo.AttributeType) < static_cast<uint8>(Right->AttributeInfo.AttributeType);
@@ -75,13 +89,10 @@ TArray<ULxUITextData*> ULxAttributeWidget::GetAttributesUIDataList()
 			continue;
 		}
 
-		// 文本主体使用属性配置中的富文本描述，数值部分单独填充给列表项控件。
-		AttributeUIData->RichTextDescriptionGroupData = const_cast<FLxRichTextDescriptionGroupData*>(&AttributeData->AttributeShowInfo.AttributeName);
-		AttributeUIData->ValueText = FLxAttributeValueTool::BuildAttributeValueText(*AttributeData);
+		AttributeUIData->DisplayText = ULxCharacterAttributeComponent::BuildAttributeDisplayText(*AttributeData);
 		AttributeUIData->IsDarkColor = IsDarkColor;
 		UIDataList.Add(AttributeUIData);
 		IsDarkColor = !IsDarkColor;
-		// 交替设置。
 	}
 
 	return UIDataList;

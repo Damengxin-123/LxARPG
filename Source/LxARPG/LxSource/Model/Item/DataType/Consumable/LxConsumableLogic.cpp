@@ -4,6 +4,7 @@
 
 #include "LxARPG/LxSource/Core/Database/LxConstValue.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Entry/Logic/LxItemEntryLogic.h"
 #include "LxARPG/LxSource/Model/Style/DataType/LxTextLineStyleData.h"
 
 bool ULxConsumableLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
@@ -34,10 +35,9 @@ bool ULxConsumableLogic::InitItemLogic(const FLxItemDefineBase* pItemInfo)
 	m_ConsumableData.ConsumableEntryInfo.ConsumableEntryList.Empty();
 	for (const FLxItemEntryQuote& EntryQuote : ConsumableDefine->ConsumableEntryInfo.ConsumableEntryQuote)
 	{
-		FLxItemEntryData EntryData;
-		if (BuildItemEntryData(EntryQuote, EntryData))
+		if (ULxItemEntryLogic* EntryLogic = ULxItemEntryLogic::CreateItemEntryLogicObject(EntryQuote, this))
 		{
-			m_ConsumableData.ConsumableEntryInfo.ConsumableEntryList.Add(EntryData);
+			m_ConsumableData.ConsumableEntryInfo.ConsumableEntryList.Add(EntryLogic);
 		}
 	}
 
@@ -62,4 +62,3 @@ bool ULxConsumableLogic::UseItem()
 	OnItemInfoChanged.Broadcast();
 	return true;
 }
-

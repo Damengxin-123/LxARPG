@@ -27,13 +27,8 @@ struct FLxAttributeDefineInfo : public FTableRowBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
-	FGameplayTagContainer AttributeTags;
-
-	FLxAttributeDefineInfo()
-	{
-		AttributeTags.AddTag(LxTag_Module_Attribute);
-	}
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性派生规则")
+	TArray<FLxAttributeDerivedRule> DerivedRules;
 
 	/**
 	 * @property FLxAttributeInfo AttributeInfo
@@ -111,13 +106,10 @@ struct FLxAttributeData
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
-	FGameplayTagContainer AttributeTags;
 
-	FLxAttributeData()
-	{
-		AttributeTags.AddTag(LxTag_Module_Attribute);
-	}
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性派生规则")
+	TArray<FLxAttributeDerivedRule> DerivedRules;
+
 	/**
 	 * @var FLxAttributeInfo AttributeInfo
 	 * @brief 用于存储属性的基础信息
@@ -161,7 +153,6 @@ struct FLxAttributeData
 	 *
 	 * @note 计算后的值是基于默认值和其他影响因素（如装备加成、状态效果等）综合得出的，确保其在合理范围内以避免逻辑错误。
 	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="角色当前属性值")
 	FLxAttributeValue CalculatedAttributeValue;
 };
-
-

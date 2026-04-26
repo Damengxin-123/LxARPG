@@ -46,5 +46,6 @@ public:
 	const FLxConsumableData* GetConsumableData() const { return &m_ConsumableData; }
 
 private:
+	UPROPERTY()
 	FLxConsumableData m_ConsumableData;
 };

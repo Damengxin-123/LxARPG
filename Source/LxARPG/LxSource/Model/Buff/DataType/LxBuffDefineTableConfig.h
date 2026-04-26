@@ -24,12 +24,14 @@ class LXARPG_API ULxBuffDefineTableConfig : public ULxDataTableConfigBase
 public:
 	virtual void InitDataTableLoading() override;
 
-	const FBuffDefine* GetBuffDefine(const FName& InItemID) const;
+	const FLxBuffDefine* GetBuffDefine(const FName& InItemID) const;
+	const FLxBuffDefine* GetBuffDefineByBuffID(ELxBuffID InBuffID) const;
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="Buff Define Table List")
 	TArray<UDataTable*> m_vBuffDefineTableList;
 
 private:
-	TMap<FName, FBuffDefine> m_tBuffDefineMap;
+	TMap<FName, FLxBuffDefine> m_tBuffDefineMap;
+	TMap<ELxBuffID, FLxBuffDefine> m_tBuffIDDefineMap;
 };

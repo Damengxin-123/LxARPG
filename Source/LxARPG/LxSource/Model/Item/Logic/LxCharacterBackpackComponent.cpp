@@ -1,8 +1,8 @@
 ﻿#include "LxCharacterBackpackComponent.h"
 
 #include "LxARPG/LxSource/Core/Database/LxConstValue.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Buff/LxBuffDefineTableConfig.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Buff/LxBuffLogic.h"
+#include "LxARPG/LxSource/Model/Buff/DataType/LxBuffDefineTableConfig.h"
+#include "LxARPG/LxSource/Model/Buff/DataType/LxBuffLogic.h"
 #include "LxARPG/LxSource/Model/Entry/Logic/LxCharacterEntryComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableLogic.h"

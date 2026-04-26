@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "LxAttributeEnumType.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryEnum.h"
 #include "LxARPG/LxSource/Model/Style/DataType/LxRichTextDescriptionData.h"
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxAttributeCoreType.generated.h"
@@ -20,10 +21,6 @@ struct FLxAttributeInfo
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, DisplayName="属性类型")
 	ELxAttributeType AttributeType = ELxAttributeType::None;
 
-	/**
-	 * Tags used by entries, buffs, equipment and skills to decide whether this attribute is a valid target.
-	 * Example: Strength can use Module.Attribute, Attribute.Strength and Trait.BasicAttribute.
-	 */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, DisplayName="属性标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
 	FGameplayTagContainer AttributeTags;
 
@@ -67,4 +64,25 @@ struct FLxAttributeValue
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="角色属性值类型")
 	ELxCharacterValueType ValueType = ELxCharacterValueType::FixedNumeric;
+};
+
+USTRUCT(BlueprintType, DisplayName="属性派生规则")
+struct FLxAttributeDerivedRule
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="影响目标标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
+	FGameplayTagContainer TargetTags;
+
+	// 转化比例，指当前属性在对其他属性进行加成时，转化的比例
+	// 当为基础数值时，视为Ratio倍率，当为百分比加成时，视为源属性值 * Ratio * 0.01的加成数值
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="转换比例")
+	float Ratio = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="加成对象")
+	ELxItemEntryTarget EntryTarget = ELxItemEntryTarget::ToValue;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="加成方式")
+	ELxItemEntryType EntryType = ELxItemEntryType::BasicValue;
+	
 };

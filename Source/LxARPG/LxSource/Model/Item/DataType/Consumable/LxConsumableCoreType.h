@@ -8,6 +8,8 @@
 #include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxConsumableCoreType.generated.h"
 
+class ULxItemEntryLogic;
+
 
 /**
  * @brief 消耗品词条信息
@@ -22,7 +24,7 @@ struct FLxConsumableEntyInfo
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="消耗品词条配置")
-	TArray<FLxItemEntryData> ConsumableEntryList;
+	TArray<TObjectPtr<ULxItemEntryLogic>> ConsumableEntryList;
 };
 
 /**

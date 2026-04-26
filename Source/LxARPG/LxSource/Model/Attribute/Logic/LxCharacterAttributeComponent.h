@@ -7,8 +7,8 @@
 
 class ALxBaseCharacter;
 class ULxCharacterEntryComponent;
+class ULxItemEntryLogic;
 struct FLxCharacterEntryPackage;
-struct FLxItemEntryData;
 
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色属性组件")
@@ -85,6 +85,8 @@ public:
 
 	bool RestoreCharacterAttributeCurrentValue(const ELxCharacterAttributeID InAttributeID, float InRestoreValue);
 
+	static FText BuildAttributeDisplayText(const FLxAttributeData& InAttributeData);
+
 	
 
 private:
@@ -107,7 +109,7 @@ private:
 	 * @param InRestoreValue 要恢复到该属性上的数值。
 	 */
 	UFUNCTION()
-	void HandleInstantRestoreEntryApplied(ELxCharacterAttributeID InAttributeID, float InRestoreValue);
+	void HandleAttributeRecoveryEntryApplied(ULxItemEntryLogic* EntryData);
 
 	/**
 	 * @brief 处理词条包变更事件。
@@ -128,13 +130,19 @@ private:
 	 */
 	void RefreshCharacterAttributeByEntries();
 
+	void RefreshDerivedAttributes();
+
 	/**
 	 * @brief 将单条词条应用到目标属性上。
 	 *
 	 * @param InOutAttributeData 待修改的角色属性数据。
 	 * @param InEntryData 需要应用的词条数据。
 	 */
-	static void ApplyEntryToAttribute(FLxAttributeData& InOutAttributeData, const FLxItemEntryData& InEntryData);
+	static void ApplyEntryToAttribute(FLxAttributeData& InOutAttributeData, const ULxItemEntryLogic& InEntryLogic);
+
+	static void ApplyDerivedRuleToAttribute(FLxAttributeData& InOutAttributeData, const FLxAttributeDerivedRule& InDerivedRule, float InSourceValue);
+
+	static bool AttributeMatchesTargetTags(const FLxAttributeData& InAttributeData, const FGameplayTagContainer& InTargetTags);
 
 	UPROPERTY()
 	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter;
@@ -144,7 +152,7 @@ private:
 
 	/** 由词条组件打包后下发的“作用于角色属性”的词条缓存。 */
 	UPROPERTY()
-	TArray<FLxItemEntryData> m_vCharacterAttributeEntries;
+	TArray<TObjectPtr<ULxItemEntryLogic>> m_vCharacterAttributeEntries;
 
 	bool m_bAttributeInitialized = false;
 };

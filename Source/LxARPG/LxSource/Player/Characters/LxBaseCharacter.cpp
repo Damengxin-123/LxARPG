@@ -2,6 +2,7 @@
 
 #include "GameFramework/CharacterMovementComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
+#include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
 #include "LxARPG/LxSource/Model/Entry/Logic/LxCharacterEntryComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
@@ -14,6 +15,7 @@ ALxBaseCharacter::ALxBaseCharacter()
 	m_pCharacterBackpackComponent = CreateDefaultSubobject<ULxCharacterBackpackComponent>(TEXT("CharacterBackpackComponent"));
 	m_pCharacterEquipmentComponent = CreateDefaultSubobject<ULxCharacterEquipmentComponent>(TEXT("CharacterEquipmentComponent"));
 	m_pCharacterEntryComponent = CreateDefaultSubobject<ULxCharacterEntryComponent>(TEXT("CharacterEntryComponent"));
+	m_pCharacterBuffComponent = CreateDefaultSubobject<ULxCharacterBuffComponent>(TEXT("CharacterBuffComponent"));
 	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
 }
 
@@ -41,6 +43,11 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	if (m_pCharacterEntryComponent)
 	{
 		m_pCharacterEntryComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterBuffComponent)
+	{
+		m_pCharacterBuffComponent->BaseComponentInitialize();
 	}
 
 	if (m_pCharacterAttributeComponent)

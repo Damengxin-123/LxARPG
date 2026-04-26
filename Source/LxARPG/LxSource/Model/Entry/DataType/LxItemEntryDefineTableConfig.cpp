@@ -18,12 +18,12 @@ void ULxItemEntryDefineTableConfig::InitDataTableLoading()
 
 		for (const FLxItemEntryDefine* RowData : Rows)
 		{
-			if (RowData == nullptr || RowData->EntryID.IsNone())
+			if (RowData == nullptr || RowData->EnteryBaseInfo.EntryID.IsNone())
 			{
 				continue;
 			}
 
-			m_tItemEntryDefineMap.Add(RowData->EntryID, *RowData);
+			m_tItemEntryDefineMap.Add(RowData->EnteryBaseInfo.EntryID, *RowData);
 		}
 	}
 }
@@ -37,4 +37,3 @@ const FLxItemEntryDefine* ULxItemEntryDefineTableConfig::GetItemEntryDefine(cons
 
 	return m_tItemEntryDefineMap.Find(InEntryID);
 }
-

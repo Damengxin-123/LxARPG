@@ -13,6 +13,8 @@ class LXARPG_API ULxBuffLogic : public ULxItemLogicBase
 	GENERATED_BODY()
 
 public:
+	static ULxBuffLogic* CreateBuffLogicObject(const FLxBuffDefine& InBuffDefine, UObject* InOuter);
+
 	/**
 	 * @brief 初始化物品逻辑
 	 *
@@ -40,7 +42,21 @@ public:
 	 */
 	virtual bool UseItem() override;
 
-private:
-	FBuffData m_BuffData;
-};
+	UFUNCTION(BlueprintPure, Category="Buff", DisplayName="Buff是否有效")
+	bool IsBuffValid() const;
 
+	UFUNCTION(BlueprintPure, Category="Buff", DisplayName="获取Buff数据")
+	const FLxBuffData& GetBuffData() const { return m_BuffData; }
+
+	FLxBuffData& GetMutableBuffData() { return m_BuffData; }
+
+	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="设置Buff生效比例")
+	void SetEffectProportion(float InEffectProportion);
+
+	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="设置Buff持续时间")
+	void SetDuration(float InDuration);
+
+private:
+	UPROPERTY()
+	FLxBuffData m_BuffData;
+};

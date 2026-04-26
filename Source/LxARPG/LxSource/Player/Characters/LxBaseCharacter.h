@@ -7,6 +7,7 @@
 
 class ULxCharacterAttributeComponent;
 class ULxCharacterBackpackComponent;
+class ULxCharacterBuffComponent;
 class ULxCharacterEntryComponent;
 class ULxCharacterEquipmentComponent;
 class ULxCharacterMoveComponent;
@@ -99,6 +100,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色词条组件")
 	ULxCharacterEntryComponent* GetCharacterEntryComponent() const { return m_pCharacterEntryComponent; }
 
+	UFUNCTION(BlueprintCallable, Category="Components", DisplayName="Get Character Buff Component")
+	ULxCharacterBuffComponent* GetCharacterBuffComponent() const { return m_pCharacterBuffComponent; }
+
 	/**
 	 * @brief 获取角色装备组件。
 	 *
@@ -136,6 +140,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色词条组件")
 	TObjectPtr<ULxCharacterEntryComponent> m_pCharacterEntryComponent;
+
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components", DisplayName="Character Buff Component")
+	TObjectPtr<ULxCharacterBuffComponent> m_pCharacterBuffComponent;
 
 	/**
 	 * @brief 角色装备组件。

@@ -4,6 +4,7 @@
 #include "LxAttributeTableConfig.h"
 
 #include "LxAttributeData.h"
+#include "LxARPG/LxSource/Core/Tools/LxRichTextDescriptionTool.h"
 
 void ULxAttributeTableConfig::InitDataTableLoading()
 {
@@ -34,8 +35,9 @@ void ULxAttributeTableConfig::InitDataTableLoading()
 			{
 				continue;
 			}
-
+			
 			FLxAttributeData AttributeData;
+			AttributeData.DerivedRules = DefineInfo->DerivedRules;
 			AttributeData.AttributeInfo = DefineInfo->AttributeInfo;
 			AttributeData.AttributeShowInfo = DefineInfo->AttributeShowInfo;
 			AttributeData.AttributeValue = DefineValue->AttributeValue;

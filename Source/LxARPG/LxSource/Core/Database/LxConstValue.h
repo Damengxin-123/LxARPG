@@ -23,3 +23,8 @@
  * @brief HUD快捷栏物品格子数量
  */
 #define QUICK_ACCESS_TOOLBAR_COUNT 10
+
+/**
+ * Buff组件统一计时器间隔，单位秒。
+ */
+#define BUFF_COMPONENT_TIMER_INTERVAL 0.1f

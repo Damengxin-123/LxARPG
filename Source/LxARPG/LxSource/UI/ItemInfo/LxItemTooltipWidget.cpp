@@ -1,5 +1,7 @@
 #include "LxItemTooltipWidget.h"
 
+#include "LxARPG/LxSource/Model/Buff/DataType/LxBuffLogic.h"
+#include "LxARPG/LxSource/Model/Entry/Logic/LxItemEntryLogic.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableLogic.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentLogic.h"
@@ -9,33 +11,10 @@
 
 namespace
 {
-	FText BuildItemEntryValueText(const FLxItemEntryData& InEntryData)
-	{
-		const float FinalValue = InEntryData.ItemEntryDefineValue.Value * InEntryData.EffectiveRatio;
-		FNumberFormattingOptions NumberFormatOptions;
-		NumberFormatOptions.MinimumFractionalDigits = 0;
-		NumberFormatOptions.MaximumFractionalDigits = 2;
-
-		switch (InEntryData.ItemEntryDefineValue.EntryType)
-		{
-		case ELxItemEntryType::BasicImprove:
-		case ELxItemEntryType::AdditionalImprove:
-			return FText::Format(FText::FromString(TEXT("{0}%")),
-				FText::AsNumber(FinalValue * 100.0f, &NumberFormatOptions));
-
-		case ELxItemEntryType::Mechanism:
-			return FinalValue != 0.0f ? FText::FromString(TEXT("Yes")) : FText::FromString(TEXT("No"));
-
-		case ELxItemEntryType::BasicValue:
-		default:
-			return FText::AsNumber(FinalValue, &NumberFormatOptions);
-		}
-	}
-
 	void AppendEntryUITextData(TArray<ULxUITextData*>& OutUIDataList, UObject* InOuter,
-		const FLxItemEntryData& InEntryData, bool& bInOutIsDarkColor)
+		ULxItemEntryLogic* InEntryLogic, bool& bInOutIsDarkColor)
 	{
-		if (InEntryData.EntryID.IsNone())
+		if (!IsValid(InEntryLogic) || !InEntryLogic->IsEntryValid())
 		{
 			return;
 		}
@@ -46,8 +25,7 @@ namespace
 			return;
 		}
 
-		NewTextData->RichTextDescriptionGroupData = const_cast<FLxRichTextDescriptionGroupData*>(&InEntryData.DisplayNameData);
-		NewTextData->ValueText = BuildItemEntryValueText(InEntryData);
+		NewTextData->DisplayText = InEntryLogic->BuildEntryDisplayText();
 		NewTextData->IsDarkColor = bInOutIsDarkColor;
 		OutUIDataList.Add(NewTextData);
 		bInOutIsDarkColor = !bInOutIsDarkColor;
@@ -86,9 +64,9 @@ TArray<ULxUITextData*> ULxItemTooltipWidget::GetItemEntryUITextDataList()
 		if (const FLxEquipmentData* EquipmentData = EquipmentLogic->GetEquipmentData())
 		{
 			AppendEntryUITextData(Result, this, EquipmentData->EquipmentEntyInfo.EquipmentBasicEntry, bIsDarkColor);
-			for (const FLxItemEntryData& EntryData : EquipmentData->EquipmentEntyInfo.EquipmentExtendEntryList)
+			for (ULxItemEntryLogic* EntryLogic : EquipmentData->EquipmentEntyInfo.EquipmentExtendEntryList)
 			{
-				AppendEntryUITextData(Result, this, EntryData, bIsDarkColor);
+				AppendEntryUITextData(Result, this, EntryLogic, bIsDarkColor);
 			}
 		}
 		return Result;
@@ -98,10 +76,20 @@ TArray<ULxUITextData*> ULxItemTooltipWidget::GetItemEntryUITextDataList()
 	{
 		if (const FLxConsumableData* ConsumableData = ConsumableLogic->GetConsumableData())
 		{
-			for (const FLxItemEntryData& EntryData : ConsumableData->ConsumableEntryInfo.ConsumableEntryList)
+			for (ULxItemEntryLogic* EntryLogic : ConsumableData->ConsumableEntryInfo.ConsumableEntryList)
 			{
-				AppendEntryUITextData(Result, this, EntryData, bIsDarkColor);
+				AppendEntryUITextData(Result, this, EntryLogic, bIsDarkColor);
 			}
+		}
+		return Result;
+	}
+
+	if (const ULxBuffLogic* BuffLogic = Cast<ULxBuffLogic>(m_pCurrentItemLogic))
+	{
+		const auto& BuffData = BuffLogic->GetBuffData();
+		for (ULxItemEntryLogic* EntryLogic : BuffData.BuffEntryList)
+		{
+			AppendEntryUITextData(Result, this, EntryLogic, bIsDarkColor);
 		}
 	}
 

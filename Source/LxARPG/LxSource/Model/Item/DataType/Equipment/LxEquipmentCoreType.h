@@ -8,6 +8,8 @@
 #include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxEquipmentCoreType.generated.h"
 
+class ULxItemEntryLogic;
+
 
 USTRUCT(BlueprintType, DisplayName="装备基础属性信息")
 struct FLxEquipmentInfo
@@ -85,10 +87,10 @@ struct FLxEquipmentEntyInfo
 {
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="装备默认词条")
-	FLxItemEntryData EquipmentBasicEntry;
+	TObjectPtr<ULxItemEntryLogic> EquipmentBasicEntry = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="装备扩展词条")
-	TArray<FLxItemEntryData> EquipmentExtendEntryList;
+	TArray<TObjectPtr<ULxItemEntryLogic>> EquipmentExtendEntryList;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="扩展词条最大数量")
 	uint8 EquipmentExtendEntryMaxCount = 0;

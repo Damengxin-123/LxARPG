@@ -74,6 +74,8 @@ bool ULxItemSlotData::CanAcceptItem(ULxItemLogicBase* InItemData) const
 		return true;
 	case ELxItemSlotType::Shortcut:
 		return true;
+	case ELxItemSlotType::BuffDisplay:
+		return false;
 	}
 
 	return true;
@@ -96,6 +98,7 @@ bool ULxItemSlotData::CanGetItemData() const
 	case ELxItemSlotType::Transaction:
 		return true;
 	case ELxItemSlotType::Shortcut:
+	case ELxItemSlotType::BuffDisplay:
 		return false;
 	}
 	return true;
@@ -110,7 +113,8 @@ ELxItemSlotDropResult ULxItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSl
 
 	if (ItemSlotType == ELxItemSlotType::None ||
 		ItemSlotType == ELxItemSlotType::TreasureChest ||
-		ItemSlotType == ELxItemSlotType::Shortcut)
+		ItemSlotType == ELxItemSlotType::Shortcut ||
+		ItemSlotType == ELxItemSlotType::BuffDisplay)
 	{
 		return ELxItemSlotDropResult::CannotEnter;
 	}

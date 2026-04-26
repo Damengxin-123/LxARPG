@@ -5,7 +5,7 @@
 #include "LxARPG/LxSource/Core/Database/LxDataTableConfigBase.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputActionInfoTableConfig.h"
-#include "LxARPG/LxSource/Model/Item/DataType/Buff/LxBuffDefineTableConfig.h"
+#include "LxARPG/LxSource/Model/Buff/DataType/LxBuffDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumableDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryDefineTableConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentDefineTableConfig.h"

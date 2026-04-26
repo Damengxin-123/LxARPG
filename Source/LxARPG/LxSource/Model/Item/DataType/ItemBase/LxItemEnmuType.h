@@ -34,8 +34,8 @@ enum class ELxItemType : uint8
 	Material	UMETA(DisplayName = "材料"),
 	/** 技能 */
 	Skill		UMETA(DisplayName = "技能"),
-	/** 状态 */
-	Buff		UMETA(DisplayName = "状态"),
+	/** Buff */
+	Buff		UMETA(DisplayName = "Buff"),
 	
 	/** 枚举最大值 - 此枚举表示物品类型有多少个类型 */
 	ItemSizeMax UMETA(Hidden, DisplayName = "枚举最大值"),
