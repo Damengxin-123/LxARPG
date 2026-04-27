@@ -45,6 +45,8 @@ public:
 	UFUNCTION(BlueprintPure, Category="Buff", DisplayName="Buff是否有效")
 	bool IsBuffValid() const;
 
+	virtual FLxString GetItemCount();
+
 	UFUNCTION(BlueprintPure, Category="Buff", DisplayName="获取Buff数据")
 	const FLxBuffData& GetBuffData() const { return m_BuffData; }
 

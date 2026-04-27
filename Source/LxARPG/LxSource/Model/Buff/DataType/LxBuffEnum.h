@@ -39,3 +39,4 @@ enum class ELxBuffID : uint8
 	MPRestore					UMETA(DisplayName="魔力回复"),
 	AttackImprove 				UMETA(DisplayName="攻击力提升"),
 };
+

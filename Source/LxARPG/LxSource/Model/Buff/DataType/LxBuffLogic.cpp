@@ -78,6 +78,12 @@ bool ULxBuffLogic::IsBuffValid() const
 	return m_BuffData.BuffCoreInfo.BuffID != ELxBuffID::None && !m_BuffData.ItemInfo.ItemID.IsNone();
 }
 
+FLxString ULxBuffLogic::GetItemCount()
+{
+	
+	return "";
+}
+
 void ULxBuffLogic::SetEffectProportion(float InEffectProportion)
 {
 	m_BuffData.BuffEffectInfo.Proportion = InEffectProportion;

@@ -93,6 +93,15 @@ bool ULxItemLogicBase::ItemIsValid()
 		&& ItemData->ItemCount != ERR_ATTRIBUTE;
 }
 
+FLxString ULxItemLogicBase::GetItemCount()
+{
+	if (FLxItemDateBase* base = GetItemDataBase())
+	{
+		return base->ItemCount;
+	}
+	return "";
+}
+
 bool ULxItemLogicBase::operator<(const ULxItemLogicBase* Other) const
 {
 	

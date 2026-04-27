@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "LxItemBase.h"
+#include "LxARPG/LxSource/Core/Tools/LxString.h"
 #include "LxItemLogicBase.generated.h"
 
 class ULxItemLogicBase;
@@ -94,6 +95,9 @@ public:
 	 */
 	virtual bool ItemIsValid();
 
+	
+	virtual FLxString GetItemCount();
+	
 	/**
 	 * @brief用于处理物品信息变更的委托
 	 *
