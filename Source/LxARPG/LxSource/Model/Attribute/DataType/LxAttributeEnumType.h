@@ -169,7 +169,7 @@ enum class ELxCharacterAttributeID : uint8
 
     // 攻击相关属性
 	/** 物理攻击力 */
-    D_PhysicalAttack     UMETA(DisplayName = "物理攻击力"),
+    D_PhysicalAttack     UMETA(DisplayName = "攻击力"),
 	/** 暴击几率 */
     D_CriticalChance     UMETA(DisplayName = "暴击几率"),
 	/** 暴击伤害 */

@@ -4,7 +4,7 @@
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
-#include "LxARPG/LxSource/Model/Entry/Logic/LxCharacterEntryComponent.h"
+#include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
 
@@ -14,9 +14,9 @@ ALxBaseCharacter::ALxBaseCharacter()
 	m_pCharacterMoveComponent = CreateDefaultSubobject<ULxCharacterMoveComponent>(TEXT("CharacterMoveComponent"));
 	m_pCharacterBackpackComponent = CreateDefaultSubobject<ULxCharacterBackpackComponent>(TEXT("CharacterBackpackComponent"));
 	m_pCharacterEquipmentComponent = CreateDefaultSubobject<ULxCharacterEquipmentComponent>(TEXT("CharacterEquipmentComponent"));
-	m_pCharacterEntryComponent = CreateDefaultSubobject<ULxCharacterEntryComponent>(TEXT("CharacterEntryComponent"));
 	m_pCharacterBuffComponent = CreateDefaultSubobject<ULxCharacterBuffComponent>(TEXT("CharacterBuffComponent"));
 	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
+	m_pCharacterDataTransferComponent = CreateDefaultSubobject<ULxCharacterDataTransferComponent>(TEXT("CharacterDataTransferComponent"));
 }
 
 void ALxBaseCharacter::InitialCharacterInformation()
@@ -40,11 +40,6 @@ void ALxBaseCharacter::InitialCharacterInformation()
 		m_pCharacterEquipmentComponent->BaseComponentInitialize();
 	}
 
-	if (m_pCharacterEntryComponent)
-	{
-		m_pCharacterEntryComponent->BaseComponentInitialize();
-	}
-
 	if (m_pCharacterBuffComponent)
 	{
 		m_pCharacterBuffComponent->BaseComponentInitialize();
@@ -53,6 +48,11 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	if (m_pCharacterAttributeComponent)
 	{
 		m_pCharacterAttributeComponent->BaseComponentInitialize();
+	}
+	
+	if (m_pCharacterDataTransferComponent)
+	{
+		m_pCharacterDataTransferComponent->BaseComponentInitialize();
 	}
 	IsInitialized  = true;
 }

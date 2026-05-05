@@ -1,7 +1,10 @@
 ﻿#include "LxAttributeWidget.h"
 
 #include "Algo/Sort.h"
-#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
+#include "LxARPG/LxSource/Core/Tools/LxAttributeValueTool.h"
+#include "LxARPG/LxSource/Core/Tools/LxString.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
+#include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/UI/UICore/LxUITextData.h"
 
@@ -13,60 +16,99 @@ void ULxAttributeWidget::InitializeUIComponents()
 void ULxAttributeWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
 {
 	Super::UpdateUIComponents(PlayerCharacter);
-	if (PlayerCharacter)
-	{
-		m_pCharacterAttributeComponent = PlayerCharacter->FindComponentByClass<ULxCharacterAttributeComponent>();
-		if (m_pCharacterAttributeComponent)
-		{
-			m_pCharacterAttributeComponent->OnDataChange.AddDynamic(this, &ULxAttributeWidget::HandleAttributeChanged);
-			HandleAttributeChanged();
-		}
-	}
+	BindDataTransferComponent(m_pPlayerCharacter ? m_pPlayerCharacter->GetCharacterDataTransferComponent() : nullptr);
+	RefreshAttributeListFromDataTransfer();
 }
 
-void ULxAttributeWidget::HandleAttributeChanged()
+void ULxAttributeWidget::NativeDestruct()
 {
-	OnAttributeUpdate.Broadcast();
+	UnbindDataTransferComponent();
+	Super::NativeDestruct();
 }
+
+void ULxAttributeWidget::HandleCharacterAttributesChanged(const TArray<FLxAttributeData>& AttributeList)
+{
+	OnAttributeListUpdated(BuildAttributesUIDataList(AttributeList));
+}
+
+FText ULxAttributeWidget::GetAttributeValueStringByID(ELxCharacterAttributeID InAttributeID) const
+{
+	if (!m_pCharacterDataTransferComponent)
+	{
+		return FLxString().ToFText();
+	}
+
+	FLxAttributeData AttributeData;
+	if (!m_pCharacterDataTransferComponent->QueryCharacterAttributeByID(InAttributeID, AttributeData))
+	{
+		return FLxString().ToFText();
+	}
+	return LxAttributeTools::GetAttributeDisplayText(AttributeData);
+}
+
 
 bool ULxAttributeWidget::GetAttributeDataByID(ELxCharacterAttributeID InAttributeID, FLxAttributeData& OutAttributeData)
 {
-	if (!m_pCharacterAttributeComponent)
+	if (!m_pCharacterDataTransferComponent)
 	{
 		return false;
 	}
 
-	const FLxAttributeData* AttributeData = m_pCharacterAttributeComponent->GetCharacterAttributeByID(InAttributeID);
-	if (!AttributeData)
-	{
-		return false;
-	}
-
-	OutAttributeData = *AttributeData;
-	return true;
+	return m_pCharacterDataTransferComponent->QueryCharacterAttributeByID(InAttributeID, OutAttributeData);
 }
 
-TArray<ULxUITextData*> ULxAttributeWidget::GetAttributesUIDataList()
+void ULxAttributeWidget::BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent)
+{
+	if (m_pCharacterDataTransferComponent == InDataTransferComponent)
+	{
+		return;
+	}
+
+	UnbindDataTransferComponent();
+	m_pCharacterDataTransferComponent = InDataTransferComponent;
+
+	if (m_pCharacterDataTransferComponent == nullptr)
+	{
+		return;
+	}
+
+	m_pCharacterDataTransferComponent->OnCharacterAttributeChanged.RemoveDynamic(this, &ULxAttributeWidget::HandleCharacterAttributesChanged);
+	m_pCharacterDataTransferComponent->OnCharacterAttributeChanged.AddDynamic(this, &ULxAttributeWidget::HandleCharacterAttributesChanged);
+}
+
+void ULxAttributeWidget::UnbindDataTransferComponent()
+{
+	if (m_pCharacterDataTransferComponent == nullptr)
+	{
+		return;
+	}
+
+	m_pCharacterDataTransferComponent->OnCharacterAttributeChanged.RemoveDynamic(this, &ULxAttributeWidget::HandleCharacterAttributesChanged);
+	m_pCharacterDataTransferComponent = nullptr;
+}
+
+void ULxAttributeWidget::RefreshAttributeListFromDataTransfer()
+{
+	if (m_pCharacterDataTransferComponent == nullptr)
+	{
+		OnAttributeListUpdated(TArray<ULxUITextData*>());
+		return;
+	}
+
+	TArray<FLxAttributeData> AttributeList;
+	m_pCharacterDataTransferComponent->GetAllCharacterAttributes(AttributeList);
+	HandleCharacterAttributesChanged(AttributeList);
+}
+
+TArray<ULxUITextData*> ULxAttributeWidget::BuildAttributesUIDataList(const TArray<FLxAttributeData>& AttributeList)
 {
 	TArray<ULxUITextData*> UIDataList;
 
-	if (!m_pCharacterAttributeComponent)
-	{
-		return UIDataList;
-	}
-
-	const TMap<ELxCharacterAttributeID, FLxAttributeData>* CharacterAttributeTable = m_pCharacterAttributeComponent->GetCharacterAttributeTable();
-	if (!CharacterAttributeTable)
-	{
-		return UIDataList;
-	}
-
 	TArray<const FLxAttributeData*> VisibleAttributeList;
-	VisibleAttributeList.Reserve(CharacterAttributeTable->Num());
-	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : *CharacterAttributeTable)
+	VisibleAttributeList.Reserve(AttributeList.Num());
+	for (const FLxAttributeData& AttributeData : AttributeList)
 	{
-		const FLxAttributeData& AttributeData = AttributePair.Value;
-		if (!AttributeData.AttributeShowInfo.IsVisible)
+		if (!AttributeData.ShowInfo.IsVisible)
 		{
 			continue;
 		}
@@ -76,7 +118,7 @@ TArray<ULxUITextData*> ULxAttributeWidget::GetAttributesUIDataList()
 
 	Algo::Sort(VisibleAttributeList, [](const FLxAttributeData* Left, const FLxAttributeData* Right)
 	{
-		return static_cast<uint8>(Left->AttributeInfo.AttributeType) < static_cast<uint8>(Right->AttributeInfo.AttributeType);
+		return static_cast<uint8>(Left->AttributeID) < static_cast<uint8>(Right->AttributeID);
 	});
 
 	UIDataList.Reserve(VisibleAttributeList.Num());
@@ -89,7 +131,8 @@ TArray<ULxUITextData*> ULxAttributeWidget::GetAttributesUIDataList()
 			continue;
 		}
 
-		AttributeUIData->DisplayText = ULxCharacterAttributeComponent::BuildAttributeDisplayText(*AttributeData);
+		// 属性列表显示文本统一由属性工具生成，UI 只负责接收文本数据并显示。
+		AttributeUIData->DisplayText = LxAttributeTools::GetAttributeDisplayText(*AttributeData);
 		AttributeUIData->IsDarkColor = IsDarkColor;
 		UIDataList.Add(AttributeUIData);
 		IsDarkColor = !IsDarkColor;

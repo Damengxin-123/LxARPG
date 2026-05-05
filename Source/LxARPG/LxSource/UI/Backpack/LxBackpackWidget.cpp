@@ -1,17 +1,14 @@
 #include "LxBackpackWidget.h"
 
-#include "LxARPG/LxSource/Core/Database/LxConstValue.h"
+#include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
-#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
-#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
 
 void ULxBackpackWidget::InitializeUIComponents()
 {
 	Super::InitializeUIComponents();
-	// 暂时没有啥要更新的
 }
 
 void ULxBackpackWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
@@ -19,60 +16,54 @@ void ULxBackpackWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
 	Super::UpdateUIComponents(PlayerCharacter);
 	UpdatedBackpack();
 }
+
+void ULxBackpackWidget::NativeDestruct()
+{
+	UnbindDataTransferComponent();
+	Super::NativeDestruct();
+}
+
 void ULxBackpackWidget::UpdatedBackpack()
 {
-	// 获取到当前控制器持有的角色的背包组件和装备组件
 	if (m_pPlayerCharacter)
 	{
-		m_pCharacterBackpackComponent = m_pPlayerCharacter->GetCharacterBackpackComponent();
-		m_pCharacterEquipmentComponent = m_pPlayerCharacter->GetCharacterEquipmentComponent();
+		BindDataTransferComponent(m_pPlayerCharacter->GetCharacterDataTransferComponent());
 	}
-	// 暂时不用绑定组件的事件，而是由物品格子自己更新物品槽位内的物品信息
-	// 获取装备槽位和物品槽位 进行缓存
-	if (m_pCharacterBackpackComponent)
+
+	if (m_pCharacterDataTransferComponent == nullptr)
 	{
-		m_vItemSlotList = m_pCharacterBackpackComponent->GetAllItems();
+		m_vItemSlotList.Reset();
+		m_vEquipmentSlotList.Reset();
+		OnItemListUpdated(GetItemUIDataList());
+		OnEquipmentListUpdated(GetEquipmentUIDataList());
+		return;
 	}
-	if (m_pCharacterEquipmentComponent)
-	{
-		m_vEquipmentSlotList = m_pCharacterEquipmentComponent->GetEquipmentSlots();
-	}
-	// 判断，如果获取到了物品和装备，则发出更新事件
-	if (!m_vItemSlotList.IsEmpty())
-	{
-		OnItemListUpdated.Broadcast();
-	}
-	if (!m_vEquipmentSlotList.IsEmpty())
-	{
-		OnEquipmentListUpdated.Broadcast();
-	}
+
+	TArray<ULxItemSlotData*> BackpackItems;
+	m_pCharacterDataTransferComponent->GetAllBackpackItems(BackpackItems);
+	HandleBackpackItemsChanged(BackpackItems);
+
+	TArray<ULxEquipmentSlotData*> EquipmentSlots;
+	m_pCharacterDataTransferComponent->GetAllEquipment(EquipmentSlots);
+	HandleEquipmentSlotsChanged(EquipmentSlots);
 }
+
 void ULxBackpackWidget::SortingOfItems()
 {
-	// 先调用排序函数
-	if (m_pCharacterBackpackComponent)
+	if (m_pCharacterDataTransferComponent)
 	{
-		m_pCharacterBackpackComponent->SortingOfItems();
-	}
-	// 然后再获取物品列表缓存
-	if (m_pCharacterEquipmentComponent)
-	{
-		m_vItemSlotList = m_pCharacterBackpackComponent->GetAllItems();
-	}
-	// 判断，如果获取到了物品和装备，则发出更新事件
-	if (!m_vItemSlotList.IsEmpty())
-	{
-		OnItemListUpdated.Broadcast();
+		// 操作入口也走数据中转组件，排序后的刷新由中转事件回流。
+		m_pCharacterDataTransferComponent->SortBackpackItems();
 	}
 }
 
 TArray<UObject*> ULxBackpackWidget::GetItemUIDataList()
 {
 	TArray<UObject*> ItemUIDataList;
-	for (auto& item :  m_vItemSlotList)
+	for (ULxItemSlotData* ItemSlot : m_vItemSlotList)
 	{
 		ULxItemUIData* ItemUIData = NewObject<ULxItemUIData>(this);
-		ItemUIData->m_pSlotData = item;
+		ItemUIData->m_pSlotData = ItemSlot;
 		ItemUIDataList.Add(ItemUIData);
 	}
 	return ItemUIDataList;
@@ -81,10 +72,10 @@ TArray<UObject*> ULxBackpackWidget::GetItemUIDataList()
 TArray<UObject*> ULxBackpackWidget::GetEquipmentUIDataList()
 {
 	TArray<UObject*> EquipmentUIDataList;
-	for (auto& equ :  m_vEquipmentSlotList)
+	for (ULxEquipmentSlotData* EquipmentSlot : m_vEquipmentSlotList)
 	{
 		ULxItemUIData* EquipmentUIData = NewObject<ULxItemUIData>(this);
-		EquipmentUIData->m_pSlotData = equ;
+		EquipmentUIData->m_pSlotData = EquipmentSlot;
 		EquipmentUIDataList.Add(EquipmentUIData);
 	}
 	return EquipmentUIDataList;
@@ -92,13 +83,68 @@ TArray<UObject*> ULxBackpackWidget::GetEquipmentUIDataList()
 
 void ULxBackpackWidget::SwitchItemType(ELxItemType NewType)
 {
-	if (m_pCharacterBackpackComponent)
+	m_vItemSlotList.Reset();
+
+	if (m_pCharacterDataTransferComponent)
 	{
-		m_vItemSlotList = m_pCharacterBackpackComponent->QueryItemsOnItemType(NewType);
+		TArray<ULxItemSlotData*> FilteredItems;
+		m_pCharacterDataTransferComponent->QueryBackpackItemsByFilter(NewType, ELxItemRarityType::None, FilteredItems);
+		HandleBackpackItemsChanged(FilteredItems);
+		return;
 	}
-	// 判断，如果获取到了物品和装备，则发出更新事件
-	if (!m_vItemSlotList.IsEmpty())
+
+	OnItemListUpdated(GetItemUIDataList());
+}
+
+void ULxBackpackWidget::BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent)
+{
+	if (m_pCharacterDataTransferComponent == InDataTransferComponent)
 	{
-		OnItemListUpdated.Broadcast();
+		return;
 	}
+
+	UnbindDataTransferComponent();
+	m_pCharacterDataTransferComponent = InDataTransferComponent;
+
+	if (m_pCharacterDataTransferComponent == nullptr)
+	{
+		return;
+	}
+
+	m_pCharacterDataTransferComponent->OnBackpackItemChanged.RemoveDynamic(this, &ULxBackpackWidget::HandleBackpackItemsChanged);
+	m_pCharacterDataTransferComponent->OnBackpackItemChanged.AddDynamic(this, &ULxBackpackWidget::HandleBackpackItemsChanged);
+	m_pCharacterDataTransferComponent->OnEquipmentChanged.RemoveDynamic(this, &ULxBackpackWidget::HandleEquipmentSlotsChanged);
+	m_pCharacterDataTransferComponent->OnEquipmentChanged.AddDynamic(this, &ULxBackpackWidget::HandleEquipmentSlotsChanged);
+}
+
+void ULxBackpackWidget::UnbindDataTransferComponent()
+{
+	if (m_pCharacterDataTransferComponent == nullptr)
+	{
+		return;
+	}
+
+	m_pCharacterDataTransferComponent->OnBackpackItemChanged.RemoveDynamic(this, &ULxBackpackWidget::HandleBackpackItemsChanged);
+	m_pCharacterDataTransferComponent->OnEquipmentChanged.RemoveDynamic(this, &ULxBackpackWidget::HandleEquipmentSlotsChanged);
+	m_pCharacterDataTransferComponent = nullptr;
+}
+
+void ULxBackpackWidget::HandleBackpackItemsChanged(const TArray<ULxItemSlotData*>& BackpackItems)
+{
+	m_vItemSlotList.Reset();
+	for (ULxItemSlotData* SlotData : BackpackItems)
+	{
+		m_vItemSlotList.Add(SlotData);
+	}
+	OnItemListUpdated(GetItemUIDataList());
+}
+
+void ULxBackpackWidget::HandleEquipmentSlotsChanged(const TArray<ULxEquipmentSlotData*>& EquipmentSlots)
+{
+	m_vEquipmentSlotList.Reset();
+	for (ULxEquipmentSlotData* SlotData : EquipmentSlots)
+	{
+		m_vEquipmentSlotList.Add(SlotData);
+	}
+	OnEquipmentListUpdated(GetEquipmentUIDataList());
 }

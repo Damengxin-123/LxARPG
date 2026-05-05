@@ -6,7 +6,7 @@
 #include "LxAttributeWidget.generated.h"
 
 class ALxBaseCharacter;
-class ULxCharacterAttributeComponent;
+class ULxCharacterDataTransferComponent;
 class ULxUITextData;
 
 
@@ -27,22 +27,32 @@ public:
 
 	// 更新界面属性，当新角色传入时
 	virtual void UpdateUIComponents(ALxBaseCharacter* PlayerCharacter) override;
+	virtual void NativeDestruct() override;
 
-	/** 接收角色属性组件中，角色属性发生改变的事件 */
+	/** 接收数据中转组件转发的角色属性变化事件。 */
 	UFUNCTION()
-	void HandleAttributeChanged();
+	void HandleCharacterAttributesChanged(const TArray<FLxAttributeData>& AttributeList);
 
-	UFUNCTION(BlueprintCallable, DisplayName="获取属性UI数据列表")
-	TArray<ULxUITextData*> GetAttributesUIDataList();
+	/** 按属性 ID 获取当前运行时属性值字符串，普通数值取整数，百分比和概率类型自动追加%。 */
+	UFUNCTION(BlueprintPure, Category="Attribute", DisplayName="获取属性可视化字符串")
+	FText GetAttributeValueStringByID(ELxCharacterAttributeID InAttributeID) const;
 
-	UFUNCTION(BlueprintCallable, DisplayName="按属性ID获取角色属性")
+	/** 获取属性完整数据，供蓝图或调试读取。 */
+	UFUNCTION(BlueprintCallable, Category="Attribute", DisplayName="获取属性数据")
 	bool GetAttributeDataByID(ELxCharacterAttributeID InAttributeID, FLxAttributeData& OutAttributeData);
 
-	UPROPERTY(BlueprintAssignable, DisplayName="属性更新事件")
-	FOnUiBaseUpdateEvent OnAttributeUpdate;
+	/** 可直接显示在列表中的属性刷新时调用，蓝图中负责更新列表显示。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="Attribute", DisplayName="属性列表显示更新")
+	void OnAttributeListUpdated(const TArray<ULxUITextData*>& AttributeUIDataList);
+
 	
 private:
-	/** 当前角色的角色属性组件*/
+	void BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent);
+	void UnbindDataTransferComponent();
+	void RefreshAttributeListFromDataTransfer();
+	TArray<ULxUITextData*> BuildAttributesUIDataList(const TArray<FLxAttributeData>& AttributeList);
+
+	/** 当前角色的数据中转组件，属性 UI 的数据获取和事件刷新都从这里进入。 */
 	UPROPERTY()
-	TObjectPtr<ULxCharacterAttributeComponent> m_pCharacterAttributeComponent = nullptr;
+	TObjectPtr<ULxCharacterDataTransferComponent> m_pCharacterDataTransferComponent = nullptr;
 };

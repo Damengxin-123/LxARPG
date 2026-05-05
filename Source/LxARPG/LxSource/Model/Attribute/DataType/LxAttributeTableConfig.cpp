@@ -1,58 +1,135 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "LxAttributeTableConfig.h"
 
-#include "LxAttributeData.h"
-#include "LxARPG/LxSource/Core/Tools/LxRichTextDescriptionTool.h"
+#include "LxARPG/LxSource/Core/Tools/LxString.h"
 
-void ULxAttributeTableConfig::InitDataTableLoading()
+namespace
 {
-	m_tAttributeDataMap.Empty();
+	TMap<ELxCharacterAttributeID, FLxAttributeData> GAttributeDataMap;
+	TMap<ELxCharacterRaceType, TArray<FLxAttributeValueConfig>> GCharacterRaceBaseAttributeValueMap;
 
-	// 遍历属性定义表格列表，加载每个表格中的属性定义值，并将其转换为属性数据存储在属性数据映射表中
-	for (const auto& Pair : m_mapAttributeTableList)
+	void ApplyBaseValueConfigToAttribute(const FLxAttributeValueConfig& InValueConfig, FLxAttributeData& InOutAttributeData)
 	{
-		if (Pair.Value == nullptr)
-		{
-			continue;
-		}
-
-		TArray<FLxAttributeDefineValue*> Rows;
-		Pair.Value->GetAllRows<FLxAttributeDefineValue>(TEXT("ULxAttributeTableConfig"), Rows);
-
-		TArray<FLxAttributeData>& AttributeDataList = m_tAttributeDataMap.FindOrAdd(Pair.Key);
-		AttributeDataList.Reserve(Rows.Num());
-		for (const FLxAttributeDefineValue* DefineValue : Rows)
-		{
-			if (DefineValue == nullptr)
-			{
-				continue;
-			}
-
-			const FLxAttributeDefineInfo* DefineInfo = DefineValue->AttributeTableQuote.GetRow<FLxAttributeDefineInfo>(TEXT("ULxAttributeTableConfig"));
-			if (DefineInfo == nullptr)
-			{
-				continue;
-			}
-			
-			FLxAttributeData AttributeData;
-			AttributeData.DerivedRules = DefineInfo->DerivedRules;
-			AttributeData.AttributeInfo = DefineInfo->AttributeInfo;
-			AttributeData.AttributeShowInfo = DefineInfo->AttributeShowInfo;
-			AttributeData.AttributeValue = DefineValue->AttributeValue;
-			AttributeData.CalculatedAttributeValue = DefineValue->AttributeValue;
-			
-			AttributeDataList.Add(AttributeData);
-		}
+		InOutAttributeData.AttributeID = InValueConfig.AttributeID;
+		InOutAttributeData.AttributeValue.UpwardFloatingRatio = InValueConfig.UpwardFloatingRatio;
+		InOutAttributeData.AttributeValue.DownwardFloatingRatio = InValueConfig.DownwardFloatingRatio;
+		InOutAttributeData.AttributeValue.ValueLimit = InValueConfig.ValueLimit;
+		InOutAttributeData.AttributeValue.Value = InValueConfig.Value;
+		InOutAttributeData.CalculatedAttributeValue = InOutAttributeData.AttributeValue;
 	}
 }
 
-const TArray<FLxAttributeData>* ULxAttributeTableConfig::GetAttributeDataList(ELxCharacterRaceType InRaceType) const
+namespace LxAttributeConfig
 {
-	if (m_tAttributeDataMap.Contains(InRaceType))
+	void ClearAttributeConfig()
 	{
-		return &m_tAttributeDataMap[InRaceType];
+		GAttributeDataMap.Empty();
+		GCharacterRaceBaseAttributeValueMap.Empty();
 	}
-	return nullptr;
+
+	void SetAttributeDataMap(const TMap<ELxCharacterAttributeID, FLxAttributeData>& InAttributeDataMap)
+	{
+		GAttributeDataMap = InAttributeDataMap;
+	}
+
+	void SetCharacterRaceBaseAttributeValueMap(const TMap<ELxCharacterRaceType, TArray<FLxAttributeValueConfig>>& InRaceBaseValueMap)
+	{
+		GCharacterRaceBaseAttributeValueMap = InRaceBaseValueMap;
+	}
+
+	void SetAttributeDataConfig(const FLxAttributeData& InAttributeData)
+	{
+		if (InAttributeData.AttributeID == ELxCharacterAttributeID::X_None)
+		{
+			return;
+		}
+
+		GAttributeDataMap.Add(InAttributeData.AttributeID, InAttributeData);
+	}
+
+	void SetCharacterRaceBaseAttributeValues(ELxCharacterRaceType InRaceType, const TArray<FLxAttributeValueConfig>& InBaseValueList)
+	{
+		GCharacterRaceBaseAttributeValueMap.Add(InRaceType, InBaseValueList);
+	}
+
+	const TMap<ELxCharacterAttributeID, FLxAttributeData>& GetAttributeDataMap()
+	{
+		return GAttributeDataMap;
+	}
+
+	const TMap<ELxCharacterRaceType, TArray<FLxAttributeValueConfig>>& GetCharacterRaceBaseAttributeValueMap()
+	{
+		return GCharacterRaceBaseAttributeValueMap;
+	}
+
+	const FLxAttributeData* GetAttributeDataConfig(ELxCharacterAttributeID InAttributeID)
+	{
+		return GAttributeDataMap.Find(InAttributeID);
+	}
+
+	TMap<ELxCharacterAttributeID, FLxAttributeData> GetCharacterAttributeDataByRaceType(ELxCharacterRaceType InRaceType)
+	{
+		TMap<ELxCharacterAttributeID, FLxAttributeData> ResultMap = GAttributeDataMap;
+		const TArray<FLxAttributeValueConfig>* RaceBaseValues = GCharacterRaceBaseAttributeValueMap.Find(InRaceType);
+		if (RaceBaseValues == nullptr)
+		{
+			return ResultMap;
+		}
+
+		for (const FLxAttributeValueConfig& ValueConfig : *RaceBaseValues)
+		{
+			if (ValueConfig.AttributeID == ELxCharacterAttributeID::X_None)
+			{
+				continue;
+			}
+
+			FLxAttributeData* FoundAttributeData = ResultMap.Find(ValueConfig.AttributeID);
+			if (FoundAttributeData == nullptr)
+			{
+				FLxAttributeData NewData;
+				ApplyBaseValueConfigToAttribute(ValueConfig, NewData);
+				ResultMap.Add(ValueConfig.AttributeID, NewData);
+				continue;
+			}
+
+			ApplyBaseValueConfigToAttribute(ValueConfig, *FoundAttributeData);
+		}
+
+		return ResultMap;
+	}
+}
+
+FText LxAttributeTools::GetAttributeDisplayText(const FLxAttributeData& AttributeData)
+{
+	FLxString OutText(AttributeData.ShowInfo.AttributeName);
+	const FLxAttributeValue& AttributeValue = AttributeData.CalculatedAttributeValue;
+
+	switch (AttributeValue.ValueType)
+	{
+	case ELxCharacterValueType::FixedNumeric:
+		OutText.Arg(FLxString::DoubleToIntStr(AttributeValue.Value));
+		break;
+	case ELxCharacterValueType::RangedNumeric:
+		OutText.Arg(FLxString::DoubleToIntStr(AttributeValue.ValueLimit));
+		break;
+	case ELxCharacterValueType::FloatingNumeric:
+		{
+			FLxString Value;
+			Value << FLxString::DoubleToIntStr(AttributeValue.Value - (AttributeValue.Value * AttributeValue.DownwardFloatingRatio));
+			Value << "—";
+			Value << FLxString::DoubleToIntStr(AttributeValue.Value + (AttributeValue.Value * (AttributeValue.UpwardFloatingRatio)));
+			OutText.Arg(Value);
+		}
+		break;
+	case ELxCharacterValueType::Probabilistic:
+	case ELxCharacterValueType::Percentage:
+		OutText.Arg(FLxString::DoubleToIntStr(AttributeValue.Value * 100).ToFString() + TEXT("%"));
+		break;
+	case ELxCharacterValueType::Switch:
+		OutText.Arg(AttributeValue.Value != 0 ? TEXT("Yes") : TEXT("No"));
+		break;
+	case ELxCharacterValueType::Setting:
+		OutText.Arg(FLxString::DoubleToIntStr(AttributeValue.Value));
+		break;
+	}
+	return OutText.ToFText();
 }

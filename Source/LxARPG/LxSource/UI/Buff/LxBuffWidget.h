@@ -5,12 +5,18 @@
 #include "LxBuffWidget.generated.h"
 
 class ALxBaseCharacter;
-class ULxBuffLogic;
-class ULxCharacterBuffComponent;
+class ULxBuff;
+class ULxCharacterDataTransferComponent;
 class ULxItemSlotData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuffUIDataListUpdated, const TArray<UObject*>&, BuffUIDataList);
 
+/**
+ * Buff UI 数据适配对象。
+ *
+ * 只通过角色数据中转组件读取 Buff 列表和监听 Buff 变化，
+ * 不直接绑定角色 Buff 组件，避免 UI 与底层 Buff 模块耦合。
+ */
 UCLASS(BlueprintType, Blueprintable, DisplayName="Buff Widget")
 class LXARPG_API ULxBuffWidget : public ULxUIBaseObject
 {
@@ -21,44 +27,64 @@ public:
 	virtual void UpdateUIComponents(ALxBaseCharacter* PlayerCharacter) override;
 	virtual void NativeDestruct() override;
 
-	UFUNCTION(BlueprintCallable, Category="Buff UI", DisplayName="Refresh Buff List")
+	/** 主动从数据中转组件拉取 Buff 列表并刷新 UI 数据。 */
+	UFUNCTION(BlueprintCallable, Category="Buff UI", DisplayName="刷新Buff列表")
 	void RefreshBuffList();
 
-	UFUNCTION(BlueprintCallable, Category="Buff UI", DisplayName="Get Buff UI Data List")
+	/** 获取当前构建好的 Buff UI 数据对象列表。 */
+	UFUNCTION(BlueprintCallable, Category="Buff UI", DisplayName="获取Buff UI数据列表")
 	TArray<UObject*> GetBuffUIDataList();
 
-	UFUNCTION(BlueprintPure, Category="Buff UI", DisplayName="Get Buff Slot List")
+	/** 获取当前构建好的 Buff 显示槽位列表。 */
+	UFUNCTION(BlueprintPure, Category="Buff UI", DisplayName="获取Buff槽位列表")
 	TArray<ULxItemSlotData*> GetBuffSlotList() const;
 
-	UPROPERTY(BlueprintAssignable, Category="Buff UI", DisplayName="On Buff UI Data List Updated")
+	/** Buff UI 数据列表刷新事件。 */
+	UPROPERTY(BlueprintAssignable, Category="Buff UI", DisplayName="Buff UI数据列表刷新事件")
 	FOnBuffUIDataListUpdated OnBuffUIDataListUpdated;
 
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Buff UI", DisplayName="Only Show Display Buffs")
+	/** 是否只展示数据中转组件返回的 UI 可见 Buff。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Buff UI", DisplayName="只显示展示Buff")
 	bool bOnlyShowDisplayBuffs = true;
 
-	UFUNCTION(BlueprintImplementableEvent, Category="Buff UI", DisplayName="On Buff List Updated")
+	/** 蓝图刷新 Buff 列表显示时调用。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="Buff UI", DisplayName="Buff列表显示更新")
 	void OnBuffListUpdated(const TArray<UObject*>& BuffUIDataList);
 
 private:
-	void BindBuffComponent(ULxCharacterBuffComponent* InBuffComponent);
-	void UnbindBuffComponent();
+	/** 绑定角色数据中转组件。 */
+	void BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent);
+
+	/** 解除角色数据中转组件绑定。 */
+	void UnbindDataTransferComponent();
+
+	/** 根据当前 Buff 列表重建显示槽位。 */
 	void RebuildBuffSlots();
+
+	/** 根据显示槽位构建 TileView 可消费的 UI 数据列表。 */
 	TArray<UObject*> BuildBuffUIDataList();
+
+	/** 广播当前 Buff UI 数据列表。 */
 	void NotifyBuffListUpdated();
 
+	/** 数据中转组件广播 Buff 列表变化时调用。 */
 	UFUNCTION()
-	void HandleBuffComponentDataChanged();
+	void HandleDataTransferBuffChanged(const TArray<ULxBuff*>& BuffList);
 
+	/** 当前绑定的数据中转组件。 */
 	UPROPERTY()
-	TObjectPtr<ULxCharacterBuffComponent> m_pCharacterBuffComponent = nullptr;
+	TObjectPtr<ULxCharacterDataTransferComponent> CharacterDataTransferComponent = nullptr;
 
+	/** 当前 UI 正在显示的 Buff 逻辑列表。 */
 	UPROPERTY()
-	TArray<TObjectPtr<ULxBuffLogic>> m_vBuffList;
+	TArray<TObjectPtr<ULxBuff>> m_vBuffList;
 
+	/** Buff 显示槽位列表。 */
 	UPROPERTY()
 	TArray<TObjectPtr<ULxItemSlotData>> m_vBuffSlotList;
 
+	/** TileView 使用的 Buff UI 数据列表。 */
 	UPROPERTY()
 	TArray<TObjectPtr<UObject>> m_vBuffUIDataList;
 };

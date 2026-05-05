@@ -3,58 +3,73 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxBuffCoreType.h"
 #include "LxBuffEnum.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
-#include "UObject/Object.h"
 #include "LxBuff.generated.h"
 
 class ULxItemEntryLogic;
 
-
-USTRUCT(BlueprintType, DisplayName="Buff定义类型")
-struct FLxBuffDefine : public FLxItemDefineBase
+/**
+ * @brief Buff 静态信息。
+ *
+ * Buff 作为物品类型时使用的基础数据结构，继承通用物品静态信息，
+ * 并额外记录 Buff 子类型。
+ */
+USTRUCT(BlueprintType, DisplayName="Buff物品信息")
+struct FLxBuffInformation : public FLxItemInformationBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="Buff基础信息")
-	FLxBuffCoreInfo BuffCoreInfo;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="Buff效果信息")
-    FLxBuffEffectInfo BuffEffectInfo;
+	/** @brief Buff 类型，例如常驻型、时效型、属性增益型等。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|Buff", DisplayName="Buff类型")
+	ELxBuffType BuffType = ELxBuffType::None;
+	// Buff 词条等待词条系统重新设计后再接入。
 
-	// buff引用列表中，词条比例默认为1，且不设置词条比例，词条比例由创建buff的词条传递
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="Buff词条列表")
-	TArray<FLxItemEntryQuote> BuffEntryList;
-
-	FLxBuffDefine()
+	FLxBuffInformation()
 	{
-		ItemInfo.ItemType = ELxItemType::Buff;		// 将物品类型设置为Buff
-		ItemStackInfo.ItemCanStack = false;			// Buff通常不能堆叠
-		ItemStackInfo.ItemMaxCount = 1;				// 最大堆叠数量
+		ItemCountMax = 1;
+		ItemType = ELxItemType::Buff;
 	}
 };
 
-USTRUCT(BlueprintType, DisplayName="Buff缓存类型")
-struct FLxBuffData : public FLxItemDateBase
+/**
+ * @brief Buff 物品对象。
+ *
+ * UObject 化后的 Buff 物品类型，负责提供 Buff 作为物品时的通用接口实现。
+ * 当前 Buff 不支持堆叠，数量通常固定为 1。
+ */
+UCLASS(BlueprintType)
+class LXARPG_API ULxBuff : public ULxItemBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="Buff核心信息")
-	FLxBuffCoreInfo BuffCoreInfo;
+public:
+	ULxBuff();
+	virtual ~ULxBuff() override;
+	
+	/** @brief 使用 Buff 时触发词条激活流程。 */
+	virtual ELxItemUseState ItemUse() override;
+	/** @brief Buff 默认不显示数量文本。 */
+	virtual FLxString ItemCountText() override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="Buff效果信息")
-	FLxBuffEffectInfo BuffEffectInfo;
+	/** Buff物品是否仍然有效。 */
+	bool IsBuffValid() const { return m_fBuffInformation.ItemCount > 0 && m_fBuffInformation.ItemID != ItemIDNone; }
 
-	// buff引用列表中，词条比例默认为1，且不设置词条比例，词条比例由创建buff的词条传递
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="Buff词条列表")
-	TArray<TObjectPtr<ULxItemEntryLogic>> BuffEntryList;
+	/** 设置运行时剩余时间，供 Buff UI 通过 ItemCountText 显示。小于 0 表示永久 Buff。 */
+	void SetRemainingDuration(float InRemainingDuration);
 
-	FLxBuffData()
-	{
-		ItemInfo.ItemType = ELxItemType::Buff;		// 将物品类型设置为Buff
-		ItemStackInfo.ItemCanStack = false;			// Buff通常不能堆叠
-		ItemStackInfo.ItemMaxCount = 1;				// 最大堆叠数量
-	}
+	/** 获取运行时剩余时间。小于 0 表示永久 Buff。 */
+	float GetRemainingDuration() const { return RemainingDuration; }
+
+protected:
+	virtual void SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount) override;
+
+	virtual FLxItemInformationBase* ItemBase() override;
+private:
+	/** @brief 当前 Buff 物品的静态信息。 */
+	FLxBuffInformation m_fBuffInformation;
+
+	/** 运行时剩余时间，由 Buff 组件负责同步。 */
+	float RemainingDuration = -1.f;
 };

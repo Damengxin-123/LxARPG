@@ -5,84 +5,100 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "LxAttributeEnumType.h"
-#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryEnum.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxEntryEnum.h"
 #include "LxARPG/LxSource/Model/Style/DataType/LxRichTextDescriptionData.h"
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxAttributeCoreType.generated.h"
 
-USTRUCT(BlueprintType, DisplayName="属性基础信息")
-struct FLxAttributeInfo
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, DisplayName="属性唯一ID")
-	ELxCharacterAttributeID AttributeID = ELxCharacterAttributeID::X_None;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, DisplayName="属性类型")
-	ELxAttributeType AttributeType = ELxAttributeType::None;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, DisplayName="属性标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
-	FGameplayTagContainer AttributeTags;
-
-	FLxAttributeInfo()
-	{
-		AttributeTags.AddTag(LxTag_Module_Attribute);
-	}
-};
-
+/**
+ * 属性可视化信息。
+ *
+ * 用于描述属性在 UI 中展示时需要的名称、说明文本和显示开关。
+ */
 USTRUCT(BlueprintType, DisplayName="属性可视化信息")
 struct FLxAttributeShowInfo
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性可视化名称")
-	FLxRichTextDescriptionGroupData AttributeName;
+	/** 属性在 UI 中显示的名称，可由富文本片段组合而成。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="属性可视化名称")
+	FText AttributeName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="属性可视化描述")
+	/** 属性的说明文本，用于详情面板、悬浮提示等展示。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="属性可视化描述")
 	FText AttributeDescription;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="是否在列表中依次显示")
+	/** 是否在角色属性列表中显示该属性。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="是否在列表中显示")
 	bool IsVisible = false;
 };
 
-USTRUCT(BlueprintType, DisplayName="角色属性值信息类型")
+/**
+ * 角色属性数值信息。
+ *
+ * 保存一个属性的当前值、上限、浮动范围和数值类型。
+ */
+USTRUCT(BlueprintType, DisplayName="角色属性值信息")
 struct FLxAttributeValue
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="数值上限")
+	/** 属性允许达到的最大值；对无上限属性可保持默认值或由业务逻辑忽略。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="数值上限")
 	float ValueLimit = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="当前有效值")
+	/** 属性当前生效值。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="当前有效值")
 	float Value = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="向上浮动比例")
+	/** 属性向上随机浮动或成长浮动的比例。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="向上浮动比例")
 	float UpwardFloatingRatio = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="向下浮动比例")
+	/** 属性向下随机浮动或成长浮动的比例。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="向下浮动比例")
 	float DownwardFloatingRatio = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="角色属性值类型")
+	/** 属性值的解释方式，例如固定值、区间值、百分比等。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="角色属性值类型")
 	ELxCharacterValueType ValueType = ELxCharacterValueType::FixedNumeric;
+
+	FLxAttributeValue() {}
 };
 
-USTRUCT(BlueprintType, DisplayName="属性派生规则")
+/**
+ * 属性衍生规则。
+ *
+ * 描述当前属性如何按一定比例影响另一个属性，例如力量衍生生命上限。
+ */
+USTRUCT(BlueprintType, DisplayName="属性衍生规则")
 struct FLxAttributeDerivedRule
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="影响目标标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
-	FGameplayTagContainer TargetTags;
+	/** 被当前属性加成或衍生影响的目标属性。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="加成对象")
+	ELxCharacterAttributeID AttributeID = ELxCharacterAttributeID::X_None;
 
-	// 转化比例，指当前属性在对其他属性进行加成时，转化的比例
-	// 当为基础数值时，视为Ratio倍率，当为百分比加成时，视为源属性值 * Ratio * 0.01的加成数值
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="转换比例")
+	/** 衍生结果要作用到目标属性值结构中的哪个字段。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="作用目标")
+	ELxEntryTarget EntryTarget = ELxEntryTarget::ToValue;
+
+	/** 加成方式，决定按基础值、最终值或其他规则计算。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="加成方式")
+	ELxEntryEffectiveType EffectiveType = ELxEntryEffectiveType::BasicValue;
+
+	/** 转化比例；最终衍生值由来源属性值和该比例共同决定。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attribute", DisplayName="转化比例")
 	float Ratio = 1.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="加成对象")
-	ELxItemEntryTarget EntryTarget = ELxItemEntryTarget::ToValue;
+	FLxAttributeDerivedRule() {}
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="加成方式")
-	ELxItemEntryType EntryType = ELxItemEntryType::BasicValue;
-	
+	FLxAttributeDerivedRule(ELxCharacterAttributeID AttributeID,
+		ELxEntryEffectiveType EffectiveType, float Ratio)
+	{
+		this->AttributeID = AttributeID;
+		this->EffectiveType = EffectiveType;
+		this->Ratio = Ratio;
+	}
 };

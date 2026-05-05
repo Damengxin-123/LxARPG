@@ -8,153 +8,149 @@
 class ULxCharacterAttributeComponent;
 class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
-class ULxCharacterEntryComponent;
+class ULxCharacterDataTransferComponent;
 class ULxCharacterEquipmentComponent;
 class ULxCharacterMoveComponent;
 
+/** 角色状态变化事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterStateChange, const ELxCharacterState, State);
 
+/**
+ * 角色基础类。
+ *
+ * 负责持有角色移动、属性、背包、装备、Buff 和数据中转等核心组件，
+ * 并提供初始化、状态切换和组件访问接口。
+ */
 UCLASS(Blueprintable)
 class LXARPG_API ALxBaseCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
 public:
+	/** 创建角色基础对象，并初始化默认组件。 */
 	ALxBaseCharacter();
 
 	/**
-	 * @brief 初始化角色运行时信息。
+	 * 初始化角色运行时信息。
 	 *
 	 * 会初始化角色身上的核心组件，并同步初始状态数据。
 	 */
 	virtual void InitialCharacterInformation();
 
 	/**
-	 * @brief 设置角色当前状态。
+	 * 设置角色当前状态。
 	 *
 	 * @param InState 要切换到的新角色状态。
 	 */
 	virtual void SetCharacterState(const ELxCharacterState InState);
 
 	/**
-	 * @brief 获取角色当前状态。
+	 * 获取角色当前状态。
 	 *
-	 * @return 返回角色当前状态枚举值。
+	 * @return 当前角色状态枚举值。
 	 */
 	virtual const ELxCharacterState GetCurrentState();
 
+	/** 角色状态变化事件。 */
 	UPROPERTY(BlueprintAssignable)
 	FOnCharacterStateChange OnCharacterStateChange;
 
 protected:
-	/**
-	 * @brief 角色进入游戏时触发。
-	 */
+	/** 角色进入游戏时触发。 */
 	virtual void BeginPlay() override;
 
 public:
 	/**
-	 * @brief 角色每帧更新。
+	 * 角色每帧更新。
 	 *
 	 * @param DeltaTime 当前帧与上一帧之间的时间差。
 	 */
 	virtual void Tick(float DeltaTime) override;
 
 	/**
-	 * @brief 绑定角色输入组件。
+	 * 绑定角色输入组件。
 	 *
 	 * @param PlayerInputComponent 当前角色可用的输入组件。
 	 */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	/**
-	 * @brief 获取角色移动组件。
+	 * 获取角色移动组件。
 	 *
-	 * 该方法用于获取当前角色的移动组件实例，以便于访问和操作角色的移动相关功能和数据。
-	 *
-	 * @return 返回指向ULxCharacterMoveComponent的指针，如果移动组件未被初始化则返回nullptr。
+	 * @return 角色移动组件指针；未初始化时返回 nullptr。
 	 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取移动组件")
 	ULxCharacterMoveComponent* GetCharacterMoveComponent() const { return m_pCharacterMoveComponent; }
 
 	/**
-	 * @brief 获取角色属性组件。
+	 * 获取角色属性组件。
 	 *
-	 * 该方法用于获取当前角色的属性组件实例，以便于访问和操作角色的各项属性数据。
-	 *
-	 * @return 返回指向ULxCharacterAttributeComponent的指针，如果属性组件未被初始化则返回nullptr。
+	 * @return 角色属性组件指针；未初始化时返回 nullptr。
 	 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色属性组件")
 	ULxCharacterAttributeComponent* GetCharacterAttributeComponent() const { return m_pCharacterAttributeComponent; }
 
 	/**
-	 * @brief 获取角色背包组件。
+	 * 获取角色背包组件。
 	 *
-	 * 该方法用于获取当前角色的背包组件实例，以便于访问背包相关的功能和数据。
-	 *
-	 * @return 返回指向ULxCharacterBackpackComponent的指针，如果背包组件未被初始化则返回nullptr。
+	 * @return 角色背包组件指针；未初始化时返回 nullptr。
 	 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色背包组件")
 	ULxCharacterBackpackComponent* GetCharacterBackpackComponent() const { return m_pCharacterBackpackComponent; }
 
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色词条组件")
-	ULxCharacterEntryComponent* GetCharacterEntryComponent() const { return m_pCharacterEntryComponent; }
-
-	UFUNCTION(BlueprintCallable, Category="Components", DisplayName="Get Character Buff Component")
+	/**
+	 * 获取角色 Buff 组件。
+	 *
+	 * @return 角色 Buff 组件指针；未初始化时返回 nullptr。
+	 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色Buff组件")
 	ULxCharacterBuffComponent* GetCharacterBuffComponent() const { return m_pCharacterBuffComponent; }
 
 	/**
-	 * @brief 获取角色装备组件。
+	 * 获取角色数据中转组件。
 	 *
-	 * 该方法用于获取当前角色的装备组件实例，以便于访问和操作角色的装备相关功能和数据。
+	 * @return 角色数据中转组件指针；未初始化时返回 nullptr。
+	 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色数据中转组件")
+	ULxCharacterDataTransferComponent* GetCharacterDataTransferComponent() const { return m_pCharacterDataTransferComponent; }
+
+	/**
+	 * 获取角色装备组件。
 	 *
-	 * @return 返回指向ULxCharacterEquipmentComponent的指针，如果装备组件未被初始化则返回nullptr。
+	 * @return 角色装备组件指针；未初始化时返回 nullptr。
 	 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色装备组件")
 	ULxCharacterEquipmentComponent* GetCharacterEquipmentComponent() const { return m_pCharacterEquipmentComponent; }
 
 protected:
-	/**
-	 * @brief 角色移动组件。
-	 *
-	 * 该属性指向角色的移动组件实例，用于管理和控制角色的移动行为。通过此组件可以访问和修改与角色移动相关的功能和数据。
-	 */
+	/** 角色移动组件，用于管理和控制角色移动行为。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色移动组件")
 	TObjectPtr<ULxCharacterMoveComponent> m_pCharacterMoveComponent;
 
-	/**
-	 * @brief 角色属性组件。
-	 *
-	 * 该属性指向角色的属性组件实例，用于管理和控制角色的各项属性数据。通过此组件可以访问和修改与角色属性相关的功能和数据。
-	 */
+	/** 角色属性组件，用于维护角色属性表和属性词条缓存。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色属性组件")
 	TObjectPtr<ULxCharacterAttributeComponent> m_pCharacterAttributeComponent;
 
-	/**
-	 * @brief 角色背包组件。
-	 *
-	 * 该属性指向角色的背包组件实例，用于管理和控制角色背包相关的功能和数据。通过此组件可以访问和修改与角色背包相关的功能和数据。
-	 */
+	/** 角色背包组件，用于管理背包槽位和背包物品。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色背包组件")
 	TObjectPtr<ULxCharacterBackpackComponent> m_pCharacterBackpackComponent;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色词条组件")
-	TObjectPtr<ULxCharacterEntryComponent> m_pCharacterEntryComponent;
-
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components", DisplayName="Character Buff Component")
+	/** 角色 Buff 组件，用于管理运行时 Buff。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色Buff组件")
 	TObjectPtr<ULxCharacterBuffComponent> m_pCharacterBuffComponent;
 
-	/**
-	 * @brief 角色装备组件。
-	 *
-	 * 该属性指向角色的装备组件实例，用于管理和控制角色装备相关的功能和数据。通过此组件可以访问和修改与角色装备相关的功能和数据。
-	 */
+	/** 角色数据中转组件，用于统一对外转发属性、背包、装备和 Buff 数据。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色数据中转组件")
+	TObjectPtr<ULxCharacterDataTransferComponent> m_pCharacterDataTransferComponent;
+
+	/** 角色装备组件，用于管理装备槽位和已装备物品。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色装备组件")
 	TObjectPtr<ULxCharacterEquipmentComponent> m_pCharacterEquipmentComponent;
 
-	UPROPERTY(BlueprintReadOnly, EditAnywhere)
+	/** 角色当前状态。 */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="角色状态", DisplayName="角色当前状态")
 	ELxCharacterState m_nCharacterState = ELxCharacterState::Idle;
 
-	// 标记角色是否已完成初始化，避免重复初始化或在未初始化时访问组件导致错误。
+	/** 标记角色是否已经完成初始化，避免重复初始化。 */
 	bool IsInitialized = false;
 };

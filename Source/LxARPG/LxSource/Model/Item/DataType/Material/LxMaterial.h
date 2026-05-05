@@ -3,39 +3,67 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxMaterialCoreType.h"
 #include "LxMaterialEnum.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
-#include "UObject/Object.h"
 #include "LxMaterial.generated.h"
 
 /**
- * @brief 材料物品定义类型
+ * @brief 材料静态信息。
  *
- * 该结构体继承自`FLxItemDefineBase`，用于定义游戏中材料类物品的具体属性。它包含了一个`FLxMaterialCoreInfo`类型的成员变量，用以描述材料的基础属性。
- * 此外，通过继承自`FLxItemDefineBase`，`FLxMaterialDefine`还间接地包含了所有物品共有的基础信息、堆叠信息以及可视化信息等。
- * 该结构体支持在蓝图中被实例化，并且其属性可以通过编辑器进行设置和读写。
+ * 材料物品在新物品体系中的基础数据结构，继承通用物品静态信息，
+ * 并额外记录材料子类型。
  */
-USTRUCT(BlueprintType, DisplayName="材料物品定义类型")
-struct FLxMaterialDefine : public FLxItemDefineBase
+USTRUCT(BlueprintType, DisplayName="材料物品信息")
+struct FLxMaterialInformation : public FLxItemInformationBase
 {
 	GENERATED_BODY()
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="材料基础属性")
-	FLxMaterialCoreInfo MaterialCoreInfo;
+
+	/** @brief 材料类型，例如普通材料、任务物品等。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|材料", DisplayName="材料类型")
+	ELxMaterialType MaterialType = ELxMaterialType::None;
+
+	FLxMaterialInformation()
+	{
+		ItemType = ELxItemType::Material;
+	}
+	FLxMaterialInformation(FLxItemID ID, ELxItemRarityType RarityType,
+		ELxMaterialType MaterialType, FLxItemCount CountMax)
+	{
+		this->ItemID =  ID;
+		this->ItemRarity  = RarityType;
+		this->ItemCountMax  = CountMax;
+		this->MaterialType  = MaterialType;
+		
+		ItemType = ELxItemType::Material;
+	}
 };
 
 /**
- * @brief 材料物品缓存类型
+ * @brief 材料物品对象。
  *
- * 该结构体继承自`FLxItemDateBase`，用于存储游戏中材料类物品的缓存数据。它包含了一个`FLxMaterialCoreInfo`类型的成员变量，用以描述材料的基础属性。
- * 此外，通过继承自`FLxItemDateBase`，`FLxMaterialData`还间接地包含了所有物品共有的基础信息、堆叠信息以及可视化信息等。
- * 该结构体支持在蓝图中被实例化，并且其属性可以通过编辑器进行设置和读写。
+ * UObject 化后的材料类型，负责提供材料物品的通用接口实现。
+ * 支持同 ID 物品堆叠，堆叠成功后会广播数量变化事件。
  */
-USTRUCT(BlueprintType, DisplayName="材料物品缓存类型")
-struct FLxMaterialData : public FLxItemDateBase
+UCLASS(BlueprintType)
+class LXARPG_API ULxMaterial : public ULxItemBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="材料基础属性")
-	FLxMaterialCoreInfo MaterialCoreInfo;
+public:
+	ULxMaterial();
+	virtual ~ULxMaterial() override;
+	
+	/** @brief 材料默认不可直接使用。 */
+	virtual ELxItemUseState ItemUse() override;
+
+	/** @brief 获取材料数量文本。 */
+	virtual FLxString ItemCountText() override;
+
+protected:
+	virtual void SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount) override;
+
+	virtual FLxItemInformationBase* ItemBase() override;
+private:
+	/** @brief 当前材料的静态信息。 */
+	FLxMaterialInformation m_fMaterialInformation;
 };

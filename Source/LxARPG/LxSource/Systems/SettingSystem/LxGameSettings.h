@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -9,15 +7,22 @@
 class ULxGameDataTablesManager;
 class ULxUIManager;
 
-UCLASS(config=Game, defaultconfig, DisplayName="Game Settings")
+/**
+ * 项目全局开发者设置。
+ *
+ * 配置保存在 Game 配置文件中，用于指定运行时需要创建的核心管理器类型。
+ */
+UCLASS(config=Game, defaultconfig, DisplayName="游戏设置")
 class LXARPG_API ULxGameSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, config, Category="Data|ManagerClass", DisplayName="Game Data Tables Manager Class")
+	/** 游戏数据表管理器类型，用于加载物品、词条、属性等数据表。 */
+	UPROPERTY(EditDefaultsOnly, config, Category="Data|ManagerClass", DisplayName="游戏数据表管理器类型")
 	TSubclassOf<ULxGameDataTablesManager> GameDataTablesManagerClass;
 
-	UPROPERTY(EditDefaultsOnly, config, Category="UI|ManagerClass", DisplayName="UI Manager Class")
+	/** UI 管理器类型，用于创建和管理 HUD、背包、弹窗等 UI 功能。 */
+	UPROPERTY(EditDefaultsOnly, config, Category="UI|ManagerClass", DisplayName="UI管理器类型")
 	TSubclassOf<ULxUIManager> UIManagerClass;
 };

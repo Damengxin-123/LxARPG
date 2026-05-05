@@ -3,191 +3,211 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/DataTable.h"
 #include "GameplayTagContainer.h"
-#include "LxItemEntryCore.h"
-#include "LxItemEntryEnum.h"
-#include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
-#include "LxARPG/LxSource/Model/Style/DataType/LxRichTextDescriptionData.h"
+#include "LxEntryEnum.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ShowInfoConfig/LxItemShowInfoConfigID.h"
 #include "LxItemEntryData.generated.h"
 
-
 /**
- * @brief 物品词条定义类型
+ * 词条可视化文本。
  *
- * 该结构体用于定义游戏中物品的词条信息，包括词条标签、作用目标标签、词条ID、可视化信息以及词条默认加成信息等。
- * 它继承自FTableRowBase，并被标记为BlueprintType，允许在蓝图中使用。
+ * 用于在 UI 中展示词条名称和描述。
  */
-USTRUCT(BlueprintType, DisplayName="物品词条定义类型")
-struct FLxItemEntryDefine : public FTableRowBase
+USTRUCT(BlueprintType, DisplayName="词条可视化文本")
+struct FLxEntryText
 {
 	GENERATED_BODY()
 
-	/**
-	 * @brief词条基础信息
-	 *
-	 * 该变量包含了关于词条的基础信息，如词条ID、词条类型以及相关的标签。它用于定义游戏中物品词条的核心属性，并且可以在编辑器中进行编辑和在蓝图中读写。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="词条基础信息", DisplayName="词条基础信息")
-	FLxEnteryBaseInfo EnteryBaseInfo;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="词条可视化名称")
+	FText EntryDisplayName;
 
-	/**
-	 * @brief词条可视化描述信息
-	 *
-	 * 该变量包含了词条的可视化信息，包括词条名称和详细描述。它用于在游戏界面中显示词条的相关信息，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="词条可视化描述信息", DisplayName="词条可视化描述信息")
-	FLxEnteryShowInfo EnteryShowInfo;
-
-	/**
-	 * @brief 角色属性类词条数据
-	 *
-	 * 该变量用于存储和定义角色属性相关的词条信息，包括具体的加成数值、数值比例等。它属于 `FLxItemEntryDefine` 结构体的一部分，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 * 通过 `ChangeAttributeValue` 可以详细描述一个词条对角色属性的具体影响，例如攻击力、防御力等属性的加成效果。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性类词条数据", DisplayName="角色属性类词条数据")
-	FLxChangeAttributeValue ChangeAttributeValue;
-
-	/**
-	 * @brief 角色状态类词条数据
-	 *
-	 * 该变量用于存储和定义与角色状态相关的词条信息，包括状态的改变、持续时间等。它属于 `FLxItemEntryDefine` 结构体的一部分，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 * 通过 `ChangeStateValue` 可以详细描述一个词条对角色状态的具体影响，例如中毒、冰冻等状态效果。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色状态类词条数据", DisplayName="角色状态类词条数据")
-	FLxChangeStateValue ChangeStateValue;
-
-	/**
-	 * @brief 创建buff类词条数据
-	 *
-	 * 该变量用于存储和定义创建buff相关的词条信息，包括buff的类型、持续时间、触发条件等。它属于 `FLxItemEntryDefine` 结构体的一部分，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 * 通过 `CreaterBufferValue` 可以详细描述一个词条对创建buff的具体影响，例如生成的buff效果及其属性。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="创建buff类词条数据", DisplayName="创建buff类词条数据")
-	FLxCreaterBufferValue CreaterBufferValue;
-
-	/**
-	 * @brief buff词条数据
-	 *
-	 * 该变量用于存储和定义与buff相关的词条信息，包括buff的属性、持续时间、触发条件等。它属于 `FLxItemEntryDefine` 结构体的一部分，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 * 通过 `BufferEnterValue` 可以详细描述一个词条对buff的具体影响，例如buff的效果及其属性。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="buff词条数据", DisplayName="buff词条数据")
-	FLxBufferEnterValue BufferEnterValue;
-
-	/**
-	 * @brief 描述文本类型词条数据
-	 *
-	 * 该变量用于存储和定义描述文本相关的词条信息，包括具体的文本内容、格式等。它属于 `FLxItemEntryDefine` 结构体的一部分，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 * 通过 `TextEnterValue` 可以详细描述一个词条的文本信息，例如物品描述、技能说明等。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="描述文本类型词条数据", DisplayName="描述文本类型词条数据")
-	FLxTextEnterValue TextEnterValue;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="词条可视化描述")
+	FText EntryDescribeText;
 };
 
 /**
- * @brief 物品词条引用类型
+ * 词条基础数据。
  *
- * 该结构体用于引用游戏中物品的词条信息，允许通过数据表引用具体词条定义，并设置词条生效比例。
- * 它继承自FTableRowBase，并被标记为BlueprintType，允许在蓝图中使用。通过此结构体可以灵活地调整物品词条的效果强度。
+ * 所有具体词条数据表结构体的基类。
  */
-USTRUCT(BlueprintType, DisplayName="物品词条引用类型")
-struct FLxItemEntryQuote
+USTRUCT(BlueprintType, DisplayName="词条基础数据")
+struct FLxEntryBase : public FTableRowBase
 {
 	GENERATED_BODY()
 
-	/**
-	 * @brief词条引用
-	 *
-	 * 该变量用于引用 `FLxItemEntryDefine` 数据表中的一个词条定义。通过这个引用，可以在游戏中获取和使用具体的物品词条信息。它支持在编辑器中进行编辑，并且可以在蓝图中读写。
-	 *
-	 * 该引用主要用于在游戏逻辑中查找并应用特定的物品词条，以便根据词条定义来影响游戏中的角色属性、状态等。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="词条引用", meta=(RowType="LxItemEntryDefine"))
-	FDataTableRowHandle ItemEntryDefineTableQuote;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="词条类型")
+	ELxEntryType EntryType = ELxEntryType::NoneEntryType;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="词条生效比例")
-	float EffectiveRatio = 1;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="词条可视化信息")
+	FLxEntryText EntryText;
 };
 
 /**
- * @brief 物品词条缓存类型
- *
- * 该结构体用于缓存游戏中物品的词条信息，包括词条基础信息、可视化描述信息、角色属性类词条数据、角色状态类词条数据、创建buff类词条数据、buff词条数据以及描述文本类型词条数据等。
- * 它继承自FTableRowBase，并被标记为BlueprintType，允许在蓝图中使用。
+ * 属性增益词条。
  */
-USTRUCT(BlueprintType, DisplayName="物品词条缓存类型")
-struct FLxItemEntryData
+USTRUCT(BlueprintType, DisplayName="属性增益词条")
+struct FLxEntryAttributeGain : public FLxEntryBase
 {
 	GENERATED_BODY()
 
-		/**
-	 * @brief词条基础信息
-	 *
-	 * 该变量包含了关于词条的基础信息，如词条ID、词条类型以及相关的标签。它用于定义游戏中物品词条的核心属性，并且可以在编辑器中进行编辑和在蓝图中读写。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="词条基础信息", DisplayName="词条基础信息")
-	FLxEnteryBaseInfo EnteryBaseInfo;
+	FLxEntryAttributeGain()
+	{
+		EntryType = ELxEntryType::AttributeGain;
+	}
 
-	/**
-	 * @brief词条可视化描述信息
-	 *
-	 * 该变量包含了词条的可视化信息，包括词条名称和详细描述。它用于在游戏界面中显示词条的相关信息，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="词条可视化描述信息", DisplayName="词条可视化描述信息")
-	FLxEnteryShowInfo EnteryShowInfo;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="属性增益词条ID")
+	ELxAttributeGainEntryID EntryID = ELxAttributeGainEntryID::None;
 
-	/**
-	 * @brief 角色属性类词条数据
-	 *
-	 * 该变量用于存储和定义角色属性相关的词条信息，包括具体的加成数值、数值比例等。它属于 `FLxItemEntryDefine` 结构体的一部分，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 * 通过 `ChangeAttributeValue` 可以详细描述一个词条对角色属性的具体影响，例如攻击力、防御力等属性的加成效果。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性类词条数据", DisplayName="角色属性类词条数据")
-	FLxChangeAttributeValue ChangeAttributeValue;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="作用属性ID")
+	ELxCharacterAttributeID AttributeID = ELxCharacterAttributeID::X_None;
 
-	/**
-	 * @brief 角色状态类词条数据
-	 *
-	 * 该变量用于存储和定义与角色状态相关的词条信息，包括状态的改变、持续时间等。它属于 `FLxItemEntryDefine` 结构体的一部分，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 * 通过 `ChangeStateValue` 可以详细描述一个词条对角色状态的具体影响，例如中毒、冰冻等状态效果。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色状态类词条数据", DisplayName="角色状态类词条数据")
-	FLxChangeStateValue ChangeStateValue;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="作用对象")
+	ELxEntryTarget EntryTarget = ELxEntryTarget::ToValue;
 
-	/**
-	 * @brief 创建buff类词条数据
-	 *
-	 * 该变量用于存储和定义创建buff相关的词条信息，包括buff的类型、持续时间、触发条件等。它属于 `FLxItemEntryDefine` 结构体的一部分，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 * 通过 `CreaterBufferValue` 可以详细描述一个词条对创建buff的具体影响，例如生成的buff效果及其属性。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="创建buff类词条数据", DisplayName="创建buff类词条数据")
-	FLxCreaterBufferValue CreaterBufferValue;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="作用方式")
+	ELxEntryEffectiveType EffectiveType = ELxEntryEffectiveType::BasicValue;
 
-	/**
-	 * @brief buff词条数据
-	 *
-	 * 该变量用于存储和定义与buff相关的词条信息，包括buff的属性、持续时间、触发条件等。它属于 `FLxItemEntryDefine` 结构体的一部分，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 * 通过 `BufferEnterValue` 可以详细描述一个词条对buff的具体影响，例如buff的效果及其属性。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="buff词条数据", DisplayName="buff词条数据")
-	FLxBufferEnterValue BufferEnterValue;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="词条数值")
+	float EntryValue = 0.f;
 
-	/**
-	 * @brief 描述文本类型词条数据
-	 *
-	 * 该变量用于存储和定义描述文本相关的词条信息，包括具体的文本内容、格式等。它属于 `FLxItemEntryDefine` 结构体的一部分，并且可以在编辑器中进行编辑以及在蓝图中读写。
-	 * 通过 `TextEnterValue` 可以详细描述一个词条的文本信息，例如物品描述、技能说明等。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="描述文本类型词条数据", DisplayName="描述文本类型词条数据")
-	FLxTextEnterValue TextEnterValue;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="目标标签")
+	FGameplayTagContainer TargetTags;
+};
 
-	/**
-	 * @brief词条生效比例
-	 *
-	 * 该变量表示词条在实际应用中的生效比例。默认值为1，意味着词条效果将按照其定义的数值完全生效。
-	 * 通过调整 `EffectiveRatio` 可以改变词条的效果强度，例如设置为0.5时，词条效果将减半。
-	 * 该变量可以在编辑器中进行编辑，并且支持在蓝图中读写。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="词条生效比例")
-	float EffectiveRatio = 1;
+/**
+ * 属性回复词条。
+ */
+USTRUCT(BlueprintType, DisplayName="属性回复词条")
+struct FLxEntryAttributeRecovery : public FLxEntryBase
+{
+	GENERATED_BODY()
+
+	FLxEntryAttributeRecovery()
+	{
+		EntryType = ELxEntryType::AttributeRecovery;
+	}
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="属性回复词条ID")
+	ELxAttributeRecoveryEntryID EntryID = ELxAttributeRecoveryEntryID::None;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="作用属性ID")
+	ELxCharacterAttributeID AttributeID = ELxCharacterAttributeID::X_None;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="作用方式")
+	ELxEntryEffectiveType EffectiveType = ELxEntryEffectiveType::BasicValue;
+
+	// 如果没有持续时间，则是一次回复的数值，如果有持续时间，则是每秒的恢复的数值
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="回复数值")
+	float EntryValue = 0.f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="目标标签")
+	FGameplayTagContainer TargetTags;
+};
+
+/**
+ * 状态改变词条。
+ */
+USTRUCT(BlueprintType, DisplayName="状态改变词条")
+struct FLxEntryChangeState : public FLxEntryBase
+{
+	GENERATED_BODY()
+
+	FLxEntryChangeState()
+	{
+		EntryType = ELxEntryType::ChangeState;
+	}
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="状态改变词条ID")
+	ELxChangeStateEntryID EntryID = ELxChangeStateEntryID::None;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="状态ID")
+	uint8 StateID = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="状态词条值")
+	ELxEntryStateValue StateValue = ELxEntryStateValue::Add;
+};
+
+/**
+ * 创建 Buff 词条。
+ */
+USTRUCT(BlueprintType, DisplayName="创建Buff词条")
+struct FLxEntryCreateBuff : public FLxEntryBase
+{
+	GENERATED_BODY()
+
+	FLxEntryCreateBuff()
+	{
+		EntryType = ELxEntryType::CreateBuff;
+	}
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="创建Buff词条ID")
+	ELxCreateBuffEntryID EntryID = ELxCreateBuffEntryID::None;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="BuffID")
+	int32 BuffID = ItemIDNone;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="持续时间")
+	float BuffDuration = -1.f;
+};
+
+/**
+ * 多目标词条。
+ */
+USTRUCT(BlueprintType, DisplayName="多目标词条")
+struct FLxEntryMultiTarget : public FLxEntryBase
+{
+	GENERATED_BODY()
+
+	FLxEntryMultiTarget()
+	{
+		EntryType = ELxEntryType::MultiTarget;
+	}
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="多目标词条ID")
+	ELxMultiTargetEntryID EntryID = ELxMultiTargetEntryID::None;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="目标标签")
+	FGameplayTagContainer TargetTags;
+};
+
+/**
+ * 显示文本词条。
+ */
+USTRUCT(BlueprintType, DisplayName="显示文本词条")
+struct FLxEntryDisplayText : public FLxEntryBase
+{
+	GENERATED_BODY()
+
+	FLxEntryDisplayText()
+	{
+		EntryType = ELxEntryType::DisplayText;
+	}
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="显示文本词条ID")
+	ELxDisplayTextEntryID EntryID = ELxDisplayTextEntryID::None;
+};
+
+/**
+ * 词条引用。
+ *
+ * 用于物品、Buff 等对象引用某个具体词条。
+ */
+USTRUCT(BlueprintType, DisplayName="词条引用")
+struct FLxEntryQuote
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="词条", DisplayName="词条引用", meta=(RowType="LxEntryBase"))
+	FDataTableRowHandle EntryQuote;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="词条生效比例")
+	float EntryProportion = 1.f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="词条生效CD")
+	float EntryCD = 1.f;
+
+	FLxEntryQuote() {}
+
 };

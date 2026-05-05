@@ -41,6 +41,29 @@ enum class ELxItemType : uint8
 	ItemSizeMax UMETA(Hidden, DisplayName = "枚举最大值"),
 };
 
+/**
+ * @enum ELxItemUseState
+ * @brief 物品使用后的效果
+ *
+ * 定义了物品被使用之后，应该进行的操作。
+ */
+enum ELxItemUseState
+{
+	// 使用失败：物品不能使用
+	Failed,
+	// 使用后需要安装装备：使用之后需要将此装备进行安装
+	InstallEquipment,
+	// 使用后需要卸载装备：使用之后需要将此装备进行卸载
+	UnloadEquipment,
+	// 使用后需要激活词条：使用后需要将此物品的词条进行激活
+	ActivateEntry,
+	// 使用后需要卸载buff：使用之后需要将此buff卸载
+	UnloadBuff,
+	// 使用后需要释放技能：使用之后，需要对此技能进行释放
+	CastSkill,
+};
+
+
 
 
 

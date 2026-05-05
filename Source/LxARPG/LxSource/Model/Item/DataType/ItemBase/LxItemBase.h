@@ -3,120 +3,116 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
-#include "LxItemCoreType.h"
 #include "LxItemEnmuType.h"
-#include "LxRarityInfoData.h"
-#include "LxARPG/LxSource/Core/Database/LxConstValue.h"
-#include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
+#include "LxItemInformationBase.h"
+#include "LxARPG/LxSource/Core/Tools/LxString.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 #include "UObject/Object.h"
 #include "LxItemBase.generated.h"
 
+class UTexture2D;
 
 /**
- * 物品属性定义基类
- * 用于在设计物品时进行基本信息定义
+ * 物品数量变化事件。
+ *
+ * 当物品内部数量发生变化时广播，背包格子、快捷栏和数量文本可以监听它刷新显示。
  */
-USTRUCT(BlueprintType, DisplayName="物品属性定义基础类型")
-struct FLxItemDefineBase : public FTableRowBase
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnItemCountChanged, ULxItemBase*, Item, int32, OldCount, int32, NewCount);
+
+/**
+ * UObject 化后的运行时物品基类。
+ *
+ * 运行时物品对象只保存当前数量、词条对象和一份从数据表拷贝来的静态配置；
+ * 真正的物品定义由 LxItemConfig 在数据表加载后统一提供。
+ */
+UCLASS(BlueprintType)
+class LXARPG_API ULxItemBase : public UObject
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="标签", DisplayName="物品标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
-	FGameplayTagContainer ItemTags;
+public:
+	/** 物品数量改变时触发。 */
+	UPROPERTY(BlueprintAssignable, Category="Item", DisplayName="物品数量改变事件")
+	FOnItemCountChanged OnItemCountChanged;
 
-	FLxItemDefineBase()
-	{
-		ItemTags.AddTag(LxTag_Module_Item);
-	}
+	static ULxItemBase* CreateItemObject(UObject* InParent, FLxItemQuote InItemQuote);
 
+	/** 使用物品引用初始化运行时物品对象。 */
+	void InitItemObject(const FLxItemQuote& InItemQuote);
+
+	/** 当前物品是否还可以和同ID物品堆叠。 */
+	bool ItemIsStackable();
+
+	/** 获取物品ID对应的 FName 表示，通常用于表格或资源查询。 */
+	FName ItemIDName();
+
+	/** 获取物品的数值ID。 */
+	FLxItemID ItemID();
+
+	/** 获取物品大类，例如装备、消耗品、材料等。 */
+	ELxItemType ItemType();
+
+	/** 获取物品稀有度。 */
+	ELxItemRarityType ItemRarity();
+
+	/** 获取物品 UI 显示名称，数据来源为物品基础结构体。 */
+	FText ItemDisplayName();
+
+	/** 获取物品 UI 显示描述，数据来源为物品基础结构体。 */
+	FText ItemDisplayDescription();
+
+	/** 获取物品图标软引用，UI 可按需同步加载或异步加载。 */
+	TSoftObjectPtr<UTexture2D> ItemIcon();
+
+	/** 获取当前物品的基础信息副本，用于 UI 显示。 */
+	FLxItemInformationBase ItemInformation();
+
+	/** 获取当前物品数量。 */
+	FLxItemCount ItemCount();
+
+	/** 尝试把传入物品堆叠到当前物品上。 */
+	bool ItemStack(ULxItemBase* InItem);
+
+	/** 当前物品数据是否有效。 */
+	bool ItemIsValid();
+
+	/** 按物品类型和稀有度排序。 */
+	bool operator<(ULxItemBase& InItem);
+
+	/** 按物品类型和稀有度排序。 */
+	bool operator>(ULxItemBase& InItem);
+
+	/** 按物品ID判断是否为同一种物品。 */
+	bool operator==(ULxItemBase& InItem);
+
+	/** 初始化物品词条对象，需在静态物品数据设置完成后调用。 */
+	void InitItemEntry();
+
+	/** 获取物品词条对象列表。 */
+	TArray<TObjectPtr<ULxEntryObjectBase>>& GetItemEntryList();
+
+	/** 获取用于 UI 显示的数量文本。 */
+	virtual FLxString ItemCountText() PURE_VIRTUAL(ULxItemBase::ItemCountText, return FLxString(););
+
+	/** 使用物品后返回对应的使用结果。 */
+	virtual ELxItemUseState ItemUse() PURE_VIRTUAL(ULxItemBase::ItemUse, return ELxItemUseState::Failed;);
+
+protected:
+	/** 广播物品数量改变事件，只有新旧数量不一致时才会真正通知。 */
+	void BroadcastItemCountChanged(FLxItemCount OldCount, FLxItemCount NewCount);
+
+	/** 设置物品静态数据和运行时数量。 */
+	virtual void SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount);
+
+	/** 获取当前运行时物品保存的静态配置副本。 */
+	virtual FLxItemInformationBase* ItemBase(){ return nullptr; };
+
+private:
 	/**
-	 * @brief 物品基础信息
-	 * 该变量包含了物品的基础属性，如唯一ID和类型等。用于在游戏中定义和区分不同的物品。
-	 * 可以在编辑器中设置，并且可以通过蓝图读写。
+	 * 物品词条对象缓存。
+	 *
+	 * 数据来源于物品静态配置中的 ItemEntryQuotes，创建后由 UI、属性组件或效果组件读取。
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "物品基础信息", DisplayName="物品基础信息")
-	FLxItemInfo ItemInfo;
-
-	/**
-	 * @brief 物品堆叠信息
-	 * 该变量包含了物品堆叠相关的属性，如最大堆叠数量和是否可以堆叠。这些属性用于在游戏中管理库存中的物品堆叠行为。
-	 * 可以在编辑器中设置，并且可以通过蓝图读写。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "物品堆叠信息", DisplayName="物品堆叠信息")
-	FLxItemStackInfo ItemStackInfo;
-
-	/**
-	 * @brief 物品可视化信息
-	 * 该变量包含了物品的图标、名称和描述等可视化属性，用于在游戏中向玩家展示物品的相关信息。
-	 * 可以在编辑器中设置，并且可以通过蓝图读写。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "物品可视化信息", DisplayName="物品可视化信息")
-	FLxItemShowInfo ItemShowInfo;
-
-	/**
-	 * @brief 物品稀有度数据表行句柄
-	 * 该变量用于引用定义在LxRarityInfo数据表中的特定稀有度信息。通过此句柄，可以访问与物品稀有度相关的各种属性，如名称、颜色或掉落概率等。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "物品基础属性", DisplayName="物品稀有度信息引用",  meta=(RowType="LxRarityInfo"))
-	FDataTableRowHandle ItemRarityRowQuote;
-};
-
-/**
- * @brief 物品属性缓存类型
- * 该结构体用于存储和管理游戏中物品的各种属性信息，包括基础信息、堆叠信息、数量、可视化信息及稀有度等。通过将这些信息封装在一个结构体内，方便在游戏逻辑中进行传递和使用。
- * 所有成员变量均支持在编辑器内配置，并且可以通过蓝图脚本访问和修改，以实现更灵活的游戏设计。
- */
-USTRUCT(BlueprintType, DisplayName="物品属性缓存类型")
-struct FLxItemDateBase
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="标签", DisplayName="物品标签", meta=(Categories="Module,Attribute,Function,Trait,SkillForm"))
-	FGameplayTagContainer ItemTags;
-
-	FLxItemDateBase()
-	{
-		ItemTags.AddTag(LxTag_Module_Item);
-	}
-	
-	/**
- 	 * @brief 物品基础信息
- 	 * 该变量包含了物品的基础属性，如唯一ID和类型等。用于在游戏中定义和区分不同的物品。
- 	 * 可以在编辑器中设置，并且可以通过蓝图读写。
- 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "物品基础信息", DisplayName="物品基础信息")
-	FLxItemInfo ItemInfo;
-
-	/**
-	 * @brief 物品堆叠信息
-	 * 该变量包含了物品堆叠相关的属性，如最大堆叠数量和是否可以堆叠。这些属性用于在游戏中管理库存中的物品堆叠行为。
-	 * 可以在编辑器中设置，并且可以通过蓝图读写。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "物品堆叠信息", DisplayName="物品堆叠信息")
-	FLxItemStackInfo ItemStackInfo;
-
-	/**
-	 * @brief 物品数量
-	 * 该变量定义了当前物品的数量，用于在游戏中表示某个物品的具体数量。默认值为`ERR_ATTRIBUTE`（-9999），表示未指定或无效的物品数量。
-	 * 可以在编辑器中设置，并且可以通过蓝图读写。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "物品堆叠信息", DisplayName="物品数量")
-	int32 ItemCount = ERR_ATTRIBUTE;
-
-	/**
-	 * @brief 物品可视化信息
-	 * 该变量包含了物品的图标、名称和描述等可视化属性，用于在游戏中向玩家展示物品的相关信息。
-	 * 可以在编辑器中设置，并且可以通过蓝图读写。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "物品可视化信息", DisplayName="物品可视化信息")
-	FLxItemShowInfo ItemShowInfo;
-
-	/**
-	 * @brief 物品稀有度信息
-	 * 该变量定义了物品的稀有度相关属性，包括稀有度数值、稀有度描述和稀有度颜色。这些属性用于在游戏中表示物品的稀有程度，并在UI中进行可视化展示。
-	 * 可以在编辑器中设置，并且可以通过蓝图读写。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "物品可视化信息", DisplayName="物品稀有度信息")
-	FLxRarityInfo ItemRarity;
+	UPROPERTY()
+	TArray<TObjectPtr<ULxEntryObjectBase>> ItemEntryArray;
 };

@@ -1,7 +1,7 @@
 #include "LxBuffWidget.h"
 
-#include "LxARPG/LxSource/Model/Buff/DataType/LxBuffLogic.h"
-#include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
+#include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
+#include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
@@ -15,20 +15,20 @@ void ULxBuffWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
 {
 	Super::UpdateUIComponents(PlayerCharacter);
 
-	ULxCharacterBuffComponent* BuffComponent = m_pPlayerCharacter ? m_pPlayerCharacter->GetCharacterBuffComponent() : nullptr;
-	BindBuffComponent(BuffComponent);
+	ULxCharacterDataTransferComponent* DataTransferComponent = m_pPlayerCharacter ? m_pPlayerCharacter->GetCharacterDataTransferComponent() : nullptr;
+	BindDataTransferComponent(DataTransferComponent);
 	RefreshBuffList();
 }
 
 void ULxBuffWidget::NativeDestruct()
 {
-	UnbindBuffComponent();
+	UnbindDataTransferComponent();
 	Super::NativeDestruct();
 }
 
 void ULxBuffWidget::RefreshBuffList()
 {
-	if (m_pCharacterBuffComponent == nullptr)
+	if (CharacterDataTransferComponent == nullptr)
 	{
 		m_vBuffList.Reset();
 		m_vBuffSlotList.Reset();
@@ -36,18 +36,18 @@ void ULxBuffWidget::RefreshBuffList()
 		return;
 	}
 
-	TArray<ULxBuffLogic*> BuffList;
+	TArray<ULxBuff*> BuffList;
 	if (bOnlyShowDisplayBuffs)
 	{
-		m_pCharacterBuffComponent->GetDisplayBuffs(BuffList);
+		CharacterDataTransferComponent->GetDisplayBuffs(BuffList);
 	}
 	else
 	{
-		m_pCharacterBuffComponent->GetActiveBuffs(BuffList);
+		CharacterDataTransferComponent->GetAllBuffs(BuffList);
 	}
 
 	m_vBuffList.Reset();
-	for (ULxBuffLogic* BuffLogic : BuffList)
+	for (ULxBuff* BuffLogic : BuffList)
 	{
 		if (BuffLogic != nullptr && BuffLogic->IsBuffValid())
 		{
@@ -85,34 +85,34 @@ TArray<ULxItemSlotData*> ULxBuffWidget::GetBuffSlotList() const
 	return BuffSlotList;
 }
 
-void ULxBuffWidget::BindBuffComponent(ULxCharacterBuffComponent* InBuffComponent)
+void ULxBuffWidget::BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent)
 {
-	if (m_pCharacterBuffComponent == InBuffComponent)
+	if (CharacterDataTransferComponent == InDataTransferComponent)
 	{
 		return;
 	}
 
-	UnbindBuffComponent();
-	m_pCharacterBuffComponent = InBuffComponent;
+	UnbindDataTransferComponent();
+	CharacterDataTransferComponent = InDataTransferComponent;
 
-	if (m_pCharacterBuffComponent == nullptr)
+	if (CharacterDataTransferComponent == nullptr)
 	{
 		return;
 	}
 
-	m_pCharacterBuffComponent->OnDataChange.RemoveDynamic(this, &ULxBuffWidget::HandleBuffComponentDataChanged);
-	m_pCharacterBuffComponent->OnDataChange.AddDynamic(this, &ULxBuffWidget::HandleBuffComponentDataChanged);
+	CharacterDataTransferComponent->OnBuffChanged.RemoveDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
+	CharacterDataTransferComponent->OnBuffChanged.AddDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
 }
 
-void ULxBuffWidget::UnbindBuffComponent()
+void ULxBuffWidget::UnbindDataTransferComponent()
 {
-	if (m_pCharacterBuffComponent == nullptr)
+	if (CharacterDataTransferComponent == nullptr)
 	{
 		return;
 	}
 
-	m_pCharacterBuffComponent->OnDataChange.RemoveDynamic(this, &ULxBuffWidget::HandleBuffComponentDataChanged);
-	m_pCharacterBuffComponent = nullptr;
+	CharacterDataTransferComponent->OnBuffChanged.RemoveDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
+	CharacterDataTransferComponent = nullptr;
 }
 
 void ULxBuffWidget::RebuildBuffSlots()
@@ -121,7 +121,7 @@ void ULxBuffWidget::RebuildBuffSlots()
 
 	for (int32 Index = 0; Index < m_vBuffList.Num(); ++Index)
 	{
-		ULxBuffLogic* BuffLogic = m_vBuffList[Index];
+		ULxBuff* BuffLogic = m_vBuffList[Index];
 		if (BuffLogic == nullptr || !BuffLogic->IsBuffValid())
 		{
 			continue;
@@ -163,7 +163,23 @@ void ULxBuffWidget::NotifyBuffListUpdated()
 	OnBuffListUpdated(BuffUIDataList);
 }
 
-void ULxBuffWidget::HandleBuffComponentDataChanged()
+void ULxBuffWidget::HandleDataTransferBuffChanged(const TArray<ULxBuff*>& BuffList)
 {
-	RefreshBuffList();
+	if (bOnlyShowDisplayBuffs)
+	{
+		RefreshBuffList();
+		return;
+	}
+
+	m_vBuffList.Reset();
+	for (ULxBuff* BuffLogic : BuffList)
+	{
+		if (BuffLogic != nullptr && BuffLogic->IsBuffValid())
+		{
+			m_vBuffList.Add(BuffLogic);
+		}
+	}
+
+	RebuildBuffSlots();
+	NotifyBuffListUpdated();
 }

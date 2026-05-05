@@ -59,6 +59,16 @@ FLxString FLxString::DoubleToAccurateStr(double Value, uint8 Digit)
 	return Text;
 }
 
+FName FLxString::IntIDToName(uint32 InID)
+{
+	return FName(*FString::Printf(TEXT("0x%08X"), InID));
+}
+
+FName FLxString::IntToName(uint32 InID)
+{
+	return FName(*FString::Printf(TEXT("%d"), InID));
+}
+
 FLxString::FLxString()
 {
 }
@@ -394,4 +404,3 @@ void FLxString::ReplaceFlag(const FLxString& Value)
 	}
 	
 }
-

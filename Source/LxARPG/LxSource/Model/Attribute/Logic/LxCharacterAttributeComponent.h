@@ -5,154 +5,127 @@
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxCharacterAttributeComponent.generated.h"
 
-class ALxBaseCharacter;
-class ULxCharacterEntryComponent;
-class ULxItemEntryLogic;
-struct FLxCharacterEntryPackage;
+class ULxEntryObjectBase;
 
+/**
+ * 角色属性词条来源。
+ *
+ * 属性组件按来源缓存增益词条，同一来源的新词条列表会覆盖旧列表，
+ * 以便装备、Buff 等模块刷新时可以重新计算最终属性。
+ */
+UENUM(BlueprintType, DisplayName="角色属性词条来源")
+enum class ELxCharacterAttributeEntrySource : uint8
+{
+	None		UMETA(DisplayName="无"),
+	Equipment	UMETA(DisplayName="装备"),
+	Buff		UMETA(DisplayName="Buff"),
+	Item		UMETA(DisplayName="物品"),
+	Other		UMETA(DisplayName="其他"),
+};
 
+/** 属性表刷新事件，广播当前完整的角色属性列表。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeTableChanged, const TArray<FLxAttributeData>&, AttributeList);
+
+/**
+ * 角色属性组件。
+ *
+ * 负责维护角色基础属性、运行时计算属性和按来源缓存的属性增益词条。
+ * 其他模块通常通过数据中转组件访问它，不直接持有属性组件。
+ */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色属性组件")
 class LXARPG_API ULxCharacterAttributeComponent : public ULxCharacterComponentBase
 {
 	GENERATED_BODY()
 
 public:
-	/**
-	 * @brief 定义角色的种族类型。
-	 * 使用此组件的角色，必须要设置此变量，否则无法正确获取此种族的基础属性值和属性种类定义
-	 * 该属性用于指定角色所属的种族，可以在编辑器中设置或在蓝图中读写。默认值为 None，表示未选择任何种族。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="角色种族")
-	ELxCharacterRaceType CharacterRaceType = ELxCharacterRaceType::None;
-
-	
+	/** 创建属性组件并关闭 Tick。 */
 	ULxCharacterAttributeComponent();
 
-	/**
-	 * @brief 初始化角色属性组件。
-	 *
-	 * 负责缓存所属角色并准备角色属性表的运行时数据。
-	 */
+	/** 初始化属性表，并广播一次当前完整属性数据。 */
 	virtual void BaseComponentInitialize() override;
 
 	/**
-	 * @brief 根据属性 ID 获取可写的属性数据。
+	 * 接收一组属性增益词条。
+	 *
+	 * @param InEntrySource 词条来源；同一来源的新列表会覆盖旧缓存。
+	 * @param InEntryList 属性增益词条列表。
+	 */
+	void ReceiveAttributeGainEntries(ELxCharacterAttributeEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList);
+
+	/**
+	 * 接收一组属性恢复词条。
+	 *
+	 * 恢复词条属于一次性生效数据，不进入增益缓存。
+	 *
+	 * @param InEntryList 属性恢复词条列表。
+	 */
+	void ReceiveAttributeRecoveryEntries(const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList);
+
+	/**
+	 * 获取当前完整角色属性列表。
+	 *
+	 * @param OutAttributeList 输出当前属性列表。
+	 */
+	void GetCharacterAttributeList(TArray<FLxAttributeData>& OutAttributeList) const;
+
+	/**
+	 * 按属性 ID 查询当前角色属性。
 	 *
 	 * @param InAttributeID 要查询的属性 ID。
-	 * @return 若属性存在则返回对应属性数据指针，否则返回 nullptr。
+	 * @return 找到时返回属性数据指针，否则返回 nullptr。
 	 */
-	FLxAttributeData* GetCharacterAttributeByID(const ELxCharacterAttributeID InAttributeID);
+	const FLxAttributeData* GetCharacterAttributeByID(ELxCharacterAttributeID InAttributeID) const;
 
-	/**
-	 * @brief 根据属性 ID 获取只读的属性数据。
-	 *
-	 * @param InAttributeID 要查询的属性 ID。
-	 * @return 若属性存在则返回只读属性数据指针，否则返回 nullptr。
-	 */
-	const FLxAttributeData* GetCharacterAttributeByID(const ELxCharacterAttributeID InAttributeID) const;
+	/** 属性更新事件，广播当前完整属性表。 */
+	UPROPERTY(BlueprintAssignable, Category="Character Attribute", DisplayName="属性更新事件")
+	FOnLxCharacterAttributeTableChanged OnAttributeTableChanged;
 
-	/**
-	 * @brief 获取角色全部属性表的可写引用。
-	 *
-	 * @return 返回角色属性表指针，便于外部直接修改属性内容。
-	 */
-	TMap<ELxCharacterAttributeID, FLxAttributeData>* GetCharacterAttributeTable();
+protected:
+	/** 角色种族，用于初始化当前角色对应的基础属性值。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Character Attribute", DisplayName="角色种族")
+	ELxCharacterRaceType CharacterRaceType = ELxCharacterRaceType::None;
 
-	/**
-	 * @brief 获取角色全部属性表的只读引用。
-	 *
-	 * @return 返回角色属性表只读指针，用于遍历或查询属性。
-	 */
-	const TMap<ELxCharacterAttributeID, FLxAttributeData>* GetCharacterAttributeTable() const;
+	/** 当前角色属性表；每项属性同时保存基础值和计算后的实时有效值。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Character Attribute", DisplayName="角色属性表")
+	TMap<ELxCharacterAttributeID, FLxAttributeData> CharacterAttributeTable;
 
-	/**
-	 * @brief 设置指定属性的完整数据。
-	 *
-	 * @param InAttributeID 目标属性 ID。
-	 * @param InAttributeData 要写入的新属性数据。
-	 * @return 设置成功返回 true，属性不存在或写入失败返回 false。
-	 */
-	bool SetCharacterAttribute(const ELxCharacterAttributeID InAttributeID, const FLxAttributeData& InAttributeData);
+	/** 按来源缓存的属性增益词条。 */
+	TMap<ELxCharacterAttributeEntrySource, TArray<TObjectPtr<ULxEntryObjectBase>>> AttributeGainEntryCache;
 
-	/**
-	 * @brief 设置指定属性的当前值。
-	 *
-	 * @param InAttributeID 目标属性 ID。
-	 * @param InNewValue 新的属性当前值。
-	 * @return 设置成功返回 true，属性不存在或更新失败返回 false。
-	 */
-	bool SetCharacterAttributeCurrentValue(const ELxCharacterAttributeID InAttributeID, float InNewValue);
-
-	bool RestoreCharacterAttributeCurrentValue(const ELxCharacterAttributeID InAttributeID, float InRestoreValue);
-
-	static FText BuildAttributeDisplayText(const FLxAttributeData& InAttributeData);
-
-	
+	/** 运行时范围属性当前值缓存，避免装备或 Buff 重算时把已恢复/已消耗的当前值重置为配置默认值。 */
+	TMap<ELxCharacterAttributeID, float> RuntimeRangedAttributeValues;
 
 private:
-	/**
-	 * @brief 响应词条组件数据变化事件。
-	 *
-	 * 当已安装词条发生变化时，重新计算词条带来的属性加成，
-	 * 并在计算完成后广播属性组件自身的数据更新事件。
-	 */
-	UFUNCTION()
-	void HandleEntryDataChange();
+	/** 初始化属性组件内部数据。 */
+	void InitializeAttributeTable();
 
-	/**
-	 * @brief 处理立即恢复属性词条的应用。
-	 *
-	 * 该函数在有立即恢复属性的词条被应用时调用，用于更新角色指定属性的当前值。
-	 * 它会调用 `RestoreCharacterAttributeCurrentValue` 函数来实际执行属性值的恢复操作。
-	 *
-	 * @param InAttributeID 需要恢复的属性 ID。
-	 * @param InRestoreValue 要恢复到该属性上的数值。
-	 */
-	UFUNCTION()
-	void HandleAttributeRecoveryEntryApplied(ULxItemEntryLogic* EntryData);
+	/** 按当前角色种族重新加载基础属性表。 */
+	void RebuildAttributeTableFromRaceConfig();
 
-	/**
-	 * @brief 处理词条包变更事件。
-	 *
-	 * 该函数在词条组件的词条包发生变化时被调用，用于更新角色属性相关的词条列表。
-	 * 它接收一个 `FLxCharacterEntryPackage` 参数，该参数包含了最新的词条数据。
-	 *
-	 * @param InEntryPackage 包含最新词条数据的词条包。
-	 */
-	UFUNCTION()
-	void HandleEntryPackageChanged(const FLxCharacterEntryPackage& InEntryPackage);
+	/** 根据已缓存的增益词条重新计算最终属性表。 */
+	void RefreshCharacterAttributesByCachedEntries();
 
-	/**
-	 * @brief 根据当前所有已安装词条刷新角色最终属性。
-	 *
-	 * 该函数会先将所有属性的计算值还原为基础值，
-	 * 然后遍历全部已安装词条并将其叠加到对应属性上。
-	 */
-	void RefreshCharacterAttributeByEntries();
+	/** 将当前属性表中的范围属性当前值保存到运行时缓存。 */
+	void CacheRuntimeRangedAttributeValues();
 
+	/** 将运行时缓存中的范围属性当前值恢复到重算后的属性表。 */
+	void RestoreRuntimeRangedAttributeValues();
+
+	/** 根据属性衍生规则刷新计算属性。 */
 	void RefreshDerivedAttributes();
 
-	/**
-	 * @brief 将单条词条应用到目标属性上。
-	 *
-	 * @param InOutAttributeData 待修改的角色属性数据。
-	 * @param InEntryData 需要应用的词条数据。
-	 */
-	static void ApplyEntryToAttribute(FLxAttributeData& InOutAttributeData, const ULxItemEntryLogic& InEntryLogic);
+	/** 广播完整角色属性表。 */
+	void BroadcastAttributeTableChanged();
 
+	/** 根据属性值类型修正最终数值，例如取整或限制到范围内。 */
+	static void NormalizeAttributeValueByType(FLxAttributeValue& InOutAttributeValue);
+
+	/** 将单条运行时词条应用到指定属性数据上。 */
+	static void ApplyEntryToAttribute(FLxAttributeData& InOutAttributeData, const ULxEntryObjectBase& InEntryObject);
+
+	/** 将一条属性衍生规则应用到指定属性数据上。 */
 	static void ApplyDerivedRuleToAttribute(FLxAttributeData& InOutAttributeData, const FLxAttributeDerivedRule& InDerivedRule, float InSourceValue);
 
+	/** 判断属性标签是否满足词条或衍生规则要求的目标标签。 */
 	static bool AttributeMatchesTargetTags(const FLxAttributeData& InAttributeData, const FGameplayTagContainer& InTargetTags);
-
-	UPROPERTY()
-	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter;
-
-	UPROPERTY()
-	TMap<ELxCharacterAttributeID, FLxAttributeData> m_mapCharacterAttributeTable;
-
-	/** 由词条组件打包后下发的“作用于角色属性”的词条缓存。 */
-	UPROPERTY()
-	TArray<TObjectPtr<ULxItemEntryLogic>> m_vCharacterAttributeEntries;
-
-	bool m_bAttributeInitialized = false;
 };

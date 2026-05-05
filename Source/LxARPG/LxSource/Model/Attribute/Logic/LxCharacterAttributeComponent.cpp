@@ -1,33 +1,10 @@
 #include "LxCharacterAttributeComponent.h"
 
-#include "LxARPG/LxSource/Core/Tools/LxAttributeValueTool.h"
-#include "LxARPG/LxSource/Core/Tools/LxRichTextDescriptionTool.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
-#include "LxARPG/LxSource/Model/Entry/Logic/LxCharacterEntryComponent.h"
-#include "LxARPG/LxSource/Model/Entry/Logic/LxItemEntryLogic.h"
-#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
-#include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
-#include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
-#include "../DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 
 namespace
 {
-	const FLxEntryValueInfo* GetAttributeEntryValueInfo(const FLxItemEntryData& InEntryData)
-	{
-		if (InEntryData.EnteryBaseInfo.EntryLogicType == ELxEntryLogicType::ChangeAttributeValue)
-		{
-			return &InEntryData.ChangeAttributeValue.EntryValueInfo;
-		}
-
-		if (InEntryData.EnteryBaseInfo.EntryLogicType == ELxEntryLogicType::BufferEnter
-			&& InEntryData.BufferEnterValue.EntryValueInfo.EffectivePeriod < 0.f)
-		{
-			return &InEntryData.BufferEnterValue.EntryValueInfo;
-		}
-
-		return nullptr;
-	}
-
 	bool IsDiscreteAttributeValueType(ELxCharacterValueType InValueType)
 	{
 		return InValueType == ELxCharacterValueType::FixedNumeric
@@ -36,21 +13,6 @@ namespace
 			|| InValueType == ELxCharacterValueType::Switch
 			|| InValueType == ELxCharacterValueType::Setting;
 	}
-
-	void NormalizeAttributeValueByType(FLxAttributeValue& InOutAttributeValue)
-	{
-		if (IsDiscreteAttributeValueType(InOutAttributeValue.ValueType))
-		{
-			InOutAttributeValue.ValueLimit = FMath::RoundToFloat(InOutAttributeValue.ValueLimit);
-			InOutAttributeValue.Value = FMath::RoundToFloat(InOutAttributeValue.Value);
-		}
-
-		if (InOutAttributeValue.ValueType == ELxCharacterValueType::RangedNumeric)
-		{
-			InOutAttributeValue.ValueLimit = FMath::Max(0.0f, InOutAttributeValue.ValueLimit);
-			InOutAttributeValue.Value = FMath::Clamp(InOutAttributeValue.Value, 0.0f, InOutAttributeValue.ValueLimit);
-		}
-	}
 }
 
 ULxCharacterAttributeComponent::ULxCharacterAttributeComponent()
@@ -58,292 +20,175 @@ ULxCharacterAttributeComponent::ULxCharacterAttributeComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-FText ULxCharacterAttributeComponent::BuildAttributeDisplayText(const FLxAttributeData& InAttributeData)
-{
-	FLxRichTextDescriptionGroupData AttributeNameData = InAttributeData.AttributeShowInfo.AttributeName;
-	FLxString outText = FLxRichTextDescriptionTool::MontageRichText(AttributeNameData);
-
-	outText.Arg(FLxAttributeValueTool::BuildAttributeValueText(InAttributeData));
-
-	return outText.ToFText();
-}
-
 void ULxCharacterAttributeComponent::BaseComponentInitialize()
 {
-	if (m_bAttributeInitialized)
+	InitializeAttributeTable();
+	BroadcastAttributeTableChanged();
+}
+
+void ULxCharacterAttributeComponent::ReceiveAttributeGainEntries(ELxCharacterAttributeEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList)
+{
+	if (CharacterAttributeTable.IsEmpty())
 	{
-		return;
+		InitializeAttributeTable();
 	}
 
-	if (!m_pOwnerCharacter)
+	if (InEntrySource == ELxCharacterAttributeEntrySource::None)
 	{
-		m_pOwnerCharacter = GetCharacterOwner();
+		InEntrySource = ELxCharacterAttributeEntrySource::Other;
 	}
 
-	ULxGameInstanceSubsystem* GameInstanceSubsystem = ULxGameInstanceSubsystem::GetInstance(GetWorld());
-	if (!GameInstanceSubsystem)
+	AttributeGainEntryCache.Add(InEntrySource, InEntryList);
+	RefreshCharacterAttributesByCachedEntries();
+	BroadcastAttributeTableChanged();
+}
+
+void ULxCharacterAttributeComponent::ReceiveAttributeRecoveryEntries(const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList)
+{
+	if (CharacterAttributeTable.IsEmpty())
 	{
-		return;
+		InitializeAttributeTable();
 	}
 
-	const ULxGameDataTablesManager* GameDataTablesManager = GameInstanceSubsystem->GetGameDataManager();
-	if (!GameDataTablesManager)
+	for (ULxEntryObjectBase* EntryObject : InEntryList)
 	{
-		return;
-	}
-
-	const ULxAttributeTableConfig* AttributeTableConfig = GameDataTablesManager->m_pCharacterAttributeTableConfig;
-	if (!AttributeTableConfig)
-	{
-		return;
-	}
-
-	const TArray<FLxAttributeData>* AttributeDataList = AttributeTableConfig->GetAttributeDataList(CharacterRaceType);
-	if (!AttributeDataList)
-	{
-		return;
-	}
-
-	m_mapCharacterAttributeTable.Empty();
-	for (const FLxAttributeData& AttributeData : *AttributeDataList)
-	{
-		if (AttributeData.AttributeInfo.AttributeID == ELxCharacterAttributeID::X_None)
+		if (EntryObject == nullptr)
 		{
 			continue;
 		}
 
-		m_mapCharacterAttributeTable.Add(AttributeData.AttributeInfo.AttributeID, AttributeData);
-	}
-
-	if (ULxCharacterEntryComponent* EntryComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterEntryComponent() : nullptr)
-	{
-		// 属性组件不再主动扫描装备/背包，只接收词条组件统一分发的结果。
-		EntryComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterAttributeComponent::HandleEntryDataChange);
-		EntryComponent->OnDataChange.AddDynamic(this, &ULxCharacterAttributeComponent::HandleEntryDataChange);
-		EntryComponent->OnAttributeRecoveryEntryApplied.RemoveDynamic(this, &ULxCharacterAttributeComponent::HandleAttributeRecoveryEntryApplied);
-		EntryComponent->OnAttributeRecoveryEntryApplied.AddDynamic(this, &ULxCharacterAttributeComponent::HandleAttributeRecoveryEntryApplied);
-		EntryComponent->OnEntryPackageChanged.RemoveDynamic(this, &ULxCharacterAttributeComponent::HandleEntryPackageChanged);
-		EntryComponent->OnEntryPackageChanged.AddDynamic(this, &ULxCharacterAttributeComponent::HandleEntryPackageChanged);
-		m_vCharacterAttributeEntries = EntryComponent->GetEntryPackage().CharacterAttributeEntryList;
-	}
-
-	m_bAttributeInitialized = true;
-	RefreshCharacterAttributeByEntries();
-	OnDataChange.Broadcast();
-}
-
-FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByID(const ELxCharacterAttributeID InAttributeID)
-{
-	if (!m_bAttributeInitialized)
-	{
-		BaseComponentInitialize();
-	}
-	return m_mapCharacterAttributeTable.Find(InAttributeID);
-}
-
-const FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByID(const ELxCharacterAttributeID InAttributeID) const
-{
-	return m_mapCharacterAttributeTable.Find(InAttributeID);
-}
-
-TMap<ELxCharacterAttributeID, FLxAttributeData>* ULxCharacterAttributeComponent::GetCharacterAttributeTable()
-{
-	if (!m_bAttributeInitialized)
-	{
-		BaseComponentInitialize();
-	}
-	return &m_mapCharacterAttributeTable;
-}
-
-const TMap<ELxCharacterAttributeID, FLxAttributeData>* ULxCharacterAttributeComponent::GetCharacterAttributeTable() const
-{
-	return &m_mapCharacterAttributeTable;
-}
-
-bool ULxCharacterAttributeComponent::SetCharacterAttribute(const ELxCharacterAttributeID InAttributeID, const FLxAttributeData& InAttributeData)
-{
-	if (!m_bAttributeInitialized)
-	{
-		BaseComponentInitialize();
-	}
-
-	return true;
-}
-
-bool ULxCharacterAttributeComponent::SetCharacterAttributeCurrentValue(const ELxCharacterAttributeID InAttributeID, float InNewValue)
-{
-	if (!m_bAttributeInitialized)
-	{
-		BaseComponentInitialize();
-	}
-
-	FLxAttributeData* AttributeData = m_mapCharacterAttributeTable.Find(InAttributeID);
-	if (!AttributeData)
-	{
-		return false;
-	}
-
-	AttributeData->CalculatedAttributeValue.Value = InNewValue;
-	NormalizeAttributeValueByType(AttributeData->CalculatedAttributeValue);
-	OnDataChange.Broadcast();
-	return true;
-}
-
-bool ULxCharacterAttributeComponent::RestoreCharacterAttributeCurrentValue(const ELxCharacterAttributeID InAttributeID, float InRestoreValue)
-{
-	if (!m_bAttributeInitialized)
-	{
-		BaseComponentInitialize();
-	}
-
-	const FLxAttributeData* AttributeData = GetCharacterAttributeByID(InAttributeID);
-	if (AttributeData == nullptr)
-	{
-		return false;
-	}
-
-	return SetCharacterAttributeCurrentValue(InAttributeID, AttributeData->CalculatedAttributeValue.Value + InRestoreValue);
-}
-
-void ULxCharacterAttributeComponent::HandleEntryDataChange()
-{
-	if (!m_bAttributeInitialized)
-	{
-		BaseComponentInitialize();
-		return;
-	}
-
-	if (const ULxCharacterEntryComponent* EntryComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterEntryComponent() : nullptr)
-	{
-		// OnDataChange 可能先于 OnEntryPackageChanged 到达，这里主动同步一次最新打包结果，
-		// 避免属性刷新时仍然使用上一轮词条缓存。
-		m_vCharacterAttributeEntries = EntryComponent->GetEntryPackage().CharacterAttributeEntryList;
-	}
-
-	RefreshCharacterAttributeByEntries();
-	OnDataChange.Broadcast();
-}
-
-void ULxCharacterAttributeComponent::HandleAttributeRecoveryEntryApplied(ULxItemEntryLogic* EntryLogic)
-{
-	if (EntryLogic == nullptr || !EntryLogic->IsEntryValid())
-	{
-		return;
-	}
-
-	const FLxItemEntryData& EntryData = EntryLogic->GetItemEntryData();
-	if (EntryData.EnteryBaseInfo.TargetTags.IsEmpty())
-	{
-		return;
-	}
-
-	const float RestoreValue = EntryLogic->GetEffectiveValue();
-	if (FMath::IsNearlyZero(RestoreValue))
-	{
-		return;
-	}
-
-	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
-	{
-		if (AttributeMatchesTargetTags(AttributePair.Value, EntryData.EnteryBaseInfo.TargetTags))
+		for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 		{
-			RestoreCharacterAttributeCurrentValue(AttributePair.Key, RestoreValue);
-		}
-	}
-}
-
-void ULxCharacterAttributeComponent::HandleEntryPackageChanged(const FLxCharacterEntryPackage& InEntryPackage)
-{
-	// 只缓存属性相关词条，其他类别交给各自系统消费。
-	m_vCharacterAttributeEntries = InEntryPackage.CharacterAttributeEntryList;
-}
-
-void ULxCharacterAttributeComponent::RefreshCharacterAttributeByEntries()
-{
-
-	// 每次重算前都先回退到属性基础值，确保装备/词条效果不会在旧结果上重复累加。
-	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
-	{
-
-		AttributePair.Value.CalculatedAttributeValue.ValueLimit = AttributePair.Value.AttributeValue.ValueLimit;
-		AttributePair.Value.CalculatedAttributeValue.UpwardFloatingRatio = AttributePair.Value.AttributeValue.UpwardFloatingRatio;
-		AttributePair.Value.CalculatedAttributeValue.DownwardFloatingRatio = AttributePair.Value.AttributeValue.DownwardFloatingRatio;
-		AttributePair.Value.CalculatedAttributeValue.ValueType = AttributePair.Value.AttributeValue.ValueType;
-		
-		// 如果是区间值类型，就不用重置有效值
-		if (AttributePair.Value.CalculatedAttributeValue.ValueType != ELxCharacterValueType::RangedNumeric)
-		{
-			AttributePair.Value.CalculatedAttributeValue.Value = AttributePair.Value.AttributeValue.Value;
-		}
-
-	}
-
-	// 按固定顺序结算词条，保证基础值、基础加成、额外加成、机制类效果的叠加顺序稳定。
-	const ELxItemEntryType EntryApplyOrder[] =
-	{
-		ELxItemEntryType::BasicValue,
-		ELxItemEntryType::BasicImprove,
-		ELxItemEntryType::AdditionalImprove,
-		ELxItemEntryType::Mechanism,
-	};
-
-	// 逐阶段遍历角色当前持有的属性词条，只处理“修改属性值”这一类词条。
-	for (const ELxItemEntryType EntryType : EntryApplyOrder)
-	{
-		for (ULxItemEntryLogic* EntryLogic : m_vCharacterAttributeEntries)
-		{
-			if (EntryLogic == nullptr || !EntryLogic->IsEntryValid())
-			{
-				continue;
-			}
-
-			const FLxItemEntryData& EntryData = EntryLogic->GetItemEntryData();
-			const FLxEntryValueInfo* EntryValueInfo = GetAttributeEntryValueInfo(EntryData);
-			if (EntryData.EnteryBaseInfo.TargetTags.IsEmpty()
-				|| EntryValueInfo == nullptr
-				|| EntryValueInfo->EntryType != EntryType)
-			{
-				continue;
-			}
-
-			// 将词条作用到所有命中目标标签的属性上，实现同一词条同时影响多种属性。
-			for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
-			{
-				if (AttributeMatchesTargetTags(AttributePair.Value, EntryData.EnteryBaseInfo.TargetTags))
-				{
-					ApplyEntryToAttribute(AttributePair.Value, *EntryLogic);
-				}
-			}
+			ApplyEntryToAttribute(AttributePair.Value, *EntryObject);
 		}
 	}
 
-	// 在派生属性计算前先整理一次结果，避免后续规则建立在未归一化的中间值上。
-	// for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
-	// {
-	// 	NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);
-	// }
-
-	// 基础属性和词条结果稳定后，再统一刷新属性间的派生加成关系。
-	RefreshDerivedAttributes();
-
-	// 派生属性可能再次改变最终数值范围，因此最后再做一次归一化收口。
-	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
+	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 	{
 		NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);
+	}
+
+	CacheRuntimeRangedAttributeValues();
+	BroadcastAttributeTableChanged();
+}
+
+void ULxCharacterAttributeComponent::GetCharacterAttributeList(TArray<FLxAttributeData>& OutAttributeList) const
+{
+	OutAttributeList.Reset();
+	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	{
+		OutAttributeList.Add(AttributePair.Value);
+	}
+}
+
+const FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByID(ELxCharacterAttributeID InAttributeID) const
+{
+	return CharacterAttributeTable.Find(InAttributeID);
+}
+
+void ULxCharacterAttributeComponent::InitializeAttributeTable()
+{
+	AttributeGainEntryCache.Empty();
+	RuntimeRangedAttributeValues.Empty();
+	RebuildAttributeTableFromRaceConfig();
+	RefreshDerivedAttributes();
+	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	{
+		NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);
+	}
+	CacheRuntimeRangedAttributeValues();
+}
+
+void ULxCharacterAttributeComponent::RebuildAttributeTableFromRaceConfig()
+{
+	CharacterAttributeTable.Empty();
+
+	const TMap<ELxCharacterAttributeID, FLxAttributeData> AttributeDataMap = LxAttributeConfig::GetCharacterAttributeDataByRaceType(CharacterRaceType);
+	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : AttributeDataMap)
+	{
+		const FLxAttributeData& AttributeData = AttributePair.Value;
+		if (AttributeData.AttributeID == ELxCharacterAttributeID::X_None)
+		{
+			continue;
+		}
+
+		CharacterAttributeTable.Add(AttributeData.AttributeID, AttributeData);
+	}
+}
+
+void ULxCharacterAttributeComponent::RefreshCharacterAttributesByCachedEntries()
+{
+	CacheRuntimeRangedAttributeValues();
+	RebuildAttributeTableFromRaceConfig();
+
+	for (const TPair<ELxCharacterAttributeEntrySource, TArray<TObjectPtr<ULxEntryObjectBase>>>& EntryCachePair : AttributeGainEntryCache)
+	{
+		for (ULxEntryObjectBase* EntryObject : EntryCachePair.Value)
+		{
+			if (EntryObject == nullptr)
+			{
+				continue;
+			}
+
+			for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+			{
+				ApplyEntryToAttribute(AttributePair.Value, *EntryObject);
+			}
+		}
+	}
+
+	RefreshDerivedAttributes();
+	RestoreRuntimeRangedAttributeValues();
+
+	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	{
+		NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);
+	}
+	CacheRuntimeRangedAttributeValues();
+}
+
+void ULxCharacterAttributeComponent::CacheRuntimeRangedAttributeValues()
+{
+	RuntimeRangedAttributeValues.Reset();
+	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	{
+		const FLxAttributeValue& AttributeValue = AttributePair.Value.CalculatedAttributeValue;
+		if (AttributeValue.ValueType == ELxCharacterValueType::RangedNumeric)
+		{
+			RuntimeRangedAttributeValues.Add(AttributePair.Key, AttributeValue.Value);
+		}
+	}
+}
+
+void ULxCharacterAttributeComponent::RestoreRuntimeRangedAttributeValues()
+{
+	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	{
+		FLxAttributeValue& AttributeValue = AttributePair.Value.CalculatedAttributeValue;
+		if (AttributeValue.ValueType != ELxCharacterValueType::RangedNumeric)
+		{
+			continue;
+		}
+
+		const float* RuntimeValue = RuntimeRangedAttributeValues.Find(AttributePair.Key);
+		if (RuntimeValue != nullptr)
+		{
+			AttributeValue.Value = *RuntimeValue;
+		}
 	}
 }
 
 void ULxCharacterAttributeComponent::RefreshDerivedAttributes()
 {
 	TMap<ELxCharacterAttributeID, float> SourceValueSnapshot;
-	SourceValueSnapshot.Reserve(m_mapCharacterAttributeTable.Num());
+	SourceValueSnapshot.Reserve(CharacterAttributeTable.Num());
 
-	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : m_mapCharacterAttributeTable)
+	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 	{
 		SourceValueSnapshot.Add(AttributePair.Key, AttributePair.Value.CalculatedAttributeValue.Value);
 	}
 
-	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& SourcePair : m_mapCharacterAttributeTable)
+	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& SourcePair : CharacterAttributeTable)
 	{
 		const float* SourceValue = SourceValueSnapshot.Find(SourcePair.Key);
 		if (SourceValue == nullptr || FMath::IsNearlyZero(*SourceValue))
@@ -351,74 +196,157 @@ void ULxCharacterAttributeComponent::RefreshDerivedAttributes()
 			continue;
 		}
 
-		for (const FLxAttributeDerivedRule& DerivedRule : SourcePair.Value.DerivedRules)
+		for (const FLxAttributeDerivedRule& DerivedRule : SourcePair.Value.DerivedRulesArray)
 		{
-			if (DerivedRule.TargetTags.IsEmpty() || FMath::IsNearlyZero(DerivedRule.Ratio))
+			if (DerivedRule.AttributeID == ELxCharacterAttributeID::X_None || FMath::IsNearlyZero(DerivedRule.Ratio))
 			{
 				continue;
 			}
 
-			for (TPair<ELxCharacterAttributeID, FLxAttributeData>& TargetPair : m_mapCharacterAttributeTable)
+			if (DerivedRule.AttributeID == SourcePair.Key)
 			{
-				if (TargetPair.Key == SourcePair.Key)
-				{
-					continue;
-				}
+				continue;
+			}
 
-				if (AttributeMatchesTargetTags(TargetPair.Value, DerivedRule.TargetTags))
-				{
-					ApplyDerivedRuleToAttribute(TargetPair.Value, DerivedRule, *SourceValue);
-				}
+			if (FLxAttributeData* TargetAttributeData = CharacterAttributeTable.Find(DerivedRule.AttributeID))
+			{
+				ApplyDerivedRuleToAttribute(*TargetAttributeData, DerivedRule, *SourceValue);
 			}
 		}
 	}
 }
 
-void ULxCharacterAttributeComponent::ApplyEntryToAttribute(FLxAttributeData& InOutAttributeData, const ULxItemEntryLogic& InEntryLogic)
+void ULxCharacterAttributeComponent::BroadcastAttributeTableChanged()
 {
-	const FLxItemEntryData& EntryData = InEntryLogic.GetItemEntryData();
-	const FLxEntryValueInfo* EntryValueInfo = GetAttributeEntryValueInfo(EntryData);
-	if (EntryValueInfo == nullptr)
+	TArray<FLxAttributeData> AttributeList;
+	GetCharacterAttributeList(AttributeList);
+	OnAttributeTableChanged.Broadcast(AttributeList);
+	OnDataChange.Broadcast();
+}
+
+void ULxCharacterAttributeComponent::NormalizeAttributeValueByType(FLxAttributeValue& InOutAttributeValue)
+{
+	if (IsDiscreteAttributeValueType(InOutAttributeValue.ValueType))
+	{
+		InOutAttributeValue.ValueLimit = FMath::RoundToFloat(InOutAttributeValue.ValueLimit);
+		InOutAttributeValue.Value = FMath::RoundToFloat(InOutAttributeValue.Value);
+	}
+
+	if (InOutAttributeValue.ValueType == ELxCharacterValueType::RangedNumeric)
+	{
+		InOutAttributeValue.ValueLimit = FMath::Max(0.0f, InOutAttributeValue.ValueLimit);
+		InOutAttributeValue.Value = FMath::Clamp(InOutAttributeValue.Value, 0.0f, InOutAttributeValue.ValueLimit);
+	}
+}
+
+void ULxCharacterAttributeComponent::ApplyEntryToAttribute(FLxAttributeData& InOutAttributeData, const ULxEntryObjectBase& InEntryObject)
+{
+	const FLxEntryBase* EntryBase = InEntryObject.GetEntryBase();
+	if (EntryBase == nullptr)
 	{
 		return;
 	}
 
-	FLxAttributeValue& BaseValue = InOutAttributeData.AttributeValue;
-	FLxAttributeValue& CalculatedValue = InOutAttributeData.CalculatedAttributeValue;
-
-	const float EffectiveValue = InEntryLogic.GetEffectiveValue();
-	const float EffectiveRatio = EffectiveValue;
-
-	auto ApplyScalarValue = [EffectiveValue, EffectiveRatio](float& InOutTargetValue, float InBaseValue, ELxItemEntryType InEntryType)
+	auto ApplyEntryValue = [](float& InOutTargetValue, ELxEntryEffectiveType InEffectiveType, float InEntryValue)
 	{
-		switch (InEntryType)
+		switch (InEffectiveType)
 		{
-		case ELxItemEntryType::BasicValue:
-			InOutTargetValue += EffectiveValue;
+		case ELxEntryEffectiveType::BasicValue:
+			InOutTargetValue += InEntryValue;
 			break;
-		case ELxItemEntryType::BasicImprove:
-		case ELxItemEntryType::AdditionalImprove:
-			InOutTargetValue += InOutTargetValue * EffectiveRatio;
+		case ELxEntryEffectiveType::BasicImprove:
+		case ELxEntryEffectiveType::AdditionalImprove:
+			InOutTargetValue += InOutTargetValue * InEntryValue * 0.01f;
 			break;
-		case ELxItemEntryType::Mechanism:
-			InOutTargetValue = FMath::Max(InOutTargetValue, EffectiveValue);
+		case ELxEntryEffectiveType::Mechanism:
+			InOutTargetValue = FMath::Max(InOutTargetValue, InEntryValue);
 			break;
 		}
 	};
 
-	switch (EntryValueInfo->EntryTarget)
+	auto ApplyValueToTarget = [&InOutAttributeData, &ApplyEntryValue](ELxEntryTarget InEntryTarget, ELxEntryEffectiveType InEffectiveType, float InEntryValue)
 	{
-	case ELxItemEntryTarget::ToValueLimit:
-		ApplyScalarValue(CalculatedValue.ValueLimit, BaseValue.ValueLimit, EntryValueInfo->EntryType);
+		FLxAttributeValue& AttributeValue = InOutAttributeData.CalculatedAttributeValue;
+		switch (InEntryTarget)
+		{
+		case ELxEntryTarget::ToValueLimit:
+			ApplyEntryValue(AttributeValue.ValueLimit, InEffectiveType, InEntryValue);
+			break;
+		case ELxEntryTarget::ToValue:
+			ApplyEntryValue(AttributeValue.Value, InEffectiveType, InEntryValue);
+			break;
+		case ELxEntryTarget::ToUpwardFloatingRatio:
+			ApplyEntryValue(AttributeValue.UpwardFloatingRatio, InEffectiveType, InEntryValue);
+			break;
+		case ELxEntryTarget::ToDownwardFloatingRatio:
+			ApplyEntryValue(AttributeValue.DownwardFloatingRatio, InEffectiveType, InEntryValue);
+			break;
+		}
+	};
+
+	auto ApplyRecoveryValue = [&InOutAttributeData](ELxEntryEffectiveType InEffectiveType, float InEntryValue, float InRecoveryScale)
+	{
+		FLxAttributeValue& AttributeValue = InOutAttributeData.CalculatedAttributeValue;
+		const float ScaledEntryValue = InEntryValue * InRecoveryScale;
+		switch (InEffectiveType)
+		{
+		case ELxEntryEffectiveType::BasicValue:
+			AttributeValue.Value += ScaledEntryValue;
+			break;
+		case ELxEntryEffectiveType::BasicImprove:
+		case ELxEntryEffectiveType::AdditionalImprove:
+			AttributeValue.Value += AttributeValue.ValueLimit * ScaledEntryValue;
+			break;
+		case ELxEntryEffectiveType::Mechanism:
+			AttributeValue.Value = FMath::Max(AttributeValue.Value, InEntryValue);
+			break;
+		}
+
+		if (AttributeValue.ValueType == ELxCharacterValueType::RangedNumeric)
+		{
+			AttributeValue.ValueLimit = FMath::Max(0.0f, AttributeValue.ValueLimit);
+			AttributeValue.Value = FMath::Clamp(AttributeValue.Value, 0.0f, AttributeValue.ValueLimit);
+		}
+	};
+
+	switch (EntryBase->EntryType)
+	{
+	case ELxEntryType::AttributeGain:
+		{
+			const FLxEntryAttributeGain* GainEntry = static_cast<const FLxEntryAttributeGain*>(EntryBase);
+			if (GainEntry->AttributeID != ELxCharacterAttributeID::X_None && GainEntry->AttributeID != InOutAttributeData.AttributeID)
+			{
+				return;
+			}
+
+			if (!GainEntry->TargetTags.IsEmpty() && !AttributeMatchesTargetTags(InOutAttributeData, GainEntry->TargetTags))
+			{
+				return;
+			}
+
+			ApplyValueToTarget(GainEntry->EntryTarget, GainEntry->EffectiveType, GainEntry->EntryValue);
+		}
 		break;
-	case ELxItemEntryTarget::ToValue:
-		ApplyScalarValue(CalculatedValue.Value, BaseValue.Value, EntryValueInfo->EntryType);
+	case ELxEntryType::AttributeRecovery:
+		{
+			const FLxEntryAttributeRecovery* RecoveryEntry = static_cast<const FLxEntryAttributeRecovery*>(EntryBase);
+			if (RecoveryEntry->AttributeID != ELxCharacterAttributeID::X_None && RecoveryEntry->AttributeID != InOutAttributeData.AttributeID)
+			{
+				return;
+			}
+
+			if (!RecoveryEntry->TargetTags.IsEmpty() && !AttributeMatchesTargetTags(InOutAttributeData, RecoveryEntry->TargetTags))
+			{
+				return;
+			}
+
+			const float RecoveryScale = InEntryObject.GetEntryQuote().EntryCD > KINDA_SMALL_NUMBER
+				? InEntryObject.GetEntryQuote().EntryCD
+				: 1.0f;
+			ApplyRecoveryValue(RecoveryEntry->EffectiveType, RecoveryEntry->EntryValue, RecoveryScale);
+		}
 		break;
-	case ELxItemEntryTarget::ToUpwardFloatingRatio:
-		ApplyScalarValue(CalculatedValue.UpwardFloatingRatio, BaseValue.UpwardFloatingRatio, EntryValueInfo->EntryType);
-		break;
-	case ELxItemEntryTarget::ToDownwardFloatingRatio:
-		ApplyScalarValue(CalculatedValue.DownwardFloatingRatio, BaseValue.DownwardFloatingRatio, EntryValueInfo->EntryType);
+	default:
 		break;
 	}
 }
@@ -427,20 +355,20 @@ void ULxCharacterAttributeComponent::ApplyDerivedRuleToAttribute(FLxAttributeDat
 {
 	const float DerivedValue = InSourceValue * InDerivedRule.Ratio;
 	const float DerivedRatio = InSourceValue * InDerivedRule.Ratio * 0.01f;
-	FLxAttributeValue& CalculatedValue = InOutAttributeData.CalculatedAttributeValue;
+	FLxAttributeValue& ValueData = InOutAttributeData.CalculatedAttributeValue;
 
-	auto ApplyDerivedValue = [DerivedValue, DerivedRatio](float& InOutTargetValue, ELxItemEntryType InEntryType)
+	auto ApplyDerivedValue = [DerivedValue, DerivedRatio](float& InOutTargetValue, ELxEntryEffectiveType InEntryType)
 	{
 		switch (InEntryType)
 		{
-		case ELxItemEntryType::BasicValue:
+		case ELxEntryEffectiveType::BasicValue:
 			InOutTargetValue += DerivedValue;
 			break;
-		case ELxItemEntryType::BasicImprove:
-		case ELxItemEntryType::AdditionalImprove:
+		case ELxEntryEffectiveType::BasicImprove:
+		case ELxEntryEffectiveType::AdditionalImprove:
 			InOutTargetValue += InOutTargetValue * DerivedRatio;
 			break;
-		case ELxItemEntryType::Mechanism:
+		case ELxEntryEffectiveType::Mechanism:
 			InOutTargetValue = FMath::Max(InOutTargetValue, DerivedValue);
 			break;
 		}
@@ -448,17 +376,17 @@ void ULxCharacterAttributeComponent::ApplyDerivedRuleToAttribute(FLxAttributeDat
 
 	switch (InDerivedRule.EntryTarget)
 	{
-	case ELxItemEntryTarget::ToValueLimit:
-		ApplyDerivedValue(CalculatedValue.ValueLimit, InDerivedRule.EntryType);
+	case ELxEntryTarget::ToValueLimit:
+		ApplyDerivedValue(ValueData.ValueLimit, InDerivedRule.EffectiveType);
 		break;
-	case ELxItemEntryTarget::ToValue:
-		ApplyDerivedValue(CalculatedValue.Value, InDerivedRule.EntryType);
+	case ELxEntryTarget::ToValue:
+		ApplyDerivedValue(ValueData.Value, InDerivedRule.EffectiveType);
 		break;
-	case ELxItemEntryTarget::ToUpwardFloatingRatio:
-		ApplyDerivedValue(CalculatedValue.UpwardFloatingRatio, InDerivedRule.EntryType);
+	case ELxEntryTarget::ToUpwardFloatingRatio:
+		ApplyDerivedValue(ValueData.UpwardFloatingRatio, InDerivedRule.EffectiveType);
 		break;
-	case ELxItemEntryTarget::ToDownwardFloatingRatio:
-		ApplyDerivedValue(CalculatedValue.DownwardFloatingRatio, InDerivedRule.EntryType);
+	case ELxEntryTarget::ToDownwardFloatingRatio:
+		ApplyDerivedValue(ValueData.DownwardFloatingRatio, InDerivedRule.EffectiveType);
 		break;
 	}
 }
@@ -470,5 +398,5 @@ bool ULxCharacterAttributeComponent::AttributeMatchesTargetTags(const FLxAttribu
 		return false;
 	}
 
-	return InAttributeData.AttributeInfo.AttributeTags.HasAll(InTargetTags);
+	return InAttributeData.TargetTags.HasAll(InTargetTags);
 }

@@ -1,7 +1,7 @@
 #include "LxCharacterHUDWidget.h"
 
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
-#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
+#include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
@@ -9,30 +9,17 @@
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
 #include "LxARPG/LxSource/UI/Manager/LxUIFunctionTypes.h"
 
-
-
 void ULxCharacterHUDWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
 {
-	if (CharacterAttributeComponent)
-	{
-		CharacterAttributeComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterHUDWidget::HandleAttributeChanged);
-		CharacterAttributeComponent = nullptr;
-	}
-
 	Super::UpdateUIComponents(PlayerCharacter);
+	BindDataTransferComponent(m_pPlayerCharacter ? m_pPlayerCharacter->GetCharacterDataTransferComponent() : nullptr);
+	RefreshAttributeTextFromDataTransfer();
+}
 
-	if (PlayerCharacter)
-	{
-		CharacterAttributeComponent = PlayerCharacter->GetCharacterAttributeComponent();
-		if (CharacterAttributeComponent)
-		{
-			CharacterAttributeComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterHUDWidget::HandleAttributeChanged);
-			CharacterAttributeComponent->OnDataChange.AddDynamic(this, &ULxCharacterHUDWidget::HandleAttributeChanged);
-		}
-	}
-
-	RefreshAttributeCache();
-	OnAttributeChanged.Broadcast(CurrentHP, MaxHP, CurrentMP, MaxMP);
+void ULxCharacterHUDWidget::NativeDestruct()
+{
+	UnbindDataTransferComponent();
+	Super::NativeDestruct();
 }
 
 bool ULxCharacterHUDWidget::BindShortcutItemGridInput(ULxItemGridWidget* InItemGridWidget, FName InInputActionID)
@@ -70,10 +57,9 @@ bool ULxCharacterHUDWidget::BindShortcutItemGridInput(ULxItemGridWidget* InItemG
 	return HUDFunction ? HUDFunction->BindShortcutInputAction(InItemGridWidget, InInputActionID) : false;
 }
 
-void ULxCharacterHUDWidget::HandleAttributeChanged()
+void ULxCharacterHUDWidget::HandleCharacterAttributesChanged(const TArray<FLxAttributeData>& AttributeList)
 {
-	RefreshAttributeCache();
-	OnAttributeChanged.Broadcast(CurrentHP, MaxHP, CurrentMP, MaxMP);
+	UpdateAttributeTextFromList(AttributeList);
 }
 
 ULxShortcutItemSlotData* ULxCharacterHUDWidget::FindOrAddShortcutSlot(ULxItemGridWidget* InItemGridWidget)
@@ -100,19 +86,89 @@ ULxShortcutItemSlotData* ULxCharacterHUDWidget::FindOrAddShortcutSlot(ULxItemGri
 	return NewSlot;
 }
 
-void ULxCharacterHUDWidget::RefreshAttributeCache()
+void ULxCharacterHUDWidget::BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent)
 {
-	if (CharacterAttributeComponent)
+	if (CharacterDataTransferComponent == InDataTransferComponent)
 	{
-		if (FLxAttributeData* HP = CharacterAttributeComponent->GetCharacterAttributeByID(ELxCharacterAttributeID::C_HP))
+		return;
+	}
+
+	UnbindDataTransferComponent();
+	CharacterDataTransferComponent = InDataTransferComponent;
+
+	if (CharacterDataTransferComponent == nullptr)
+	{
+		return;
+	}
+
+	CharacterDataTransferComponent->OnCharacterAttributeChanged.RemoveDynamic(this, &ULxCharacterHUDWidget::HandleCharacterAttributesChanged);
+	CharacterDataTransferComponent->OnCharacterAttributeChanged.AddDynamic(this, &ULxCharacterHUDWidget::HandleCharacterAttributesChanged);
+}
+
+void ULxCharacterHUDWidget::UnbindDataTransferComponent()
+{
+	if (CharacterDataTransferComponent == nullptr)
+	{
+		return;
+	}
+
+	CharacterDataTransferComponent->OnCharacterAttributeChanged.RemoveDynamic(this, &ULxCharacterHUDWidget::HandleCharacterAttributesChanged);
+	CharacterDataTransferComponent = nullptr;
+}
+
+void ULxCharacterHUDWidget::RefreshAttributeTextFromDataTransfer()
+{
+	if (CharacterDataTransferComponent == nullptr)
+	{
+		OnHUDAttributeValueUpdated(0.0f, 0.0f);
+		OnHUDAttributeTextUpdated(FText::GetEmpty(), FText::GetEmpty());
+		return;
+	}
+
+	TArray<FLxAttributeData> AttributeList;
+	CharacterDataTransferComponent->GetAllCharacterAttributes(AttributeList);
+	UpdateAttributeTextFromList(AttributeList);
+}
+
+void ULxCharacterHUDWidget::UpdateAttributeTextFromList(const TArray<FLxAttributeData>& AttributeList)
+{
+	const FLxAttributeData* HPAttribute = nullptr;
+	const FLxAttributeData* MPAttribute = nullptr;
+
+	for (const FLxAttributeData& AttributeData : AttributeList)
+	{
+		if (AttributeData.AttributeID == ELxCharacterAttributeID::C_HP)
 		{
-			CurrentHP = HP->CalculatedAttributeValue.Value;
-			MaxHP = HP->CalculatedAttributeValue.ValueLimit;
+			HPAttribute = &AttributeData;
 		}
-		if (FLxAttributeData* MP = CharacterAttributeComponent->GetCharacterAttributeByID(ELxCharacterAttributeID::C_MP))
+		else if (AttributeData.AttributeID == ELxCharacterAttributeID::C_MP)
 		{
-			CurrentMP = MP->CalculatedAttributeValue.Value;
-			MaxMP = MP->CalculatedAttributeValue.ValueLimit;
+			MPAttribute = &AttributeData;
 		}
 	}
+	OnHUDAttributeValueUpdated(BuildProgressPercent(HPAttribute), BuildProgressPercent(MPAttribute));
+	OnHUDAttributeTextUpdated(BuildRangedAttributeText(HPAttribute), BuildRangedAttributeText(MPAttribute));
+}
+
+FText ULxCharacterHUDWidget::BuildRangedAttributeText(const FLxAttributeData* AttributeData)
+{
+	if (AttributeData == nullptr)
+	{
+		return FText::GetEmpty();
+	}
+
+	FLxString AttributeText;
+	AttributeText << FLxString::DoubleToIntStr(AttributeData->CalculatedAttributeValue.Value)
+		<< "/" << FLxString::DoubleToIntStr(AttributeData->CalculatedAttributeValue.ValueLimit);
+	return AttributeText.ToFText();
+}
+
+float ULxCharacterHUDWidget::BuildProgressPercent(const FLxAttributeData* AttributeData)
+{
+	if (AttributeData == nullptr || FMath::IsNearlyZero(AttributeData->CalculatedAttributeValue.ValueLimit))
+	{
+		return 0.0f;
+	}
+
+	return FMath::Clamp(AttributeData->CalculatedAttributeValue.Value / AttributeData->CalculatedAttributeValue.ValueLimit, 0.0f, 1.0f);
 }

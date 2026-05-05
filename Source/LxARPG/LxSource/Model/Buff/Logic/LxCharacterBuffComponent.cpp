@@ -1,13 +1,8 @@
 #include "LxCharacterBuffComponent.h"
 
 #include "LxARPG/LxSource/Core/Database/LxConstValue.h"
-#include "LxARPG/LxSource/Model/Buff/DataType/LxBuffDefineTableConfig.h"
-#include "LxARPG/LxSource/Model/Buff/DataType/LxBuffLogic.h"
-#include "LxARPG/LxSource/Model/Entry/Logic/LxCharacterEntryComponent.h"
-#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryCore.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
-#include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
-#include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
 
 ULxCharacterBuffComponent::ULxCharacterBuffComponent()
 {
@@ -35,9 +30,9 @@ void ULxCharacterBuffComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 	Super::EndPlay(EndPlayReason);
 }
 
-ULxBuffLogic* ULxCharacterBuffComponent::AddBuff(ELxBuffID InBuffID, float InEffectProportion, float InDurationOverride)
+ULxBuff* ULxCharacterBuffComponent::AddBuff(int32 InBuffID, float InEffectProportion, float InDurationOverride, ELxCharacterEntrySource InEntrySource)
 {
-	if (InBuffID == ELxBuffID::None)
+	if (InBuffID == ItemIDNone)
 	{
 		return nullptr;
 	}
@@ -47,62 +42,39 @@ ULxBuffLogic* ULxCharacterBuffComponent::AddBuff(ELxBuffID InBuffID, float InEff
 		BaseComponentInitialize();
 	}
 
-	const UWorld* World = GetWorld();
-	if (World == nullptr)
+	if (FLxBuffRuntimeInfo* ExistingRuntimeInfo = FindFirstRuntimeInfoByID(InBuffID))
 	{
-		return nullptr;
-	}
-
-	const UGameInstance* GameInstance = World->GetGameInstance();
-	const ULxGameInstanceSubsystem* GameInstanceSubsystem = GameInstance ? GameInstance->GetSubsystem<ULxGameInstanceSubsystem>() : nullptr;
-	const ULxGameDataTablesManager* GameDataTablesManager = GameInstanceSubsystem ? GameInstanceSubsystem->GetGameDataManager() : nullptr;
-	const ULxBuffDefineTableConfig* BuffDefineTableConfig = GameDataTablesManager ? GameDataTablesManager->m_pBuffDefineTableConfig : nullptr;
-	if (BuffDefineTableConfig == nullptr)
-	{
-		return nullptr;
-	}
-
-	const FLxBuffDefine* BuffDefine = BuffDefineTableConfig->GetBuffDefineByBuffID(InBuffID);
-	if (BuffDefine == nullptr)
-	{
-		return nullptr;
-	}
-
-	if (!BuffDefine->BuffCoreInfo.IsRepeat)
-	{
-		if (FLxBuffRuntimeInfo* ExistingRuntimeInfo = FindFirstRuntimeInfoByID(InBuffID))
+		if (ExistingRuntimeInfo->BuffLogic != nullptr)
 		{
-			ULxBuffLogic* ExistingBuffLogic = ExistingRuntimeInfo->BuffLogic;
-			if (ExistingBuffLogic != nullptr)
+			int32& SourceReferenceCount = ExistingRuntimeInfo->SourceReferenceCounts.FindOrAdd(InEntrySource);
+			++SourceReferenceCount;
+
+			ExistingRuntimeInfo->EffectProportion = InEffectProportion;
+			if (InDurationOverride >= 0.f)
 			{
-				ExistingBuffLogic->SetEffectProportion(InEffectProportion);
-				if (InDurationOverride >= 0.f)
-				{
-					ExistingBuffLogic->SetDuration(InDurationOverride);
-				}
-				ExistingRuntimeInfo->RemainingDuration = ExistingBuffLogic->GetBuffData().BuffEffectInfo.Duration;
-				StartBuffTimer();
-				OnDataChange.Broadcast();
-				return ExistingBuffLogic;
+				ExistingRuntimeInfo->RemainingDuration = InDurationOverride;
+				ExistingRuntimeInfo->BuffLogic->SetRemainingDuration(ExistingRuntimeInfo->RemainingDuration);
 			}
+			StartBuffTimer();
+			OnDataChange.Broadcast();
+			return ExistingRuntimeInfo->BuffLogic;
 		}
 	}
 
-	ULxBuffLogic* NewBuffLogic = ULxBuffLogic::CreateBuffLogicObject(*BuffDefine, this);
-	if (NewBuffLogic == nullptr)
+	ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, FLxItemQuote(ELxItemType::Buff, static_cast<FLxItemID>(InBuffID), 1));
+	ULxBuff* NewBuffLogic = Cast<ULxBuff>(NewItem);
+	if (NewBuffLogic == nullptr || !NewBuffLogic->ItemIsValid())
 	{
 		return nullptr;
-	}
-
-	NewBuffLogic->SetEffectProportion(InEffectProportion);
-	if (InDurationOverride >= 0.f)
-	{
-		NewBuffLogic->SetDuration(InDurationOverride);
 	}
 
 	FLxBuffRuntimeInfo RuntimeInfo;
 	RuntimeInfo.BuffLogic = NewBuffLogic;
-	RuntimeInfo.RemainingDuration = NewBuffLogic->GetBuffData().BuffEffectInfo.Duration;
+	RuntimeInfo.BuffID = InBuffID;
+	RuntimeInfo.EffectProportion = InEffectProportion;
+	RuntimeInfo.RemainingDuration = InDurationOverride;
+	RuntimeInfo.SourceReferenceCounts.Add(InEntrySource, 1);
+	NewBuffLogic->SetRemainingDuration(RuntimeInfo.RemainingDuration);
 	m_vBuffRuntimeInfos.Add(RuntimeInfo);
 	StartBuffTimer();
 
@@ -111,12 +83,23 @@ ULxBuffLogic* ULxCharacterBuffComponent::AddBuff(ELxBuffID InBuffID, float InEff
 	return NewBuffLogic;
 }
 
-ULxBuffLogic* ULxCharacterBuffComponent::AddBuffByCreatorValue(const FLxCreaterBufferValue& InCreatorValue, float InCreatorEntryRatio)
+ULxBuff* ULxCharacterBuffComponent::AddBuffByCreatorEntry(const ULxEntryObjectBase* InEntryObject, float InCreatorEntryRatio, ELxCharacterEntrySource InEntrySource)
 {
-	return AddBuff(InCreatorValue.BuffID, InCreatorValue.ValueProportion * InCreatorEntryRatio, InCreatorValue.DurationOnS);
+	if (InEntryObject == nullptr || InEntryObject->GetEntryType() != ELxEntryType::CreateBuff)
+	{
+		return nullptr;
+	}
+
+	const FLxEntryCreateBuff* CreateBuffEntry = static_cast<const FLxEntryCreateBuff*>(InEntryObject->GetEntryBase());
+	if (CreateBuffEntry == nullptr || CreateBuffEntry->BuffID == ItemIDNone)
+	{
+		return nullptr;
+	}
+
+	return AddBuff(CreateBuffEntry->BuffID, InCreatorEntryRatio, CreateBuffEntry->BuffDuration, InEntrySource);
 }
 
-bool ULxCharacterBuffComponent::RemoveBuff(ULxBuffLogic* InBuffLogic)
+bool ULxCharacterBuffComponent::RemoveBuff(ULxBuff* InBuffLogic)
 {
 	if (InBuffLogic == nullptr)
 	{
@@ -141,21 +124,70 @@ bool ULxCharacterBuffComponent::RemoveBuff(ULxBuffLogic* InBuffLogic)
 	return false;
 }
 
-int32 ULxCharacterBuffComponent::RemoveBuffByID(ELxBuffID InBuffID)
+int32 ULxCharacterBuffComponent::RemoveBuffByID(int32 InBuffID)
 {
 	int32 RemovedCount = 0;
 	for (int32 Index = m_vBuffRuntimeInfos.Num() - 1; Index >= 0; --Index)
 	{
 		FLxBuffRuntimeInfo& RuntimeInfo = m_vBuffRuntimeInfos[Index];
-		ULxBuffLogic* BuffLogic = RuntimeInfo.BuffLogic;
-		if (BuffLogic == nullptr || BuffLogic->GetBuffData().BuffCoreInfo.BuffID != InBuffID)
+		if (RuntimeInfo.BuffID != InBuffID)
 		{
 			continue;
 		}
 
+		ULxBuff* BuffLogic = RuntimeInfo.BuffLogic;
 		m_vBuffRuntimeInfos.RemoveAt(Index);
 		OnBuffRemoved.Broadcast(BuffLogic);
 		++RemovedCount;
+	}
+
+	if (RemovedCount > 0)
+	{
+		OnDataChange.Broadcast();
+		StopBuffTimerIfNeeded();
+	}
+
+	return RemovedCount;
+}
+
+int32 ULxCharacterBuffComponent::RemoveBuffSourceReferenceByID(int32 InBuffID, ELxCharacterEntrySource InEntrySource, int32 InReferenceCount)
+{
+	if (InBuffID == ItemIDNone || InReferenceCount <= 0)
+	{
+		return 0;
+	}
+
+	int32 RemovedCount = 0;
+	for (int32 Index = m_vBuffRuntimeInfos.Num() - 1; Index >= 0; --Index)
+	{
+		FLxBuffRuntimeInfo& RuntimeInfo = m_vBuffRuntimeInfos[Index];
+		if (RuntimeInfo.BuffID != InBuffID)
+		{
+			continue;
+		}
+
+		int32* SourceReferenceCount = RuntimeInfo.SourceReferenceCounts.Find(InEntrySource);
+		if (SourceReferenceCount == nullptr || *SourceReferenceCount <= 0)
+		{
+			continue;
+		}
+
+		const int32 RemovedReferenceCount = FMath::Min(*SourceReferenceCount, InReferenceCount);
+		*SourceReferenceCount -= RemovedReferenceCount;
+		RemovedCount += RemovedReferenceCount;
+
+		if (*SourceReferenceCount <= 0)
+		{
+			RuntimeInfo.SourceReferenceCounts.Remove(InEntrySource);
+		}
+
+		if (GetTotalSourceReferenceCount(RuntimeInfo) <= 0)
+		{
+			ULxBuff* BuffLogic = RuntimeInfo.BuffLogic;
+			m_vBuffRuntimeInfos.RemoveAt(Index);
+			OnBuffRemoved.Broadcast(BuffLogic);
+		}
+		break;
 	}
 
 	if (RemovedCount > 0)
@@ -174,7 +206,7 @@ void ULxCharacterBuffComponent::ClearBuffs()
 		return;
 	}
 
-	TArray<TObjectPtr<ULxBuffLogic>> RemovedBuffs;
+	TArray<TObjectPtr<ULxBuff>> RemovedBuffs;
 	for (FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
 	{
 		RemovedBuffs.Add(RuntimeInfo.BuffLogic);
@@ -183,39 +215,31 @@ void ULxCharacterBuffComponent::ClearBuffs()
 	m_vBuffRuntimeInfos.Reset();
 	StopBuffTimerIfNeeded();
 
-	for (ULxBuffLogic* RemovedBuff : RemovedBuffs)
+	for (ULxBuff* RemovedBuff : RemovedBuffs)
 	{
 		OnBuffRemoved.Broadcast(RemovedBuff);
 	}
 	OnDataChange.Broadcast();
 }
 
-void ULxCharacterBuffComponent::GetActiveBuffs(TArray<ULxBuffLogic*>& OutBuffList) const
+void ULxCharacterBuffComponent::GetActiveBuffs(TArray<ULxBuff*>& OutBuffList) const
 {
 	OutBuffList.Reset();
 	for (const FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
 	{
-		if (RuntimeInfo.BuffLogic != nullptr && RuntimeInfo.BuffLogic->IsBuffValid())
+		if (RuntimeInfo.BuffLogic != nullptr && RuntimeInfo.BuffLogic->ItemIsValid())
 		{
 			OutBuffList.Add(RuntimeInfo.BuffLogic);
 		}
 	}
 }
 
-void ULxCharacterBuffComponent::GetDisplayBuffs(TArray<ULxBuffLogic*>& OutBuffList) const
+void ULxCharacterBuffComponent::GetDisplayBuffs(TArray<ULxBuff*>& OutBuffList) const
 {
-	OutBuffList.Reset();
-	for (const FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
-	{
-		const ULxBuffLogic* BuffLogic = RuntimeInfo.BuffLogic;
-		if (BuffLogic != nullptr && BuffLogic->IsBuffValid() && BuffLogic->GetBuffData().BuffCoreInfo.IsShow)
-		{
-			OutBuffList.Add(RuntimeInfo.BuffLogic);
-		}
-	}
+	GetActiveBuffs(OutBuffList);
 }
 
-FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindRuntimeInfo(ULxBuffLogic* InBuffLogic)
+FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindRuntimeInfo(ULxBuff* InBuffLogic)
 {
 	for (FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
 	{
@@ -227,7 +251,7 @@ FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindRuntimeInfo(ULxBuffLogic* InB
 	return nullptr;
 }
 
-const FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindRuntimeInfo(ULxBuffLogic* InBuffLogic) const
+const FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindRuntimeInfo(ULxBuff* InBuffLogic) const
 {
 	for (const FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
 	{
@@ -239,17 +263,26 @@ const FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindRuntimeInfo(ULxBuffLogi
 	return nullptr;
 }
 
-FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindFirstRuntimeInfoByID(ELxBuffID InBuffID)
+FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindFirstRuntimeInfoByID(int32 InBuffID)
 {
 	for (FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
 	{
-		const ULxBuffLogic* BuffLogic = RuntimeInfo.BuffLogic;
-		if (BuffLogic != nullptr && BuffLogic->GetBuffData().BuffCoreInfo.BuffID == InBuffID)
+		if (RuntimeInfo.BuffID == InBuffID)
 		{
 			return &RuntimeInfo;
 		}
 	}
 	return nullptr;
+}
+
+int32 ULxCharacterBuffComponent::GetTotalSourceReferenceCount(const FLxBuffRuntimeInfo& InRuntimeInfo) const
+{
+	int32 TotalReferenceCount = 0;
+	for (const TPair<ELxCharacterEntrySource, int32>& SourceReferencePair : InRuntimeInfo.SourceReferenceCounts)
+	{
+		TotalReferenceCount += SourceReferencePair.Value;
+	}
+	return TotalReferenceCount;
 }
 
 void ULxCharacterBuffComponent::StartBuffTimer()
@@ -286,14 +319,14 @@ void ULxCharacterBuffComponent::StopBuffTimerIfNeeded()
 
 void ULxCharacterBuffComponent::HandleBuffTimerTick()
 {
-	TArray<TObjectPtr<ULxBuffLogic>> ExpiredBuffs;
+	TArray<TObjectPtr<ULxBuff>> ExpiredBuffs;
 	bool bRemovedInvalidBuff = false;
 
 	for (int32 Index = m_vBuffRuntimeInfos.Num() - 1; Index >= 0; --Index)
 	{
 		FLxBuffRuntimeInfo& RuntimeInfo = m_vBuffRuntimeInfos[Index];
-		ULxBuffLogic* BuffLogic = RuntimeInfo.BuffLogic;
-		if (BuffLogic == nullptr || !BuffLogic->IsBuffValid())
+		ULxBuff* BuffLogic = RuntimeInfo.BuffLogic;
+		if (BuffLogic == nullptr || !BuffLogic->ItemIsValid())
 		{
 			m_vBuffRuntimeInfos.RemoveAt(Index);
 			bRemovedInvalidBuff = true;
@@ -311,6 +344,7 @@ void ULxCharacterBuffComponent::HandleBuffTimerTick()
 		if (RuntimeInfo.RemainingDuration >= 0.f)
 		{
 			RuntimeInfo.RemainingDuration -= BUFF_COMPONENT_TIMER_INTERVAL;
+			BuffLogic->SetRemainingDuration(RuntimeInfo.RemainingDuration);
 			if (RuntimeInfo.RemainingDuration <= KINDA_SMALL_NUMBER)
 			{
 				ExpiredBuffs.Add(BuffLogic);
@@ -318,7 +352,7 @@ void ULxCharacterBuffComponent::HandleBuffTimerTick()
 		}
 	}
 
-	for (ULxBuffLogic* ExpiredBuff : ExpiredBuffs)
+	for (ULxBuff* ExpiredBuff : ExpiredBuffs)
 	{
 		RemoveBuff(ExpiredBuff);
 	}
@@ -330,17 +364,13 @@ void ULxCharacterBuffComponent::HandleBuffTimerTick()
 	}
 }
 
-void ULxCharacterBuffComponent::ActivateBuffEntries(ULxBuffLogic* InBuffLogic)
+void ULxCharacterBuffComponent::ActivateBuffEntries(ULxBuff* InBuffLogic)
 {
-	if (FindRuntimeInfo(InBuffLogic) == nullptr || InBuffLogic == nullptr || !InBuffLogic->IsBuffValid())
+	if (FindRuntimeInfo(InBuffLogic) == nullptr || InBuffLogic == nullptr || !InBuffLogic->ItemIsValid())
 	{
 		return;
 	}
 
-	InBuffLogic->UseItem();
-	if (ULxCharacterEntryComponent* EntryComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterEntryComponent() : nullptr)
-	{
-		EntryComponent->DispatchBuffEntries(InBuffLogic->GetBuffData().BuffEntryList);
-	}
+	InBuffLogic->ItemUse();
 	OnBuffPeriodActivated.Broadcast(InBuffLogic);
 }

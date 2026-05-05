@@ -224,9 +224,16 @@ void ULxUIManager::InitMonitorRegistration()
 		return;
 	}
 
+	RegisteredInputActionIDs.Reset();
+
 	for (const FLxManagedUIWidgetData& WidgetData : RegisteredChildWidgets)
 	{
 		RegisterInputAction(WidgetData.InputActionID);
+	}
+
+	for (const TPair<FName, TObjectPtr<ULxUIFunctionBase>>& InputPair : m_mapInputActionToFunction)
+	{
+		RegisterInputAction(InputPair.Key);
 	}
 }
 

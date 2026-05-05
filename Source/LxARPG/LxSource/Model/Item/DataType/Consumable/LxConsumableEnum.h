@@ -6,23 +6,28 @@
 #include "UObject/Object.h"
 #include "LxConsumableEnum.generated.h"
 
-
-/**
- * @enum ELxConsumableType
- * @brief 消耗品类型。
- *
- * 该枚举用于区分不同的消耗品子类型（如恢复类、增益类等）。
- * 当前仅保留默认占位值，便于后续扩展。
- *
- * @note 可在蓝图中使用。
- */
-UENUM(BlueprintType)
+UENUM(BlueprintType, DisplayName="消耗品类型")
 enum class ELxConsumableType : uint8
 {
-	/** 无 */
-	None UMETA(DisplayName="无类型"),
-	/** 可消耗型 即在使用之后数量会减少的消耗品 */
-	Consumable UMETA(DisplayName="可消耗"),
-	/** 不可消耗型 指在通常情况下数量不会直接减少的消耗品类型 */
-	NotConsumable UMETA(DisplayName="不可消耗")
+	// 无类型
+	None = 0						UMETA(DisplayName="无类型"),
+	// 回复类
+	Recovery	= 0b00000001		UMETA(DisplayName="回复类"),
+	// 功能类
+	Functional	= 0b00000010		UMETA(DisplayName="功能类"),
+
+	// 可消耗 
+	Consumable	= 0b00000100		UMETA(Hidden, DisplayName="可消耗"),
+	// 不可消耗
+	NotConsumable = 0b00001000		UMETA(Hidden, DisplayName="不可消耗"),
+
+	// 可消耗恢复类
+	ConsumableAndRecovery		= Recovery|Consumable		UMETA(Hidden, DisplayName="可消耗恢复类"),
+	// 可消耗功能类
+	ConsumableAndFunctional		= Functional|Consumable		UMETA(Hidden, DisplayName="可消耗功能类"),
+	// 不可消耗恢复类
+	NotConsumableAndRecovery	= NotConsumable|Recovery	UMETA(Hidden, DisplayName="不可消耗恢复类"),
+	// 不可消耗功能类
+	NotConsumableAndFunctional	= NotConsumable|Functional  UMETA(Hidden, DisplayName="不可消耗功能类"),
+	
 };

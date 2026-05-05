@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "LxString.h"
-#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryEnum.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxEntryEnum.h"
 #include "LxARPG/LxSource/Model/Style/DataType/LxRichTextDescriptionData.h"
 
 class LXARPG_API FLxRichTextDescriptionTool

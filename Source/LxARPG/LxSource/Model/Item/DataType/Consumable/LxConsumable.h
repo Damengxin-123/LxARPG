@@ -3,46 +3,68 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxConsumableCoreType.h"
 #include "LxConsumableEnum.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxConsumable.generated.h"
 
-
 /**
- * @brief 消耗品物品定义类型
- * 该结构体继承自FLxItemDefineBase，用于定义游戏中消耗品类物品的属性。它包含了消耗品的核心信息和词条引用信息。
+ * @brief 消耗品静态信息。
  *
- * @note 该类主要用于游戏内消耗品的数据定义，确保了消耗品属性的一致性和可配置性。
+ * 消耗品物品在新物品体系中的基础数据结构，继承通用物品静态信息，
+ * 并额外记录消耗品子类型。
  */
-USTRUCT(BlueprintType, DisplayName="消耗品物品定义类型")
-struct FLxConsumableDefine : public FLxItemDefineBase
+USTRUCT(BlueprintType, DisplayName="消耗品物品信息")
+struct FLxConsumableInformation : public FLxItemInformationBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="消耗品词条引用")
-	FLxConsumableCoreType ConsumableCoreInfo;
-	
-	// 消耗品词条信息
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="消耗品词条引用")
-	FLxConsumableEntryQuote ConsumableEntryInfo;
+	/** @brief 消耗品类型，例如回复类、功能类等。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|消耗品", DisplayName="消耗品类型")
+	ELxConsumableType ConsumableType = ELxConsumableType::None;
+
+	FLxConsumableInformation()
+	{
+		ItemType = ELxItemType::Consumable;
+	}
+	FLxConsumableInformation(FLxItemID ID, ELxItemRarityType RarityType,
+		ELxConsumableType ConsumableType, FLxItemCount CountMax, const TArray<FLxEntryQuote>& EntryQuoteList = TArray<FLxEntryQuote>())
+	{
+		this->ItemID =  ID;
+		this->ItemRarity  = RarityType;
+		this->ItemCountMax  = CountMax;
+		this->ConsumableType  = ConsumableType;
+		this->ItemEntryQuotes = EntryQuoteList;
+		
+		ItemType = ELxItemType::Consumable;
+	}
 };
 
 /**
- * @brief 消耗品物品缓存类型
- * 该结构体继承自FLxItemDateBase，用于存储游戏中消耗品类物品的详细数据。它包含了消耗品的核心信息和词条引用信息。
+ * @brief 消耗品物品对象。
  *
- * @note 该类主要用于游戏内消耗品的数据缓存，确保了消耗品属性的一致性和可配置性。
+ * UObject 化后的消耗品类型，负责提供消耗品的通用物品接口实现。
+ * 支持同 ID 物品堆叠，堆叠成功后会广播数量变化事件。
  */
-USTRUCT(BlueprintType, DisplayName="消耗品物品缓存类型")
-struct FLxConsumableData : public FLxItemDateBase
+UCLASS(BlueprintType)
+class LXARPG_API ULxConsumable : public ULxItemBase
 {
 	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="消耗品词条引用")
-	FLxConsumableCoreType ConsumableCoreInfo;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="消耗品词条引用")
-	FLxConsumableEntyInfo ConsumableEntryInfo;
+public:
+	ULxConsumable();
+	virtual ~ULxConsumable() override;
+
+
+	virtual ELxItemUseState ItemUse() override;
+
+	/** @brief 获取消耗品数量文本。 */
+	virtual FLxString ItemCountText() override;
+
+protected:
+	virtual void SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount) override;
+
+	virtual FLxItemInformationBase* ItemBase() override;
+private:
+	/** @brief 当前消耗品的静态信息。 */
+	FLxConsumableInformation m_fConsumableInformation;
 };
-

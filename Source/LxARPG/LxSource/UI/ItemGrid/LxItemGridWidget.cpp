@@ -1,11 +1,10 @@
-#include "LxItemGridWidget.h"
+﻿#include "LxItemGridWidget.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Input/Reply.h"
 #include "InputCoreTypes.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
-#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemLogicBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
@@ -17,18 +16,6 @@
 void ULxItemGridWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
 	InitItemData(ListItemObject);
-}
-
-const FLxItemDateBase& ULxItemGridWidget::GetCurrentItemData() const
-{
-	static FLxItemDateBase EmptyItemData;
-
-	if (CurrentSlotData == nullptr || !CurrentSlotData->IsValid())
-	{
-		return EmptyItemData;
-	}
-
-	 return *CurrentSlotData->ItemDataPtr->GetItemDataBase();
 }
 
 ELxItemSlotType ULxItemGridWidget::GetSlotType() const
@@ -64,13 +51,17 @@ int32 ULxItemGridWidget::GetItemType() const
 
 bool ULxItemGridWidget::UseItem() const
 {
-	if (!CurrentSlotData || !CurrentSlotData->IsValid())
+	if (!CurrentSlotData)
 	{
 		return false;
 	}
 
+	const bool bHadUsableItem = CurrentSlotData->IsValid();
+	const ULxShortcutItemSlotData* ShortcutSlot = Cast<ULxShortcutItemSlotData>(CurrentSlotData);
+	const bool bHadUsableSource = ShortcutSlot && ShortcutSlot->GetSourceSlot() && ShortcutSlot->GetSourceSlot()->IsValid();
+
 	CurrentSlotData->UseItem();
-	return true;
+	return bHadUsableItem || bHadUsableSource;
 }
 
 void ULxItemGridWidget::SetItemSlotData(ULxItemSlotData* InSlotData)
@@ -85,16 +76,35 @@ bool ULxItemGridWidget::ItemIsVaild() const
 
 UTexture2D* ULxItemGridWidget::GetDisplayIcon() const
 {
-	if (ItemIsVaild())
+	if (ItemIsVaild() && CurrentSlotData->ItemDataPtr)
 	{
-		const FLxItemDateBase& ItemData = GetCurrentItemData();
-		if (!ItemData.ItemShowInfo.ItemIcon.IsNull())
+		// 物品图标从基础物品结构体读取；没有配置时才回退到格子默认图标。
+		const TSoftObjectPtr<UTexture2D> ItemIcon = CurrentSlotData->ItemDataPtr->ItemIcon();
+		if (!ItemIcon.IsNull())
 		{
-			return ItemData.ItemShowInfo.ItemIcon.LoadSynchronous();
+			return ItemIcon.LoadSynchronous();
 		}
 	}
 
 	return DefaultIcon.IsNull() ? nullptr : DefaultIcon.LoadSynchronous();
+}
+
+FText ULxItemGridWidget::GetItemDisplayName() const
+{
+	if (ItemIsVaild() && CurrentSlotData->ItemDataPtr)
+	{
+		return CurrentSlotData->ItemDataPtr->ItemDisplayName();
+	}
+	return FText::GetEmpty();
+}
+
+FText ULxItemGridWidget::GetItemDisplayDescription() const
+{
+	if (ItemIsVaild() && CurrentSlotData->ItemDataPtr)
+	{
+		return CurrentSlotData->ItemDataPtr->ItemDisplayDescription();
+	}
+	return FText::GetEmpty();
 }
 
 void ULxItemGridWidget::SetDefaultIcon(UTexture2D* InDefaultIcon)
@@ -120,30 +130,22 @@ bool ULxItemGridWidget::GetEquipmentType(ELxEquipmentType& OutEquipmentType) con
 	return true;
 }
 
-int32 ULxItemGridWidget::GetItemCount() const
+FText ULxItemGridWidget::GetItemCount() const
 {
 	if (ItemIsVaild())
 	{
-		const FLxItemDateBase& ItemData = GetCurrentItemData();
-		if (!ItemData.ItemShowInfo.ItemIcon.IsNull())
-		{
-			return ItemData.ItemCount;
-		}
+		return CurrentSlotData->ItemDataPtr->ItemCountText().ToFText();
 	}
-	return 0;
+	return FLxString("").ToFText();
 }
 
-FLinearColor ULxItemGridWidget::GetItemRarityColor() const
+ELxItemRarityType ULxItemGridWidget::GetItemRarity() const
 {
 	if (ItemIsVaild())
 	{
-		const FLxItemDateBase& ItemData = GetCurrentItemData();
-		if (!ItemData.ItemShowInfo.ItemIcon.IsNull())
-		{
-			return ItemData.ItemRarity.RarityColor;
-		}
+		return CurrentSlotData->ItemDataPtr->ItemRarity();
 	}
-	return FLinearColor::White;
+	return ELxItemRarityType::None;
 }
 
 FReply ULxItemGridWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -314,7 +316,7 @@ void ULxItemGridWidget::SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData)
 {
 	if (CurrentItemData)
 	{
-		CurrentItemData->OnItemInfoChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
+		CurrentItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
 		CurrentItemData = nullptr;
 	}
 
@@ -342,28 +344,48 @@ void ULxItemGridWidget::HandleCurrentSlotChanged()
 	BroadcastGridDataChanged();
 }
 
-void ULxItemGridWidget::HandleCurrentItemChanged()
+void ULxItemGridWidget::HandleCurrentItemChanged(ULxItemBase* Item, int32 OldCount, int32 NewCount)
 {
-	BroadcastGridDataChanged();
+	BroadcastItemCountChanged();
 }
 
-void ULxItemGridWidget::BroadcastGridDataChanged() const
+void ULxItemGridWidget::BroadcastGridDataChanged()
 {
-	OnItemGridDataChanged.Broadcast();
+	ELxEquipmentType EquipmentType = ELxEquipmentType::Weapon;
+	if (!ItemIsVaild() && GetEquipmentType(EquipmentType))
+	{
+		// 再由蓝图按装备部位决定默认图标。
+		OnEmptyEquipmentSlotUpdated(true, EquipmentType);
+		return;
+	}
+	if (!ItemIsVaild())
+	{
+		// 空非装备槽位显示默认图标。
+		OnEmptyEquipmentSlotUpdated(false, EquipmentType);
+		return;
+	}
+
+	// 槽位或物品对象变化时，蓝图需要同时刷新图标、名称、描述和数量。
+	OnItemDisplayUpdated(GetDisplayIcon(), GetItemDisplayName(), GetItemDisplayDescription(), GetItemCount(), GetItemRarity());
 }
 
+void ULxItemGridWidget::BroadcastItemCountChanged()
+{
+	// 只有数量变化时避免重刷整块显示，蓝图只更新数量文本即可。
+	OnItemCountUpdated(GetItemCount());
+}
 void ULxItemGridWidget::RebindCurrentItemChanged()
 {
 	if (CurrentItemData)
 	{
-		CurrentItemData->OnItemInfoChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
+		CurrentItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
 		CurrentItemData = nullptr;
 	}
 
 	if (CurrentSlotData && CurrentSlotData->ItemDataPtr)
 	{
 		CurrentItemData = CurrentSlotData->ItemDataPtr;
-		CurrentItemData->OnItemInfoChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
-		CurrentItemData->OnItemInfoChanged.AddDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
+		CurrentItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
+		CurrentItemData->OnItemCountChanged.AddDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
 	}
 }

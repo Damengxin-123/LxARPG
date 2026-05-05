@@ -5,7 +5,7 @@
 #include "LxUIFunctionTypes.generated.h"
 
 class ULxItemGridWidget;
-class ULxItemLogicBase;
+class ULxItemBase;
 class ULxItemTooltipWidget;
 
 UCLASS(DisplayName="主菜单UI功能")
@@ -64,7 +64,7 @@ class LXARPG_API ULxCharacterPopupUIFunction : public ULxUIFunctionBase
 public:
 	virtual bool ShouldDisplayCursor() const override;
 
-	bool ShowItemTooltip(ULxItemLogicBase* InItemLogic, FVector2D InMouseScreenPosition);
+	bool ShowItemTooltip(ULxItemBase* InItem, FVector2D InMouseScreenPosition);
 
 	void UpdateItemTooltipPosition(FVector2D InMouseScreenPosition);
 

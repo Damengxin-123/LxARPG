@@ -1,6 +1,6 @@
 #include "LxUIFunctionTypes.h"
 
-#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemLogicBase.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemGridWidget.h"
 #include "LxARPG/LxSource/UI/ItemInfo/LxItemTooltipWidget.h"
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
@@ -100,10 +100,10 @@ bool ULxCharacterPopupUIFunction::ShouldDisplayCursor() const
 	return HasAnyVisibleManagedUI();
 }
 
-bool ULxCharacterPopupUIFunction::ShowItemTooltip(ULxItemLogicBase* InItemLogic, FVector2D InMouseScreenPosition)
+bool ULxCharacterPopupUIFunction::ShowItemTooltip(ULxItemBase* InItem, FVector2D InMouseScreenPosition)
 {
 	ULxItemTooltipWidget* ItemTooltipWidget = GetItemTooltipWidget();
-	if (!ItemTooltipWidget || !ItemTooltipWidget->SetDisplayItemLogic(InItemLogic))
+	if (!ItemTooltipWidget || !ItemTooltipWidget->SetDisplayItemLogic(InItem))
 	{
 		return false;
 	}

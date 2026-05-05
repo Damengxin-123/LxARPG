@@ -1,0 +1,192 @@
+{
+  // 角色属性默认配置项
+  "DefineConfig" : [
+    {
+      // 角色属性ID，对应角色属性ID枚举
+      "AttID" : 6,
+      // 默认属性值
+      "AttConfig" :
+      {
+        // 角色属性ID
+        "AttID" : 6,
+        // 角色属性值信息
+        "AttValueConfig" : {
+              "AttValueType" : 0,
+              "Up" : 1,
+              "Down" : 1,
+              "Max" : 0,
+              "Value" : 0
+        },
+        // 角色属性派生增益信息
+        "DerivedRules" : [
+          {
+            // 派生增益ID，对应角色属性派生增益ID枚举
+            "DerivedID" : 15,
+            // 增益方式
+            "EffectiveType" : 1,
+            // 转换比例
+            "Ratio" : 0.02
+          }
+        ]
+      }
+    },
+    {
+      // 角色属性ID，对应角色属性ID枚举
+      "AttID" : 7,
+      // 默认属性值
+      "AttConfig" :
+      {
+        // 角色属性ID
+        "AttID" : 7,
+        // 角色属性值信息
+        "AttValueConfig" : {
+          "AttValueType" : 0,
+          "Up" : 1,
+          "Down" : 1,
+          "Max" : 0,
+          "Value" : 0
+        },
+        // 角色属性派生增益信息
+        "DerivedRules" : [
+          {
+            // 派生增益ID，对应角色属性派生增益ID枚举
+            "DerivedID" : 12,
+            // 增益方式
+            "EffectiveType" : 0,
+            // 转换比例
+            "Ratio" : 2
+          }
+        ]
+      }
+    },
+    {
+      // 角色属性ID，对应角色属性ID枚举
+      "AttID" : 11,
+      // 默认属性值
+      "AttConfig" :
+      {
+        // 角色属性ID
+        "AttID" : 11,
+        // 角色属性值信息
+        "AttValueConfig" : {
+          "AttValueType" : 1,
+          "Up" : 1,
+          "Down" : 1,
+          "Max" : 0,
+          "Value" : 0
+        },
+        // 角色属性派生增益信息
+        "DerivedRules" : []
+      }
+    },
+    {
+      // 角色属性ID，对应角色属性ID枚举
+      "AttID" : 12,
+      // 默认属性值
+      "AttConfig" :
+      {
+        // 角色属性ID
+        "AttID" : 12,
+        // 角色属性值信息
+        "AttValueConfig" : {
+          "AttValueType" : 1,
+          "Up" : 1,
+          "Down" : 1,
+          "Max" : 0,
+          "Value" : 0
+        },
+        // 角色属性派生增益信息
+        "DerivedRules" : []
+      }
+    },
+    {
+      // 角色属性ID，对应角色属性ID枚举
+      "AttID" : 15,
+      // 默认属性值
+      "AttConfig" :
+      {
+        // 角色属性ID
+        "AttID" : 15,
+        // 角色属性值信息
+        "AttValueConfig" : {
+          // 角色属性值类型，对应角色属性值类型枚举
+          "AttValueType" : 2,
+          // 属性值向上浮动比例
+          "Up" : 1,
+          // 属性值向下浮动比例
+          "Down" : 1,
+          // 属性值上限
+          "Max" : 0,
+          // 属性值
+          "Value" : 0
+        },
+        // 角色属性派生增益信息
+        "DerivedRules" : []
+      }
+    }
+  ],
+  // 按种族划分的角色基础属性配置项
+  "RaceDefineValueConfig" : [
+    {
+      // 种族类型，与种族类型枚举值对应
+      "RaceType" : 1,
+      "DefineValue": [
+        {
+          // 角色属性ID，对应角色属性ID枚举
+          "AttID" : 6,
+          // 基础属性值
+          "AttValueConfig" : {
+            "Up" : 0,
+            "Down" : 0,
+            "Max" : 0,
+            "Value" : 10
+          }
+        },
+        {
+          // 角色属性ID，对应角色属性ID枚举
+          "AttID" : 7,
+          // 基础属性值
+          "AttValueConfig" : {
+            "Up" : 0,
+            "Down" : 0,
+            "Max" : 0,
+            "Value" : 9
+          }
+        },
+        {
+          // 角色属性ID，对应角色属性ID枚举
+          "AttID" : 11,
+          // 基础属性值
+          "AttValueConfig" : {
+            "Up" : 0,
+            "Down" : 0,
+            "Max" : 1000,
+            "Value" : 0
+          }
+        },
+        {
+          // 角色属性ID，对应角色属性ID枚举
+          "AttID" : 12,
+          // 基础属性值
+          "AttValueConfig" : {
+            "Up" : 0,
+            "Down" : 0,
+            "Max" : 200,
+            "Value" : 0
+          }
+        },
+        {
+          // 角色属性ID，对应角色属性ID枚举
+          "AttID" : 15,
+          // 基础属性值
+          "AttValueConfig" : {
+            "Up" : 0.2,
+            "Down" : 0.2,
+            "Max" : 0,
+            "Value" : 10
+          }
+        }
+      ]
+    }
+  ]
+}

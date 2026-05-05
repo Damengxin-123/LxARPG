@@ -4,79 +4,102 @@
 
 #include "CoreMinimal.h"
 #include "LxEquipmentEnum.h"
-#include "../ItemBase/LxItemBase.h"
-#include "LxEquipmentCoreType.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxEquipment.generated.h"
 
-
 /**
- * @brief 装备属性定义类型
+ * @brief 装备静态信息。
  *
- * 该结构体继承自`FLxItemDefineBase`，用于定义装备的属性。它扩展了基础物品定义，以包含特定于装备的信息。
- * 可以在编辑器中设置，并且可以通过蓝图读写。
- *
- * @see FLxItemDefineBase
+ * 装备物品在新物品体系中的基础数据结构，继承通用物品静态信息，
+ * 并额外记录装备部位、强化值和锻造潜能等装备专属属性。
  */
-USTRUCT(BlueprintType, DisplayName="装备属性定义类型")
-struct FLxEquipmentDefine : public FLxItemDefineBase
+USTRUCT(BlueprintType, DisplayName="装备物品信息")
+struct FLxEquipmentInformation : public FLxItemInformationBase
 {
 	GENERATED_BODY()
 
-	/**
-	 * @var FLxEquipmentInfo EquipmentInfo
-	 * @brief 装备的基础默认属性信息
-	 * 该变量用于存储装备的基础属性信息，包括装备部位类型、默认强化强度和默认锻造潜能等。这些属性在编辑器中可配置，并且可以通过蓝图脚本进行读写。
-	 *
-	 * @note 确保所有引用的词条定义存在并且有效，以避免运行时错误。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "装备属性", DisplayName="装备基础默认属性")
-	FLxEquipmentInfo EquipmentInfo;
+	/** @brief 装备部位类型，例如武器、饰品等。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|装备", DisplayName="装备部位")
+	ELxEquipmentType EquipmentType = ELxEquipmentType::EquipmentSizeMax;
+	/** @brief 装备强化值覆盖项。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|装备", DisplayName="强化值覆盖")
+	int32 EnhancementValueOverride = 0;
+	/** @brief 装备锻造潜能。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|装备", DisplayName="锻造潜力")
+	int32 ForgePotential = 1;
+	
+	
+	
 
-	/**
-	 * @var FLxEquipmentEntyQuote EquipmentEntyQuoteInfo
-	 * @brief 装备默认词条配置
-	 * 该变量用于存储装备的默认词条引用信息，包括基础词条和扩展词条。通过这些引用，可以定义装备的基础属性和附加属性。
-	 * 此属性支持在编辑器中进行可视化编辑，并且可以通过蓝图脚本进行读写操作。
-	 *
-	 * @note 确保所引用的词条定义存在并且是有效的，以避免运行时可能出现的错误。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "装备属性", DisplayName="装备默认词条配置")
-	FLxEquipmentEntyQuote EquipmentEntyQuoteInfo;
-
-	// 构造函数，将部分属性设置为装备类型物品专属的
-	FLxEquipmentDefine()
+	FLxEquipmentInformation()
 	{
-		ItemInfo.ItemType = ELxItemType::Equipment; // 将物品类型设置为装备
-		ItemStackInfo.ItemCanStack = false; // 装备通常不能堆叠
-		ItemStackInfo.ItemMaxCount = 1; // 最大堆叠数量
+		ItemCountMax = 1;
+		ItemType = ELxItemType::Equipment;
+	}
+
+	/**
+	 * @brief 构造函数，用于初始化装备静态信息。
+	 *
+	 * 该构造函数接收装备ID、稀有度类型、装备类型、强化值覆盖项、锻造潜能以及默认词条列表作为参数，
+	 * 并使用这些参数来初始化一个`FLxEquipmentInformation`实例。此构造函数还处理了从给定的词条列表中
+	 * 移除并设置第一个词条为默认词条的操作，并将剩余的词条存储在扩展词条列表中。
+	 *
+	 * @param ID 装备的唯一标识符。
+	 * @param RarityType 物品的稀有度级别。
+	 * @param EquipmentType 装备所属的具体部位类型。
+	 * @param EnhancementValueOverride 强化值覆盖项，用于指定装备的特定强化等级。
+	 * @param ForgePotential 装备的潜在锻造能力，影响装备可被锻造的程度或次数。
+	 * @param DefaultEntryQuoteList 初始化时提供的词条列表，其中第一个元素将被设为默认词条，其余则添加至扩展词条列表。
+	 * @return 无返回值。
+	 */
+	FLxEquipmentInformation(FLxItemID ID, ELxItemRarityType RarityType,
+	                        ELxEquipmentType EquipmentType, int32 EnhancementValueOverride, int32 ForgePotential, const TArray<FLxEntryQuote>& DefaultEntryQuoteList = TArray<FLxEntryQuote>())
+	{
+		this->ItemID =  ID;
+		this->ItemRarity  = RarityType;
+		this->EquipmentType = EquipmentType;
+		this->EnhancementValueOverride = EnhancementValueOverride;
+		this->ForgePotential = ForgePotential;
+		this->ItemEntryQuotes = DefaultEntryQuoteList;
+
+		ItemCountMax = 1;
+		ItemType = ELxItemType::Equipment;
 	}
 };
 
-USTRUCT(BlueprintType, DisplayName="装备属性缓存类型")
-struct FLxEquipmentData : public FLxItemDateBase
+/**
+ * @brief 装备物品对象。
+ *
+ * UObject 化后的装备类型，负责提供装备物品的通用接口实现，
+ * 并通过 FLxEquipmentInformation 保存当前装备的静态属性。
+ */
+UCLASS(BlueprintType)
+class LXARPG_API ULxEquipment : public ULxItemBase
 {
 	GENERATED_BODY()
-	/**
- 	 * @var FLxEquipmentInfo EquipmentInfo
- 	 * @brief 装备的基础默认属性信息
- 	 * 该变量用于存储装备的基础属性信息，包括装备部位类型、默认强化强度和默认锻造潜能等。这些属性在编辑器中可配置，并且可以通过蓝图脚本进行读写。
- 	 *
- 	 * @note 确保所有引用的词条定义存在并且有效，以避免运行时错误。
- 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="装备基础默认属性")
-	FLxEquipmentInfo EquipmentInfo;
 
-	/**
-	 * @var FLxEquipmentEntyInfo EquipmentEntyInfo
-	 * @brief 装备词条信息
-	 * 该变量包含了装备的默认词条和扩展词条列表。通过编辑器或蓝图可以对其进行读写操作。
-	 * 在编辑器中，该变量显示为“装备词条信息”。
-	 *
-	 * @note 确保所有引用的词条定义存在并且有效，以避免运行时错误。
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="装备词条信息")
-	FLxEquipmentEntyInfo EquipmentEntyInfo;
+public:
+	ULxEquipment();
+	virtual ~ULxEquipment() override;
+	
+	/** @brief 使用装备时返回安装装备的使用状态。 */
+	virtual ELxItemUseState ItemUse() override;
+
+	/** @brief 装备数量文本，装备默认不显示数量。 */
+	virtual FLxString ItemCountText() override;
+
+	/** @brief 获取装备部位类型。 */
+	ELxEquipmentType EquipmentType() const;
+
+	/** 获取当前装备信息副本，用于 UI 显示。 */
+	FLxEquipmentInformation EquipmentInformation() const;
+
+protected:
+	virtual void SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount) override;
+
+	virtual FLxItemInformationBase* ItemBase() override;
+private:
+	/** @brief 当前装备的静态信息。 */
+	FLxEquipmentInformation m_fEquipmentInformation;
 };
-
-
-

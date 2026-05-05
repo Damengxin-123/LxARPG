@@ -9,17 +9,12 @@
 #include "LxItemGridWidget.generated.h"
 
 class ULxItemUIData;
-class ULxItemLogicBase;
+class ULxItemBase;
 class ULxItemSlotData;
 class ULxItemDragInfo;
 class ULxItemDragIconWidget;
 class ULxCharacterPopupUIFunction;
 class UTexture2D;
-
-/** 当格子物品数据发生变化时通知蓝图刷新显示。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnItemGridDataChanged);
-
-
 
 /**
  * @brief 物品格子控件
@@ -40,14 +35,6 @@ public:
 	 */
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
 
-
-	/**
-	 * @brief 获取当前格子中物品的基础信息。
-	 * 该方法返回一个包含当前格子中物品所有基础信息的结构体引用。这些信息包括物品的基本属性、堆叠信息、数量、可视化信息和稀有度信息等。
-	 * @return 返回一个`FLxItemDateBase`类型的常量引用，包含当前格子中物品的所有基础信息。
-	 */
-	UFUNCTION(BlueprintPure, DisplayName="获取物品基础信息")
-	const FLxItemDateBase& GetCurrentItemData() const;
 
 	/**
 	 * @brief 获取当前格子的槽位类型。
@@ -92,6 +79,14 @@ public:
 	UFUNCTION(BlueprintPure, Category="Item Grid", DisplayName="获取显示图标")
 	UTexture2D* GetDisplayIcon() const;
 
+	/** 获取当前物品的可视化名称，空格子返回空文本。 */
+	UFUNCTION(BlueprintPure, Category="Item Grid", DisplayName="获取物品可视化名称")
+	FText GetItemDisplayName() const;
+
+	/** 获取当前物品的可视化描述，空格子返回空文本。 */
+	UFUNCTION(BlueprintPure, Category="Item Grid", DisplayName="获取物品可视化描述")
+	FText GetItemDisplayDescription() const;
+
 	/**
 	 * 设置网格的默认图标。
 	 *
@@ -121,7 +116,7 @@ public:
 	 * @return 当前格子中物品的数量。如果物品无效或图标为空，则返回0。
 	 */
 	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="获取物品数量")
-	int32 GetItemCount() const;
+	FText GetItemCount() const;
 
 	/**
 	 * @brief 获取当前格子中物品的稀有度颜色
@@ -131,15 +126,24 @@ public:
 	 * @return 返回一个FLinearColor对象，表示物品的稀有度颜色。若无有效物品或稀有度信息，则返回白色。
 	 */
 	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="获取物品稀有度颜色")
-	FLinearColor GetItemRarityColor() const;
+	ELxItemRarityType GetItemRarity() const;
 
 
-	/** * @brief 当格子中的物品数据发生变化时触发的事件。
-	 * 此委托用于通知蓝图脚本，当格子内的物品数据（如数量、类型等）发生改变时进行相应的更新或刷新操作。
-	 * 可以在蓝图中绑定此事件来响应数据变化，例如更新UI显示或执行其他逻辑处理。
-	 */
-	UPROPERTY(BlueprintAssignable, Category="Item Grid", DisplayName="物品更新事件")
-	FOnItemGridDataChanged OnItemGridDataChanged;
+	/** 物品显示需要整体刷新时调用，蓝图中应同时更新图标和数量显示。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="Item Grid", DisplayName="物品显示更新")
+	void OnItemDisplayUpdated(UTexture2D* DisplayIcon, const FText& ItemName, const FText& ItemDescription, const FText& ItemCount, ELxItemRarityType Rarity);
+
+	/** 空装备槽位刷新时调用，蓝图中可根据装备部位设置默认图标。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="Item Grid", DisplayName="空装备槽位显示更新")
+	void OnEmptyEquipmentSlotUpdated(bool IsEquipmentSlot, ELxEquipmentType EquipmentType);
+
+	/** 只有物品数量变化时调用，蓝图中只更新数量显示即可。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="Item Grid", DisplayName="物品数量更新")
+	void OnItemCountUpdated(const FText& ItemCount);
+
+	UFUNCTION(BlueprintImplementableEvent, Category="Item Grid", DisplayName="空格子显示更新")
+	void OnItemIsEmpty();
+	
 
 protected:
 	/**
@@ -213,9 +217,11 @@ private:
 	void HandleCurrentSlotChanged();
 
 	UFUNCTION()
-	void HandleCurrentItemChanged();
+	void HandleCurrentItemChanged(ULxItemBase* Item, int32 OldCount, int32 NewCount);
 
-	void BroadcastGridDataChanged() const;
+	void BroadcastGridDataChanged();
+
+	void BroadcastItemCountChanged();
 
 	
 	
@@ -224,7 +230,7 @@ private:
 	TObjectPtr<ULxItemSlotData> CurrentSlotData = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<ULxItemLogicBase> CurrentItemData = nullptr;
+	TObjectPtr<ULxItemBase> CurrentItemData = nullptr;
 
 	void SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData);
 
