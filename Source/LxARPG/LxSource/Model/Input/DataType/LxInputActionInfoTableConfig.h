@@ -17,13 +17,13 @@ class LXARPG_API ULxInputActionInfoTableConfig : public ULxDataTableConfigBase
 public:
 	virtual void InitDataTableLoading() override;
 
-	const FLxInputActionInfo* GetInputActionInfo(const FName& InRowID) const;
-	const TMap<FName, FLxInputActionInfo>& GetInputActionInfoMap() const;
+	const FLxInputActionInfo* GetInputActionInfo(ELxInputActionID InInputActionID) const;
+	const TMap<ELxInputActionID, FLxInputActionInfo>& GetInputActionInfoMap() const;
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="Input Action Info Table List")
 	TArray<UDataTable*> m_vInputActionInfoTableList;
 
 private:
-	TMap<FName, FLxInputActionInfo> m_tInputActionInfoMap;
+	TMap<ELxInputActionID, FLxInputActionInfo> m_tInputActionInfoMap;
 };

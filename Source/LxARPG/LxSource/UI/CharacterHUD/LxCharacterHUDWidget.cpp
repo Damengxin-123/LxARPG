@@ -3,16 +3,13 @@
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
-#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
-#include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemGridWidget.h"
-#include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
-#include "LxARPG/LxSource/UI/Manager/LxUIFunctionTypes.h"
+#include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
 
-void ULxCharacterHUDWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
+void ULxCharacterHUDWidget::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)
 {
-	Super::UpdateUIComponents(PlayerCharacter);
-	BindDataTransferComponent(m_pPlayerCharacter ? m_pPlayerCharacter->GetCharacterDataTransferComponent() : nullptr);
+	BindDataTransferComponent(CharacterDataTransferComponent);
+	Super::UpdateUIComponents(CharacterDataTransferComponent);
 	RefreshAttributeTextFromDataTransfer();
 }
 
@@ -22,39 +19,23 @@ void ULxCharacterHUDWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-bool ULxCharacterHUDWidget::BindShortcutItemGridInput(ULxItemGridWidget* InItemGridWidget, FName InInputActionID)
+bool ULxCharacterHUDWidget::BindShortcutItemGridInput(ULxItemGridWidget* InItemGridWidget, ELxInputActionID InInputActionID)
 {
-	if (!InItemGridWidget || InInputActionID.IsNone())
+	if (!InItemGridWidget || InInputActionID == ELxInputActionID::None)
 	{
 		return false;
 	}
 
-	ULxShortcutItemSlotData* ShortcutSlot = FindOrAddShortcutSlot(InItemGridWidget);
-	if (!ShortcutSlot)
-	{
-		return false;
-	}
+	ULxItemSlotData* ShortcutSlot = NewObject<ULxItemSlotData>(InItemGridWidget);
+	ShortcutSlot->InitItemSlot(ELxItemSlotType::Shortcut);
 
-	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
-	if (!LocalPlayer)
-	{
-		return false;
-	}
+	ULxItemUIData* ItemUIData = NewObject<ULxItemUIData>(InItemGridWidget);
+	ItemUIData->m_pSlotData = ShortcutSlot;
+	
+	InItemGridWidget->NativeOnListItemObjectSet(ItemUIData);
+	InItemGridWidget->RegisterInputActionReceive(InInputActionID);
 
-	const ULxLocalPlayerSubsystem* LocalPlayerSubsystem = ULxLocalPlayerSubsystem::GetFromLocalPlayer(LocalPlayer);
-	if (!LocalPlayerSubsystem)
-	{
-		return false;
-	}
-
-	ULxUIManager* UIManager = LocalPlayerSubsystem->GetUIManager();
-	if (!UIManager)
-	{
-		return false;
-	}
-
-	ULxCharacterHUDUIFunction* HUDFunction = UIManager->GetCharacterHUDUIFunction();
-	return HUDFunction ? HUDFunction->BindShortcutInputAction(InItemGridWidget, InInputActionID) : false;
+	return true;
 }
 
 void ULxCharacterHUDWidget::HandleCharacterAttributesChanged(const TArray<FLxAttributeData>& AttributeList)
@@ -62,63 +43,40 @@ void ULxCharacterHUDWidget::HandleCharacterAttributesChanged(const TArray<FLxAtt
 	UpdateAttributeTextFromList(AttributeList);
 }
 
-ULxShortcutItemSlotData* ULxCharacterHUDWidget::FindOrAddShortcutSlot(ULxItemGridWidget* InItemGridWidget)
-{
-	if (!InItemGridWidget)
-	{
-		return nullptr;
-	}
-
-	if (ULxShortcutItemSlotData* ExistSlot = ShortcutSlotMap.FindRef(InItemGridWidget))
-	{
-		InItemGridWidget->SetItemSlotData(ExistSlot);
-		return ExistSlot;
-	}
-
-	ULxShortcutItemSlotData* NewSlot = NewObject<ULxShortcutItemSlotData>(this);
-	if (!NewSlot)
-	{
-		return nullptr;
-	}
-
-	ShortcutSlotMap.Add(InItemGridWidget, NewSlot);
-	InItemGridWidget->SetItemSlotData(NewSlot);
-	return NewSlot;
-}
 
 void ULxCharacterHUDWidget::BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent)
 {
-	if (CharacterDataTransferComponent == InDataTransferComponent)
+	if (m_pCharacterDataTransferComponent == InDataTransferComponent)
 	{
 		return;
 	}
 
 	UnbindDataTransferComponent();
-	CharacterDataTransferComponent = InDataTransferComponent;
+	m_pCharacterDataTransferComponent = InDataTransferComponent;
 
-	if (CharacterDataTransferComponent == nullptr)
+	if (m_pCharacterDataTransferComponent == nullptr)
 	{
 		return;
 	}
 
-	CharacterDataTransferComponent->OnCharacterAttributeChanged.RemoveDynamic(this, &ULxCharacterHUDWidget::HandleCharacterAttributesChanged);
-	CharacterDataTransferComponent->OnCharacterAttributeChanged.AddDynamic(this, &ULxCharacterHUDWidget::HandleCharacterAttributesChanged);
+	m_pCharacterDataTransferComponent->OnCharacterAttributeChanged.RemoveDynamic(this, &ULxCharacterHUDWidget::HandleCharacterAttributesChanged);
+	m_pCharacterDataTransferComponent->OnCharacterAttributeChanged.AddDynamic(this, &ULxCharacterHUDWidget::HandleCharacterAttributesChanged);
 }
 
 void ULxCharacterHUDWidget::UnbindDataTransferComponent()
 {
-	if (CharacterDataTransferComponent == nullptr)
+	if (m_pCharacterDataTransferComponent == nullptr)
 	{
 		return;
 	}
 
-	CharacterDataTransferComponent->OnCharacterAttributeChanged.RemoveDynamic(this, &ULxCharacterHUDWidget::HandleCharacterAttributesChanged);
-	CharacterDataTransferComponent = nullptr;
+	m_pCharacterDataTransferComponent->OnCharacterAttributeChanged.RemoveDynamic(this, &ULxCharacterHUDWidget::HandleCharacterAttributesChanged);
+	m_pCharacterDataTransferComponent = nullptr;
 }
 
 void ULxCharacterHUDWidget::RefreshAttributeTextFromDataTransfer()
 {
-	if (CharacterDataTransferComponent == nullptr)
+	if (m_pCharacterDataTransferComponent == nullptr)
 	{
 		OnHUDAttributeValueUpdated(0.0f, 0.0f);
 		OnHUDAttributeTextUpdated(FText::GetEmpty(), FText::GetEmpty());
@@ -126,7 +84,7 @@ void ULxCharacterHUDWidget::RefreshAttributeTextFromDataTransfer()
 	}
 
 	TArray<FLxAttributeData> AttributeList;
-	CharacterDataTransferComponent->GetAllCharacterAttributes(AttributeList);
+	m_pCharacterDataTransferComponent->GetAllCharacterAttributes(AttributeList);
 	UpdateAttributeTextFromList(AttributeList);
 }
 

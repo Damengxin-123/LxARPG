@@ -46,6 +46,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="添加物品到背包-ID")
 	bool AddItemByRowID(ELxItemType InItemType, int32 InItemID, int32 InItemCount = 1);
 
+	UFUNCTION(BlueprintCallable, Category="Backpack|Test", DisplayName="测试-按标签ID添加物品", meta=(Categories="物品"))
+	bool TestAddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount = 1);
+
+	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="检查能否添加物品列表")
+	bool CanAddItemList(const TArray<FLxItemQuote>& InItemList) const;
+
+	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="添加物品列表")
+	bool AddItemList(const TArray<FLxItemQuote>& InItemList);
+
 	/**
 	 * 从背包中移除指定数量的物品。
 	 *
@@ -86,11 +95,11 @@ protected:
 private:
 	/** 物品数量变化时刷新背包状态。 */
 	UFUNCTION()
-	void HandleTrackedItemCountChanged(ULxItemBase* Item, int32 OldCount, int32 NewCount);
+	void HandleTrackedItemCountChanged(ULxItemBase* Item);
 
 	/** 槽位内容变化时刷新背包状态。 */
 	UFUNCTION()
-	void HandleBackpackSlotChanged();
+	void HandleBackpackSlotChanged(ULxItemBase* InItemData);
 
 	/** 重新绑定当前背包内物品和槽位事件。 */
 	void RefreshTrackedBindings();

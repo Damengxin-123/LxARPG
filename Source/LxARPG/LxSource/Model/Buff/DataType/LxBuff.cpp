@@ -32,7 +32,10 @@ void ULxBuff::SetRemainingDuration(float InRemainingDuration)
 	const int32 NewDisplaySeconds = RemainingDuration < 0.f ? INDEX_NONE : FMath::CeilToInt(RemainingDuration);
 
 	// 复用数量变化事件驱动格子数量文本刷新；Buff 的“数量文本”实际代表剩余时间。
-	BroadcastItemCountChanged(OldDisplaySeconds, NewDisplaySeconds);
+	if (OldDisplaySeconds != NewDisplaySeconds)
+	{
+		BroadcastItemCountChanged();
+	}
 }
 
 void ULxBuff::SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount)

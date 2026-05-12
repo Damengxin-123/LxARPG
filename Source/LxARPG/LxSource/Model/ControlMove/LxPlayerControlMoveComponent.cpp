@@ -1,9 +1,7 @@
 #include "LxPlayerControlMoveComponent.h"
 
-#include "GameFramework/PlayerController.h"
-#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
-#include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 ULxPlayerControlMoveComponent::ULxPlayerControlMoveComponent()
 {
@@ -20,94 +18,43 @@ void ULxPlayerControlMoveComponent::BaseComponentInitialize()
 	{
 		m_pMoveComponent = m_pOwnerCharacter->GetCharacterMoveComponent();
 	}
-	if (m_pOwnerCharacter->Controller)
-	{
-		if (!m_pLocalPlayerSubsystem && m_pOwnerCharacter)
-		{
-			if (const APlayerController* PlayerController = Cast<APlayerController>(m_pOwnerCharacter->Controller))
-			{
-				if (const ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
-				{
-					m_pLocalPlayerSubsystem = ULxLocalPlayerSubsystem::GetFromLocalPlayer(LocalPlayer);
-				}
-			}
-		}
-	}
-	InitMonitorRegistration();
+	RegisterInputActionReceive(m_MoveWInputActionID);
+	RegisterInputActionReceive(m_MoveSInputActionID);
+	RegisterInputActionReceive(m_MoveAInputActionID);
+	RegisterInputActionReceive(m_MoveDInputActionID);
+	RegisterInputActionReceive(m_LookXInputActionID);
+	RegisterInputActionReceive(m_LookYInputActionID);
+	RegisterInputActionReceive(m_JumpInputActionID);
 }
 
 void ULxPlayerControlMoveComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	BaseComponentInitialize();
 }
 
-void ULxPlayerControlMoveComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	UnregisterMonitor();
-	Super::EndPlay(EndPlayReason);
-}
-
-void ULxPlayerControlMoveComponent::HandleInputValue(FName InName, FLxInputValue InValue)
+void ULxPlayerControlMoveComponent::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
 {
 	if (!m_pMoveComponent)
 	{
-		return;
+		BaseComponentInitialize();
 	}
 	if (!m_pMoveComponent)
 	{
 		return;
 	}
 
-	if (InName == m_MoveWInputActionID || InName == m_MoveAInputActionID
-		|| InName == m_MoveDInputActionID || InName == m_MoveSInputActionID)
+	if (InInputActionID == m_MoveWInputActionID || InInputActionID == m_MoveAInputActionID
+		|| InInputActionID == m_MoveDInputActionID || InInputActionID == m_MoveSInputActionID)
 	{
 		m_pMoveComponent->HandleMoveInput(InValue.m_sVector2D);
 	}
-	else if (InName == m_JumpInputActionID)
+	else if (InInputActionID == m_JumpInputActionID)
 	{
 		m_pMoveComponent->HandleJumpInput(InValue.m_blValue);
 	}
-	else if (InName == m_LookXInputActionID || InName == m_LookYInputActionID)
+	else if (InInputActionID == m_LookXInputActionID || InInputActionID == m_LookYInputActionID)
 	{
 		m_pMoveComponent->HandleLookInput(InValue.m_sVector2D);
 	}
-}
-
-void ULxPlayerControlMoveComponent::InitMonitorRegistration()
-{
-	if (!m_pLocalPlayerSubsystem)
-	{
-		return;
-	}
-	if (!m_pLocalPlayerSubsystem)
-	{
-		return;
-	}
-
-	TScriptInterface<ILxInputReceiveInterface> InputReceive;
-	InputReceive.SetObject(this);
-	InputReceive.SetInterface(Cast<ILxInputReceiveInterface>(this));
-	m_pLocalPlayerSubsystem->RegisterInputReceive(m_MoveWInputActionID, InputReceive);
-	m_pLocalPlayerSubsystem->RegisterInputReceive(m_MoveAInputActionID, InputReceive);
-	m_pLocalPlayerSubsystem->RegisterInputReceive(m_MoveSInputActionID, InputReceive);
-	m_pLocalPlayerSubsystem->RegisterInputReceive(m_MoveDInputActionID, InputReceive);
-	m_pLocalPlayerSubsystem->RegisterInputReceive(m_JumpInputActionID, InputReceive);
-	m_pLocalPlayerSubsystem->RegisterInputReceive(m_LookXInputActionID, InputReceive);
-	m_pLocalPlayerSubsystem->RegisterInputReceive(m_LookYInputActionID, InputReceive);
-}
-
-void ULxPlayerControlMoveComponent::UnregisterMonitor()
-{
-	if (!m_pLocalPlayerSubsystem)
-	{
-		return;
-	}
-
-	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_MoveWInputActionID);
-	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_MoveAInputActionID);
-	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_MoveSInputActionID);
-	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_MoveDInputActionID);
-	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_JumpInputActionID);
-	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_LookXInputActionID);
-	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_LookYInputActionID);
 }

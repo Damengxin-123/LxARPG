@@ -17,7 +17,7 @@ class UTexture2D;
  *
  * 当物品内部数量发生变化时广播，背包格子、快捷栏和数量文本可以监听它刷新显示。
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnItemCountChanged, ULxItemBase*, Item, int32, OldCount, int32, NewCount);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemCountChanged, ULxItemBase*, Item);
 
 /**
  * UObject 化后的运行时物品基类。
@@ -45,6 +45,8 @@ public:
 
 	/** 获取物品ID对应的 FName 表示，通常用于表格或资源查询。 */
 	FName ItemIDName();
+
+	FGameplayTag ItemTagID();
 
 	/** 获取物品的数值ID。 */
 	FLxItemID ItemID();
@@ -91,6 +93,8 @@ public:
 	/** 获取物品词条对象列表。 */
 	TArray<TObjectPtr<ULxEntryObjectBase>>& GetItemEntryList();
 
+	void BroadcastItemCountChanged();
+
 	/** 获取用于 UI 显示的数量文本。 */
 	virtual FLxString ItemCountText() PURE_VIRTUAL(ULxItemBase::ItemCountText, return FLxString(););
 
@@ -99,8 +103,6 @@ public:
 
 protected:
 	/** 广播物品数量改变事件，只有新旧数量不一致时才会真正通知。 */
-	void BroadcastItemCountChanged(FLxItemCount OldCount, FLxItemCount NewCount);
-
 	/** 设置物品静态数据和运行时数量。 */
 	virtual void SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount);
 

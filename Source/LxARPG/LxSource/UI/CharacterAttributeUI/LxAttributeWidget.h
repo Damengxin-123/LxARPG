@@ -5,7 +5,6 @@
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxAttributeWidget.generated.h"
 
-class ALxBaseCharacter;
 class ULxCharacterDataTransferComponent;
 class ULxUITextData;
 
@@ -22,11 +21,8 @@ class LXARPG_API ULxAttributeWidget : public ULxUIBaseObject
 	GENERATED_BODY()
 
 public:
-	// 初始化UI界面
-	virtual void InitializeUIComponents() override;
-
 	// 更新界面属性，当新角色传入时
-	virtual void UpdateUIComponents(ALxBaseCharacter* PlayerCharacter) override;
+	virtual void UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent) override;
 	virtual void NativeDestruct() override;
 
 	/** 接收数据中转组件转发的角色属性变化事件。 */
@@ -53,6 +49,4 @@ private:
 	TArray<ULxUITextData*> BuildAttributesUIDataList(const TArray<FLxAttributeData>& AttributeList);
 
 	/** 当前角色的数据中转组件，属性 UI 的数据获取和事件刷新都从这里进入。 */
-	UPROPERTY()
-	TObjectPtr<ULxCharacterDataTransferComponent> m_pCharacterDataTransferComponent = nullptr;
 };

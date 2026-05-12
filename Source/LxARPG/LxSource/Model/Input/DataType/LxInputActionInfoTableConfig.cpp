@@ -1,10 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "LxInputActionInfoTableConfig.h"
+#include "LxInputActionConfig.h"
 
 void ULxInputActionInfoTableConfig::InitDataTableLoading()
 {
 	m_tInputActionInfoMap.Empty();
+	LxInputActionConfig::ClearInputActionConfig();
 
 	for (UDataTable* Table : m_vInputActionInfoTableList)
 	{
@@ -18,27 +20,28 @@ void ULxInputActionInfoTableConfig::InitDataTableLoading()
 
 		for (const FLxInputActionInfo* RowData : Rows)
 		{
-			if (RowData == nullptr || RowData->InputActionID.IsNone())
+			if (RowData == nullptr || RowData->InputActionID == ELxInputActionID::None)
 			{
 				continue;
 			}
 
 			m_tInputActionInfoMap.Add(RowData->InputActionID, *RowData);
+			LxInputActionConfig::SetInputActionInfo(*RowData);
 		}
 	}
 }
 
-const FLxInputActionInfo* ULxInputActionInfoTableConfig::GetInputActionInfo(const FName& InRowID) const
+const FLxInputActionInfo* ULxInputActionInfoTableConfig::GetInputActionInfo(ELxInputActionID InInputActionID) const
 {
-	if (InRowID.IsNone())
+	if (InInputActionID == ELxInputActionID::None)
 	{
 		return nullptr;
 	}
 
-	return m_tInputActionInfoMap.Find(InRowID);
+	return m_tInputActionInfoMap.Find(InInputActionID);
 }
 
-const TMap<FName, FLxInputActionInfo>& ULxInputActionInfoTableConfig::GetInputActionInfoMap() const
+const TMap<ELxInputActionID, FLxInputActionInfo>& ULxInputActionInfoTableConfig::GetInputActionInfoMap() const
 {
 	return m_tInputActionInfoMap;
 }

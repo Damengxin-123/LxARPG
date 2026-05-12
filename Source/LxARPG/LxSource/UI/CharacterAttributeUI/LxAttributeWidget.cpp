@@ -5,18 +5,12 @@
 #include "LxARPG/LxSource/Core/Tools/LxString.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
-#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/UI/UICore/LxUITextData.h"
 
-void ULxAttributeWidget::InitializeUIComponents()
+void ULxAttributeWidget::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)
 {
-	Super::InitializeUIComponents();
-}
-
-void ULxAttributeWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
-{
-	Super::UpdateUIComponents(PlayerCharacter);
-	BindDataTransferComponent(m_pPlayerCharacter ? m_pPlayerCharacter->GetCharacterDataTransferComponent() : nullptr);
+	BindDataTransferComponent(CharacterDataTransferComponent);
+	Super::UpdateUIComponents(CharacterDataTransferComponent);
 	RefreshAttributeListFromDataTransfer();
 }
 

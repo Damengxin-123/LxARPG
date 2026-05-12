@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/IUserObjectListEntry.h"
 #include "Blueprint/UserWidget.h"
+#include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentEnum.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxUIDataType.h"
@@ -13,7 +14,7 @@ class ULxItemBase;
 class ULxItemSlotData;
 class ULxItemDragInfo;
 class ULxItemDragIconWidget;
-class ULxCharacterPopupUIFunction;
+class ULxUIManager;
 class UTexture2D;
 
 /**
@@ -23,7 +24,7 @@ class UTexture2D;
  * 不直接操作具体 UI 显示。界面展示通过事件和蓝图实现事件完成。
  */
 UCLASS(BlueprintType, Blueprintable, DisplayName="物品格子控件")
-class LXARPG_API ULxItemGridWidget : public UUserWidget, public IUserObjectListEntry
+class LXARPG_API ULxItemGridWidget : public ULxUIBaseObject, public IUserObjectListEntry
 {
 	GENERATED_BODY()
 
@@ -35,6 +36,7 @@ public:
 	 */
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
 
+	virtual void HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue) override;
 
 	/**
 	 * @brief 获取当前格子的槽位类型。
@@ -43,17 +45,17 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, DisplayName="获取槽位类型")
 	ELxItemSlotType GetSlotType() const;
-
-	/**
-	 * @brief 获取当前格子中物品的类型。
-	 *
-	 * 该方法检查当前格子中的物品数据，并根据物品槽位类型返回相应的物品类型。
-	 * 如果当前格子没有物品数据或物品类型无法识别，则返回0。
-	 *
-	 * @return 返回一个整数，表示当前格子中物品的类型。如果无物品或类型未知，则返回0。
-	 */
-	UFUNCTION(BlueprintPure, DisplayName="获取槽位内物品类型")
-	int32 GetItemType() const;
+	//
+	// /**
+	//  * @brief 获取当前格子中物品的类型。
+	//  *
+	//  * 该方法检查当前格子中的物品数据，并根据物品槽位类型返回相应的物品类型。
+	//  * 如果当前格子没有物品数据或物品类型无法识别，则返回0。
+	//  *
+	//  * @return 返回一个整数，表示当前格子中物品的类型。如果无物品或类型未知，则返回0。
+	//  */
+	// UFUNCTION(BlueprintPure, DisplayName="获取槽位内物品类型")
+	// int32 GetItemType() const;
 	
 	
 	/**
@@ -66,7 +68,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="设置槽位数据")
 	void SetItemSlotData(ULxItemSlotData* InSlotData);
-
+	
 	/**
 	 * @brief 检查当前格子中的物品是否有效。
 	 * 该方法用于判断当前格子中是否有有效的物品数据。如果`CurrentSlotData`不为空且其`IsValid`方法返回`true`，则认为当前格子中的物品是有效的。
@@ -74,19 +76,19 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category="Item Grid")
 	bool ItemIsVaild() const;
-
+	
 	/** 获取当前格子应显示的图标，没有物品时返回默认图标。 */
 	UFUNCTION(BlueprintPure, Category="Item Grid", DisplayName="获取显示图标")
 	UTexture2D* GetDisplayIcon() const;
-
+	
 	/** 获取当前物品的可视化名称，空格子返回空文本。 */
 	UFUNCTION(BlueprintPure, Category="Item Grid", DisplayName="获取物品可视化名称")
 	FText GetItemDisplayName() const;
-
+	
 	/** 获取当前物品的可视化描述，空格子返回空文本。 */
 	UFUNCTION(BlueprintPure, Category="Item Grid", DisplayName="获取物品可视化描述")
 	FText GetItemDisplayDescription() const;
-
+	
 	/**
 	 * 设置网格的默认图标。
 	 *
@@ -94,7 +96,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="设置默认图标")
 	void SetDefaultIcon(UTexture2D* InDefaultIcon);
-
+	
 	/**
 	 * @brief 获取当前格子中装备的类型。
 	 *
@@ -105,8 +107,8 @@ public:
 	 * @return 返回一个布尔值，表示是否成功获取到装备类型。如果成功获取到装备类型则返回true，否则返回false。
 	 */
 	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="获取装备部位")
-	bool GetEquipmentType(ELxEquipmentType& OutEquipmentType) const;
-
+	bool GetEquipmentType(FGameplayTag& OutEquipmentType) const;
+	
 	/**
 	 * @brief 获取当前格子中物品的数量。
 	 *
@@ -117,7 +119,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Item Grid", DisplayName="获取物品数量")
 	FText GetItemCount() const;
-
+	
 	/**
 	 * @brief 获取当前格子中物品的稀有度颜色
 	 *
@@ -135,7 +137,7 @@ public:
 
 	/** 空装备槽位刷新时调用，蓝图中可根据装备部位设置默认图标。 */
 	UFUNCTION(BlueprintImplementableEvent, Category="Item Grid", DisplayName="空装备槽位显示更新")
-	void OnEmptyEquipmentSlotUpdated(bool IsEquipmentSlot, ELxEquipmentType EquipmentType);
+	void OnEmptyEquipmentSlotUpdated(bool IsEquipmentSlot, FGameplayTag EquipmentType);
 
 	/** 只有物品数量变化时调用，蓝图中只更新数量显示即可。 */
 	UFUNCTION(BlueprintImplementableEvent, Category="Item Grid", DisplayName="物品数量更新")
@@ -200,7 +202,7 @@ protected:
 
 
 private:
-	ULxCharacterPopupUIFunction* GetCharacterPopupUIFunction() const;
+	ULxUIManager* GetUIManager() const;
 
 	void ShowItemTooltip(const FVector2D& InMouseScreenPosition) const;
 
@@ -214,10 +216,10 @@ private:
 	 * 该方法会在当前槽位数据发生改变时被调用，用于刷新绑定的物品信息并广播格子数据变化。
 	 */
 	UFUNCTION()
-	void HandleCurrentSlotChanged();
+	void HandleCurrentSlotChanged(ULxItemBase* InItemData);
 
 	UFUNCTION()
-	void HandleCurrentItemChanged(ULxItemBase* Item, int32 OldCount, int32 NewCount);
+	void HandleCurrentItemChanged(ULxItemBase* Item);
 
 	void BroadcastGridDataChanged();
 
@@ -228,11 +230,6 @@ private:
 	/** 指向当前格子绑定的槽位数据对象。用于存储和管理与该格子关联的具体数据。 */
 	UPROPERTY()
 	TObjectPtr<ULxItemSlotData> CurrentSlotData = nullptr;
-
-	UPROPERTY()
-	TObjectPtr<ULxItemBase> CurrentItemData = nullptr;
-
+	
 	void SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData);
-
-	void RebindCurrentItemChanged();
 };

@@ -11,43 +11,40 @@
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemDragInfo.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemDragIconWidget.h"
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
-#include "LxARPG/LxSource/UI/Manager/LxUIFunctionTypes.h"
+
+namespace
+{
+	bool IsShortcutInputActionID(ELxInputActionID InInputActionID)
+	{
+		return InInputActionID >= ELxInputActionID::Shortcut0
+			&& InInputActionID <= ELxInputActionID::Shortcut9;
+	}
+}
 
 void ULxItemGridWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
 	InitItemData(ListItemObject);
 }
 
+void ULxItemGridWidget::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
+{
+	if (!InValue.m_blValue || !IsShortcutInputActionID(InInputActionID) || GetSlotType() != ELxItemSlotType::Shortcut)
+	{
+		return;
+	}
+
+	UseItem();
+}
+
 ELxItemSlotType ULxItemGridWidget::GetSlotType() const
 {
 	if (CurrentSlotData)
 	{
-		return CurrentSlotData->ItemSlotType;
+		return CurrentSlotData->GetSlotType();
 	}
 	return ELxItemSlotType::None;
 }
 
-int32 ULxItemGridWidget::GetItemType() const
-{
-	if (CurrentSlotData)
-	{
-		switch (CurrentSlotData->ItemSlotType)
-		{
-
-		case ELxItemSlotType::Equipment:
-			{
-				if (ULxEquipmentSlotData* equSlot = Cast<ULxEquipmentSlotData>(CurrentSlotData))
-				{
-					return static_cast<int32>(equSlot->EquipmentType);
-				}
-			}
-			break;
-			default:
-			return 0;
-		}
-	}
-	return 0;
-}
 
 bool ULxItemGridWidget::UseItem() const
 {
@@ -55,13 +52,9 @@ bool ULxItemGridWidget::UseItem() const
 	{
 		return false;
 	}
+	CurrentSlotData->ItemUse();
 
-	const bool bHadUsableItem = CurrentSlotData->IsValid();
-	const ULxShortcutItemSlotData* ShortcutSlot = Cast<ULxShortcutItemSlotData>(CurrentSlotData);
-	const bool bHadUsableSource = ShortcutSlot && ShortcutSlot->GetSourceSlot() && ShortcutSlot->GetSourceSlot()->IsValid();
-
-	CurrentSlotData->UseItem();
-	return bHadUsableItem || bHadUsableSource;
+	return true;
 }
 
 void ULxItemGridWidget::SetItemSlotData(ULxItemSlotData* InSlotData)
@@ -76,10 +69,10 @@ bool ULxItemGridWidget::ItemIsVaild() const
 
 UTexture2D* ULxItemGridWidget::GetDisplayIcon() const
 {
-	if (ItemIsVaild() && CurrentSlotData->ItemDataPtr)
+	if (ItemIsVaild())
 	{
 		// 物品图标从基础物品结构体读取；没有配置时才回退到格子默认图标。
-		const TSoftObjectPtr<UTexture2D> ItemIcon = CurrentSlotData->ItemDataPtr->ItemIcon();
+		const TSoftObjectPtr<UTexture2D> ItemIcon = CurrentSlotData->GetItem()->ItemIcon();
 		if (!ItemIcon.IsNull())
 		{
 			return ItemIcon.LoadSynchronous();
@@ -91,18 +84,18 @@ UTexture2D* ULxItemGridWidget::GetDisplayIcon() const
 
 FText ULxItemGridWidget::GetItemDisplayName() const
 {
-	if (ItemIsVaild() && CurrentSlotData->ItemDataPtr)
+	if (ItemIsVaild())
 	{
-		return CurrentSlotData->ItemDataPtr->ItemDisplayName();
+		return CurrentSlotData->GetItem()->ItemDisplayName();
 	}
 	return FText::GetEmpty();
 }
 
 FText ULxItemGridWidget::GetItemDisplayDescription() const
 {
-	if (ItemIsVaild() && CurrentSlotData->ItemDataPtr)
+	if (ItemIsVaild())
 	{
-		return CurrentSlotData->ItemDataPtr->ItemDisplayDescription();
+		return CurrentSlotData->GetItem()->ItemDisplayDescription();
 	}
 	return FText::GetEmpty();
 }
@@ -113,20 +106,15 @@ void ULxItemGridWidget::SetDefaultIcon(UTexture2D* InDefaultIcon)
 	BroadcastGridDataChanged();
 }
 
-bool ULxItemGridWidget::GetEquipmentType(ELxEquipmentType& OutEquipmentType) const
+bool ULxItemGridWidget::GetEquipmentType(FGameplayTag& OutEquipmentType) const
 {
-	if (!CurrentSlotData || CurrentSlotData->ItemSlotType != ELxItemSlotType::Equipment)
+	if (!CurrentSlotData || CurrentSlotData->GetSlotType() != ELxItemSlotType::Equipment)
 	{
 		return false;
 	}
+	
+	OutEquipmentType = CurrentSlotData->GetItemTypeTag();
 
-	const ULxEquipmentSlotData* EquipmentSlotData = Cast<ULxEquipmentSlotData>(CurrentSlotData);
-	if (!EquipmentSlotData)
-	{
-		return false;
-	}
-
-	OutEquipmentType = EquipmentSlotData->EquipmentType;
 	return true;
 }
 
@@ -134,7 +122,7 @@ FText ULxItemGridWidget::GetItemCount() const
 {
 	if (ItemIsVaild())
 	{
-		return CurrentSlotData->ItemDataPtr->ItemCountText().ToFText();
+		return CurrentSlotData->GetItem()->ItemCountText().ToFText();
 	}
 	return FLxString("").ToFText();
 }
@@ -143,7 +131,7 @@ ELxItemRarityType ULxItemGridWidget::GetItemRarity() const
 {
 	if (ItemIsVaild())
 	{
-		return CurrentSlotData->ItemDataPtr->ItemRarity();
+		return CurrentSlotData->GetItem()->ItemRarity();
 	}
 	return ELxItemRarityType::None;
 }
@@ -155,7 +143,7 @@ FReply ULxItemGridWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 		return UseItem() ? FReply::Handled() : FReply::Unhandled();
 	}
 
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && ItemIsVaild() && CurrentSlotData->CanGetItemData())
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && ItemIsVaild() && CurrentSlotData->ItemIsLeave())
 	{
 		return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::LeftMouseButton).NativeReply;
 	}
@@ -170,7 +158,7 @@ void ULxItemGridWidget::NativeOnDragDetected(const FGeometry& InGeometry, const 
 	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
 
 	// 拖拽发起时，判断当前格子是否为空，或者当前格子类型为不可拖拽的格子
-	if (!ItemIsVaild() || !CurrentSlotData->CanGetItemData())
+	if (!ItemIsVaild() || !CurrentSlotData->ItemIsLeave())
 	{
 		OutOperation = nullptr;
 		return;
@@ -210,7 +198,7 @@ bool ULxItemGridWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
 	}
 
 	// 判断拖拽双方是否是同一个格子
-	if (DragOperation->SourceSlot == CurrentSlotData)
+	if (DragOperation->SourceSlot == CurrentSlotData || !CurrentSlotData->ItemIsEnter())
 	{
 		return false;
 	}
@@ -246,7 +234,7 @@ void ULxItemGridWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 	HideItemTooltip();
 }
 
-ULxCharacterPopupUIFunction* ULxItemGridWidget::GetCharacterPopupUIFunction() const
+ULxUIManager* ULxItemGridWidget::GetUIManager() const
 {
 	const ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	if (!LocalPlayer)
@@ -260,43 +248,42 @@ ULxCharacterPopupUIFunction* ULxItemGridWidget::GetCharacterPopupUIFunction() co
 		return nullptr;
 	}
 
-	const ULxUIManager* UIManager = LocalPlayerSubsystem->GetUIManager();
-	return UIManager ? UIManager->GetCharacterPopupUIFunction() : nullptr;
+	return LocalPlayerSubsystem->GetUIManager();
 }
 
 void ULxItemGridWidget::ShowItemTooltip(const FVector2D& InMouseScreenPosition) const
 {
-	if (!CurrentSlotData || !CurrentSlotData->IsValid() || !CurrentSlotData->ItemDataPtr)
+	if (!CurrentSlotData || !CurrentSlotData->IsValid() || !CurrentSlotData->GetItem())
 	{
 		HideItemTooltip();
 		return;
 	}
 
-	if (ULxCharacterPopupUIFunction* PopupFunction = GetCharacterPopupUIFunction())
+	if (ULxUIManager* UIManager = GetUIManager())
 	{
-		PopupFunction->ShowItemTooltip(CurrentSlotData->ItemDataPtr, InMouseScreenPosition);
+		UIManager->ShowItemTooltip(CurrentSlotData->GetItem(), InMouseScreenPosition);
 	}
 }
 
 void ULxItemGridWidget::UpdateItemTooltipPosition(const FVector2D& InMouseScreenPosition) const
 {
-	if (!CurrentSlotData || !CurrentSlotData->IsValid() || !CurrentSlotData->ItemDataPtr)
+	if (!CurrentSlotData || !CurrentSlotData->IsValid() || !CurrentSlotData->GetItem())
 	{
 		HideItemTooltip();
 		return;
 	}
 
-	if (ULxCharacterPopupUIFunction* PopupFunction = GetCharacterPopupUIFunction())
+	if (ULxUIManager* UIManager = GetUIManager())
 	{
-		PopupFunction->UpdateItemTooltipPosition(InMouseScreenPosition);
+		UIManager->UpdateItemTooltipPosition(InMouseScreenPosition);
 	}
 }
 
 void ULxItemGridWidget::HideItemTooltip() const
 {
-	if (ULxCharacterPopupUIFunction* PopupFunction = GetCharacterPopupUIFunction())
+	if (ULxUIManager* UIManager = GetUIManager())
 	{
-		PopupFunction->HideItemTooltip();
+		UIManager->HideItemTooltip();
 	}
 }
 
@@ -314,44 +301,38 @@ void ULxItemGridWidget::InitItemData(UObject* ListItemObject)
 
 void ULxItemGridWidget::SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData)
 {
-	if (CurrentItemData)
-	{
-		CurrentItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
-		CurrentItemData = nullptr;
-	}
 
 	if (CurrentSlotData)
 	{
-		CurrentSlotData->OnSlotChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
+		CurrentSlotData->OnItemDataChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
 	}
 
 	CurrentSlotData = InSlotData;
 
 	if (CurrentSlotData)
 	{
-		CurrentSlotData->OnSlotChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
-		CurrentSlotData->OnSlotChanged.AddDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
+		CurrentSlotData->OnItemDataChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
+		CurrentSlotData->OnItemDataChanged.AddDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
 	}
 
-	RebindCurrentItemChanged();
 	BroadcastGridDataChanged();
 }
 
 
-void ULxItemGridWidget::HandleCurrentSlotChanged() 
+void ULxItemGridWidget::HandleCurrentSlotChanged(ULxItemBase* InItemData) 
 {
-	RebindCurrentItemChanged();
+
 	BroadcastGridDataChanged();
 }
 
-void ULxItemGridWidget::HandleCurrentItemChanged(ULxItemBase* Item, int32 OldCount, int32 NewCount)
+void ULxItemGridWidget::HandleCurrentItemChanged(ULxItemBase* Item)
 {
 	BroadcastItemCountChanged();
 }
 
 void ULxItemGridWidget::BroadcastGridDataChanged()
 {
-	ELxEquipmentType EquipmentType = ELxEquipmentType::Weapon;
+	FGameplayTag EquipmentType;
 	if (!ItemIsVaild() && GetEquipmentType(EquipmentType))
 	{
 		// 再由蓝图按装备部位决定默认图标。
@@ -373,19 +354,4 @@ void ULxItemGridWidget::BroadcastItemCountChanged()
 {
 	// 只有数量变化时避免重刷整块显示，蓝图只更新数量文本即可。
 	OnItemCountUpdated(GetItemCount());
-}
-void ULxItemGridWidget::RebindCurrentItemChanged()
-{
-	if (CurrentItemData)
-	{
-		CurrentItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
-		CurrentItemData = nullptr;
-	}
-
-	if (CurrentSlotData && CurrentSlotData->ItemDataPtr)
-	{
-		CurrentItemData = CurrentSlotData->ItemDataPtr;
-		CurrentItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
-		CurrentItemData->OnItemCountChanged.AddDynamic(this, &ULxItemGridWidget::HandleCurrentItemChanged);
-	}
 }

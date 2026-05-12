@@ -3,6 +3,48 @@
 #include "CoreMinimal.h"
 #include "LxInputEnum.generated.h"
 
+UENUM(BlueprintType, DisplayName="输入行为ID")
+enum class ELxInputActionID : uint8
+{
+	None UMETA(DisplayName="无"),
+
+	ShowCursor  UMETA(DisplayName="显示鼠标光标"),
+	
+	MoveForward UMETA(DisplayName="前进"),
+	MoveBackward UMETA(DisplayName="后退"),
+	MoveLeft UMETA(DisplayName="向左"),
+	MoveRight UMETA(DisplayName="向右"),
+	Jump UMETA(DisplayName="跳跃"),
+	LookX UMETA(DisplayName="视角X"),
+	LookY UMETA(DisplayName="视角Y"),
+
+	Backpack UMETA(DisplayName="背包"),
+	CharacterAttribute UMETA(DisplayName="角色属性"),
+
+	
+	Shortcut0 UMETA(DisplayName="快捷栏0"),
+	Shortcut1 UMETA(DisplayName="快捷栏1"),
+	Shortcut2 UMETA(DisplayName="快捷栏2"),
+	Shortcut3 UMETA(DisplayName="快捷栏3"),
+	Shortcut4 UMETA(DisplayName="快捷栏4"),
+	Shortcut5 UMETA(DisplayName="快捷栏5"),
+	Shortcut6 UMETA(DisplayName="快捷栏6"),
+	Shortcut7 UMETA(DisplayName="快捷栏7"),
+	Shortcut8 UMETA(DisplayName="快捷栏8"),
+	Shortcut9 UMETA(DisplayName="快捷栏9"),
+
+	InteractionInteract UMETA(DisplayName="交互"),
+	InteractionSelectCandidate UMETA(DisplayName="选择交互候选"),
+	InteractionCancel UMETA(DisplayName="取消交互"),
+	InteractionBack UMETA(DisplayName="返回上级交互"),
+	SystemShowMouseCursor UMETA(DisplayName="显示鼠标")
+};
+
+FORCEINLINE uint32 GetTypeHash(const ELxInputActionID InInputActionID)
+{
+	return GetTypeHash(static_cast<uint8>(InInputActionID));
+}
+
 /**
  * @enum ELxInputValueAxial
  * @brief 轴类型枚举

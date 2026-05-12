@@ -1,70 +1,40 @@
 #include "LxUIManager.h"
 
+#include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/CanvasPanelSlot.h"
-#include "LxUIFunctionBase.h"
-#include "LxUIFunctionTypes.h"
+#include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
-#include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
-
-void ULxUIManager::InitializeManager(ULxLocalPlayerSubsystem* InLocalPlayerSubsystem)
-{
-	m_pLocalPlayerSubsystem = InLocalPlayerSubsystem;
-	InitializeFunctionObjects();
-	InitMonitorRegistration();
-	RefreshUI();
-}
+#include "LxARPG/LxSource/UI/ItemInfo/LxItemTooltipWidget.h"
 
 void ULxUIManager::SetPlayerController(ALxPlayerController* InPlayerController)
 {
 	m_pPlayerController = InPlayerController;
-	UpdatePlayerController(InPlayerController);
-
-	for (TPair<ELxUIFunctionType, TObjectPtr<ULxUIFunctionBase>>& FunctionPair : m_mapUITypeToFunction)
-	{
-		if (FunctionPair.Value)
-		{
-			FunctionPair.Value->SetPlayerController(InPlayerController);
-		}
-	}
-
 	UpdateCursorState();
 }
 
 void ULxUIManager::SetControlledCharacter(ALxBaseCharacter* InCharacter)
 {
-	m_pControlledCharacter = InCharacter;
-	UpdateUIComponents(InCharacter);
-
-	for (TPair<ELxUIFunctionType, TObjectPtr<ULxUIFunctionBase>>& FunctionPair : m_mapUITypeToFunction)
-	{
-		if (FunctionPair.Value)
-		{
-			FunctionPair.Value->SetControlledCharacter(InCharacter);
-		}
-	}
-
-	UpdateCursorState();
+	m_pCharacterDataTransferComponent = InCharacter ? InCharacter->GetCharacterDataTransferComponent() : nullptr;
+	UpdateUIComponents(m_pCharacterDataTransferComponent);
+	RefreshUI();
 }
 
 void ULxUIManager::RefreshUI()
 {
-	for (TPair<ELxUIFunctionType, TObjectPtr<ULxUIFunctionBase>>& FunctionPair : m_mapUITypeToFunction)
+	for (const FLxManagedUIWidgetData& WidgetData : RegisteredChildWidgets)
 	{
-		if (!FunctionPair.Value)
+		if (WidgetData.UIWidget)
 		{
-			continue;
+			WidgetData.UIWidget->UpdateUIComponents(m_pCharacterDataTransferComponent);
 		}
-
-		FunctionPair.Value->SetPlayerController(m_pPlayerController);
-		FunctionPair.Value->SetControlledCharacter(m_pControlledCharacter);
-		FunctionPair.Value->RefreshManagedUIState();
 	}
 
 	UpdateCursorState();
 }
 
-void ULxUIManager::RegisterChildUIWidget(ULxUIBaseObject* InChildUIWidget, FName InInputActionID, ELxUIFunctionType InUIType)
+void ULxUIManager::RegisterChildUIWidget(ULxUIBaseObject* InChildUIWidget, ELxInputActionID InInputActionID, bool bInShowCursorWhenVisible)
 {
 	if (!InChildUIWidget)
 	{
@@ -72,8 +42,7 @@ void ULxUIManager::RegisterChildUIWidget(ULxUIBaseObject* InChildUIWidget, FName
 	}
 
 	FLxManagedUIWidgetData* ExistData = FindManagedUIDataByWidget(InChildUIWidget);
-	ELxUIFunctionType PreviousUIType = InUIType;
-	FName PreviousInputActionID = NAME_None;
+	ELxInputActionID PreviousInputActionID = ELxInputActionID::None;
 
 	if (!ExistData)
 	{
@@ -83,54 +52,30 @@ void ULxUIManager::RegisterChildUIWidget(ULxUIBaseObject* InChildUIWidget, FName
 	}
 	else
 	{
-		PreviousUIType = ExistData->UIType;
 		PreviousInputActionID = ExistData->InputActionID;
 	}
 
-	if (ULxUIFunctionBase* PreviousFunction = GetOrCreateUIFunction(PreviousUIType))
+	if (PreviousInputActionID != ELxInputActionID::None && PreviousInputActionID != InInputActionID)
 	{
-		if (PreviousUIType != InUIType || PreviousInputActionID != InInputActionID)
+		if (m_mapInputActionToWidget.FindRef(PreviousInputActionID) == InChildUIWidget)
 		{
-			PreviousFunction->RemoveManagedUIWidget(InChildUIWidget);
+			m_mapInputActionToWidget.Remove(PreviousInputActionID);
 		}
 	}
 
 	ExistData->InputActionID = InInputActionID;
-	ExistData->UIType = InUIType;
+	ExistData->bShowCursorWhenVisible = bInShowCursorWhenVisible;
+	InChildUIWidget->UpdateUIComponents(m_pCharacterDataTransferComponent);
 
-	ULxUIFunctionBase* TargetFunction = GetOrCreateUIFunction(InUIType);
-	if (!TargetFunction)
+	if (ULxItemTooltipWidget* ItemTooltipWidget = Cast<ULxItemTooltipWidget>(InChildUIWidget))
 	{
-		return;
+		m_pItemTooltipWidget = ItemTooltipWidget;
 	}
 
-	TargetFunction->AddManagedUIWidget(InChildUIWidget, InInputActionID);
-
-	if (!PreviousInputActionID.IsNone() && PreviousInputActionID != InInputActionID)
+	if (InInputActionID != ELxInputActionID::None)
 	{
-		m_mapInputActionToFunction.Remove(PreviousInputActionID);
-	}
-
-	if (!InInputActionID.IsNone())
-	{
-		m_mapInputActionToFunction.FindOrAdd(InInputActionID) = TargetFunction;
-		RegisterInputAction(InInputActionID);
-	}
-
-	UpdateCursorState();
-}
-
-void ULxUIManager::NotifyChildUIVisibilityChanged(ULxUIBaseObject* InChildUIWidget)
-{
-	FLxManagedUIWidgetData* WidgetData = FindManagedUIDataByWidget(InChildUIWidget);
-	if (!WidgetData)
-	{
-		return;
-	}
-
-	if (ULxUIFunctionBase* UIFunction = GetOrCreateUIFunction(WidgetData->UIType))
-	{
-		UIFunction->NotifyManagedUIVisibilityChanged(InChildUIWidget);
+		RegisterInputActionReceive(InInputActionID);
+		m_mapInputActionToWidget.FindOrAdd(InInputActionID) = InChildUIWidget;
 	}
 
 	UpdateCursorState();
@@ -138,34 +83,23 @@ void ULxUIManager::NotifyChildUIVisibilityChanged(ULxUIBaseObject* InChildUIWidg
 
 void ULxUIManager::SetChildUIVisible(ULxUIBaseObject* InChildUIWidget, bool bInVisible)
 {
-	FLxManagedUIWidgetData* WidgetData = FindManagedUIDataByWidget(InChildUIWidget);
-	if (!WidgetData)
+	if (!FindManagedUIDataByWidget(InChildUIWidget))
 	{
 		return;
 	}
 
-	if (ULxUIFunctionBase* UIFunction = GetOrCreateUIFunction(WidgetData->UIType))
-	{
-		UIFunction->SetManagedUIVisible(InChildUIWidget, bInVisible);
-	}
-
+	InChildUIWidget->SetVisibility(bInVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	UpdateCursorState();
 }
 
 void ULxUIManager::ToggleChildUI(ULxUIBaseObject* InChildUIWidget)
 {
-	FLxManagedUIWidgetData* WidgetData = FindManagedUIDataByWidget(InChildUIWidget);
-	if (!WidgetData)
+	if (!InChildUIWidget)
 	{
 		return;
 	}
 
-	if (ULxUIFunctionBase* UIFunction = GetOrCreateUIFunction(WidgetData->UIType))
-	{
-		UIFunction->ToggleManagedUI(InChildUIWidget);
-	}
-
-	UpdateCursorState();
+	SetChildUIVisible(InChildUIWidget, !IsManagedUIVisible(InChildUIWidget));
 }
 
 void ULxUIManager::UpdateManagedUIPosition_Implementation(ULxUIBaseObject* InChildUIWidget, FVector2D InScreenPosition)
@@ -181,59 +115,57 @@ void ULxUIManager::UpdateManagedUIPosition_Implementation(ULxUIBaseObject* InChi
 	}
 }
 
-ULxCharacterHUDUIFunction* ULxUIManager::GetCharacterHUDUIFunction() const
+bool ULxUIManager::ShowItemTooltip(ULxItemBase* InItem, FVector2D InMouseScreenPosition)
 {
-	return Cast<ULxCharacterHUDUIFunction>(m_mapUITypeToFunction.FindRef(ELxUIFunctionType::CharacterHUD));
+	if (!m_pItemTooltipWidget || !m_pItemTooltipWidget->SetDisplayItemLogic(InItem))
+	{
+		return false;
+	}
+
+	m_pItemTooltipWidget->SetVisibility(ESlateVisibility::Visible);
+	UpdateTooltipPosition(m_pItemTooltipWidget, InMouseScreenPosition);
+	UpdateCursorState();
+	return true;
 }
 
-ULxCharacterPopupUIFunction* ULxUIManager::GetCharacterPopupUIFunction() const
+void ULxUIManager::UpdateItemTooltipPosition(FVector2D InMouseScreenPosition)
 {
-	return Cast<ULxCharacterPopupUIFunction>(m_mapUITypeToFunction.FindRef(ELxUIFunctionType::CHaracterPopup));
-}
-
-void ULxUIManager::RegisterUIFunctionInputAction(ELxUIFunctionType InUIType, FName InInputActionID)
-{
-	if (InInputActionID.IsNone())
+	if (!m_pItemTooltipWidget || !IsManagedUIVisible(m_pItemTooltipWidget))
 	{
 		return;
 	}
 
-	if (ULxUIFunctionBase* TargetFunction = GetOrCreateUIFunction(InUIType))
-	{
-		m_mapInputActionToFunction.FindOrAdd(InInputActionID) = TargetFunction;
-		RegisterInputAction(InInputActionID);
-	}
+	UpdateTooltipPosition(m_pItemTooltipWidget, InMouseScreenPosition);
 }
 
-void ULxUIManager::HandleInputValue(FName InName, FLxInputValue InValue)
+void ULxUIManager::HideItemTooltip()
 {
-	ULxUIFunctionBase* UIFunction = m_mapInputActionToFunction.FindRef(InName);
-	if (!UIFunction)
+	if (!m_pItemTooltipWidget)
 	{
 		return;
 	}
 
-	UIFunction->HandlePlayerInputAction(InName, InValue);
+	m_pItemTooltipWidget->SetVisibility(ESlateVisibility::Hidden);
 	UpdateCursorState();
 }
 
-void ULxUIManager::InitMonitorRegistration()
+void ULxUIManager::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
 {
-	if (!m_pLocalPlayerSubsystem || !m_pLocalPlayerSubsystem->HasInputComponentQuote())
+	ULxUIBaseObject* TargetWidget = m_mapInputActionToWidget.FindRef(InInputActionID);
+	if (!TargetWidget)
 	{
 		return;
 	}
 
-	RegisteredInputActionIDs.Reset();
-
-	for (const FLxManagedUIWidgetData& WidgetData : RegisteredChildWidgets)
+	if (TargetWidget->HandleInputEvent(InInputActionID, InValue))
 	{
-		RegisterInputAction(WidgetData.InputActionID);
+		UpdateCursorState();
+		return;
 	}
 
-	for (const TPair<FName, TObjectPtr<ULxUIFunctionBase>>& InputPair : m_mapInputActionToFunction)
+	if (InValue.m_blValue)
 	{
-		RegisterInputAction(InputPair.Key);
+		ToggleChildUI(TargetWidget);
 	}
 }
 
@@ -246,69 +178,36 @@ FLxManagedUIWidgetData* ULxUIManager::FindManagedUIDataByWidget(ULxUIBaseObject*
 		});
 }
 
-ULxUIFunctionBase* ULxUIManager::GetOrCreateUIFunction(ELxUIFunctionType InUIType)
+bool ULxUIManager::IsManagedUIVisible(const ULxUIBaseObject* InChildUIWidget) const
 {
-	if (ULxUIFunctionBase* ExistFunction = m_mapUITypeToFunction.FindRef(InUIType))
-	{
-		return ExistFunction;
-	}
-
-	ULxUIFunctionBase* NewFunction = nullptr;
-	switch (InUIType)
-	{
-	case ELxUIFunctionType::MainMenu:
-		NewFunction = NewObject<ULxMainMenuUIFunction>(this);
-		break;
-	case ELxUIFunctionType::CharacterFunction:
-		NewFunction = NewObject<ULxCharacterFunctionUIFunction>(this);
-		break;
-	case ELxUIFunctionType::CharacterInteraction:
-		NewFunction = NewObject<ULxCharacterInteractionUIFunction>(this);
-		break;
-	case ELxUIFunctionType::CharacterHUD:
-		NewFunction = NewObject<ULxCharacterHUDUIFunction>(this);
-		break;
-	case ELxUIFunctionType::CHaracterPopup:
-		NewFunction = NewObject<ULxCharacterPopupUIFunction>(this);
-		break;
-	default:
-		break;
-	}
-
-	if (!NewFunction)
-	{
-		return nullptr;
-	}
-
-	NewFunction->InitializeFunction(this);
-	NewFunction->SetPlayerController(m_pPlayerController);
-	NewFunction->SetControlledCharacter(m_pControlledCharacter);
-	m_mapUITypeToFunction.Add(InUIType, NewFunction);
-	return NewFunction;
+	return InChildUIWidget && InChildUIWidget->GetVisibility() != ESlateVisibility::Collapsed
+		&& InChildUIWidget->GetVisibility() != ESlateVisibility::Hidden;
 }
 
-void ULxUIManager::InitializeFunctionObjects()
+void ULxUIManager::UpdateTooltipPosition(ULxUIBaseObject* InChildUIWidget, FVector2D InAnchorScreenPosition)
 {
-	GetOrCreateUIFunction(ELxUIFunctionType::MainMenu);
-	GetOrCreateUIFunction(ELxUIFunctionType::CharacterFunction);
-	GetOrCreateUIFunction(ELxUIFunctionType::CharacterInteraction);
-	GetOrCreateUIFunction(ELxUIFunctionType::CharacterHUD);
-	GetOrCreateUIFunction(ELxUIFunctionType::CHaracterPopup);
-}
-
-void ULxUIManager::RegisterInputAction(FName InInputActionID)
-{
-	if (InInputActionID.IsNone() || !m_pLocalPlayerSubsystem || !m_pLocalPlayerSubsystem->HasInputComponentQuote()
-		|| RegisteredInputActionIDs.Contains(InInputActionID))
+	if (!InChildUIWidget)
 	{
 		return;
 	}
 
-	TScriptInterface<ILxInputReceiveInterface> InputReceive;
-	InputReceive.SetObject(this);
-	InputReceive.SetInterface(Cast<ILxInputReceiveInterface>(this));
-	m_pLocalPlayerSubsystem->RegisterInputReceive(InInputActionID, InputReceive);
-	RegisteredInputActionIDs.Add(InInputActionID);
+	const FVector2D WidgetSize = InChildUIWidget->GetDesiredSize();
+	const float DPIScale = UWidgetLayoutLibrary::GetViewportScale(this);
+	FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(this);
+	ViewportSize = DPIScale > 0.0f ? ViewportSize / DPIScale : ViewportSize;
+
+	FVector2D FinalPos = InAnchorScreenPosition + FVector2D(12.0f, 12.0f);
+	if (InAnchorScreenPosition.X + WidgetSize.X + 12.0f > ViewportSize.X)
+	{
+		FinalPos.X = InAnchorScreenPosition.X - WidgetSize.X - 12.0f;
+	}
+
+	if (InAnchorScreenPosition.Y + WidgetSize.Y + 12.0f > ViewportSize.Y)
+	{
+		FinalPos.Y = InAnchorScreenPosition.Y - WidgetSize.Y - 12.0f;
+	}
+
+	UpdateManagedUIPosition(InChildUIWidget, FinalPos);
 }
 
 void ULxUIManager::UpdateCursorState() const
@@ -318,9 +217,9 @@ void ULxUIManager::UpdateCursorState() const
 		return;
 	}
 
-	for (const TPair<ELxUIFunctionType, TObjectPtr<ULxUIFunctionBase>>& FunctionPair : m_mapUITypeToFunction)
+	for (const FLxManagedUIWidgetData& WidgetData : RegisteredChildWidgets)
 	{
-		if (FunctionPair.Value && FunctionPair.Value->ShouldDisplayCursor())
+		if (WidgetData.bShowCursorWhenVisible && IsManagedUIVisible(WidgetData.UIWidget))
 		{
 			m_pPlayerController->ShowCursorFun();
 			return;

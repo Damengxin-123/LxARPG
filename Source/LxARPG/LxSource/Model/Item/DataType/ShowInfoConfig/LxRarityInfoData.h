@@ -46,4 +46,19 @@ struct FLxRarityInfo : public FTableRowBase
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "稀有度可视化", DisplayName="稀有度颜色")
 	FLinearColor RarityColor;
+
+	/**
+	 * @var TSoftObjectPtr<UTexture2D> RarityBackgroundImage
+	 * @brief 稀有度背景图标
+	 *
+	 * 用于在UI中显示表示该稀有度级别的背景图像。
+	 * 通过软引用（TSoftObjectPtr）来引用UTexture2D类型的纹理资源，允许延迟加载和更灵活的资源管理。
+	 *
+	 * @note
+	 * - 该属性可以在编辑器中进行设置，并且支持蓝图读写访问。
+	 * - 显示名称为"稀有度图标"，归类于"稀有度可视化"类别下，便于在编辑器中查找和配置。
+	 * - 使用软引用可以减少内存占用，提高加载效率，特别适用于需要频繁切换或加载大量不同稀有度图标的场景。
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "稀有度可视化", DisplayName="稀有度图标")
+	TSoftObjectPtr<UTexture2D> RarityBackgroundImage;
 };

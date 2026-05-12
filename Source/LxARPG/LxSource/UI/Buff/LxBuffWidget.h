@@ -4,7 +4,6 @@
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 #include "LxBuffWidget.generated.h"
 
-class ALxBaseCharacter;
 class ULxBuff;
 class ULxCharacterDataTransferComponent;
 class ULxItemSlotData;
@@ -23,8 +22,7 @@ class LXARPG_API ULxBuffWidget : public ULxUIBaseObject
 	GENERATED_BODY()
 
 public:
-	virtual void InitializeUIComponents() override;
-	virtual void UpdateUIComponents(ALxBaseCharacter* PlayerCharacter) override;
+	virtual void UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent) override;
 	virtual void NativeDestruct() override;
 
 	/** 主动从数据中转组件拉取 Buff 列表并刷新 UI 数据。 */
@@ -73,9 +71,6 @@ private:
 	void HandleDataTransferBuffChanged(const TArray<ULxBuff*>& BuffList);
 
 	/** 当前绑定的数据中转组件。 */
-	UPROPERTY()
-	TObjectPtr<ULxCharacterDataTransferComponent> CharacterDataTransferComponent = nullptr;
-
 	/** 当前 UI 正在显示的 Buff 逻辑列表。 */
 	UPROPERTY()
 	TArray<TObjectPtr<ULxBuff>> m_vBuffList;

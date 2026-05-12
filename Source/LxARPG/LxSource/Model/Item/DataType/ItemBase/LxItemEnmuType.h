@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NativeGameplayTags.h"
 #include "UObject/Object.h"
 #include "LxItemEnmuType.generated.h"
 
@@ -41,6 +42,25 @@ enum class ELxItemType : uint8
 	ItemSizeMax UMETA(Hidden, DisplayName = "枚举最大值"),
 };
 
+// Item type tags, aligned with ELxItemType.
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_None);
+// 装备子类型
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Weapon);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Deputy);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Helmet);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Armor);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Leggings);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Boots);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Glove);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Belt);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Jewelry);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Consumable);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Material);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Skill);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Buff);
+
 /**
  * @enum ELxItemUseState
  * @brief 物品使用后的效果
@@ -62,6 +82,7 @@ enum ELxItemUseState
 	// 使用后需要释放技能：使用之后，需要对此技能进行释放
 	CastSkill,
 };
+
 
 
 

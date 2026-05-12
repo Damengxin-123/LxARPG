@@ -22,6 +22,9 @@ struct FLxItemInformationBase : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品ID")
 	int32 ItemID = ItemIDNone;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品ID-标签测试版", meta=(Categories="物品"))
+	FGameplayTag ItemIDTest;
+
 	/** 物品大类，例如装备、消耗品、材料、Buff。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品类型")
 	ELxItemType ItemType = ELxItemType::None;
@@ -37,6 +40,9 @@ struct FLxItemInformationBase : public FTableRowBase
 	/** 物品稀有度。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品稀有度")
 	ELxItemRarityType ItemRarity = ELxItemRarityType::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品价值-金币",  meta=(ClampMin="0", UIMin="0"))
+	int32 ItemSellPrice;
 
 	/** 物品在 UI 中显示的名称，统一从物品基础数据读取。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|可视化", DisplayName="可视化名称")

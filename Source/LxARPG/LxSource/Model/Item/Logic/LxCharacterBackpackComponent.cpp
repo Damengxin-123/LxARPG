@@ -7,12 +7,28 @@
 
 namespace
 {
+	struct FLxBackpackItemKey
+	{
+		ELxItemType ItemType = ELxItemType::None;
+		FLxItemID ItemID = ItemIDNone;
+
+		bool operator==(const FLxBackpackItemKey& Other) const
+		{
+			return ItemType == Other.ItemType && ItemID == Other.ItemID;
+		}
+	};
+
+	uint32 GetTypeHash(const FLxBackpackItemKey& Key)
+	{
+		return HashCombine(::GetTypeHash(static_cast<uint8>(Key.ItemType)), ::GetTypeHash(Key.ItemID));
+	}
+
 	/** 查找第一个空背包槽位。 */
 	ULxItemSlotData* FindEmptyBackpackSlot(const TArray<TObjectPtr<ULxItemSlotData>>& InSlots)
 	{
 		for (ULxItemSlotData* Slot : InSlots)
 		{
-			if (Slot != nullptr && Slot->ItemDataPtr == nullptr)
+			if (Slot != nullptr && !Slot->IsValid())
 			{
 				return Slot;
 			}
@@ -80,7 +96,7 @@ bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, int32
 			continue;
 		}
 
-		ULxItemBase* ExistingItem = Slot->ItemDataPtr;
+		ULxItemBase* ExistingItem = Slot->GetItem();
 		if (ItemMatches(ExistingItem, InItemType, ItemID) && ExistingItem->ItemIsStackable())
 		{
 			AvailableCount += FMath::Max(0, MaxStackCount - ExistingItem->ItemCount());
@@ -108,7 +124,7 @@ bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, int32
 			continue;
 		}
 
-		ULxItemBase* ExistingItem = Slot->ItemDataPtr;
+		ULxItemBase* ExistingItem = Slot->GetItem();
 		if (!ItemMatches(ExistingItem, InItemType, ItemID) || !ExistingItem->ItemIsStackable())
 		{
 			continue;
@@ -160,6 +176,102 @@ bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, int32
 	return RemainingCount <= 0;
 }
 
+bool ULxCharacterBackpackComponent::TestAddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount)
+{
+	const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(InItemIDTag);
+	if (ItemConfig == nullptr)
+	{
+		return false;
+	}
+
+	return AddItemByRowID(ItemConfig->ItemType, ItemConfig->ItemID, InItemCount);
+}
+
+bool ULxCharacterBackpackComponent::CanAddItemList(const TArray<FLxItemQuote>& InItemList) const
+{
+	if (InItemList.IsEmpty())
+	{
+		return false;
+	}
+
+	TMap<FLxBackpackItemKey, int32> RequiredCountMap;
+	TMap<FLxBackpackItemKey, int32> ExistingStackSpaceMap;
+	TMap<FLxBackpackItemKey, int32> MaxStackCountMap;
+	int32 EmptySlotCount = 0;
+
+	for (const FLxItemQuote& ItemQuote : InItemList)
+	{
+		const FLxBackpackItemKey ItemKey{ItemQuote.ItemType, ItemQuote.ItemID};
+		if (ItemQuote.ItemType == ELxItemType::None || ItemQuote.ItemID == ItemIDNone || ItemQuote.ItemCount <= 0)
+		{
+			return false;
+		}
+
+		const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(ItemQuote.ItemType, ItemQuote.ItemID);
+		if (ItemConfig == nullptr || ItemConfig->ItemCountMax <= 0)
+		{
+			return false;
+		}
+
+		RequiredCountMap.FindOrAdd(ItemKey) += ItemQuote.ItemCount;
+		MaxStackCountMap.FindOrAdd(ItemKey) = FMath::Max(1, ItemConfig->ItemCountMax);
+	}
+
+	for (ULxItemSlotData* Slot : m_vBackpackSlots)
+	{
+		if (Slot == nullptr || !Slot->IsValid())
+		{
+			++EmptySlotCount;
+			continue;
+		}
+
+		ULxItemBase* ExistingItem = Slot->GetItem();
+		if (ExistingItem == nullptr || !ExistingItem->ItemIsValid() || !ExistingItem->ItemIsStackable())
+		{
+			continue;
+		}
+
+		const FLxBackpackItemKey ItemKey{ExistingItem->ItemType(), ExistingItem->ItemID()};
+		if (const int32* MaxStackCount = MaxStackCountMap.Find(ItemKey))
+		{
+			ExistingStackSpaceMap.FindOrAdd(ItemKey) += FMath::Max(0, *MaxStackCount - ExistingItem->ItemCount());
+		}
+	}
+
+	int32 RequiredEmptySlotCount = 0;
+	for (const TPair<FLxBackpackItemKey, int32>& RequiredPair : RequiredCountMap)
+	{
+		const int32 ExistingStackSpace = ExistingStackSpaceMap.FindRef(RequiredPair.Key);
+		const int32 RemainingCount = FMath::Max(0, RequiredPair.Value - ExistingStackSpace);
+		if (RemainingCount <= 0)
+		{
+			continue;
+		}
+
+		const int32 MaxStackCount = MaxStackCountMap.FindRef(RequiredPair.Key);
+		RequiredEmptySlotCount += FMath::DivideAndRoundUp(RemainingCount, MaxStackCount);
+	}
+
+	return RequiredEmptySlotCount <= EmptySlotCount;
+}
+
+bool ULxCharacterBackpackComponent::AddItemList(const TArray<FLxItemQuote>& InItemList)
+{
+	if (!CanAddItemList(InItemList))
+	{
+		return false;
+	}
+
+	for (const FLxItemQuote& ItemQuote : InItemList)
+	{
+		if (!AddItemByRowID(ItemQuote.ItemType, ItemQuote.ItemID, ItemQuote.ItemCount))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 bool ULxCharacterBackpackComponent::RemoveItemAt(ELxItemType InItemType, FName InItemID, int32 InItemCount)
 {
 	FLxItemID ItemID = ResolveItemIDFromName(InItemID);
@@ -176,12 +288,12 @@ bool ULxCharacterBackpackComponent::RemoveItemAt(ELxItemType InItemType, FName I
 			break;
 		}
 
-		if (Slot == nullptr || !ItemMatches(Slot->ItemDataPtr, InItemType, ItemID))
+		if (Slot == nullptr || !ItemMatches(Slot->GetItem(), InItemType, ItemID))
 		{
 			continue;
 		}
 
-		ULxItemBase* Item = Slot->ItemDataPtr;
+		ULxItemBase* Item = Slot->GetItem();
 		const int32 ItemCount = Item->ItemCount();
 		if (ItemCount <= RemainingRemoveCount)
 		{
@@ -274,7 +386,7 @@ TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterBackpackComponent::QueryItemsOn
 	m_vFilteringCache.Empty();
 	for (ULxItemSlotData* Slot : m_vBackpackSlots)
 	{
-		if (Slot != nullptr && Slot->ItemDataPtr != nullptr && Slot->ItemDataPtr->ItemType() == InItemType)
+		if (Slot != nullptr && Slot->GetItem() != nullptr && Slot->GetItem()->ItemType() == InItemType)
 		{
 			m_vFilteringCache.Add(Slot);
 		}
@@ -284,7 +396,7 @@ TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterBackpackComponent::QueryItemsOn
 
 void ULxCharacterBackpackComponent::NotifyItemUsedFromSlot(ULxItemBase* UsedItem)
 {
-	if (UsedItem == nullptr || !UsedItem->ItemIsValid())
+	if (UsedItem == nullptr)
 	{
 		return;
 	}
@@ -293,13 +405,15 @@ void ULxCharacterBackpackComponent::NotifyItemUsedFromSlot(ULxItemBase* UsedItem
 	OnDataChange.Broadcast();
 }
 
-void ULxCharacterBackpackComponent::HandleTrackedItemCountChanged(ULxItemBase* Item, int32 OldCount, int32 NewCount)
+void ULxCharacterBackpackComponent::HandleTrackedItemCountChanged(ULxItemBase* Item)
 {
+	NotifyItemUsedFromSlot(Item);
 	CleanupInvalidItems();
+	RefreshTrackedBindings();
 	OnDataChange.Broadcast();
 }
 
-void ULxCharacterBackpackComponent::HandleBackpackSlotChanged()
+void ULxCharacterBackpackComponent::HandleBackpackSlotChanged(ULxItemBase* InItemData)
 {
 	CleanupInvalidItems();
 	OnDataChange.Broadcast();
@@ -314,13 +428,13 @@ void ULxCharacterBackpackComponent::RefreshTrackedBindings()
 			continue;
 		}
 
-		Slot->OnSlotChanged.RemoveDynamic(this, &ULxCharacterBackpackComponent::HandleBackpackSlotChanged);
-		Slot->OnSlotChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleBackpackSlotChanged);
+		Slot->OnItemDataChanged.RemoveDynamic(this, &ULxCharacterBackpackComponent::HandleBackpackSlotChanged);
+		Slot->OnItemDataChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleBackpackSlotChanged);
 
-		if (Slot->ItemDataPtr != nullptr)
+		if (Slot->GetItem() != nullptr)
 		{
-			Slot->ItemDataPtr->OnItemCountChanged.RemoveDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemCountChanged);
-			Slot->ItemDataPtr->OnItemCountChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemCountChanged);
+			Slot->GetItem()->OnItemCountChanged.RemoveDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemCountChanged);
+			Slot->GetItem()->OnItemCountChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemCountChanged);
 		}
 	}
 }
@@ -331,7 +445,7 @@ bool ULxCharacterBackpackComponent::CleanupInvalidItems()
 
 	for (ULxItemSlotData* Slot : m_vBackpackSlots)
 	{
-		if (Slot != nullptr && Slot->ItemDataPtr != nullptr && !Slot->ItemDataPtr->ItemIsValid())
+		if (Slot != nullptr && Slot->GetItem() != nullptr && !Slot->GetItem()->ItemIsValid())
 		{
 			Slot->ClearItem();
 			bChanged = true;
@@ -341,9 +455,9 @@ bool ULxCharacterBackpackComponent::CleanupInvalidItems()
 	m_vItemList.Reset();
 	for (ULxItemSlotData* Slot : m_vBackpackSlots)
 	{
-		if (Slot != nullptr && Slot->ItemDataPtr != nullptr && Slot->ItemDataPtr->ItemIsValid())
+		if (Slot != nullptr && Slot->GetItem() != nullptr && Slot->GetItem()->ItemIsValid())
 		{
-			m_vItemList.AddUnique(Slot->ItemDataPtr);
+			m_vItemList.AddUnique(Slot->GetItem());
 		}
 	}
 
@@ -359,9 +473,8 @@ void ULxCharacterBackpackComponent::InitializeBackpack()
 	for (int32 Index = 0; Index < BackpackSlotCount; ++Index)
 	{
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
-		NewSlot->ItemSlotType = ELxItemSlotType::Backpack;
-		NewSlot->ID = Index;
-		NewSlot->OnSlotChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleBackpackSlotChanged);
+		NewSlot->InitItemSlot(ELxItemSlotType::Backpack, LxTag_Item, nullptr);
+		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleBackpackSlotChanged);
 		m_vBackpackSlots.Add(NewSlot);
 	}
 }

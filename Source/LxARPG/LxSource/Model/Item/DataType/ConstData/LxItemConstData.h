@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumable.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipment.h"
@@ -30,4 +31,5 @@ namespace LxItemConfig
 
 	/** 根据物品类型和 ID 查询物品静态配置。ItemID 不再承载类型信息，必须和类型配合定位。 */
 	const FLxItemInformationBase* GetItemData(ELxItemType InItemType, FLxItemID InItemID);
+	const FLxItemInformationBase* GetItemData(FGameplayTag InItemIDTag);
 }

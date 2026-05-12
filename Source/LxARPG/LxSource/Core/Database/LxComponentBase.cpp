@@ -1,36 +1,14 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-
-#include "LxUIBaseObject.h"
+#include "LxComponentBase.h"
 
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputActionConfig.h"
 
-void ULxUIBaseObject::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)
-{
-	m_pCharacterDataTransferComponent = CharacterDataTransferComponent;
-}
-
-void ULxUIBaseObject::NativeConstruct()
-{
-	Super::NativeConstruct();
-}
-
-void ULxUIBaseObject::NativeDestruct()
+void ULxComponentBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnregisterAllInputActionReceives();
-	Super::NativeDestruct();
+	Super::EndPlay(EndPlayReason);
 }
 
-void ULxUIBaseObject::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
-{
-	HandleInputEvent(InInputActionID, InValue);
-}
-
-void ULxUIBaseObject::InitMonitorRegistration()
-{
-}
-
-void ULxUIBaseObject::RegisterInputActionReceive(ELxInputActionID InInputActionID)
+void ULxComponentBase::RegisterInputActionReceive(ELxInputActionID InInputActionID)
 {
 	if (InInputActionID == ELxInputActionID::None || RegisteredInputActionIDs.Contains(InInputActionID))
 	{
@@ -44,7 +22,7 @@ void ULxUIBaseObject::RegisterInputActionReceive(ELxInputActionID InInputActionI
 	RegisteredInputActionIDs.Add(InInputActionID);
 }
 
-void ULxUIBaseObject::UnregisterInputActionReceive(ELxInputActionID InInputActionID)
+void ULxComponentBase::UnregisterInputActionReceive(ELxInputActionID InInputActionID)
 {
 	if (InInputActionID == ELxInputActionID::None)
 	{
@@ -55,7 +33,7 @@ void ULxUIBaseObject::UnregisterInputActionReceive(ELxInputActionID InInputActio
 	RegisteredInputActionIDs.Remove(InInputActionID);
 }
 
-void ULxUIBaseObject::UnregisterAllInputActionReceives()
+void ULxComponentBase::UnregisterAllInputActionReceives()
 {
 	for (const ELxInputActionID InputActionID : RegisteredInputActionIDs)
 	{

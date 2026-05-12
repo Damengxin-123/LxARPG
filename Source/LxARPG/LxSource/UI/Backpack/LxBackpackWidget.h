@@ -5,9 +5,7 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
 #include "LxBackpackWidget.generated.h"
 
-class ALxBaseCharacter;
 class ULxCharacterDataTransferComponent;
-class ULxEquipmentSlotData;
 class ULxItemSlotData;
 
 /**
@@ -21,8 +19,7 @@ class LXARPG_API ULxBackpackWidget : public ULxUIBaseObject
 	GENERATED_BODY()
 
 public:
-	virtual void InitializeUIComponents() override;
-	virtual void UpdateUIComponents(ALxBaseCharacter* PlayerCharacter) override;
+	virtual void UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent) override;
 	virtual void NativeDestruct() override;
 
 	/** 背包物品列表变化时调用，蓝图继承后用传入的数据刷新显示。 */
@@ -61,17 +58,14 @@ private:
 	void HandleBackpackItemsChanged(const TArray<ULxItemSlotData*>& BackpackItems);
 
 	UFUNCTION()
-	void HandleEquipmentSlotsChanged(const TArray<ULxEquipmentSlotData*>& EquipmentSlots);
+	void HandleEquipmentSlotsChanged(const TArray<ULxItemSlotData*>& EquipmentSlots);
 
 	/** 当前角色的数据中转组件。 */
-	UPROPERTY()
-	TObjectPtr<ULxCharacterDataTransferComponent> m_pCharacterDataTransferComponent = nullptr;
-
 	/** 当前 UI 展示用的背包槽位缓存，来源于数据中转组件。 */
 	UPROPERTY()
 	TArray<TObjectPtr<ULxItemSlotData>> m_vItemSlotList;
 
 	/** 当前 UI 展示用的装备槽位缓存，来源于数据中转组件。 */
 	UPROPERTY()
-	TArray<TObjectPtr<ULxEquipmentSlotData>> m_vEquipmentSlotList;
+	TArray<TObjectPtr<ULxItemSlotData>> m_vEquipmentSlotList;
 };

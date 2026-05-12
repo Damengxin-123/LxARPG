@@ -2,25 +2,18 @@
 
 
 #include "LxInputComponent.h"
+
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "LxARPG/LxSource/Core/Tools/LxString.h"
-#include "LxARPG/LxSource/Model/Input/DataType/LxInputActionInfoTableConfig.h"
-#include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
-#include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
+#include "LxARPG/LxSource/Model/Input/DataType/LxInputActionConfig.h"
 
 
-// Sets default values for this component's properties
 ULxInputComponent::ULxInputComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
 }
-
 
 void ULxInputComponent::BaseComponentInitialize()
 {
@@ -30,22 +23,10 @@ void ULxInputComponent::BaseComponentInitialize()
 	}
 	if (m_pDefaultMappingContext)
 	{
-		ULxGameInstanceSubsystem*  GameInstanceSubsystem = ULxGameInstanceSubsystem::GetInstance(GetWorld());
-		if (!GameInstanceSubsystem)
+		const TMap<ELxInputActionID, FLxInputActionInfo>& InputActionInfoMap = LxInputActionConfig::GetInputActionInfoMap();
+		if (InputActionInfoMap.IsEmpty())
 		{
-			ERROR_TO_SCREEN("GameInstanceSubsystem is null!");
-			return;
-		}
-		const ULxGameDataTablesManager* GameDataTablesManager = GameInstanceSubsystem->GetGameDataManager();
-		if (!GameDataTablesManager)
-		{
-			ERROR_TO_SCREEN("GameDataTablesManager is null!");
-			return;
-		}
-		const ULxInputActionInfoTableConfig* InputActionInfoTableConfig = GameDataTablesManager->m_pInputActionInfoTableConfig;
-		if (!InputActionInfoTableConfig)
-		{
-			ERROR_TO_SCREEN("InputActionInfoTableConfig is null!");
+			ERROR_TO_SCREEN("InputActionInfoMap is empty!");
 			return;
 		}
 		APlayerController* Parent = Cast<APlayerController>(GetOwner());
@@ -62,24 +43,24 @@ void ULxInputComponent::BaseComponentInitialize()
 			return;
 		}
 		Subsystem->AddMappingContext(m_pDefaultMappingContext, 0);
-		
+
 		UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(Parent->InputComponent);
 		if (!EnhancedInput)
 		{
 			ERROR_TO_SCREEN("EnhancedInput is null!");
 			return;
 		}
-		
+
 		UInputAction* Action = nullptr;
-		for (const TPair<FName, FLxInputActionInfo>& InputActionInfoPair : InputActionInfoTableConfig->GetInputActionInfoMap())
+		for (const TPair<ELxInputActionID, FLxInputActionInfo>& InputActionInfoPair : InputActionInfoMap)
 		{
 			const FLxInputActionInfo* InputActionInfo = &InputActionInfoPair.Value;
-			Action = NewObject<UInputAction>(this, InputActionInfo->InputActionID);
+			Action = NewObject<UInputAction>(this, LxInputActionConfig::GetInputActionName(InputActionInfo->InputActionID));
 			Action->ValueType = InputActionInfo->ValueType;
 
 			m_mapUserInputActionTable.Add(InputActionInfo->InputActionID, Action);
+			LxInputActionConfig::SetInputActionObject(InputActionInfo->InputActionID, Action);
 
-			// 绑定输入接收函数
 			switch (InputActionInfo->InteractionType)
 			{
 			case ELxInputInteractionType::Continuous:
@@ -96,13 +77,10 @@ void ULxInputComponent::BaseComponentInitialize()
 					this, &ULxInputComponent::HandleContinuousAction);
 				break;
 			}
-					
-					
+
 			FEnhancedActionKeyMapping& Mapping = m_pDefaultMappingContext->MapKey(Action, InputActionInfo->DefaultKey);
-			// 根据输入设定轴向，选择是否进行轴向拌合
 			if (InputActionInfo->ValueDirection == ELxInputValueAxial::X)
 			{
-				// Scalar：正方向
 				UInputModifierScalar* Scalar =
 					NewObject<UInputModifierScalar>(m_pDefaultMappingContext);
 				Scalar->Scalar = {InputActionInfo->ValueMagnification, 0, 0};
@@ -111,13 +89,10 @@ void ULxInputComponent::BaseComponentInitialize()
 			}
 			else if (InputActionInfo->ValueDirection == ELxInputValueAxial::Y)
 			{
-				// 在虚幻5.4之后，使用此方式叠加轴向缩放
-				// Swizzle：X → Y
 				UInputModifierSwizzleAxis* Swizzle =
 					NewObject<UInputModifierSwizzleAxis>(m_pDefaultMappingContext);
 				Swizzle->Order = EInputAxisSwizzle::YXZ;
 
-				// Scalar：正方向
 				UInputModifierScalar* Scalar =
 					NewObject<UInputModifierScalar>(m_pDefaultMappingContext);
 				Scalar->Scalar = {InputActionInfo->ValueMagnification, InputActionInfo->ValueMagnification, 0};
@@ -128,77 +103,49 @@ void ULxInputComponent::BaseComponentInitialize()
 	}
 }
 
-
-// Called when the game starts
 void ULxInputComponent::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-
 void ULxInputComponent::HandleContinuousAction(const FInputActionInstance& Instance)
 {
 	const UInputAction* Action = Instance.GetSourceAction();
 	const FInputActionValue Value = Instance.GetValue();
-	FName ActionID = Action->GetFName();
+	ELxInputActionID ActionID = LxInputActionConfig::GetInputActionIDByAction(Action);
 
-	FLxInputValue inputValue(Value.Get<bool>(), Value.Get<float>(), Value.Get<FVector2D>(), Value.Get<FVector>());
-		
-	// FLxString("输入事件触发，ActionID: {0}, Value: {1}, {2}").Arg(ActionID).Arg(inputValue.m_sVector2D.X)
-	// .Arg(inputValue.m_sVector2D.Y).LogeToScreenLog(ELxLogeLevelType::Debug);
-	SendInputEvent(ActionID, inputValue);
+	FLxInputValue InputValue(Value.Get<bool>(), Value.Get<float>(), Value.Get<FVector2D>(), Value.Get<FVector>());
+	SendInputEvent(ActionID, InputValue);
 }
 
 void ULxInputComponent::HandlePressAndReleaseAction(const FInputActionInstance& Instance, ETriggerEvent Trigge)
 {
 	const UInputAction* Action = Instance.GetSourceAction();
 	const FInputActionValue Value = Instance.GetValue();
-	FName ActionID = Action->GetFName();
+	ELxInputActionID ActionID = LxInputActionConfig::GetInputActionIDByAction(Action);
 
-	FLxInputValue inputValue(Value.Get<bool>(), Value.Get<float>(), Value.Get<FVector2D>(), Value.Get<FVector>());
-	inputValue.m_blValue = Trigge == ETriggerEvent::Started;
-	// FLxString("输入事件触发，ActionID: {0}, Value: {1}").Arg(ActionID).Arg(inputValue.m_blValue).LogeToScreenLog(ELxLogeLevelType::Debug);
-	SendInputEvent(ActionID, inputValue);
+	FLxInputValue InputValue(Value.Get<bool>(), Value.Get<float>(), Value.Get<FVector2D>(), Value.Get<FVector>());
+	InputValue.m_blValue = Trigge == ETriggerEvent::Started;
+	SendInputEvent(ActionID, InputValue);
 }
 
-void ULxInputComponent::RegisterInputReceive(FName InInputName,
+void ULxInputComponent::RegisterInputReceive(ELxInputActionID InInputActionID,
 	TScriptInterface<ILxInputReceiveInterface> InRegisterObj)
 {
-	if (InRegisterObj)
-	{
-		if (m_mapInputReceivedObject.Contains(InInputName))
-		{
-			// ERROR_TO_SCREEN(FLxString(TEXT("重复的输入行为ID : {0}")).Arg(InInputName));
-			return;
-		}
-		m_mapInputReceivedObject.Add(InInputName, InRegisterObj);
-	}
+	LxInputActionConfig::RegisterInputReceive(InInputActionID, InRegisterObj);
 }
 
-void ULxInputComponent::UnregisterInputReceive(FName InInputName)
+void ULxInputComponent::UnregisterInputReceive(ELxInputActionID InInputActionID)
 {
-
-	if (!m_mapInputReceivedObject.Contains(InInputName))
-	{
-		// ERROR_TO_SCREEN(FLxString(TEXT("并没有已注册的输入行为 : {0}")).Arg(InInputName));
-		return;
-	}
-	m_mapInputReceivedObject.Remove(InInputName);
-
+	LxInputActionConfig::UnregisterInputReceive(InInputActionID);
 }
 
-void ULxInputComponent::SendInputEvent(FName InInputActionID, FLxInputValue& InINputValue)
+void ULxInputComponent::UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj)
 {
-	if (!m_mapInputReceivedObject.Contains(InInputActionID))
-	{
-		// ERROR_TO_SCREEN(FLxString(TEXT("没有模块对此输入行为进行监听 : {0}")).Arg(InInputActionID));
-		return;
-	}
-	if (m_mapInputReceivedObject[InInputActionID] == nullptr)
-	{
-		// ERROR_TO_SCREEN(FLxString(TEXT("监听模块注册为空 : {0}")).Arg(InInputActionID));
-		return;
-	}
-	m_mapInputReceivedObject[InInputActionID]->HandleInputValue(InInputActionID, InINputValue);
+	LxInputActionConfig::UnregisterInputReceive(InInputActionID, InRegisterObj);
 }
 
+void ULxInputComponent::SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue)
+{
+	LxInputActionConfig::SendInputEvent(InInputActionID, InInputValue);
+}

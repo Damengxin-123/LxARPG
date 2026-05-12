@@ -6,6 +6,15 @@ namespace
 	TMap<FLxItemID, FLxConsumableInformation> GConsumableItemMap;
 	TMap<FLxItemID, FLxMaterialInformation> GMaterialItemMap;
 	TMap<FLxItemID, FLxBuffInformation> GBuffItemMap;
+	TMap<FGameplayTag, FLxItemQuote> GItemTagIDMap;
+
+	void SetItemTagIDData(const FLxItemInformationBase& InItemData)
+	{
+		if (InItemData.ItemIDTest.IsValid())
+		{
+			GItemTagIDMap.Add(InItemData.ItemIDTest, FLxItemQuote(InItemData.ItemType, InItemData.ItemID, 1));
+		}
+	}
 }
 
 namespace LxItemConfig
@@ -16,13 +25,15 @@ namespace LxItemConfig
 		GConsumableItemMap.Empty();
 		GMaterialItemMap.Empty();
 		GBuffItemMap.Empty();
+		GItemTagIDMap.Empty();
 	}
 
 	void SetEquipmentItemData(const FLxEquipmentInformation& InItemData)
 	{
 		if (InItemData.ItemID != ItemIDNone)
 		{
-			GEquipmentItemMap.Add(InItemData.ItemID, InItemData);
+			const FLxEquipmentInformation& StoredItemData = GEquipmentItemMap.Add(InItemData.ItemID, InItemData);
+			SetItemTagIDData(StoredItemData);
 		}
 	}
 
@@ -30,7 +41,8 @@ namespace LxItemConfig
 	{
 		if (InItemData.ItemID != ItemIDNone)
 		{
-			GConsumableItemMap.Add(InItemData.ItemID, InItemData);
+			const FLxConsumableInformation& StoredItemData = GConsumableItemMap.Add(InItemData.ItemID, InItemData);
+			SetItemTagIDData(StoredItemData);
 		}
 	}
 
@@ -38,7 +50,8 @@ namespace LxItemConfig
 	{
 		if (InItemData.ItemID != ItemIDNone)
 		{
-			GMaterialItemMap.Add(InItemData.ItemID, InItemData);
+			const FLxMaterialInformation& StoredItemData = GMaterialItemMap.Add(InItemData.ItemID, InItemData);
+			SetItemTagIDData(StoredItemData);
 		}
 	}
 
@@ -46,7 +59,8 @@ namespace LxItemConfig
 	{
 		if (InItemData.ItemID != ItemIDNone)
 		{
-			GBuffItemMap.Add(InItemData.ItemID, InItemData);
+			const FLxBuffInformation& StoredItemData = GBuffItemMap.Add(InItemData.ItemID, InItemData);
+			SetItemTagIDData(StoredItemData);
 		}
 	}
 
@@ -85,5 +99,16 @@ namespace LxItemConfig
 		default:
 			return nullptr;
 		}
+	}
+
+	const FLxItemInformationBase* GetItemData(FGameplayTag InItemIDTag)
+	{
+		if (!InItemIDTag.IsValid())
+		{
+			return nullptr;
+		}
+
+		const FLxItemQuote* ItemQuote = GItemTagIDMap.Find(InItemIDTag);
+		return ItemQuote != nullptr ? GetItemData(ItemQuote->ItemType, ItemQuote->ItemID) : nullptr;
 	}
 }

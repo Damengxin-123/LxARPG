@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "LxLocalPlayerSubsystem.h"
@@ -42,7 +42,7 @@ ULxLocalPlayerSubsystem* ULxLocalPlayerSubsystem::GetFromLocalPlayer(const ULoca
 	return LocalPlayer->GetSubsystem<ULxLocalPlayerSubsystem>();
 }
 
-void ULxLocalPlayerSubsystem::RegisterInputReceive(FName InInputName,
+void ULxLocalPlayerSubsystem::RegisterInputReceive(ELxInputActionID InInputActionID,
 	TScriptInterface<ILxInputReceiveInterface> InRegisterObj)
 {
 	if (!m_pInputComponentQuote)
@@ -50,17 +50,27 @@ void ULxLocalPlayerSubsystem::RegisterInputReceive(FName InInputName,
 		return;
 	}
 
-	m_pInputComponentQuote->RegisterInputReceive(InInputName, InRegisterObj);
+	m_pInputComponentQuote->RegisterInputReceive(InInputActionID, InRegisterObj);
 }
 
-void ULxLocalPlayerSubsystem::UnregisterInputReceive(FName InInputName)
+void ULxLocalPlayerSubsystem::UnregisterInputReceive(ELxInputActionID InInputActionID)
 {
 	if (!m_pInputComponentQuote)
 	{
 		return;
 	}
 
-	m_pInputComponentQuote->UnregisterInputReceive(InInputName);
+	m_pInputComponentQuote->UnregisterInputReceive(InInputActionID);
+}
+
+void ULxLocalPlayerSubsystem::UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj)
+{
+	if (!m_pInputComponentQuote)
+	{
+		return;
+	}
+
+	m_pInputComponentQuote->UnregisterInputReceive(InInputActionID, InRegisterObj);
 }
 
 void ULxLocalPlayerSubsystem::SetInputComponentQuote(ULxInputComponent* InUInputComponentQuote)
@@ -71,10 +81,6 @@ void ULxLocalPlayerSubsystem::SetInputComponentQuote(ULxInputComponent* InUInput
 	}
 
 	m_pInputComponentQuote = InUInputComponentQuote;
-	if (m_pUIManager)
-	{
-		m_pUIManager->InitMonitorRegistration();
-	}
 }
 
 void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPlayerController)
@@ -97,7 +103,7 @@ void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPl
 		m_pUIManager = CreateWidget<ULxUIManager>(m_pPlayerController, GameSettings->UIManagerClass);
 		if (m_pUIManager)
 		{
-			m_pUIManager->InitializeManager(this);
+			m_pUIManager->RefreshUI();
 			m_pUIManager->AddToPlayerScreen();
 		}
 	}

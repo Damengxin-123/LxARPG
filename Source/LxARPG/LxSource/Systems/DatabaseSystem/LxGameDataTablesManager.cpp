@@ -5,7 +5,7 @@
 #include "LxARPG/LxSource/Core/Database/LxDataTableConfigBase.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntryTableConfig.h"
-#include "LxARPG/LxSource/Model/Input/DataType/LxInputActionInfoTableConfig.h"
+#include "LxARPG/LxSource/Model/Input/DataType/LxInputActionConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
 #include "LxARPG/LxSource/Model/Style/TableConfig/LxTextLineStyleDataConfig.h"
 
@@ -78,6 +78,27 @@ namespace
 		LxAttributeConfig::SetCharacterRaceBaseAttributeValues(InRaceType, ValueConfigList);
 	}
 
+	void LoadInputActionInfoDataTable(const UDataTable* InDataTable)
+	{
+		if (InDataTable == nullptr)
+		{
+			return;
+		}
+
+		TArray<FLxInputActionInfo*> Rows;
+		InDataTable->GetAllRows<FLxInputActionInfo>(TEXT("ULxGameDataTablesManager::LoadInputActionInfoDataTable"), Rows);
+
+		for (const FLxInputActionInfo* RowData : Rows)
+		{
+			if (RowData == nullptr || RowData->InputActionID == ELxInputActionID::None)
+			{
+				continue;
+			}
+
+			LxInputActionConfig::SetInputActionInfo(*RowData);
+		}
+	}
+
 	template<typename RowType, typename SetterType>
 	void LoadItemDataTable(const UDataTable* InDataTable, const TCHAR* InContextString, SetterType InSetter)
 	{
@@ -104,25 +125,13 @@ namespace
 
 void ULxGameDataTablesManager::LoadDataTables()
 {
-	ULxDataTableConfigBase* ConfigList[] =
-	{
-		m_pInputActionInfoTableConfig.Get(),
-		m_pTextLineStyleDataConfig.Get(),
-
-	};
-
-	for (ULxDataTableConfigBase* Config : ConfigList)
-	{
-		if (Config)
-		{
-			Config->InitDataTableLoading();
-		}
-	}
 
 	LxAttributeConfig::ClearAttributeConfig();
 	LxEntryConfig::ClearEntryConfig();
+	LxInputActionConfig::ClearInputActionConfig();
 	LxItemConfig::ClearItemConfig();
 
+	LoadInputActionInfoDataTable(m_pInputActionInfoTableConfig.Get());
 	LoadCharacterAttributeDataTable(m_pCharacterAttributeDataTable.Get());
 
 	for (const TPair<ELxCharacterRaceType, TObjectPtr<UDataTable>>& RaceTablePair : m_mapRaceAttributeValueConfigTables)

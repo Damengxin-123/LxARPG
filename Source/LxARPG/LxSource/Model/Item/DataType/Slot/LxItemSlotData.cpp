@@ -1,120 +1,92 @@
 #include "LxItemSlotData.h"
 
-#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipment.h"
-#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
-
-
-
-bool ULxItemSlotData::IsValid() const
+bool ULxItemSlotData::IsValid()
 {
-	return ItemDataPtr != nullptr && ItemDataPtr->ItemIsValid();
+	return m_pItemData != nullptr && m_pItemData->ItemIsValid();
 }
 
-void ULxItemSlotData::UseItem()
+void ULxItemSlotData::ItemUse()
 {
 	if (!IsValid())
 	{
 		return;
 	}
 
-	const ELxItemUseState UseState = ItemDataPtr->ItemUse();
+	ULxItemBase* UsedItem = m_pItemData;
+	const FLxItemCount OldItemCount = UsedItem->ItemCount();
+	const ELxItemUseState UseState = UsedItem->ItemUse();
 	if (UseState == ELxItemUseState::Failed)
 	{
 		return;
 	}
 
-	if (UseState == ELxItemUseState::ActivateEntry)
+	if (OldItemCount != UsedItem->ItemCount())
 	{
-		if (ULxCharacterBackpackComponent* BackpackComponent = GetTypedOuter<ULxCharacterBackpackComponent>())
-		{
-			BackpackComponent->NotifyItemUsedFromSlot(ItemDataPtr);
-		}
+		UsedItem->BroadcastItemCountChanged();
+	}
+}
+
+void ULxItemSlotData::InitItemSlot(ELxItemSlotType InItemSlotType, FGameplayTag InItemType, ULxItemBase* InItemData)
+{
+	if (InItemSlotType == ELxItemSlotType::None)
+	{
+		return;
 	}
 
-	OnSlotChanged.Broadcast();
+	m_eSlotType = InItemSlotType;
+	m_fSlotLogicSet = ConstItemSlotLogicSetMap[InItemSlotType];
+	m_fItemTypeTag = InItemType;
+	SetItem(InItemData);
 }
 
 bool ULxItemSlotData::SetItem(ULxItemBase* InItemData)
-{
-	if (InItemData != nullptr && !InItemData->ItemIsValid())
-	{
-		return false;
-	}
-
-	ItemDataPtr = InItemData;
-	OnSlotChanged.Broadcast();
-	return true;
-}
-
-void ULxItemSlotData::ClearItem()
-{
-	ItemDataPtr = nullptr;
-	OnSlotChanged.Broadcast();
-}
-
-bool ULxItemSlotData::IsStack(ULxItemBase* InItemSlot)
-{
-	if (InItemSlot == nullptr || !InItemSlot->ItemIsValid() || ItemDataPtr == nullptr || !ItemDataPtr->ItemIsValid())
-	{
-		return false;
-	}
-	return ItemDataPtr->ItemIsStackable() && *ItemDataPtr ==  *InItemSlot;
-}
-
-bool ULxItemSlotData::CanAcceptItem(ULxItemBase* InItemData) const
 {
 	if (InItemData == nullptr || !InItemData->ItemIsValid())
 	{
 		return false;
 	}
-	switch (ItemSlotType)
+
+	if (m_pItemData)
 	{
-	case ELxItemSlotType::None:
-		return false;
-	case ELxItemSlotType::Backpack:
-		return true;
-	case ELxItemSlotType::Equipment:
-		if (InItemData->ItemType() != ELxItemType::Equipment)
-		{
-			return false;
-		}
-		return true;
-	case ELxItemSlotType::Warehouse:
-		return true;
-	case ELxItemSlotType::TreasureChest:
-		return false;
-	case ELxItemSlotType::Transaction:
-		return true;
-	case ELxItemSlotType::Shortcut:
-		return true;
-	case ELxItemSlotType::BuffDisplay:
-		return false;
+		m_pItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemSlotData::HandleItemCountChanged);
 	}
 
+	m_pItemData = InItemData;
+	m_pItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemSlotData::HandleItemCountChanged);
+	m_pItemData->OnItemCountChanged.AddDynamic(this, &ULxItemSlotData::HandleItemCountChanged);
+	OnItemDataChanged.Broadcast(m_pItemData);
 	return true;
 }
 
-bool ULxItemSlotData::CanGetItemData() const
+void ULxItemSlotData::ClearItem()
 {
-	if (ItemDataPtr == nullptr || !ItemDataPtr->ItemIsValid())
+	if (m_pItemData)
 	{
-		return false;
+		m_pItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemSlotData::HandleItemCountChanged);
 	}
-	switch (ItemSlotType)
+
+	m_pItemData = nullptr;
+	OnItemDataChanged.Broadcast(m_pItemData);
+}
+
+void ULxItemSlotData::HandleItemCountChanged(ULxItemBase* ChangedItem)
+{
+	if (ChangedItem != m_pItemData)
 	{
-	case ELxItemSlotType::None:
-		return false;
-	case ELxItemSlotType::Backpack:
-	case ELxItemSlotType::Equipment:
-	case ELxItemSlotType::Warehouse:
-	case ELxItemSlotType::TreasureChest:
-	case ELxItemSlotType::Transaction:
-		return true;
-	case ELxItemSlotType::Shortcut:
-	case ELxItemSlotType::BuffDisplay:
-		return false;
+		return;
 	}
-	return true;
+
+	OnItemDataChanged.Broadcast(m_pItemData);
+}
+
+bool ULxItemSlotData::ItemIsEnter() const
+{
+	return m_fSlotLogicSet.ItemEnter;
+}
+
+bool ULxItemSlotData::ItemIsLeave() const
+{
+	return m_fSlotLogicSet.ItemLeave;
 }
 
 ELxItemSlotDropResult ULxItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSlot)
@@ -124,160 +96,46 @@ ELxItemSlotDropResult ULxItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSl
 		return ELxItemSlotDropResult::FailedInvalidSource;
 	}
 
-	if (ItemSlotType == ELxItemSlotType::None ||
-		ItemSlotType == ELxItemSlotType::TreasureChest ||
-		ItemSlotType == ELxItemSlotType::Shortcut ||
-		ItemSlotType == ELxItemSlotType::BuffDisplay)
+	if (!ItemIsEnter() || !InItemSlot->ItemIsLeave())
 	{
 		return ELxItemSlotDropResult::CannotEnter;
 	}
 
-	if (!CanAcceptItem(InItemSlot->ItemDataPtr))
+	if (!InItemSlot->m_pItemData->ItemTagID().MatchesTag(m_fItemTypeTag))
 	{
 		return ELxItemSlotDropResult::TypeError;
 	}
 
-	if (ItemDataPtr == nullptr || !ItemDataPtr->ItemIsValid())
+	if (m_fSlotLogicSet.ItemIsShortcut)
 	{
-		SetItem(InItemSlot->ItemDataPtr);
+		SetItem(InItemSlot->m_pItemData);
+		return ELxItemSlotDropResult::EnterSuccess;
+	}
+
+	if (!IsValid())
+	{
+		SetItem(InItemSlot->m_pItemData);
 		InItemSlot->ClearItem();
 		return ELxItemSlotDropResult::EnterSuccess;
 	}
 
-	if (IsStack(InItemSlot->ItemDataPtr))
+	if (m_pItemData->ItemIsStackable() && m_pItemData->ItemTagID() == InItemSlot->m_pItemData->ItemTagID())
 	{
-		ItemDataPtr->ItemStack(InItemSlot->ItemDataPtr);
-		OnSlotChanged.Broadcast();
-		const bool bSourceStillValid = InItemSlot->IsValid();
-		if (bSourceStillValid)
+		m_pItemData->ItemStack(InItemSlot->m_pItemData);
+		OnItemDataChanged.Broadcast(m_pItemData);
+
+		if (InItemSlot->IsValid())
 		{
-			InItemSlot->OnSlotChanged.Broadcast();
+			InItemSlot->OnItemDataChanged.Broadcast(InItemSlot->m_pItemData);
+			return ELxItemSlotDropResult::StackedPartial;
 		}
-		else
-		{
-			InItemSlot->ClearItem();
-		}
-		return bSourceStillValid ? ELxItemSlotDropResult::StackedPartial : ELxItemSlotDropResult::StackedAll;
+
+		InItemSlot->ClearItem();
+		return ELxItemSlotDropResult::StackedAll;
 	}
 
-	ULxItemBase* TempItem = ItemDataPtr;
-	SetItem(InItemSlot->ItemDataPtr);
-	InItemSlot->SetItem(TempItem);
+	ULxItemBase* TempItemData = m_pItemData;
+	SetItem(InItemSlot->m_pItemData);
+	InItemSlot->SetItem(TempItemData);
 	return ELxItemSlotDropResult::Swapped;
-}
-/////////////////////////// ULxEquipmentSlotData //////////////////////////////////////
-bool ULxEquipmentSlotData::CanAcceptItem(ULxItemBase* InItemData) const
-{
-	if (InItemData == nullptr || !InItemData->ItemIsValid())
-	{
-		return false;
-	}
-	if (InItemData->ItemType() != ELxItemType::Equipment)
-	{
-		return false;
-	}
-	ULxEquipment* EquipmentLogic = Cast<ULxEquipment>(InItemData);
-	if (EquipmentLogic == nullptr)
-	{
-		return false;
-	}
-	if (EquipmentType != EquipmentLogic->EquipmentType())
-	{
-		return false;
-	}
-	return true;
-}
-/////////////////////////// ULxShortcutItemSlotData //////////////////////////////////////
-ULxShortcutItemSlotData::ULxShortcutItemSlotData()
-{
-	ItemSlotType = ELxItemSlotType::Shortcut;
-}
-
-bool ULxShortcutItemSlotData::BindSourceSlot(ULxItemSlotData* InSourceSlot)
-{
-	if (SourceSlot == InSourceSlot)
-	{
-		HandleSourceSlotChanged();
-		return true;
-	}
-
-	if (SourceSlot)
-	{
-		SourceSlot->OnSlotChanged.RemoveDynamic(this, &ULxShortcutItemSlotData::HandleSourceSlotChanged);
-	}
-
-	if (BoundItem)
-	{
-		BoundItem->OnItemCountChanged.RemoveDynamic(this, &ULxShortcutItemSlotData::HandleBoundItemChanged);
-		BoundItem = nullptr;
-	}
-
-	SourceSlot = InSourceSlot;
-	if (SourceSlot)
-	{
-		SourceSlot->OnSlotChanged.RemoveDynamic(this, &ULxShortcutItemSlotData::HandleSourceSlotChanged);
-		SourceSlot->OnSlotChanged.AddDynamic(this, &ULxShortcutItemSlotData::HandleSourceSlotChanged);
-	}
-
-	HandleSourceSlotChanged();
-	return true;
-}
-
-void ULxShortcutItemSlotData::UseItem()
-{
-	if (SourceSlot)
-	{
-		SourceSlot->UseItem();
-		HandleSourceSlotChanged();
-		return;
-	}
-
-	Super::UseItem();
-}
-
-bool ULxShortcutItemSlotData::CanAcceptItem(ULxItemBase* InItemData) const
-{
-	return InItemData != nullptr && InItemData->ItemIsValid();
-}
-
-ELxItemSlotDropResult ULxShortcutItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSlot)
-{
-	if (InItemSlot == nullptr || !InItemSlot->IsValid())
-	{
-		return ELxItemSlotDropResult::FailedInvalidSource;
-	}
-
-	if (!CanAcceptItem(InItemSlot->ItemDataPtr))
-	{
-		return ELxItemSlotDropResult::TypeError;
-	}
-
-	BindSourceSlot(InItemSlot);
-	return ELxItemSlotDropResult::EnterSuccess;
-}
-
-void ULxShortcutItemSlotData::HandleSourceSlotChanged()
-{
-	if (BoundItem)
-	{
-		BoundItem->OnItemCountChanged.RemoveDynamic(this, &ULxShortcutItemSlotData::HandleBoundItemChanged);
-		BoundItem = nullptr;
-	}
-
-	BoundItem = (SourceSlot && SourceSlot->IsValid()) ? SourceSlot->ItemDataPtr : nullptr;
-	ItemDataPtr = BoundItem;
-
-	if (BoundItem)
-	{
-		BoundItem->OnItemCountChanged.RemoveDynamic(this, &ULxShortcutItemSlotData::HandleBoundItemChanged);
-		BoundItem->OnItemCountChanged.AddDynamic(this, &ULxShortcutItemSlotData::HandleBoundItemChanged);
-	}
-
-	OnSlotChanged.Broadcast();
-}
-
-void ULxShortcutItemSlotData::HandleBoundItemChanged(ULxItemBase* Item, int32 OldCount, int32 NewCount)
-{
-	ItemDataPtr = (BoundItem && BoundItem->ItemIsValid()) ? BoundItem : nullptr;
-	OnSlotChanged.Broadcast();
 }

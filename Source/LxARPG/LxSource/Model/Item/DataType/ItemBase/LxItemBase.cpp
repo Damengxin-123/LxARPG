@@ -61,6 +61,15 @@ FName ULxItemBase::ItemIDName()
 	return FName();
 }
 
+FGameplayTag ULxItemBase::ItemTagID()
+{
+	if (ItemBase())
+	{
+		return ItemBase()->ItemIDTest;
+	}
+	return FGameplayTag();
+}
+
 FLxItemID ULxItemBase::ItemID()
 {
 	if (ItemBase())
@@ -145,23 +154,17 @@ bool ULxItemBase::ItemStack(ULxItemBase* InItem)
 				&& ThisItemInfo->ItemCount < ThisItemInfo->ItemCountMax
 				&& ThisItemInfo->ItemID == InItemInfo->ItemID)
 			{
-				const FLxItemCount OldThisCount = ThisItemInfo->ItemCount;
-				const FLxItemCount OldInCount = InItemInfo->ItemCount;
 				FLxItemCount ItemCount = ThisItemInfo->ItemCountMax - ThisItemInfo->ItemCount;
 				if (InItemInfo->ItemCount > ItemCount)
 				{
 					ThisItemInfo->ItemCount = ThisItemInfo->ItemCountMax;
 					InItemInfo->ItemCount -= ItemCount;
-					BroadcastItemCountChanged(OldThisCount, ThisItemInfo->ItemCount);
-					InItem->BroadcastItemCountChanged(OldInCount, InItemInfo->ItemCount);
 					return true;
 				}
 				if (InItemInfo->ItemCount <= ItemCount)
 				{
 					ThisItemInfo->ItemCount += InItemInfo->ItemCount;
 					InItemInfo->ItemCount = 0;
-					BroadcastItemCountChanged(OldThisCount, ThisItemInfo->ItemCount);
-					InItem->BroadcastItemCountChanged(OldInCount, InItemInfo->ItemCount);
 					return true;
 				}
 			}
@@ -224,12 +227,9 @@ TArray<TObjectPtr<ULxEntryObjectBase>>& ULxItemBase::GetItemEntryList()
 	return ItemEntryArray;
 }
 
-void ULxItemBase::BroadcastItemCountChanged(FLxItemCount OldCount, FLxItemCount NewCount)
+void ULxItemBase::BroadcastItemCountChanged()
 {
-	if (OldCount != NewCount)
-	{
-		OnItemCountChanged.Broadcast(this, OldCount, NewCount);
-	}
+	OnItemCountChanged.Broadcast(this);
 }
 
 void ULxItemBase::SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount)

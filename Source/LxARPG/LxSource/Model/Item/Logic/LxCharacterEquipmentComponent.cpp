@@ -21,12 +21,12 @@ void ULxCharacterEquipmentComponent::BaseComponentInitialize()
 	RefreshEquipmentList();
 }
 
-TArray<TObjectPtr<ULxEquipmentSlotData>>& ULxCharacterEquipmentComponent::GetEquipmentSlots()
+TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterEquipmentComponent::GetEquipmentSlots()
 {
 	return m_vEquipmentSlots;
 }
 
-const TArray<TObjectPtr<ULxEquipmentSlotData>>& ULxCharacterEquipmentComponent::GetEquipmentSlots() const
+const TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterEquipmentComponent::GetEquipmentSlots() const
 {
 	return m_vEquipmentSlots;
 }
@@ -45,11 +45,9 @@ void ULxCharacterEquipmentComponent::InitializeEquipmentSlots()
 
 	for (int32 Index = 0; Index < EquipmentSlotsConfig.Num(); ++Index)
 	{
-		ULxEquipmentSlotData* NewSlot = NewObject<ULxEquipmentSlotData>(this);
-		NewSlot->ItemSlotType = ELxItemSlotType::Equipment;
-		NewSlot->EquipmentType = EquipmentSlotsConfig[Index];
-		NewSlot->ID = Index;
-		NewSlot->OnSlotChanged.AddDynamic(this, &ULxCharacterEquipmentComponent::HandleEquipmentSlotChanged);
+		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
+		NewSlot->InitItemSlot(ELxItemSlotType::Equipment, EquipmentSlotsConfig[Index], nullptr);
+		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxCharacterEquipmentComponent::HandleEquipmentSlotChanged);
 		m_vEquipmentSlots.Add(NewSlot);
 	}
 }
@@ -57,10 +55,20 @@ void ULxCharacterEquipmentComponent::InitializeEquipmentSlots()
 void ULxCharacterEquipmentComponent::SetDefauitEquipmentSlotsConfig()
 {
 	EquipmentSlotsConfig.Empty();
-	for (int32 Index = 0; Index < static_cast<int32>(ELxEquipmentType::EquipmentSizeMax); ++Index)
-	{
-		EquipmentSlotsConfig.Add(static_cast<ELxEquipmentType>(Index));
-	}
+	EquipmentSlotsConfig.Add(LxTag_Item_Equipment_Weapon);
+	EquipmentSlotsConfig.Add(LxTag_Item_Equipment_Deputy);
+	EquipmentSlotsConfig.Add(LxTag_Item_Equipment_Helmet);
+	EquipmentSlotsConfig.Add(LxTag_Item_Equipment_Armor);
+	EquipmentSlotsConfig.Add(LxTag_Item_Equipment_Leggings);
+	EquipmentSlotsConfig.Add(LxTag_Item_Equipment_Boots);
+	EquipmentSlotsConfig.Add(LxTag_Item_Equipment_Glove);
+	EquipmentSlotsConfig.Add(LxTag_Item_Equipment_Belt);
+	EquipmentSlotsConfig.Add(LxTag_Item_Equipment_Jewelry);
+	
+	// for (int32 Index = 0; Index < static_cast<int32>(ELxEquipmentType::EquipmentSizeMax); ++Index)
+	// {
+	// 	EquipmentSlotsConfig.Add(static_cast<ELxEquipmentType>(Index));
+	// }
 }
 
 void ULxCharacterEquipmentComponent::BroadcastEquipmentChanged()
@@ -68,7 +76,7 @@ void ULxCharacterEquipmentComponent::BroadcastEquipmentChanged()
 	OnDataChange.Broadcast();
 }
 
-void ULxCharacterEquipmentComponent::HandleEquipmentSlotChanged()
+void ULxCharacterEquipmentComponent::HandleEquipmentSlotChanged(ULxItemBase*)
 {
 	RefreshEquipmentList();
 }
@@ -77,14 +85,14 @@ void ULxCharacterEquipmentComponent::RefreshEquipmentList()
 {
 	m_vEquipmentList.Empty();
 
-	for (ULxEquipmentSlotData* EquipmentSlot : m_vEquipmentSlots)
+	for (ULxItemSlotData* EquipmentSlot : m_vEquipmentSlots)
 	{
 		if (EquipmentSlot == nullptr || !EquipmentSlot->IsValid())
 		{
 			continue;
 		}
 
-		ULxEquipment* Equipment = Cast<ULxEquipment>(EquipmentSlot->ItemDataPtr);
+		ULxEquipment* Equipment = Cast<ULxEquipment>(EquipmentSlot->GetItem());
 		if (Equipment == nullptr || !Equipment->ItemIsValid())
 		{
 			continue;

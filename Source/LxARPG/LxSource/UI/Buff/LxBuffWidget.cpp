@@ -3,20 +3,12 @@
 #include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
-#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
 
-void ULxBuffWidget::InitializeUIComponents()
+void ULxBuffWidget::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)
 {
-	Super::InitializeUIComponents();
-}
-
-void ULxBuffWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
-{
-	Super::UpdateUIComponents(PlayerCharacter);
-
-	ULxCharacterDataTransferComponent* DataTransferComponent = m_pPlayerCharacter ? m_pPlayerCharacter->GetCharacterDataTransferComponent() : nullptr;
-	BindDataTransferComponent(DataTransferComponent);
+	BindDataTransferComponent(CharacterDataTransferComponent);
+	Super::UpdateUIComponents(CharacterDataTransferComponent);
 	RefreshBuffList();
 }
 
@@ -28,7 +20,7 @@ void ULxBuffWidget::NativeDestruct()
 
 void ULxBuffWidget::RefreshBuffList()
 {
-	if (CharacterDataTransferComponent == nullptr)
+	if (m_pCharacterDataTransferComponent == nullptr)
 	{
 		m_vBuffList.Reset();
 		m_vBuffSlotList.Reset();
@@ -39,11 +31,11 @@ void ULxBuffWidget::RefreshBuffList()
 	TArray<ULxBuff*> BuffList;
 	if (bOnlyShowDisplayBuffs)
 	{
-		CharacterDataTransferComponent->GetDisplayBuffs(BuffList);
+		m_pCharacterDataTransferComponent->GetDisplayBuffs(BuffList);
 	}
 	else
 	{
-		CharacterDataTransferComponent->GetAllBuffs(BuffList);
+		m_pCharacterDataTransferComponent->GetAllBuffs(BuffList);
 	}
 
 	m_vBuffList.Reset();
@@ -87,32 +79,32 @@ TArray<ULxItemSlotData*> ULxBuffWidget::GetBuffSlotList() const
 
 void ULxBuffWidget::BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent)
 {
-	if (CharacterDataTransferComponent == InDataTransferComponent)
+	if (m_pCharacterDataTransferComponent == InDataTransferComponent)
 	{
 		return;
 	}
 
 	UnbindDataTransferComponent();
-	CharacterDataTransferComponent = InDataTransferComponent;
+	m_pCharacterDataTransferComponent = InDataTransferComponent;
 
-	if (CharacterDataTransferComponent == nullptr)
+	if (m_pCharacterDataTransferComponent == nullptr)
 	{
 		return;
 	}
 
-	CharacterDataTransferComponent->OnBuffChanged.RemoveDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
-	CharacterDataTransferComponent->OnBuffChanged.AddDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
+	m_pCharacterDataTransferComponent->OnBuffChanged.RemoveDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
+	m_pCharacterDataTransferComponent->OnBuffChanged.AddDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
 }
 
 void ULxBuffWidget::UnbindDataTransferComponent()
 {
-	if (CharacterDataTransferComponent == nullptr)
+	if (m_pCharacterDataTransferComponent == nullptr)
 	{
 		return;
 	}
 
-	CharacterDataTransferComponent->OnBuffChanged.RemoveDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
-	CharacterDataTransferComponent = nullptr;
+	m_pCharacterDataTransferComponent->OnBuffChanged.RemoveDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
+	m_pCharacterDataTransferComponent = nullptr;
 }
 
 void ULxBuffWidget::RebuildBuffSlots()
@@ -128,9 +120,7 @@ void ULxBuffWidget::RebuildBuffSlots()
 		}
 
 		ULxItemSlotData* BuffSlot = NewObject<ULxItemSlotData>(this);
-		BuffSlot->ItemSlotType = ELxItemSlotType::BuffDisplay;
-		BuffSlot->ID = Index;
-		BuffSlot->SetItem(BuffLogic);
+		BuffSlot->InitItemSlot(ELxItemSlotType::BuffDisplay, LxTag_Item_Buff, BuffLogic);
 		m_vBuffSlotList.Add(BuffSlot);
 	}
 }

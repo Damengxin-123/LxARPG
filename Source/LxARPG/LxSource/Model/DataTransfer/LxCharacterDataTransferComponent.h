@@ -19,7 +19,7 @@ class ULxItemSlotData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeListChanged, const TArray<FLxAttributeData>&, AttributeList);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBackpackItemListChanged, const TArray<ULxItemSlotData*>&, BackpackItems);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxEquipmentSlotListChanged, const TArray<ULxEquipmentSlotData*>&, EquipmentSlots);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxEquipmentSlotListChanged, const TArray<ULxItemSlotData*>&, EquipmentSlots);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBuffListChanged, const TArray<ULxBuff*>&, BuffList);
 
 /**
@@ -58,7 +58,7 @@ public:
 
 	/** 获取所有装备槽位。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有装备")
-	void GetAllEquipment(TArray<ULxEquipmentSlotData*>& OutEquipmentSlots) const;
+	void GetAllEquipment(TArray<ULxItemSlotData*>& OutEquipmentSlots) const;
 
 	/** 获取所有生效中的 Buff。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有Buff")

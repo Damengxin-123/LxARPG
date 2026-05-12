@@ -1,7 +1,6 @@
 #include "LxPlayerSystemOperateComponent.h"
 
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
-#include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 
 ULxPlayerSystemOperateComponent::ULxPlayerSystemOperateComponent()
 {
@@ -14,32 +13,18 @@ void ULxPlayerSystemOperateComponent::BaseComponentInitialize()
 	{
 		m_pPlayerController = Cast<ALxPlayerController>(GetOwner());
 	}
-
-	if (!m_pLocalPlayerSubsystem && m_pPlayerController)
-	{
-		if (const ULocalPlayer* LocalPlayer = m_pPlayerController->GetLocalPlayer())
-		{
-			m_pLocalPlayerSubsystem = ULxLocalPlayerSubsystem::GetFromLocalPlayer(LocalPlayer);
-		}
-	}
-	InitMonitorRegistration();
+	RegisterInputActionReceive(m_ShowMouseCursorInputActionID);
 }
 
 void ULxPlayerSystemOperateComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
+	BaseComponentInitialize();
 }
 
-void ULxPlayerSystemOperateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void ULxPlayerSystemOperateComponent::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
 {
-	UnregisterMonitor();
-	Super::EndPlay(EndPlayReason);
-}
-
-void ULxPlayerSystemOperateComponent::HandleInputValue(FName InName, FLxInputValue InValue)
-{
-	if (InName != m_ShowMouseCursorInputActionID)
+	if (InInputActionID != m_ShowMouseCursorInputActionID)
 	{
 		return;
 	}
@@ -52,6 +37,7 @@ void ULxPlayerSystemOperateComponent::HandleInputValue(FName InName, FLxInputVal
 	{
 		return;
 	}
+
 	if (InValue.m_blValue)
 	{
 		m_pPlayerController->ShowCursorFun();
@@ -60,31 +46,4 @@ void ULxPlayerSystemOperateComponent::HandleInputValue(FName InName, FLxInputVal
 	{
 		m_pPlayerController->HideCursorFun();
 	}
-}
-
-void ULxPlayerSystemOperateComponent::InitMonitorRegistration()
-{
-	if (!m_pLocalPlayerSubsystem)
-	{
-		BaseComponentInitialize();
-	}
-	if (!m_pLocalPlayerSubsystem)
-	{
-		return;
-	}
-
-	TScriptInterface<ILxInputReceiveInterface> InputReceive;
-	InputReceive.SetObject(this);
-	InputReceive.SetInterface(Cast<ILxInputReceiveInterface>(this));
-	m_pLocalPlayerSubsystem->RegisterInputReceive(m_ShowMouseCursorInputActionID, InputReceive);
-}
-
-void ULxPlayerSystemOperateComponent::UnregisterMonitor()
-{
-	if (!m_pLocalPlayerSubsystem)
-	{
-		return;
-	}
-
-	m_pLocalPlayerSubsystem->UnregisterInputReceive(m_ShowMouseCursorInputActionID);
 }

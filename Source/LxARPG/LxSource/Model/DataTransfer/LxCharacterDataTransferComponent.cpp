@@ -106,12 +106,12 @@ void ULxCharacterDataTransferComponent::QueryBackpackItemsByFilter(ELxItemType I
 
 	for (ULxItemSlotData* SlotData : AllSlots)
 	{
-		if (SlotData == nullptr || SlotData->ItemDataPtr == nullptr || !SlotData->ItemDataPtr->ItemIsValid())
+		if (SlotData == nullptr || !SlotData->IsValid())
 		{
 			continue;
 		}
 
-		ULxItemBase* ItemData = SlotData->ItemDataPtr;
+		ULxItemBase* ItemData = SlotData->GetItem();
 		if (InItemType != ELxItemType::None && ItemData->ItemType() != InItemType)
 		{
 			continue;
@@ -151,7 +151,7 @@ void ULxCharacterDataTransferComponent::GetAllBackpackItems(TArray<ULxItemSlotDa
 	}
 }
 
-void ULxCharacterDataTransferComponent::GetAllEquipment(TArray<ULxEquipmentSlotData*>& OutEquipmentSlots) const
+void ULxCharacterDataTransferComponent::GetAllEquipment(TArray<ULxItemSlotData*>& OutEquipmentSlots) const
 {
 	OutEquipmentSlots.Reset();
 	if (EquipmentComponent == nullptr)
@@ -159,7 +159,7 @@ void ULxCharacterDataTransferComponent::GetAllEquipment(TArray<ULxEquipmentSlotD
 		return;
 	}
 
-	for (ULxEquipmentSlotData* SlotData : EquipmentComponent->GetEquipmentSlots())
+	for (ULxItemSlotData* SlotData : EquipmentComponent->GetEquipmentSlots())
 	{
 		OutEquipmentSlots.Add(SlotData);
 	}
@@ -286,7 +286,7 @@ void ULxCharacterDataTransferComponent::BroadcastBackpackData()
 
 void ULxCharacterDataTransferComponent::BroadcastEquipmentData()
 {
-	TArray<ULxEquipmentSlotData*> EquipmentSlots;
+	TArray<ULxItemSlotData*> EquipmentSlots;
 	GetAllEquipment(EquipmentSlots);
 	OnEquipmentChanged.Broadcast(EquipmentSlots);
 }
@@ -449,16 +449,16 @@ void ULxCharacterDataTransferComponent::CollectEquipmentEntries(TArray<TObjectPt
 {
 	OutEntryList.Reset();
 
-	TArray<ULxEquipmentSlotData*> EquipmentSlots;
+	TArray<ULxItemSlotData*> EquipmentSlots;
 	GetAllEquipment(EquipmentSlots);
-	for (ULxEquipmentSlotData* SlotData : EquipmentSlots)
+	for (ULxItemSlotData* SlotData : EquipmentSlots)
 	{
-		if (SlotData == nullptr || SlotData->ItemDataPtr == nullptr || !SlotData->ItemDataPtr->ItemIsValid())
+		if (SlotData == nullptr || !SlotData->IsValid())
 		{
 			continue;
 		}
 
-		OutEntryList.Append(SlotData->ItemDataPtr->GetItemEntryList());
+		OutEntryList.Append(SlotData->GetItem()->GetItemEntryList());
 	}
 }
 
@@ -491,7 +491,7 @@ void ULxCharacterDataTransferComponent::HandleBackpackDataChanged()
 
 void ULxCharacterDataTransferComponent::HandleBackpackItemUsed(ULxItemBase* UsedItem)
 {
-	if (UsedItem == nullptr || !UsedItem->ItemIsValid())
+	if (UsedItem == nullptr)
 	{
 		return;
 	}

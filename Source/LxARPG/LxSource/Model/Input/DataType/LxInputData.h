@@ -15,7 +15,7 @@ struct FLxInputActionInfo : public FTableRowBase
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="输入行为信息", DisplayName="输入行为ID")
-	FName InputActionID;
+	ELxInputActionID InputActionID = ELxInputActionID::None;
 	
 	
 	// 输入行为的可视化名称，用于在UI设置界面中显示，需要进行多语言化
@@ -174,7 +174,7 @@ struct FLxInputKeySetting
 	 * @brief 输入行为的ID
 	 */
 	UPROPERTY()
-	FName InputActionID;
+	ELxInputActionID InputActionID = ELxInputActionID::None;
 
 	/**
 	 * @var FKey LocalSettingKey

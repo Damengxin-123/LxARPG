@@ -1,13 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Core/Database/LxComponentBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentEnum.h"
 #include "LxCharacterEquipmentComponent.generated.h"
 
 class ALxBaseCharacter;
 class ULxEquipment;
-class ULxEquipmentSlotData;
+class ULxItemSlotData;
 
 /**
  * 角色装备组件。
@@ -28,14 +29,14 @@ public:
 	virtual void BaseComponentInitialize() override;
 
 	/** 获取全部装备槽位。 */
-	TArray<TObjectPtr<ULxEquipmentSlotData>>& GetEquipmentSlots();
+	TArray<TObjectPtr<ULxItemSlotData>>& GetEquipmentSlots();
 
 	/** 获取全部装备槽位的只读引用。 */
-	const TArray<TObjectPtr<ULxEquipmentSlotData>>& GetEquipmentSlots() const;
+	const TArray<TObjectPtr<ULxItemSlotData>>& GetEquipmentSlots() const;
 
 	/** 装备槽位配置，每个元素表示一个装备槽可接受的装备部位类型。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="装备槽位配置")
-	TArray<ELxEquipmentType> EquipmentSlotsConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="装备槽位配置", meta=(Categories="物品.装备"))
+	TArray<FGameplayTag> EquipmentSlotsConfig;
 
 private:
 	/** 初始化装备槽位。 */
@@ -49,7 +50,7 @@ private:
 
 	/** 响应任意装备槽位内容变化。 */
 	UFUNCTION()
-	void HandleEquipmentSlotChanged();
+	void HandleEquipmentSlotChanged(ULxItemBase* InItemData);
 
 	/** 从装备槽位刷新当前已装备物品缓存。 */
 	void RefreshEquipmentList();
@@ -60,7 +61,7 @@ private:
 
 	/** 装备槽位数组。 */
 	UPROPERTY()
-	TArray<TObjectPtr<ULxEquipmentSlotData>> m_vEquipmentSlots;
+	TArray<TObjectPtr<ULxItemSlotData>> m_vEquipmentSlots;
 
 	/** 当前角色各个装备位上的装备对象。 */
 	UPROPERTY()

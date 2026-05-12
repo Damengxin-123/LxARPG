@@ -3,17 +3,12 @@
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
-#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
 
-void ULxBackpackWidget::InitializeUIComponents()
+void ULxBackpackWidget::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)
 {
-	Super::InitializeUIComponents();
-}
-
-void ULxBackpackWidget::UpdateUIComponents(ALxBaseCharacter* PlayerCharacter)
-{
-	Super::UpdateUIComponents(PlayerCharacter);
+	BindDataTransferComponent(CharacterDataTransferComponent);
+	Super::UpdateUIComponents(CharacterDataTransferComponent);
 	UpdatedBackpack();
 }
 
@@ -25,11 +20,6 @@ void ULxBackpackWidget::NativeDestruct()
 
 void ULxBackpackWidget::UpdatedBackpack()
 {
-	if (m_pPlayerCharacter)
-	{
-		BindDataTransferComponent(m_pPlayerCharacter->GetCharacterDataTransferComponent());
-	}
-
 	if (m_pCharacterDataTransferComponent == nullptr)
 	{
 		m_vItemSlotList.Reset();
@@ -43,7 +33,7 @@ void ULxBackpackWidget::UpdatedBackpack()
 	m_pCharacterDataTransferComponent->GetAllBackpackItems(BackpackItems);
 	HandleBackpackItemsChanged(BackpackItems);
 
-	TArray<ULxEquipmentSlotData*> EquipmentSlots;
+	TArray<ULxItemSlotData*> EquipmentSlots;
 	m_pCharacterDataTransferComponent->GetAllEquipment(EquipmentSlots);
 	HandleEquipmentSlotsChanged(EquipmentSlots);
 }
@@ -72,7 +62,7 @@ TArray<UObject*> ULxBackpackWidget::GetItemUIDataList()
 TArray<UObject*> ULxBackpackWidget::GetEquipmentUIDataList()
 {
 	TArray<UObject*> EquipmentUIDataList;
-	for (ULxEquipmentSlotData* EquipmentSlot : m_vEquipmentSlotList)
+	for (ULxItemSlotData* EquipmentSlot : m_vEquipmentSlotList)
 	{
 		ULxItemUIData* EquipmentUIData = NewObject<ULxItemUIData>(this);
 		EquipmentUIData->m_pSlotData = EquipmentSlot;
@@ -139,10 +129,10 @@ void ULxBackpackWidget::HandleBackpackItemsChanged(const TArray<ULxItemSlotData*
 	OnItemListUpdated(GetItemUIDataList());
 }
 
-void ULxBackpackWidget::HandleEquipmentSlotsChanged(const TArray<ULxEquipmentSlotData*>& EquipmentSlots)
+void ULxBackpackWidget::HandleEquipmentSlotsChanged(const TArray<ULxItemSlotData*>& EquipmentSlots)
 {
 	m_vEquipmentSlotList.Reset();
-	for (ULxEquipmentSlotData* SlotData : EquipmentSlots)
+	for (ULxItemSlotData* SlotData : EquipmentSlots)
 	{
 		m_vEquipmentSlotList.Add(SlotData);
 	}
