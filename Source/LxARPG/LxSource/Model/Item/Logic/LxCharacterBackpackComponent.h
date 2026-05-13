@@ -19,7 +19,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBackpackItemUsed, ULxItemBase*, U
  * 当前背包组件只使用新的 ULxItemBase 物品体系：物品通过 FLxItemQuote 创建，
  * 槽位保存 ULxItemBase 指针，词条通过物品对象自身的 GetItemEntryList 访问。
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable)
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色背包组件")
 class LXARPG_API ULxCharacterBackpackComponent : public ULxCharacterComponentBase
 {
 	GENERATED_BODY()
@@ -36,18 +36,14 @@ public:
 	virtual void BaseComponentInitialize() override;
 
 	/**
-	 * 按物品行 ID 添加物品到背包。
+	 * 按物品标签 ID 添加物品到背包。
 	 *
-	 * @param InItemType 期望添加的物品类型，用于校验物品 ID 是否匹配。
-	 * @param InItemID 物品 ID 名称，支持十进制或 0x 开头的十六进制字符串。
+	 * @param InItemIDTag 物品标签 ID。
 	 * @param InItemCount 添加数量。
 	 * @return 添加成功返回 true。
 	 */
-	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="添加物品到背包-ID")
-	bool AddItemByRowID(ELxItemType InItemType, int32 InItemID, int32 InItemCount = 1);
-
-	UFUNCTION(BlueprintCallable, Category="Backpack|Test", DisplayName="测试-按标签ID添加物品", meta=(Categories="物品"))
-	bool TestAddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount = 1);
+	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="添加物品到背包-标签ID", meta=(Categories="物品"))
+	bool AddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount = 1);
 
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="检查能否添加物品列表")
 	bool CanAddItemList(const TArray<FLxItemQuote>& InItemList) const;
@@ -58,22 +54,20 @@ public:
 	/**
 	 * 从背包中移除指定数量的物品。
 	 *
-	 * @param InItemType 物品类型。
-	 * @param InItemID 物品 ID 名称。
+	 * @param InItemIDTag 物品标签 ID。
 	 * @param InItemCount 移除数量。
 	 * @return 移除成功返回 true。
 	 */
-	bool RemoveItemAt(ELxItemType InItemType, FName InItemID, int32 InItemCount);
+	bool RemoveItemAt(FGameplayTag InItemIDTag, int32 InItemCount);
 
 	/**
 	 * 检查背包中是否拥有指定数量的物品。
 	 *
-	 * @param InItemType 物品类型。
-	 * @param InItemID 物品 ID 名称。
+	 * @param InItemIDTag 物品标签 ID。
 	 * @param InItemCount 需要检查的数量。
 	 * @return 数量满足时返回 true。
 	 */
-	bool CheckHaveItem(ELxItemType InItemType, FName InItemID, int32 InItemCount = 1) const;
+	bool CheckHaveItem(FGameplayTag InItemIDTag, int32 InItemCount = 1) const;
 
 	/** 按物品类型和稀有度对背包物品重新排序。 */
 	void SortingOfItems();
@@ -109,9 +103,6 @@ private:
 
 	/** 初始化背包槽位。 */
 	void InitializeBackpack();
-
-	/** 从 FName 解析物品 ID。 */
-	static FLxItemID ResolveItemIDFromName(FName InItemID);
 
 	/** 背包过滤查询缓存数组。 */
 	UPROPERTY()

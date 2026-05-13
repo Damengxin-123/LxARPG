@@ -25,11 +25,12 @@ struct FLxMaterialInformation : public FLxItemInformationBase
 	FLxMaterialInformation()
 	{
 		ItemType = ELxItemType::Material;
+		ItemIDTag = LxTag_Item_Material;
 	}
-	FLxMaterialInformation(FLxItemID ID, ELxItemRarityType RarityType,
+	FLxMaterialInformation(FGameplayTag InItemIDTag, ELxItemRarityType RarityType,
 		ELxMaterialType MaterialType, FLxItemCount CountMax)
 	{
-		this->ItemID =  ID;
+		this->ItemIDTag = InItemIDTag;
 		this->ItemRarity  = RarityType;
 		this->ItemCountMax  = CountMax;
 		this->MaterialType  = MaterialType;

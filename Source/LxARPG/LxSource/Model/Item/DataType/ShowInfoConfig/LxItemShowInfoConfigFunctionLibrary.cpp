@@ -1,24 +1,27 @@
 #include "LxItemShowInfoConfigFunctionLibrary.h"
 
 #include "Engine/DataTable.h"
-#include "LxARPG/LxSource/Core/Tools/LxString.h"
 #include "LxRarityInfoData.h"
+#include "LxARPG/LxSource/Core/Tools/LxString.h"
 
 
-bool ULxItemShowInfoConfigFunctionLibrary::QueryItemShowInfoByID(int32 InItemID, UDataTable* InImageConfigureTable,
+bool ULxItemShowInfoConfigFunctionLibrary::QueryItemShowInfoByTagID(FGameplayTag InItemIDTag, UDataTable* InImageConfigureTable,
                                                                  FLxLxItemShowInfoConfigData& OutItemShowInfoData)
 {
-	if (!InImageConfigureTable || InImageConfigureTable->GetRowStruct() != FLxLxItemShowInfoConfigData::StaticStruct())
+	if (!InItemIDTag.IsValid()
+		|| !InImageConfigureTable
+		|| InImageConfigureTable->GetRowStruct() != FLxLxItemShowInfoConfigData::StaticStruct())
 	{
 		return false;
 	}
-	FName ItemID = FLxString::IntIDToName(InItemID);
-	if (!InImageConfigureTable->GetRowNames().Contains(ItemID))
+
+	const FName ItemIDRowName = InItemIDTag.GetTagName();
+	if (!InImageConfigureTable->GetRowNames().Contains(ItemIDRowName))
 	{
 		return false;
 	}
 	const FLxLxItemShowInfoConfigData* ImageConfigure = InImageConfigureTable->FindRow<FLxLxItemShowInfoConfigData>(
-		ItemID, TEXT("QueryItemShowInfoByID"), false);
+		ItemIDRowName, TEXT("QueryItemShowInfoByTagID"), false);
 	if (!ImageConfigure)
 	{
 		return false;

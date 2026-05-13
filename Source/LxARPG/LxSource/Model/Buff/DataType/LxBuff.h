@@ -30,6 +30,7 @@ struct FLxBuffInformation : public FLxItemInformationBase
 	{
 		ItemCountMax = 1;
 		ItemType = ELxItemType::Buff;
+		ItemIDTag = LxTag_Item_Buff;
 	}
 };
 
@@ -54,7 +55,7 @@ public:
 	virtual FLxString ItemCountText() override;
 
 	/** Buff物品是否仍然有效。 */
-	bool IsBuffValid() const { return m_fBuffInformation.ItemCount > 0 && m_fBuffInformation.ItemID != ItemIDNone; }
+	bool IsBuffValid() const { return m_fBuffInformation.ItemCount > 0 && m_fBuffInformation.ItemIDTag.IsValid(); }
 
 	/** 设置运行时剩余时间，供 Buff UI 通过 ItemCountText 显示。小于 0 表示永久 Buff。 */
 	void SetRemainingDuration(float InRemainingDuration);

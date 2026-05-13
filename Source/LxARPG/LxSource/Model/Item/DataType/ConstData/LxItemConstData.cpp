@@ -2,18 +2,15 @@
 
 namespace
 {
-	TMap<FLxItemID, FLxEquipmentInformation> GEquipmentItemMap;
-	TMap<FLxItemID, FLxConsumableInformation> GConsumableItemMap;
-	TMap<FLxItemID, FLxMaterialInformation> GMaterialItemMap;
-	TMap<FLxItemID, FLxBuffInformation> GBuffItemMap;
-	TMap<FGameplayTag, FLxItemQuote> GItemTagIDMap;
+	TMap<FGameplayTag, FLxEquipmentInformation> GEquipmentItemMap;
+	TMap<FGameplayTag, FLxConsumableInformation> GConsumableItemMap;
+	TMap<FGameplayTag, FLxMaterialInformation> GMaterialItemMap;
+	TMap<FGameplayTag, FLxBuffInformation> GBuffItemMap;
 
-	void SetItemTagIDData(const FLxItemInformationBase& InItemData)
+	template<typename ItemDataType>
+	bool IsValidItemConfig(const ItemDataType& InItemData)
 	{
-		if (InItemData.ItemIDTest.IsValid())
-		{
-			GItemTagIDMap.Add(InItemData.ItemIDTest, FLxItemQuote(InItemData.ItemType, InItemData.ItemID, 1));
-		}
+		return InItemData.ItemIDTag.IsValid();
 	}
 }
 
@@ -25,80 +22,58 @@ namespace LxItemConfig
 		GConsumableItemMap.Empty();
 		GMaterialItemMap.Empty();
 		GBuffItemMap.Empty();
-		GItemTagIDMap.Empty();
 	}
 
 	void SetEquipmentItemData(const FLxEquipmentInformation& InItemData)
 	{
-		if (InItemData.ItemID != ItemIDNone)
+		if (IsValidItemConfig(InItemData))
 		{
-			const FLxEquipmentInformation& StoredItemData = GEquipmentItemMap.Add(InItemData.ItemID, InItemData);
-			SetItemTagIDData(StoredItemData);
+			GEquipmentItemMap.Add(InItemData.ItemIDTag, InItemData);
 		}
 	}
 
 	void SetConsumableItemData(const FLxConsumableInformation& InItemData)
 	{
-		if (InItemData.ItemID != ItemIDNone)
+		if (IsValidItemConfig(InItemData))
 		{
-			const FLxConsumableInformation& StoredItemData = GConsumableItemMap.Add(InItemData.ItemID, InItemData);
-			SetItemTagIDData(StoredItemData);
+			GConsumableItemMap.Add(InItemData.ItemIDTag, InItemData);
 		}
 	}
 
 	void SetMaterialItemData(const FLxMaterialInformation& InItemData)
 	{
-		if (InItemData.ItemID != ItemIDNone)
+		if (IsValidItemConfig(InItemData))
 		{
-			const FLxMaterialInformation& StoredItemData = GMaterialItemMap.Add(InItemData.ItemID, InItemData);
-			SetItemTagIDData(StoredItemData);
+			GMaterialItemMap.Add(InItemData.ItemIDTag, InItemData);
 		}
 	}
 
 	void SetBuffItemData(const FLxBuffInformation& InItemData)
 	{
-		if (InItemData.ItemID != ItemIDNone)
+		if (IsValidItemConfig(InItemData))
 		{
-			const FLxBuffInformation& StoredItemData = GBuffItemMap.Add(InItemData.ItemID, InItemData);
-			SetItemTagIDData(StoredItemData);
+			GBuffItemMap.Add(InItemData.ItemIDTag, InItemData);
 		}
 	}
 
-	const TMap<FLxItemID, FLxEquipmentInformation>& GetEquipmentItemMap()
+	const TMap<FGameplayTag, FLxEquipmentInformation>& GetEquipmentItemMap()
 	{
 		return GEquipmentItemMap;
 	}
 
-	const TMap<FLxItemID, FLxConsumableInformation>& GetConsumableItemMap()
+	const TMap<FGameplayTag, FLxConsumableInformation>& GetConsumableItemMap()
 	{
 		return GConsumableItemMap;
 	}
 
-	const TMap<FLxItemID, FLxMaterialInformation>& GetMaterialItemMap()
+	const TMap<FGameplayTag, FLxMaterialInformation>& GetMaterialItemMap()
 	{
 		return GMaterialItemMap;
 	}
 
-	const TMap<FLxItemID, FLxBuffInformation>& GetBuffItemMap()
+	const TMap<FGameplayTag, FLxBuffInformation>& GetBuffItemMap()
 	{
 		return GBuffItemMap;
-	}
-
-	const FLxItemInformationBase* GetItemData(ELxItemType InItemType, FLxItemID InItemID)
-	{
-		switch (InItemType)
-		{
-		case ELxItemType::Equipment:
-			return GEquipmentItemMap.Find(InItemID);
-		case ELxItemType::Consumable:
-			return GConsumableItemMap.Find(InItemID);
-		case ELxItemType::Material:
-			return GMaterialItemMap.Find(InItemID);
-		case ELxItemType::Buff:
-			return GBuffItemMap.Find(InItemID);
-		default:
-			return nullptr;
-		}
 	}
 
 	const FLxItemInformationBase* GetItemData(FGameplayTag InItemIDTag)
@@ -108,7 +83,23 @@ namespace LxItemConfig
 			return nullptr;
 		}
 
-		const FLxItemQuote* ItemQuote = GItemTagIDMap.Find(InItemIDTag);
-		return ItemQuote != nullptr ? GetItemData(ItemQuote->ItemType, ItemQuote->ItemID) : nullptr;
+		if (const FLxEquipmentInformation* EquipmentData = GEquipmentItemMap.Find(InItemIDTag))
+		{
+			return EquipmentData;
+		}
+		if (const FLxConsumableInformation* ConsumableData = GConsumableItemMap.Find(InItemIDTag))
+		{
+			return ConsumableData;
+		}
+		if (const FLxMaterialInformation* MaterialData = GMaterialItemMap.Find(InItemIDTag))
+		{
+			return MaterialData;
+		}
+		if (const FLxBuffInformation* BuffData = GBuffItemMap.Find(InItemIDTag))
+		{
+			return BuffData;
+		}
+
+		return nullptr;
 	}
 }

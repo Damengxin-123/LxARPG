@@ -35,21 +35,21 @@ namespace
 			|| InEntrySource == ELxCharacterEntrySource::Buff;
 	}
 
-	bool GetCreateBuffID(const ULxEntryObjectBase* InEntryObject, int32& OutBuffID)
+	bool GetCreateBuffIDTag(const ULxEntryObjectBase* InEntryObject, FGameplayTag& OutBuffIDTag)
 	{
-		OutBuffID = ItemIDNone;
+		OutBuffIDTag = FGameplayTag();
 		if (InEntryObject == nullptr || InEntryObject->GetEntryType() != ELxEntryType::CreateBuff)
 		{
 			return false;
 		}
 
 		const FLxEntryCreateBuff* CreateBuffEntry = static_cast<const FLxEntryCreateBuff*>(InEntryObject->GetEntryBase());
-		if (CreateBuffEntry == nullptr || CreateBuffEntry->BuffID == ItemIDNone)
+		if (CreateBuffEntry == nullptr || !CreateBuffEntry->BuffIDTag.IsValid())
 		{
 			return false;
 		}
 
-		OutBuffID = CreateBuffEntry->BuffID;
+		OutBuffIDTag = CreateBuffEntry->BuffIDTag;
 		return true;
 	}
 }
@@ -319,9 +319,15 @@ void ULxCharacterDataTransferComponent::DispatchEntryPackageByType(const FLxChar
 			return;
 		}
 
+		bool bAddedBuff = false;
 		for (ULxEntryObjectBase* EntryObject : InEntryPackage.BuffEntryList)
 		{
-			BuffComponent->AddBuffByCreatorEntry(EntryObject, 1.f, InEntryPackage.EntrySource);
+			bAddedBuff |= BuffComponent->AddBuffByCreatorEntry(EntryObject, 1.f, InEntryPackage.EntrySource) != nullptr;
+		}
+
+		if (bAddedBuff)
+		{
+			RefreshBuffEntryPackage();
 		}
 	}
 }
@@ -341,31 +347,31 @@ void ULxCharacterDataTransferComponent::SyncEquipmentBuffEntries(const TArray<TO
 		return;
 	}
 
-	TMap<int32, int32> NewEquipmentBuffSourceCounts;
+	TMap<FGameplayTag, int32> NewEquipmentBuffSourceCounts;
 	for (ULxEntryObjectBase* EntryObject : InBuffEntryList)
 	{
-		int32 BuffID = ItemIDNone;
-		if (!GetCreateBuffID(EntryObject, BuffID))
+		FGameplayTag BuffIDTag;
+		if (!GetCreateBuffIDTag(EntryObject, BuffIDTag))
 		{
 			continue;
 		}
 
-		int32& NewSourceCount = NewEquipmentBuffSourceCounts.FindOrAdd(BuffID);
+		int32& NewSourceCount = NewEquipmentBuffSourceCounts.FindOrAdd(BuffIDTag);
 		++NewSourceCount;
 	}
 
-	for (const TPair<int32, int32>& OldBuffSourceCount : EquipmentBuffSourceCounts)
+	for (const TPair<FGameplayTag, int32>& OldBuffSourceCount : EquipmentBuffSourceCounts)
 	{
 		const int32 NewSourceCount = NewEquipmentBuffSourceCounts.FindRef(OldBuffSourceCount.Key);
 		const int32 RemovedSourceCount = OldBuffSourceCount.Value - NewSourceCount;
 		if (RemovedSourceCount > 0)
 		{
-			BuffComponent->RemoveBuffSourceReferenceByID(OldBuffSourceCount.Key, ELxCharacterEntrySource::Equipment, RemovedSourceCount);
+			BuffComponent->RemoveBuffSourceReferenceByTagID(OldBuffSourceCount.Key, ELxCharacterEntrySource::Equipment, RemovedSourceCount);
 		}
 	}
 
-	TMap<int32, int32> RemainingAddedSourceCounts;
-	for (const TPair<int32, int32>& NewBuffSourceCount : NewEquipmentBuffSourceCounts)
+	TMap<FGameplayTag, int32> RemainingAddedSourceCounts;
+	for (const TPair<FGameplayTag, int32>& NewBuffSourceCount : NewEquipmentBuffSourceCounts)
 	{
 		const int32 OldSourceCount = EquipmentBuffSourceCounts.FindRef(NewBuffSourceCount.Key);
 		const int32 AddedSourceCount = NewBuffSourceCount.Value - OldSourceCount;
@@ -377,13 +383,13 @@ void ULxCharacterDataTransferComponent::SyncEquipmentBuffEntries(const TArray<TO
 
 	for (ULxEntryObjectBase* EntryObject : InBuffEntryList)
 	{
-		int32 BuffID = ItemIDNone;
-		if (!GetCreateBuffID(EntryObject, BuffID))
+		FGameplayTag BuffIDTag;
+		if (!GetCreateBuffIDTag(EntryObject, BuffIDTag))
 		{
 			continue;
 		}
 
-		int32* RemainingAddedSourceCount = RemainingAddedSourceCounts.Find(BuffID);
+		int32* RemainingAddedSourceCount = RemainingAddedSourceCounts.Find(BuffIDTag);
 		if (RemainingAddedSourceCount == nullptr || *RemainingAddedSourceCount <= 0)
 		{
 			continue;

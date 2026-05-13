@@ -8,7 +8,13 @@
 ULxItemBase* ULxItemBase::CreateItemObject(UObject* InParent, FLxItemQuote InItemQuote)
 {
 	ULxItemBase* OutItemObject = nullptr;
-	switch (InItemQuote.ItemType)
+	const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(InItemQuote.ItemIDTag);
+	if (ItemConfig == nullptr)
+	{
+		return nullptr;
+	}
+
+	switch (ItemConfig->ItemType)
 	{
 	case ELxItemType::Equipment:
 		OutItemObject = NewObject<ULxEquipment>(InParent);
@@ -36,7 +42,7 @@ ULxItemBase* ULxItemBase::CreateItemObject(UObject* InParent, FLxItemQuote InIte
 
 void ULxItemBase::InitItemObject(const FLxItemQuote& InItemQuote)
 {
-	SetItemData(LxItemConfig::GetItemData(InItemQuote.ItemType, InItemQuote.ItemID), InItemQuote.ItemCount);
+	SetItemData(LxItemConfig::GetItemData(InItemQuote.ItemIDTag), InItemQuote.ItemCount);
 	InitItemEntry();
 }
 
@@ -52,31 +58,13 @@ bool ULxItemBase::ItemIsStackable()
 	return false;
 }
 
-FName ULxItemBase::ItemIDName()
+FGameplayTag ULxItemBase::ItemIDTag()
 {
 	if (ItemBase())
 	{
-		return FLxString::IntIDToName(ItemBase()->ItemID);
-	}
-	return FName();
-}
-
-FGameplayTag ULxItemBase::ItemTagID()
-{
-	if (ItemBase())
-	{
-		return ItemBase()->ItemIDTest;
+		return ItemBase()->ItemIDTag;
 	}
 	return FGameplayTag();
-}
-
-FLxItemID ULxItemBase::ItemID()
-{
-	if (ItemBase())
-	{
-		return ItemBase()->ItemID;
-	}
-	return ItemIDNone;
 }
 
 ELxItemType ULxItemBase::ItemType()
@@ -152,7 +140,7 @@ bool ULxItemBase::ItemStack(ULxItemBase* InItem)
 		{
 			if (ThisItemInfo->ItemCountMax > 1
 				&& ThisItemInfo->ItemCount < ThisItemInfo->ItemCountMax
-				&& ThisItemInfo->ItemID == InItemInfo->ItemID)
+				&& ThisItemInfo->ItemIDTag == InItemInfo->ItemIDTag)
 			{
 				FLxItemCount ItemCount = ThisItemInfo->ItemCountMax - ThisItemInfo->ItemCount;
 				if (InItemInfo->ItemCount > ItemCount)
@@ -205,7 +193,7 @@ bool ULxItemBase::operator>(ULxItemBase& InItem)
 
 bool ULxItemBase::operator==(ULxItemBase& InItem)
 {
-	return ItemID() == InItem.ItemID();
+	return ItemIDTag() == InItem.ItemIDTag();
 }
 
 void ULxItemBase::InitItemEntry()

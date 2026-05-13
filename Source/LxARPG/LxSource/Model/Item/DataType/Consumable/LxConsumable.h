@@ -25,11 +25,12 @@ struct FLxConsumableInformation : public FLxItemInformationBase
 	FLxConsumableInformation()
 	{
 		ItemType = ELxItemType::Consumable;
+		ItemIDTag = LxTag_Item_Consumable;
 	}
-	FLxConsumableInformation(FLxItemID ID, ELxItemRarityType RarityType,
+	FLxConsumableInformation(FGameplayTag InItemIDTag, ELxItemRarityType RarityType,
 		ELxConsumableType ConsumableType, FLxItemCount CountMax, const TArray<FLxEntryQuote>& EntryQuoteList = TArray<FLxEntryQuote>())
 	{
-		this->ItemID =  ID;
+		this->ItemIDTag = InItemIDTag;
 		this->ItemRarity  = RarityType;
 		this->ItemCountMax  = CountMax;
 		this->ConsumableType  = ConsumableType;

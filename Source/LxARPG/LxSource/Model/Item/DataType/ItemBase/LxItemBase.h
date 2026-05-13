@@ -43,13 +43,8 @@ public:
 	/** 当前物品是否还可以和同ID物品堆叠。 */
 	bool ItemIsStackable();
 
-	/** 获取物品ID对应的 FName 表示，通常用于表格或资源查询。 */
-	FName ItemIDName();
-
-	FGameplayTag ItemTagID();
-
-	/** 获取物品的数值ID。 */
-	FLxItemID ItemID();
+	/** 获取物品标签 ID。 */
+	FGameplayTag ItemIDTag();
 
 	/** 获取物品大类，例如装备、消耗品、材料等。 */
 	ELxItemType ItemType();
@@ -84,7 +79,7 @@ public:
 	/** 按物品类型和稀有度排序。 */
 	bool operator>(ULxItemBase& InItem);
 
-	/** 按物品ID判断是否为同一种物品。 */
+	/** 按物品标签 ID 判断是否为同一种物品。 */
 	bool operator==(ULxItemBase& InItem);
 
 	/** 初始化物品词条对象，需在静态物品数据设置完成后调用。 */

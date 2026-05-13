@@ -10,7 +10,7 @@
 class UInputAction;
 class UInputMappingContext;
 
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="输入组件")
 class LXARPG_API ULxInputComponent : public ULxComponentBase
 {
 	GENERATED_BODY()

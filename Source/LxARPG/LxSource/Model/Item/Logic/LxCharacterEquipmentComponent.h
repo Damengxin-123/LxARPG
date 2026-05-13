@@ -16,7 +16,7 @@ class ULxItemSlotData;
  * 该组件只关心新的装备物品对象 ULxEquipment：装备槽位负责接收和保存物品，
  * 组件负责根据槽位内容维护当前已装备列表，并通过 OnDataChange 通知数据中转组件。
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable)
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色装备组件")
 class LXARPG_API ULxCharacterEquipmentComponent : public ULxComponentBase
 {
 	GENERATED_BODY()

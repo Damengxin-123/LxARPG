@@ -30,9 +30,9 @@ void ULxCharacterBuffComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 	Super::EndPlay(EndPlayReason);
 }
 
-ULxBuff* ULxCharacterBuffComponent::AddBuff(int32 InBuffID, float InEffectProportion, float InDurationOverride, ELxCharacterEntrySource InEntrySource)
+ULxBuff* ULxCharacterBuffComponent::AddBuff(FGameplayTag InBuffIDTag, float InEffectProportion, float InDurationOverride, ELxCharacterEntrySource InEntrySource)
 {
-	if (InBuffID == ItemIDNone)
+	if (!InBuffIDTag.IsValid())
 	{
 		return nullptr;
 	}
@@ -42,7 +42,7 @@ ULxBuff* ULxCharacterBuffComponent::AddBuff(int32 InBuffID, float InEffectPropor
 		BaseComponentInitialize();
 	}
 
-	if (FLxBuffRuntimeInfo* ExistingRuntimeInfo = FindFirstRuntimeInfoByID(InBuffID))
+	if (FLxBuffRuntimeInfo* ExistingRuntimeInfo = FindFirstRuntimeInfoByTagID(InBuffIDTag))
 	{
 		if (ExistingRuntimeInfo->BuffLogic != nullptr)
 		{
@@ -61,7 +61,7 @@ ULxBuff* ULxCharacterBuffComponent::AddBuff(int32 InBuffID, float InEffectPropor
 		}
 	}
 
-	ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, FLxItemQuote(ELxItemType::Buff, static_cast<FLxItemID>(InBuffID), 1));
+	ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, FLxItemQuote(InBuffIDTag, 1));
 	ULxBuff* NewBuffLogic = Cast<ULxBuff>(NewItem);
 	if (NewBuffLogic == nullptr || !NewBuffLogic->ItemIsValid())
 	{
@@ -70,7 +70,7 @@ ULxBuff* ULxCharacterBuffComponent::AddBuff(int32 InBuffID, float InEffectPropor
 
 	FLxBuffRuntimeInfo RuntimeInfo;
 	RuntimeInfo.BuffLogic = NewBuffLogic;
-	RuntimeInfo.BuffID = InBuffID;
+	RuntimeInfo.BuffIDTag = InBuffIDTag;
 	RuntimeInfo.EffectProportion = InEffectProportion;
 	RuntimeInfo.RemainingDuration = InDurationOverride;
 	RuntimeInfo.SourceReferenceCounts.Add(InEntrySource, 1);
@@ -91,12 +91,12 @@ ULxBuff* ULxCharacterBuffComponent::AddBuffByCreatorEntry(const ULxEntryObjectBa
 	}
 
 	const FLxEntryCreateBuff* CreateBuffEntry = static_cast<const FLxEntryCreateBuff*>(InEntryObject->GetEntryBase());
-	if (CreateBuffEntry == nullptr || CreateBuffEntry->BuffID == ItemIDNone)
+	if (CreateBuffEntry == nullptr || !CreateBuffEntry->BuffIDTag.IsValid())
 	{
 		return nullptr;
 	}
 
-	return AddBuff(CreateBuffEntry->BuffID, InCreatorEntryRatio, CreateBuffEntry->BuffDuration, InEntrySource);
+	return AddBuff(CreateBuffEntry->BuffIDTag, InCreatorEntryRatio, CreateBuffEntry->BuffDuration, InEntrySource);
 }
 
 bool ULxCharacterBuffComponent::RemoveBuff(ULxBuff* InBuffLogic)
@@ -124,13 +124,13 @@ bool ULxCharacterBuffComponent::RemoveBuff(ULxBuff* InBuffLogic)
 	return false;
 }
 
-int32 ULxCharacterBuffComponent::RemoveBuffByID(int32 InBuffID)
+int32 ULxCharacterBuffComponent::RemoveBuffByTagID(FGameplayTag InBuffIDTag)
 {
 	int32 RemovedCount = 0;
 	for (int32 Index = m_vBuffRuntimeInfos.Num() - 1; Index >= 0; --Index)
 	{
 		FLxBuffRuntimeInfo& RuntimeInfo = m_vBuffRuntimeInfos[Index];
-		if (RuntimeInfo.BuffID != InBuffID)
+		if (RuntimeInfo.BuffIDTag != InBuffIDTag)
 		{
 			continue;
 		}
@@ -150,9 +150,9 @@ int32 ULxCharacterBuffComponent::RemoveBuffByID(int32 InBuffID)
 	return RemovedCount;
 }
 
-int32 ULxCharacterBuffComponent::RemoveBuffSourceReferenceByID(int32 InBuffID, ELxCharacterEntrySource InEntrySource, int32 InReferenceCount)
+int32 ULxCharacterBuffComponent::RemoveBuffSourceReferenceByTagID(FGameplayTag InBuffIDTag, ELxCharacterEntrySource InEntrySource, int32 InReferenceCount)
 {
-	if (InBuffID == ItemIDNone || InReferenceCount <= 0)
+	if (!InBuffIDTag.IsValid() || InReferenceCount <= 0)
 	{
 		return 0;
 	}
@@ -161,7 +161,7 @@ int32 ULxCharacterBuffComponent::RemoveBuffSourceReferenceByID(int32 InBuffID, E
 	for (int32 Index = m_vBuffRuntimeInfos.Num() - 1; Index >= 0; --Index)
 	{
 		FLxBuffRuntimeInfo& RuntimeInfo = m_vBuffRuntimeInfos[Index];
-		if (RuntimeInfo.BuffID != InBuffID)
+		if (RuntimeInfo.BuffIDTag != InBuffIDTag)
 		{
 			continue;
 		}
@@ -263,11 +263,11 @@ const FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindRuntimeInfo(ULxBuff* In
 	return nullptr;
 }
 
-FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindFirstRuntimeInfoByID(int32 InBuffID)
+FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindFirstRuntimeInfoByTagID(FGameplayTag InBuffIDTag)
 {
 	for (FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
 	{
-		if (RuntimeInfo.BuffID == InBuffID)
+		if (RuntimeInfo.BuffIDTag == InBuffIDTag)
 		{
 			return &RuntimeInfo;
 		}

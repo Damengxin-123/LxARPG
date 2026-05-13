@@ -57,12 +57,6 @@ public:
 	// 将给定的double值转换为保留指定位数的小数的double字符串
 	static FLxString DoubleToAccurateStr(double Value, uint8 Digit);
 
-	/*
-	 * 将uint32类型的数字ID，转换为同样形式的FName类型字符串 
-	 * 例如：0x00001001 转换为 "0x00001001"
-	 */
-	static FName IntIDToName(uint32 InID);
-
 	static FName IntToName(uint32 InID);
 
 /*===================== 数值分割工具 统一返回本类型 =====================*/

@@ -112,7 +112,7 @@ namespace
 
 		for (const RowType* RowData : Rows)
 		{
-			if (RowData == nullptr || RowData->ItemID == ItemIDNone)
+			if (RowData == nullptr || !RowData->ItemIDTag.IsValid())
 			{
 				continue;
 			}

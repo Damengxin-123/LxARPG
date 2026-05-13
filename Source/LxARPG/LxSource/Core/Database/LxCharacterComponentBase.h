@@ -8,7 +8,7 @@
 
 class ALxBaseCharacter;
 
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色组件基类")
 class LXARPG_API ULxCharacterComponentBase : public ULxComponentBase
 {
 	GENERATED_BODY()

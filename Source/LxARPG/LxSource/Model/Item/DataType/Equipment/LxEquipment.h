@@ -36,6 +36,7 @@ struct FLxEquipmentInformation : public FLxItemInformationBase
 	{
 		ItemCountMax = 1;
 		ItemType = ELxItemType::Equipment;
+		ItemIDTag = LxTag_Item_Equipment;
 	}
 
 	/**
@@ -53,10 +54,10 @@ struct FLxEquipmentInformation : public FLxItemInformationBase
 	 * @param DefaultEntryQuoteList 初始化时提供的词条列表，其中第一个元素将被设为默认词条，其余则添加至扩展词条列表。
 	 * @return 无返回值。
 	 */
-	FLxEquipmentInformation(FLxItemID ID, ELxItemRarityType RarityType,
+	FLxEquipmentInformation(FGameplayTag InItemIDTag, ELxItemRarityType RarityType,
 	                        ELxEquipmentType EquipmentType, int32 EnhancementValueOverride, int32 ForgePotential, const TArray<FLxEntryQuote>& DefaultEntryQuoteList = TArray<FLxEntryQuote>())
 	{
-		this->ItemID =  ID;
+		this->ItemIDTag = InItemIDTag;
 		this->ItemRarity  = RarityType;
 		this->EquipmentType = EquipmentType;
 		this->EnhancementValueOverride = EnhancementValueOverride;

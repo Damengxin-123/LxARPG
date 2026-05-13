@@ -10,10 +10,10 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterial.h"
 
 /**
- * 物品静态数据缓存。
+ * Item static data cache.
  *
- * 数据表管理器启动时会把各类物品数据表读入这里；运行时物品创建逻辑只通过这些接口查询，
- * 避免继续维护写死在代码里的物品常量 Map。
+ * Data tables are loaded into tag-keyed maps so runtime systems can create,
+ * stack, and query items without depending on legacy numeric IDs.
  */
 namespace LxItemConfig
 {
@@ -24,12 +24,11 @@ namespace LxItemConfig
 	void SetMaterialItemData(const FLxMaterialInformation& InItemData);
 	void SetBuffItemData(const FLxBuffInformation& InItemData);
 
-	const TMap<FLxItemID, FLxEquipmentInformation>& GetEquipmentItemMap();
-	const TMap<FLxItemID, FLxConsumableInformation>& GetConsumableItemMap();
-	const TMap<FLxItemID, FLxMaterialInformation>& GetMaterialItemMap();
-	const TMap<FLxItemID, FLxBuffInformation>& GetBuffItemMap();
+	const TMap<FGameplayTag, FLxEquipmentInformation>& GetEquipmentItemMap();
+	const TMap<FGameplayTag, FLxConsumableInformation>& GetConsumableItemMap();
+	const TMap<FGameplayTag, FLxMaterialInformation>& GetMaterialItemMap();
+	const TMap<FGameplayTag, FLxBuffInformation>& GetBuffItemMap();
 
-	/** 根据物品类型和 ID 查询物品静态配置。ItemID 不再承载类型信息，必须和类型配合定位。 */
-	const FLxItemInformationBase* GetItemData(ELxItemType InItemType, FLxItemID InItemID);
+	/** Query item static data by its stable tag ID. */
 	const FLxItemInformationBase* GetItemData(FGameplayTag InItemIDTag);
 }

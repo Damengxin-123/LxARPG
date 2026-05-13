@@ -14,6 +14,7 @@ ELxItemUseState ULxConsumable::ItemUse()
 	if (ItemIsValid())
 	{
 		m_fConsumableInformation.ItemCount --;
+		BroadcastItemCountChanged();
 		return ELxItemUseState::ActivateEntry;
 	}
 	return ELxItemUseState::Failed;

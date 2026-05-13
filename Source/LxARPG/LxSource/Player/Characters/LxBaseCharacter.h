@@ -64,63 +64,63 @@ public:
 	/**
 	 * 鑾峰彇瑙掕壊绉诲姩缁勪欢銆?	 *
 	 * @return 瑙掕壊绉诲姩缁勪欢鎸囬拡锛涙湭鍒濆鍖栨椂杩斿洖 nullptr銆?	 */
-	UFUNCTION(BlueprintCallable, Category="Components", DisplayName="Get Character Move Component")
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色移动组件")
 	ULxCharacterMoveComponent* GetCharacterMoveComponent() const { return m_pCharacterMoveComponent; }
 
 	/**
 	 * 鑾峰彇瑙掕壊灞炴€х粍浠躲€?	 *
 	 * @return 瑙掕壊灞炴€х粍浠舵寚閽堬紱鏈垵濮嬪寲鏃惰繑鍥?nullptr銆?	 */
-	UFUNCTION(BlueprintCallable, Category="Components", DisplayName="Get Character Attribute Component")
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色属性组件")
 	ULxCharacterAttributeComponent* GetCharacterAttributeComponent() const { return m_pCharacterAttributeComponent; }
 
 	/**
 	 * 鑾峰彇瑙掕壊鑳屽寘缁勪欢銆?	 *
 	 * @return 瑙掕壊鑳屽寘缁勪欢鎸囬拡锛涙湭鍒濆鍖栨椂杩斿洖 nullptr銆?	 */
-	UFUNCTION(BlueprintCallable, Category="Components", DisplayName="Get Character Backpack Component")
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色背包组件")
 	ULxCharacterBackpackComponent* GetCharacterBackpackComponent() const { return m_pCharacterBackpackComponent; }
 
 	/**
 	 * 鑾峰彇瑙掕壊 Buff 缁勪欢銆?	 *
 	 * @return 瑙掕壊 Buff 缁勪欢鎸囬拡锛涙湭鍒濆鍖栨椂杩斿洖 nullptr銆?	 */
-	UFUNCTION(BlueprintCallable, Category="Components", DisplayName="Get Character Buff Component")
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色Buff组件")
 	ULxCharacterBuffComponent* GetCharacterBuffComponent() const { return m_pCharacterBuffComponent; }
 
 	/**
 	 * 鑾峰彇瑙掕壊鏁版嵁涓浆缁勪欢銆?	 *
 	 * @return 瑙掕壊鏁版嵁涓浆缁勪欢鎸囬拡锛涙湭鍒濆鍖栨椂杩斿洖 nullptr銆?	 */
-	UFUNCTION(BlueprintCallable, Category="Components", DisplayName="Get Character Data Transfer Component")
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色数据中转组件")
 	ULxCharacterDataTransferComponent* GetCharacterDataTransferComponent() const { return m_pCharacterDataTransferComponent; }
 
 	/**
 	 * 鑾峰彇瑙掕壊瑁呭缁勪欢銆?	 *
 	 * @return 瑙掕壊瑁呭缁勪欢鎸囬拡锛涙湭鍒濆鍖栨椂杩斿洖 nullptr銆?	 */
-	UFUNCTION(BlueprintCallable, Category="Components", DisplayName="Get Character Equipment Component")
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色装备组件")
 	ULxCharacterEquipmentComponent* GetCharacterEquipmentComponent() const { return m_pCharacterEquipmentComponent; }
 
 
 protected:
 	/** 瑙掕壊绉诲姩缁勪欢锛岀敤浜庣鐞嗗拰鎺у埗瑙掕壊绉诲姩琛屼负銆?*/
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components", DisplayName="Character Move Component")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色移动组件")
 	TObjectPtr<ULxCharacterMoveComponent> m_pCharacterMoveComponent;
 
 	/** 瑙掕壊灞炴€х粍浠讹紝鐢ㄤ簬缁存姢瑙掕壊灞炴€ц〃鍜屽睘鎬ц瘝鏉＄紦瀛樸€?*/
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components", DisplayName="Character Attribute Component")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色属性组件")
 	TObjectPtr<ULxCharacterAttributeComponent> m_pCharacterAttributeComponent;
 
 	/** 瑙掕壊鑳屽寘缁勪欢锛岀敤浜庣鐞嗚儗鍖呮Ы浣嶅拰鑳屽寘鐗╁搧銆?*/
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components", DisplayName="Character Backpack Component")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色背包组件")
 	TObjectPtr<ULxCharacterBackpackComponent> m_pCharacterBackpackComponent;
 
 	/** 瑙掕壊 Buff 缁勪欢锛岀敤浜庣鐞嗚繍琛屾椂 Buff銆?*/
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components", DisplayName="Character Buff Component")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色Buff组件")
 	TObjectPtr<ULxCharacterBuffComponent> m_pCharacterBuffComponent;
 
 	/** 瑙掕壊鏁版嵁涓浆缁勪欢锛岀敤浜庣粺涓€瀵瑰杞彂灞炴€с€佽儗鍖呫€佽澶囧拰 Buff 鏁版嵁銆?*/
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components", DisplayName="Character Data Transfer Component")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色数据中转组件")
 	TObjectPtr<ULxCharacterDataTransferComponent> m_pCharacterDataTransferComponent;
 
 	/** 瑙掕壊瑁呭缁勪欢锛岀敤浜庣鐞嗚澶囨Ы浣嶅拰宸茶澶囩墿鍝併€?*/
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Components", DisplayName="Character Equipment Component")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色装备组件")
 	TObjectPtr<ULxCharacterEquipmentComponent> m_pCharacterEquipmentComponent;
 
 

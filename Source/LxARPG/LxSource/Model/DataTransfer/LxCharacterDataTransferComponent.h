@@ -148,5 +148,5 @@ private:
 
 	bool bDataTransferInitialized = false;
 
-	TMap<int32, int32> EquipmentBuffSourceCounts;
+	TMap<FGameplayTag, int32> EquipmentBuffSourceCounts;
 };

@@ -25,9 +25,9 @@ struct FLxBuffRuntimeInfo
 	UPROPERTY()
 	TObjectPtr<ULxBuff> BuffLogic = nullptr;
 
-	/** Buff 物品 ID。 */
+	/** Buff item tag ID. */
 	UPROPERTY()
-	int32 BuffID = ItemIDNone;
+	FGameplayTag BuffIDTag;
 
 	/** Buff 效果比例，由创建 Buff 词条传入，预留给后续词条结算使用。 */
 	float EffectProportion = 1.f;
@@ -64,13 +64,13 @@ public:
 	/**
 	 * 添加指定 ID 的 Buff。
 	 *
-	 * @param InBuffID Buff 物品 ID。
+	 * @param InBuffIDTag Buff 物品标签 ID。
 	 * @param InEffectProportion Buff 效果比例。
 	 * @param InDurationOverride 持续时间覆盖，小于 0 表示永久。
 	 * @return 创建或刷新后的 Buff 对象。
 	 */
 	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="添加Buff")
-	ULxBuff* AddBuff(int32 InBuffID, float InEffectProportion = 1.f, float InDurationOverride = -1.f, ELxCharacterEntrySource InEntrySource = ELxCharacterEntrySource::Other);
+	ULxBuff* AddBuff(FGameplayTag InBuffIDTag, float InEffectProportion = 1.f, float InDurationOverride = -1.f, ELxCharacterEntrySource InEntrySource = ELxCharacterEntrySource::Other);
 
 	/**
 	 * 根据创建 Buff 词条添加 Buff。
@@ -85,12 +85,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="移除Buff")
 	bool RemoveBuff(ULxBuff* InBuffLogic);
 
-	/** 按 Buff ID 移除 Buff。 */
-	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="移除指定ID的Buff")
-	int32 RemoveBuffByID(int32 InBuffID);
+	/** 按 Buff 标签 ID 移除 Buff。 */
+	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="移除指定标签ID的Buff", meta=(Categories="物品"))
+	int32 RemoveBuffByTagID(FGameplayTag InBuffIDTag);
 
 	/** 移除指定来源对 Buff 的引用；该 Buff 没有任何来源引用后才会真正移除。 */
-	int32 RemoveBuffSourceReferenceByID(int32 InBuffID, ELxCharacterEntrySource InEntrySource, int32 InReferenceCount = 1);
+	int32 RemoveBuffSourceReferenceByTagID(FGameplayTag InBuffIDTag, ELxCharacterEntrySource InEntrySource, int32 InReferenceCount = 1);
 
 	/** 清空所有 Buff。 */
 	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="清空所有Buff")
@@ -123,8 +123,8 @@ private:
 	/** 根据 Buff 对象查找运行时缓存。 */
 	const FLxBuffRuntimeInfo* FindRuntimeInfo(ULxBuff* InBuffLogic) const;
 
-	/** 根据 Buff ID 查找第一个运行时缓存。 */
-	FLxBuffRuntimeInfo* FindFirstRuntimeInfoByID(int32 InBuffID);
+	/** 根据 Buff 标签 ID 查找第一个运行时缓存。 */
+	FLxBuffRuntimeInfo* FindFirstRuntimeInfoByTagID(FGameplayTag InBuffIDTag);
 
 	int32 GetTotalSourceReferenceCount(const FLxBuffRuntimeInfo& InRuntimeInfo) const;
 

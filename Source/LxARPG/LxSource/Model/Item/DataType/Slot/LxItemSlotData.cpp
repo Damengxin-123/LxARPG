@@ -19,11 +19,11 @@ void ULxItemSlotData::ItemUse()
 	{
 		return;
 	}
-
-	if (OldItemCount != UsedItem->ItemCount())
-	{
-		UsedItem->BroadcastItemCountChanged();
-	}
+	//
+	// if (OldItemCount != UsedItem->ItemCount())
+	// {
+	// 	UsedItem->BroadcastItemCountChanged();
+	// }
 }
 
 void ULxItemSlotData::InitItemSlot(ELxItemSlotType InItemSlotType, FGameplayTag InItemType, ULxItemBase* InItemData)
@@ -101,7 +101,7 @@ ELxItemSlotDropResult ULxItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSl
 		return ELxItemSlotDropResult::CannotEnter;
 	}
 
-	if (!InItemSlot->m_pItemData->ItemTagID().MatchesTag(m_fItemTypeTag))
+	if (!InItemSlot->m_pItemData->ItemIDTag().MatchesTag(m_fItemTypeTag))
 	{
 		return ELxItemSlotDropResult::TypeError;
 	}
@@ -119,7 +119,7 @@ ELxItemSlotDropResult ULxItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSl
 		return ELxItemSlotDropResult::EnterSuccess;
 	}
 
-	if (m_pItemData->ItemIsStackable() && m_pItemData->ItemTagID() == InItemSlot->m_pItemData->ItemTagID())
+	if (m_pItemData->ItemIsStackable() && m_pItemData->ItemIDTag() == InItemSlot->m_pItemData->ItemIDTag())
 	{
 		m_pItemData->ItemStack(InItemSlot->m_pItemData);
 		OnItemDataChanged.Broadcast(m_pItemData);

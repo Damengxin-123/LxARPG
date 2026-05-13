@@ -145,8 +145,8 @@ struct FLxEntryCreateBuff : public FLxEntryBase
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="创建Buff词条ID")
 	ELxCreateBuffEntryID EntryID = ELxCreateBuffEntryID::None;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="BuffID")
-	int32 BuffID = ItemIDNone;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="Buff标签ID", meta=(Categories="物品"))
+	FGameplayTag BuffIDTag;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Entry", DisplayName="持续时间")
 	float BuffDuration = -1.f;

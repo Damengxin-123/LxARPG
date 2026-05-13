@@ -18,12 +18,9 @@ struct FLxItemInformationBase : public FTableRowBase
 {
 	GENERATED_BODY()
 
-	/** 物品ID，可用于查询物品的可视化信息和静态配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品ID")
-	int32 ItemID = ItemIDNone;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品ID-标签测试版", meta=(Categories="物品"))
-	FGameplayTag ItemIDTest;
+	/** Stable item identity. Runtime lookup, stacking, and save-facing references all use this tag. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品ID", meta=(Categories="物品"))
+	FGameplayTag ItemIDTag;
 
 	/** 物品大类，例如装备、消耗品、材料、Buff。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品类型")
@@ -64,27 +61,23 @@ struct FLxItemInformationBase : public FTableRowBase
 /**
  * 运行时物品引用。
  *
- * 用于表达“某个ID的若干个物品”，例如背包添加、掉落生成和Buff创建词条。
+ * 用于表达“某个标签 ID 的若干个物品”，例如背包添加、掉落生成和 Buff 创建词条。
  */
 USTRUCT(BlueprintType, DisplayName="物品引用")
 struct FLxItemQuote
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品类型")
-	ELxItemType ItemType = ELxItemType::None;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品ID")
-	int32 ItemID = ItemIDNone;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品ID", meta=(Categories="物品"))
+	FGameplayTag ItemIDTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品数量")
 	int32 ItemCount = 0;
 
 	FLxItemQuote() {}
 
-	FLxItemQuote(ELxItemType InItemType, FLxItemID InItemID, FLxItemCount InItemCount)
-		: ItemType(InItemType)
-		, ItemID(InItemID)
+	FLxItemQuote(FGameplayTag InItemIDTag, FLxItemCount InItemCount)
+		: ItemIDTag(InItemIDTag)
 		, ItemCount(InItemCount)
 	{
 	}

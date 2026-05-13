@@ -13,7 +13,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnComponentDataChange);
  * 所有自定义 ActorComponent 的基础类型。
  * 提供统一初始化入口、数据变化事件，以及输入监听注册辅助函数。
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="组件基类")
 class LXARPG_API ULxComponentBase : public UActorComponent, public ILxInputReceiveInterface
 {
 	GENERATED_BODY()

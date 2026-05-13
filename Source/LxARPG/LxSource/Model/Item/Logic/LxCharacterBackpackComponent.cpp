@@ -4,23 +4,24 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "Algo/Sort.h"
+#include "Misc/Crc.h"
 
 namespace
 {
 	struct FLxBackpackItemKey
 	{
-		ELxItemType ItemType = ELxItemType::None;
-		FLxItemID ItemID = ItemIDNone;
+		FGameplayTag ItemIDTag;
 
 		bool operator==(const FLxBackpackItemKey& Other) const
 		{
-			return ItemType == Other.ItemType && ItemID == Other.ItemID;
+			return ItemIDTag == Other.ItemIDTag;
 		}
 	};
 
 	uint32 GetTypeHash(const FLxBackpackItemKey& Key)
 	{
-		return HashCombine(::GetTypeHash(static_cast<uint8>(Key.ItemType)), ::GetTypeHash(Key.ItemID));
+		return FCrc::StrCrc32(*Key.ItemIDTag.ToString());
 	}
 
 	/** 查找第一个空背包槽位。 */
@@ -36,13 +37,12 @@ namespace
 		return nullptr;
 	}
 
-	/** 判断物品对象是否匹配指定类型和 ID。 */
-	bool ItemMatches(ULxItemBase* InItem, ELxItemType InItemType, FLxItemID InItemID)
+	/** 判断物品对象是否匹配指定标签 ID。 */
+	bool ItemMatches(ULxItemBase* InItem, FGameplayTag InItemIDTag)
 	{
 		return InItem != nullptr
 			&& InItem->ItemIsValid()
-			&& InItem->ItemType() == InItemType
-			&& InItem->ItemID() == InItemID;
+			&& InItem->ItemIDTag() == InItemIDTag;
 	}
 }
 
@@ -58,15 +58,14 @@ void ULxCharacterBackpackComponent::BaseComponentInitialize()
 	InitializeBackpack();
 }
 
-bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, int32 InItemID, int32 InItemCount)
+bool ULxCharacterBackpackComponent::AddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount)
 {
-	const FLxItemID ItemID = InItemID;
-	if (InItemType == ELxItemType::None || ItemID == ItemIDNone || InItemCount <= 0)
+	if (!InItemIDTag.IsValid() || InItemCount <= 0)
 	{
 		return false;
 	}
 
-	const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(InItemType, ItemID);
+	const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(InItemIDTag);
 	if (ItemConfig == nullptr || ItemConfig->ItemCountMax <= 0)
 	{
 		return false;
@@ -97,7 +96,7 @@ bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, int32
 		}
 
 		ULxItemBase* ExistingItem = Slot->GetItem();
-		if (ItemMatches(ExistingItem, InItemType, ItemID) && ExistingItem->ItemIsStackable())
+		if (ItemMatches(ExistingItem, InItemIDTag) && ExistingItem->ItemIsStackable())
 		{
 			AvailableCount += FMath::Max(0, MaxStackCount - ExistingItem->ItemCount());
 		}
@@ -125,7 +124,7 @@ bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, int32
 		}
 
 		ULxItemBase* ExistingItem = Slot->GetItem();
-		if (!ItemMatches(ExistingItem, InItemType, ItemID) || !ExistingItem->ItemIsStackable())
+		if (!ItemMatches(ExistingItem, InItemIDTag) || !ExistingItem->ItemIsStackable())
 		{
 			continue;
 		}
@@ -136,7 +135,7 @@ bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, int32
 			continue;
 		}
 
-		ULxItemBase* IncomingStack = ULxItemBase::CreateItemObject(this, FLxItemQuote(InItemType, ItemID, static_cast<FLxItemCount>(StackableCount)));
+		ULxItemBase* IncomingStack = ULxItemBase::CreateItemObject(this, FLxItemQuote(InItemIDTag, static_cast<FLxItemCount>(StackableCount)));
 		if (IncomingStack == nullptr || !IncomingStack->ItemIsValid())
 		{
 			return false;
@@ -156,7 +155,7 @@ bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, int32
 		}
 
 		const int32 NewStackCount = FMath::Min(RemainingCount, MaxStackCount);
-		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, FLxItemQuote(InItemType, ItemID, static_cast<FLxItemCount>(NewStackCount)));
+		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, FLxItemQuote(InItemIDTag, static_cast<FLxItemCount>(NewStackCount)));
 		if (NewItem == nullptr || !NewItem->ItemIsValid())
 		{
 			return false;
@@ -176,17 +175,6 @@ bool ULxCharacterBackpackComponent::AddItemByRowID(ELxItemType InItemType, int32
 	return RemainingCount <= 0;
 }
 
-bool ULxCharacterBackpackComponent::TestAddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount)
-{
-	const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(InItemIDTag);
-	if (ItemConfig == nullptr)
-	{
-		return false;
-	}
-
-	return AddItemByRowID(ItemConfig->ItemType, ItemConfig->ItemID, InItemCount);
-}
-
 bool ULxCharacterBackpackComponent::CanAddItemList(const TArray<FLxItemQuote>& InItemList) const
 {
 	if (InItemList.IsEmpty())
@@ -201,13 +189,13 @@ bool ULxCharacterBackpackComponent::CanAddItemList(const TArray<FLxItemQuote>& I
 
 	for (const FLxItemQuote& ItemQuote : InItemList)
 	{
-		const FLxBackpackItemKey ItemKey{ItemQuote.ItemType, ItemQuote.ItemID};
-		if (ItemQuote.ItemType == ELxItemType::None || ItemQuote.ItemID == ItemIDNone || ItemQuote.ItemCount <= 0)
+		const FLxBackpackItemKey ItemKey{ItemQuote.ItemIDTag};
+		if (!ItemQuote.ItemIDTag.IsValid() || ItemQuote.ItemCount <= 0)
 		{
 			return false;
 		}
 
-		const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(ItemQuote.ItemType, ItemQuote.ItemID);
+		const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(ItemQuote.ItemIDTag);
 		if (ItemConfig == nullptr || ItemConfig->ItemCountMax <= 0)
 		{
 			return false;
@@ -231,7 +219,7 @@ bool ULxCharacterBackpackComponent::CanAddItemList(const TArray<FLxItemQuote>& I
 			continue;
 		}
 
-		const FLxBackpackItemKey ItemKey{ExistingItem->ItemType(), ExistingItem->ItemID()};
+		const FLxBackpackItemKey ItemKey{ExistingItem->ItemIDTag()};
 		if (const int32* MaxStackCount = MaxStackCountMap.Find(ItemKey))
 		{
 			ExistingStackSpaceMap.FindOrAdd(ItemKey) += FMath::Max(0, *MaxStackCount - ExistingItem->ItemCount());
@@ -264,7 +252,7 @@ bool ULxCharacterBackpackComponent::AddItemList(const TArray<FLxItemQuote>& InIt
 
 	for (const FLxItemQuote& ItemQuote : InItemList)
 	{
-		if (!AddItemByRowID(ItemQuote.ItemType, ItemQuote.ItemID, ItemQuote.ItemCount))
+		if (!AddItemByTagID(ItemQuote.ItemIDTag, ItemQuote.ItemCount))
 		{
 			return false;
 		}
@@ -272,10 +260,9 @@ bool ULxCharacterBackpackComponent::AddItemList(const TArray<FLxItemQuote>& InIt
 	return true;
 }
 
-bool ULxCharacterBackpackComponent::RemoveItemAt(ELxItemType InItemType, FName InItemID, int32 InItemCount)
+bool ULxCharacterBackpackComponent::RemoveItemAt(FGameplayTag InItemIDTag, int32 InItemCount)
 {
-	FLxItemID ItemID = ResolveItemIDFromName(InItemID);
-	if (!CheckHaveItem(InItemType, InItemID, InItemCount))
+	if (!CheckHaveItem(InItemIDTag, InItemCount))
 	{
 		return false;
 	}
@@ -288,7 +275,7 @@ bool ULxCharacterBackpackComponent::RemoveItemAt(ELxItemType InItemType, FName I
 			break;
 		}
 
-		if (Slot == nullptr || !ItemMatches(Slot->GetItem(), InItemType, ItemID))
+		if (Slot == nullptr || !ItemMatches(Slot->GetItem(), InItemIDTag))
 		{
 			continue;
 		}
@@ -304,7 +291,7 @@ bool ULxCharacterBackpackComponent::RemoveItemAt(ELxItemType InItemType, FName I
 		}
 
 		const int32 NewCount = ItemCount - RemainingRemoveCount;
-		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, FLxItemQuote(InItemType, ItemID, static_cast<FLxItemCount>(NewCount)));
+		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, FLxItemQuote(InItemIDTag, static_cast<FLxItemCount>(NewCount)));
 		if (NewItem != nullptr && NewItem->ItemIsValid())
 		{
 			m_vItemList.Remove(Item);
@@ -320,10 +307,9 @@ bool ULxCharacterBackpackComponent::RemoveItemAt(ELxItemType InItemType, FName I
 	return true;
 }
 
-bool ULxCharacterBackpackComponent::CheckHaveItem(ELxItemType InItemType, FName InItemID, int32 InItemCount) const
+bool ULxCharacterBackpackComponent::CheckHaveItem(FGameplayTag InItemIDTag, int32 InItemCount) const
 {
-	const FLxItemID ItemID = ResolveItemIDFromName(InItemID);
-	if (ItemID == ItemIDNone || InItemCount <= 0)
+	if (!InItemIDTag.IsValid() || InItemCount <= 0)
 	{
 		return false;
 	}
@@ -331,7 +317,7 @@ bool ULxCharacterBackpackComponent::CheckHaveItem(ELxItemType InItemType, FName 
 	int32 FoundCount = 0;
 	for (ULxItemBase* Item : m_vItemList)
 	{
-		if (ItemMatches(Item, InItemType, ItemID))
+		if (ItemMatches(Item, InItemIDTag))
 		{
 			FoundCount += Item->ItemCount();
 			if (FoundCount >= InItemCount)
@@ -347,7 +333,7 @@ void ULxCharacterBackpackComponent::SortingOfItems()
 {
 	CleanupInvalidItems();
 
-	m_vItemList.Sort([](const TObjectPtr<ULxItemBase>& Left, const TObjectPtr<ULxItemBase>& Right)
+	Algo::Sort(m_vItemList, [](const TObjectPtr<ULxItemBase>& Left, const TObjectPtr<ULxItemBase>& Right)
 	{
 		if (Left == nullptr || Right == nullptr)
 		{
@@ -477,15 +463,4 @@ void ULxCharacterBackpackComponent::InitializeBackpack()
 		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleBackpackSlotChanged);
 		m_vBackpackSlots.Add(NewSlot);
 	}
-}
-
-FLxItemID ULxCharacterBackpackComponent::ResolveItemIDFromName(FName InItemID)
-{
-	if (InItemID.IsNone())
-	{
-		return ItemIDNone;
-	}
-
-	const FString ItemIDString = InItemID.ToString();
-	return static_cast<FLxItemID>(FCString::Strtoui64(*ItemIDString, nullptr, 0));
 }
