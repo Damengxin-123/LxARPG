@@ -1,0 +1,28 @@
+#include "LxInteractionActionComponentBase.h"
+
+void ULxInteractionActionComponentBase::SetInteractionState(ELxInteractionDataState InState)
+{
+	if (InteractionState == InState)
+	{
+		return;
+	}
+
+	InteractionState = InState;
+	OnInteractionStateChanged.Broadcast(InteractionState);
+	OnDataChange.Broadcast();
+}
+
+bool ULxInteractionActionComponentBase::IsInteractionValid_Implementation() const
+{
+	return InteractionState == ELxInteractionDataState::Interactable;
+}
+
+bool ULxInteractionActionComponentBase::CheckInteractionRequirement_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) const
+{
+	return PlayerInteractionComponent != nullptr;
+}
+
+bool ULxInteractionActionComponentBase::ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent)
+{
+	return IsInteractionValid() && CheckInteractionRequirement(PlayerInteractionComponent);
+}
