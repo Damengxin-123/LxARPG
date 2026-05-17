@@ -51,6 +51,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="添加物品列表")
 	bool AddItemList(const TArray<FLxItemQuote>& InItemList);
 
+	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="检查是否拥有物品列表")
+	bool CheckHaveItemList(const TArray<FLxItemQuote>& InItemList) const;
+
+	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="移除物品列表")
+	bool RemoveItemList(const TArray<FLxItemQuote>& InItemList);
+
 	/**
 	 * 从背包中移除指定数量的物品。
 	 *

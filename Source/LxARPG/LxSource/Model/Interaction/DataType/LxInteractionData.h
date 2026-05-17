@@ -99,63 +99,33 @@ struct FLxDialogueInteractionData : public FLxInteractionDataBase
 	}
 };
 
-/** 由交互对象给予玩家物品的交互数据。 */
-USTRUCT(BlueprintType, DisplayName="获得物品交互数据")
-struct FLxGiveItemsInteractionData : public FLxInteractionDataBase
+/** 只能从容器取出物品的宝箱交互数据。 */
+USTRUCT(BlueprintType, DisplayName="宝箱交互数据")
+struct FLxTreasureChestInteractionData : public FLxInteractionDataBase
 {
 	GENERATED_BODY()
 
-	FLxGiveItemsInteractionData()
+	FLxTreasureChestInteractionData()
 	{
-		InteractionType = ELxInteractionActionType::GiveItems;
+		InteractionType = ELxInteractionActionType::TreasureChest;
 	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|物品", DisplayName="物品列表")
-	TArray<FLxItemQuote> ItemList;
-};
-
-/** 玩家消耗物品的交互数据。 */
-USTRUCT(BlueprintType, DisplayName="失去物品交互数据")
-struct FLxConsumeItemsInteractionData : public FLxInteractionDataBase
-{
-	GENERATED_BODY()
-
-	FLxConsumeItemsInteractionData()
-	{
-		InteractionType = ELxInteractionActionType::ConsumeItems;
-	}
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|物品", DisplayName="消耗物品列表")
-	TArray<FLxItemQuote> ConsumedItemList;
-};
-
-/** 只能从容器取出物品的交互数据，例如宝箱。 */
-USTRUCT(BlueprintType, DisplayName="只取容器交互数据")
-struct FLxTakeOnlyContainerInteractionData : public FLxInteractionDataBase
-{
-	GENERATED_BODY()
-
-	FLxTakeOnlyContainerInteractionData()
-	{
-		InteractionType = ELxInteractionActionType::TakeOnlyContainer;
-	}
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|容器", DisplayName="容器槽位列表")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|宝箱", DisplayName="宝箱槽位列表")
 	TArray<TObjectPtr<ULxItemSlotData>> ContainerSlotList;
 };
 
-/** 可以存入和取出物品的容器交互数据，例如仓库。 */
-USTRUCT(BlueprintType, DisplayName="存取容器交互数据")
-struct FLxDepositAndTakeContainerInteractionData : public FLxInteractionDataBase
+/** 可以存入和取出物品的仓库交互数据。 */
+USTRUCT(BlueprintType, DisplayName="仓库交互数据")
+struct FLxWarehouseInteractionData : public FLxInteractionDataBase
 {
 	GENERATED_BODY()
 
-	FLxDepositAndTakeContainerInteractionData()
+	FLxWarehouseInteractionData()
 	{
-		InteractionType = ELxInteractionActionType::DepositAndTakeContainer;
+		InteractionType = ELxInteractionActionType::Warehouse;
 	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|容器", DisplayName="容器槽位列表")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|仓库", DisplayName="仓库槽位列表")
 	TArray<TObjectPtr<ULxItemSlotData>> ContainerSlotList;
 };
 

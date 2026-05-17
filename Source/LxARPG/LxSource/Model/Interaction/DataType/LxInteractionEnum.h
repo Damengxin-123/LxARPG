@@ -10,12 +10,19 @@ enum class ELxInteractionActionType : uint8
 	Entrance UMETA(DisplayName="交互入口"),
 	Dialogue UMETA(DisplayName="对话交互"),
 	TriggerMechanism UMETA(DisplayName="触发机关"),
-	GiveItems UMETA(DisplayName="获得物品"),
-	ConsumeItems UMETA(DisplayName="失去物品"),
-	TakeOnlyContainer UMETA(DisplayName="只取容器"),
-	DepositAndTakeContainer UMETA(DisplayName="存取容器"),
+	ItemTransfer UMETA(DisplayName="物品传递"),
+	TreasureChest UMETA(DisplayName="宝箱"),
+	Warehouse UMETA(DisplayName="仓库"),
 	TradeContainer UMETA(DisplayName="交易容器"),
 	FunctionPage UMETA(DisplayName="功能界面"),
+};
+
+/** 物品传递方向，表示对玩家角色背包增加或移除物品。 */
+UENUM(BlueprintType)
+enum class ELxItemTransferDirection : uint8
+{
+	AddToPlayer UMETA(DisplayName="增加到玩家"),
+	RemoveFromPlayer UMETA(DisplayName="从玩家移除"),
 };
 
 /** 单个交互行为当前是否可用，不表示玩家交互流程生命周期。 */

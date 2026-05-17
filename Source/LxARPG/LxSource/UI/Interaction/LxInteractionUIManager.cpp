@@ -4,6 +4,7 @@
 #include "LxInteractionEntranceWidget.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
+#include "LxARPG/LxSource/UI/Warehouse/LxWarehouseWidget.h"
 
 void ULxInteractionUIManager::SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent)
 {
@@ -28,6 +29,12 @@ void ULxInteractionUIManager::RegisterDialogueInteractionWidget(ULxDialogueInter
 	RefreshInteractionUI();
 }
 
+void ULxInteractionUIManager::RegisterWarehouseWidget(ULxWarehouseWidget* InWarehouseWidget)
+{
+	WarehouseWidget = InWarehouseWidget;
+	RefreshInteractionUI();
+}
+
 void ULxInteractionUIManager::RefreshInteractionUI()
 {
 	if (EntranceWidget)
@@ -38,5 +45,10 @@ void ULxInteractionUIManager::RefreshInteractionUI()
 	if (DialogueInteractionWidget)
 	{
 		DialogueInteractionWidget->SetPlayerInteractionComponent(PlayerInteractionComponent);
+	}
+
+	if (WarehouseWidget)
+	{
+		WarehouseWidget->SetPlayerInteractionComponent(PlayerInteractionComponent);
 	}
 }

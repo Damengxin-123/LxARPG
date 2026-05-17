@@ -2,8 +2,10 @@
 
 #include "LxInteractableComponent.h"
 #include "LxInteractionActionComponentBase.h"
+#include "LxItemTransferInteractionComponent.h"
 #include "LxInteractionNode.h"
 #include "LxTriggerMechanismInteractionComponent.h"
+#include "LxWarehouseInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputData.h"
 
 void ULxPlayerInteractionComponent::BaseComponentInitialize()
@@ -221,6 +223,34 @@ bool ULxPlayerInteractionComponent::ActivateInteractionOption(const FLxInteracti
 		OnCurrentInteractionOptionsUpdated.Broadcast(CachedCurrentOptions);
 		RefreshEntranceOptions();
 		return true;
+	}
+
+	if (CurrentInteractionNode->GetInteractionActionType() == ELxInteractionActionType::ItemTransfer)
+	{
+		ULxItemTransferInteractionComponent* ItemTransferComponent =
+			Cast<ULxItemTransferInteractionComponent>(CurrentInteractionNode->GetActionComponent());
+		if (!ItemTransferComponent || !ItemTransferComponent->ExecuteInteraction(this))
+		{
+			return false;
+		}
+
+		OnInteractionOptionExecuted.Broadcast(Option);
+		CurrentInteractableComponent = nullptr;
+		CurrentInteractionNode = nullptr;
+		CachedCurrentOptions.Reset();
+		OnCurrentInteractionOptionsUpdated.Broadcast(CachedCurrentOptions);
+		RefreshEntranceOptions();
+		return true;
+	}
+
+	if (CurrentInteractionNode->GetInteractionActionType() == ELxInteractionActionType::Warehouse)
+	{
+		ULxWarehouseInteractionComponent* WarehouseComponent =
+			Cast<ULxWarehouseInteractionComponent>(CurrentInteractionNode->GetActionComponent());
+		if (!WarehouseComponent || !WarehouseComponent->ExecuteInteraction(this))
+		{
+			return false;
+		}
 	}
 
 	RefreshCurrentInteractionOptions();

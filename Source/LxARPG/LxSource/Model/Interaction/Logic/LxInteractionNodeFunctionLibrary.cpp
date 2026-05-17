@@ -1,5 +1,6 @@
 #include "LxInteractionNodeFunctionLibrary.h"
 
+#include "LxInteractionActionComponentBase.h"
 #include "LxInteractionNode.h"
 
 ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateInteractionNode(UObject* Outer, FGameplayTag InteractionIDTag,
@@ -34,6 +35,10 @@ ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateFunctionInteraction
 {
 	UObject* NodeOuter = Outer ? Outer : GetTransientPackage();
 	ULxInteractionNode* NewNode = NewObject<ULxInteractionNode>(NodeOuter);
+	if (ActionComponent)
+	{
+		ActionComponent->SetPromptTextTag(PromptTextTag);
+	}
 	NewNode->InitializeInteractionNode(InteractionIDTag, PromptTextTag, InteractionType, TArray<ULxInteractionNode*>(), ActionComponent);
 	return NewNode;
 }

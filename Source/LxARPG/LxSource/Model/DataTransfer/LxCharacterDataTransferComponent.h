@@ -76,6 +76,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="背包物品排序")
 	void SortBackpackItems();
 
+	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="检查能否添加物品清单到背包")
+	bool CanAddItemListToBackpack(const TArray<FLxItemQuote>& InItemList) const;
+
+	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="添加物品清单到背包")
+	bool AddItemListToBackpack(const TArray<FLxItemQuote>& InItemList);
+
+	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="检查背包是否拥有物品清单")
+	bool CheckHaveBackpackItemList(const TArray<FLxItemQuote>& InItemList) const;
+
+	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="从背包移除物品清单")
+	bool RemoveItemListFromBackpack(const TArray<FLxItemQuote>& InItemList);
+
 	/** 角色属性更新事件，广播当前角色属性列表。 */
 	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色属性更新事件")
 	FOnLxCharacterAttributeListChanged OnCharacterAttributeChanged;

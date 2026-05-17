@@ -5,6 +5,12 @@ FGameplayTag ULxInteractionActionComponentBase::GetPromptTextTag() const
 	return PromptTextTag;
 }
 
+void ULxInteractionActionComponentBase::SetPromptTextTag(FGameplayTag InPromptTextTag)
+{
+	PromptTextTag = InPromptTextTag;
+	OnDataChange.Broadcast();
+}
+
 void ULxInteractionActionComponentBase::SetInteractionState(ELxInteractionDataState InState)
 {
 	if (InteractionState == InState)

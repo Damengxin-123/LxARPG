@@ -30,6 +30,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取提示文本标签")
 	virtual FGameplayTag GetPromptTextTag() const;
 
+	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="设置提示文本标签")
+	void SetPromptTextTag(FGameplayTag InPromptTextTag);
+
 	/** 获取此功能组件当前的可交互状态。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取交互状态")
 	ELxInteractionDataState GetInteractionState() const { return InteractionState; }

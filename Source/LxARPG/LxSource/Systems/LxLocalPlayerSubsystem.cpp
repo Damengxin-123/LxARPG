@@ -102,7 +102,7 @@ void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPl
 		if (m_pUIManager)
 		{
 			m_pUIManager->RefreshUI();
-			m_pUIManager->AddToPlayerScreen();
+			m_pUIManager->AddToPlayerScreen(10);
 		}
 	}
 
@@ -111,7 +111,7 @@ void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPl
 		m_pInteractionUIManager = CreateWidget<ULxInteractionUIManager>(m_pPlayerController, GameSettings->InteractionUIManagerClass);
 		if (m_pInteractionUIManager)
 		{
-			m_pInteractionUIManager->AddToPlayerScreen();
+			m_pInteractionUIManager->AddToPlayerScreen(0);
 		}
 	}
 

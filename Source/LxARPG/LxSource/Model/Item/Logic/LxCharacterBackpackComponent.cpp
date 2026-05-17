@@ -260,6 +260,57 @@ bool ULxCharacterBackpackComponent::AddItemList(const TArray<FLxItemQuote>& InIt
 	return true;
 }
 
+bool ULxCharacterBackpackComponent::CheckHaveItemList(const TArray<FLxItemQuote>& InItemList) const
+{
+	if (InItemList.IsEmpty())
+	{
+		return false;
+	}
+
+	TMap<FLxBackpackItemKey, int32> RequiredCountMap;
+	for (const FLxItemQuote& ItemQuote : InItemList)
+	{
+		if (!ItemQuote.ItemIDTag.IsValid() || ItemQuote.ItemCount <= 0)
+		{
+			return false;
+		}
+
+		RequiredCountMap.FindOrAdd(FLxBackpackItemKey{ItemQuote.ItemIDTag}) += ItemQuote.ItemCount;
+	}
+
+	for (const TPair<FLxBackpackItemKey, int32>& RequiredPair : RequiredCountMap)
+	{
+		if (!CheckHaveItem(RequiredPair.Key.ItemIDTag, RequiredPair.Value))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool ULxCharacterBackpackComponent::RemoveItemList(const TArray<FLxItemQuote>& InItemList)
+{
+	if (!CheckHaveItemList(InItemList))
+	{
+		return false;
+	}
+
+	TMap<FLxBackpackItemKey, int32> RequiredCountMap;
+	for (const FLxItemQuote& ItemQuote : InItemList)
+	{
+		RequiredCountMap.FindOrAdd(FLxBackpackItemKey{ItemQuote.ItemIDTag}) += ItemQuote.ItemCount;
+	}
+
+	for (const TPair<FLxBackpackItemKey, int32>& RequiredPair : RequiredCountMap)
+	{
+		if (!RemoveItemAt(RequiredPair.Key.ItemIDTag, RequiredPair.Value))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 bool ULxCharacterBackpackComponent::RemoveItemAt(FGameplayTag InItemIDTag, int32 InItemCount)
 {
 	if (!CheckHaveItem(InItemIDTag, InItemCount))

@@ -202,6 +202,26 @@ void ULxCharacterDataTransferComponent::SortBackpackItems()
 	BackpackComponent->SortingOfItems();
 }
 
+bool ULxCharacterDataTransferComponent::CanAddItemListToBackpack(const TArray<FLxItemQuote>& InItemList) const
+{
+	return BackpackComponent != nullptr && BackpackComponent->CanAddItemList(InItemList);
+}
+
+bool ULxCharacterDataTransferComponent::AddItemListToBackpack(const TArray<FLxItemQuote>& InItemList)
+{
+	return BackpackComponent != nullptr && BackpackComponent->AddItemList(InItemList);
+}
+
+bool ULxCharacterDataTransferComponent::CheckHaveBackpackItemList(const TArray<FLxItemQuote>& InItemList) const
+{
+	return BackpackComponent != nullptr && BackpackComponent->CheckHaveItemList(InItemList);
+}
+
+bool ULxCharacterDataTransferComponent::RemoveItemListFromBackpack(const TArray<FLxItemQuote>& InItemList)
+{
+	return BackpackComponent != nullptr && BackpackComponent->RemoveItemList(InItemList);
+}
+
 void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 {
 	ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
