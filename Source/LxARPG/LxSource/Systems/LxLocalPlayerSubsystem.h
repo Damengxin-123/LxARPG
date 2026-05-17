@@ -1,5 +1,3 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -10,6 +8,7 @@
 class ALxBaseCharacter;
 class ALxPlayerController;
 class ULxInputComponent;
+class ULxInteractionUIManager;
 class ULxUIManager;
 
 #define GET_LOCAL_PLAYER_SYSTEM() ULxLocalPlayerSubsystem::GetFromLocalPlayer(GetLocalPlayer())
@@ -38,6 +37,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="LocalPlayerSubsystem", DisplayName="获取UI管理器")
 	ULxUIManager* GetUIManager() const { return m_pUIManager; }
 
+	UFUNCTION(BlueprintCallable, Category="LocalPlayerSubsystem", DisplayName="获取交互UI管理器")
+	ULxInteractionUIManager* GetInteractionUIManager() const { return m_pInteractionUIManager; }
+
 private:
 	UPROPERTY()
 	TObjectPtr<ULxInputComponent> m_pInputComponentQuote = nullptr;
@@ -50,4 +52,7 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<ULxUIManager> m_pUIManager = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<ULxInteractionUIManager> m_pInteractionUIManager = nullptr;
 };

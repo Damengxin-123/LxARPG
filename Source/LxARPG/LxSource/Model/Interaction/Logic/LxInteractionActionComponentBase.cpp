@@ -1,5 +1,10 @@
 #include "LxInteractionActionComponentBase.h"
 
+FGameplayTag ULxInteractionActionComponentBase::GetPromptTextTag() const
+{
+	return PromptTextTag;
+}
+
 void ULxInteractionActionComponentBase::SetInteractionState(ELxInteractionDataState InState)
 {
 	if (InteractionState == InState)

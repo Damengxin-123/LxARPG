@@ -3,6 +3,7 @@
 #include "LxInteractableComponent.h"
 #include "LxInteractionActionComponentBase.h"
 #include "LxInteractionNode.h"
+#include "LxTriggerMechanismInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputData.h"
 
 void ULxPlayerInteractionComponent::BaseComponentInitialize()
@@ -24,18 +25,7 @@ void ULxPlayerInteractionComponent::HandleInputValue(ELxInputActionID InInputAct
 		return;
 	}
 
-	if (InInputActionID == ELxInputActionID::InteractionInteract)
-	{
-		if (CurrentInteractionNode && CachedCurrentOptions.Num() > 0)
-		{
-			SelectInteractionOption(CachedCurrentOptions[0]);
-		}
-		else if (CachedEntranceOptions.Num() > 0)
-		{
-			SelectInteractionOption(CachedEntranceOptions[0]);
-		}
-	}
-	else if (InInputActionID == ELxInputActionID::InteractionBack)
+	if (InInputActionID == ELxInputActionID::InteractionBack)
 	{
 		BackToParentInteractionNode();
 	}
@@ -47,7 +37,6 @@ void ULxPlayerInteractionComponent::HandleInputValue(ELxInputActionID InInputAct
 
 void ULxPlayerInteractionComponent::InitMonitorRegistration()
 {
-	RegisterInputActionReceive(ELxInputActionID::InteractionInteract);
 	RegisterInputActionReceive(ELxInputActionID::InteractionBack);
 	RegisterInputActionReceive(ELxInputActionID::InteractionCancel);
 }
@@ -120,7 +109,10 @@ void ULxPlayerInteractionComponent::RefreshEntranceOptions()
 
 		for (ULxInteractionNode* RootNode : InteractableComponent->GetValidRootInteractionNodes())
 		{
-			CachedEntranceOptions.Add(BuildOption(InteractableComponent, RootNode));
+			if (ShouldShowInEntranceOptions(RootNode) && ValidateInteractionNodePlacement(RootNode))
+			{
+				CachedEntranceOptions.Add(BuildOption(InteractableComponent, RootNode));
+			}
 		}
 	}
 
@@ -145,6 +137,13 @@ void ULxPlayerInteractionComponent::RefreshCurrentInteractionOptions()
 
 	for (ULxInteractionNode* ChildNode : CurrentInteractionNode->GetValidChildNodes())
 	{
+		if (!ValidateInteractionNodePlacement(ChildNode))
+		{
+			CachedCurrentOptions.Reset();
+			OnCurrentInteractionOptionsUpdated.Broadcast(CachedCurrentOptions);
+			return;
+		}
+
 		CachedCurrentOptions.Add(BuildOption(CurrentInteractableComponent, ChildNode));
 	}
 
@@ -158,20 +157,25 @@ void ULxPlayerInteractionComponent::SelectEntranceOptionByIndex(int32 OptionInde
 		return;
 	}
 
-	SelectInteractionOption(CachedEntranceOptions[OptionIndex]);
+	ActivateInteractionOption(CachedEntranceOptions[OptionIndex]);
 }
 
 void ULxPlayerInteractionComponent::SelectInteractionOption(const FLxInteractionOption& Option)
 {
+	ActivateInteractionOption(Option);
+}
+
+bool ULxPlayerInteractionComponent::ActivateInteractionOption(const FLxInteractionOption& Option)
+{
 	if (!Option.IsValid())
 	{
-		return;
+		return false;
 	}
 
 	if (Option.bIsBackOption)
 	{
 		BackToParentInteractionNode();
-		return;
+		return true;
 	}
 
 	CurrentInteractableComponent = Option.SourceInteractionComponent;
@@ -180,30 +184,48 @@ void ULxPlayerInteractionComponent::SelectInteractionOption(const FLxInteraction
 	if (!CurrentInteractionNode || !CurrentInteractionNode->IsNodeValid())
 	{
 		RefreshEntranceOptions();
-		return;
+		return false;
 	}
 
-	if (CurrentInteractionNode->HasChildNodes())
+	if (!ValidateInteractionNodePlacement(CurrentInteractionNode))
 	{
-		// 有子节点时先进入下一层选项列表，不立即执行功能组件。
-		RefreshCurrentInteractionOptions();
-		return;
+		CancelInteraction();
+		return false;
 	}
 
-	ULxInteractionActionComponentBase* ActionComponent = CurrentInteractionNode->GetActionComponent();
-	if (!ActionComponent || !CurrentInteractionNode->ValidateActionComponentType())
+	for (ULxInteractionNode* ChildNode : CurrentInteractionNode->GetValidChildNodes())
 	{
-		// 节点类型和组件类型不匹配时拒绝执行，避免蓝图配置错误导致错误行为。
-		return;
+		if (!ValidateInteractionNodePlacement(ChildNode))
+		{
+			CancelInteraction();
+			return false;
+		}
 	}
 
-	if (ActionComponent->ExecuteInteraction(this))
-	{
-		OnInteractionOptionExecuted.Broadcast(Option);
-	}
-
-	RefreshEntranceOptions();
+	// 统一刷新当前节点的子级选项，再把激活事件分发给各类型交互UI。
 	RefreshCurrentInteractionOptions();
+	if (CurrentInteractionNode->GetInteractionActionType() == ELxInteractionActionType::TriggerMechanism &&
+		!CurrentInteractionNode->GetParentNode())
+	{
+		ULxTriggerMechanismInteractionComponent* TriggerMechanismComponent =
+			Cast<ULxTriggerMechanismInteractionComponent>(CurrentInteractionNode->GetActionComponent());
+		if (!TriggerMechanismComponent || !TriggerMechanismComponent->TriggerMechanism(this))
+		{
+			return false;
+		}
+
+		OnInteractionOptionExecuted.Broadcast(Option);
+		CurrentInteractableComponent = nullptr;
+		CurrentInteractionNode = nullptr;
+		CachedCurrentOptions.Reset();
+		OnCurrentInteractionOptionsUpdated.Broadcast(CachedCurrentOptions);
+		RefreshEntranceOptions();
+		return true;
+	}
+
+	RefreshCurrentInteractionOptions();
+	OnInteractionOptionActivated.Broadcast(Option, CurrentInteractionNode->GetInteractionActionType());
+	return true;
 }
 
 void ULxPlayerInteractionComponent::BackToParentInteractionNode()
@@ -221,8 +243,7 @@ void ULxPlayerInteractionComponent::BackToParentInteractionNode()
 		return;
 	}
 
-	CurrentInteractionNode = ParentNode;
-	RefreshCurrentInteractionOptions();
+	ActivateInteractionOption(BuildOption(CurrentInteractableComponent, ParentNode));
 }
 
 void ULxPlayerInteractionComponent::CancelInteraction()
@@ -249,6 +270,33 @@ FLxInteractionOption ULxPlayerInteractionComponent::BuildOption(ULxInteractableC
 	}
 
 	return Option;
+}
+
+bool ULxPlayerInteractionComponent::ShouldShowInEntranceOptions(const ULxInteractionNode* Node) const
+{
+	if (!Node)
+	{
+		return false;
+	}
+
+	// 入口UI显示所有入口节点，以及没有上级节点的简单根交互节点。
+	return Node->GetInteractionActionType() == ELxInteractionActionType::Entrance || !Node->GetParentNode();
+}
+
+bool ULxPlayerInteractionComponent::ValidateInteractionNodePlacement(const ULxInteractionNode* Node) const
+{
+	if (!Node)
+	{
+		return false;
+	}
+
+	if (Node->GetInteractionActionType() == ELxInteractionActionType::Entrance && Node->GetParentNode())
+	{
+		UE_LOG(LogTemp, Error, TEXT("交互入口节点只能作为交互树根节点，不能作为子节点被激活。"));
+		return false;
+	}
+
+	return true;
 }
 
 void ULxPlayerInteractionComponent::BindInteractableComponent(ULxInteractableComponent* InInteractableComponent)

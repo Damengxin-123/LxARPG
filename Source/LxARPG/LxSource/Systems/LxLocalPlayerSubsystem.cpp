@@ -1,20 +1,17 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "LxLocalPlayerSubsystem.h"
 
 #include "Blueprint/UserWidget.h"
 #include "LxARPG/LxSource/Model/Input/Logic/LxInputComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 #include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
+#include "LxARPG/LxSource/UI/Interaction/LxInteractionUIManager.h"
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
 
 void ULxLocalPlayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-
-
 }
 
 void ULxLocalPlayerSubsystem::Deinitialize()
@@ -23,8 +20,13 @@ void ULxLocalPlayerSubsystem::Deinitialize()
 	{
 		m_pUIManager->RemoveFromParent();
 	}
+	if (m_pInteractionUIManager)
+	{
+		m_pInteractionUIManager->RemoveFromParent();
+	}
 
 	m_pUIManager = nullptr;
+	m_pInteractionUIManager = nullptr;
 	m_pControlledCharacter = nullptr;
 	m_pPlayerController = nullptr;
 	m_pInputComponentQuote = nullptr;
@@ -92,14 +94,10 @@ void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPl
 		return;
 	}
 
-	if (!m_pUIManager)
-	{
-		const ULxGameSettings* GameSettings = GetDefault<ULxGameSettings>();
-		if (!GameSettings || !GameSettings->UIManagerClass)
-		{
-			return;
-		}
+	const ULxGameSettings* GameSettings = GetDefault<ULxGameSettings>();
 
+	if (!m_pUIManager && GameSettings && GameSettings->UIManagerClass)
+	{
 		m_pUIManager = CreateWidget<ULxUIManager>(m_pPlayerController, GameSettings->UIManagerClass);
 		if (m_pUIManager)
 		{
@@ -108,10 +106,23 @@ void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPl
 		}
 	}
 
+	if (!m_pInteractionUIManager && GameSettings && GameSettings->InteractionUIManagerClass)
+	{
+		m_pInteractionUIManager = CreateWidget<ULxInteractionUIManager>(m_pPlayerController, GameSettings->InteractionUIManagerClass);
+		if (m_pInteractionUIManager)
+		{
+			m_pInteractionUIManager->AddToPlayerScreen();
+		}
+	}
+
 	if (m_pUIManager)
 	{
 		m_pUIManager->SetPlayerController(InPlayerController);
 		m_pUIManager->SetControlledCharacter(m_pControlledCharacter);
+	}
+	if (m_pInteractionUIManager)
+	{
+		m_pInteractionUIManager->SetPlayerCharacter(Cast<ALxPlayerCharacter>(m_pControlledCharacter));
 	}
 }
 
@@ -126,5 +137,9 @@ void ULxLocalPlayerSubsystem::SetControlledCharacter(ALxBaseCharacter* InCharact
 	if (m_pUIManager)
 	{
 		m_pUIManager->SetControlledCharacter(InCharacter);
+	}
+	if (m_pInteractionUIManager)
+	{
+		m_pInteractionUIManager->SetPlayerCharacter(Cast<ALxPlayerCharacter>(InCharacter));
 	}
 }

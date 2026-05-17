@@ -4,12 +4,13 @@
 
 void ULxInteractionNode::InitializeInteractionNode(FGameplayTag InInteractionIDTag, FGameplayTag InPromptTextTag,
 	ELxInteractionActionType InInteractionType, const TArray<ULxInteractionNode*>& InChildNodes,
-	ULxInteractionActionComponentBase* InActionComponent)
+	ULxInteractionActionComponentBase* InActionComponent, FGameplayTag InNpcDialogueTextTag)
 {
 	InteractionIDTag = InInteractionIDTag;
 	PromptTextTag = InPromptTextTag;
 	InteractionActionType = InInteractionType;
 	ActionComponent = InActionComponent;
+	NpcDialogueTextTag = InNpcDialogueTextTag;
 	ChildNodes.Reset();
 	AddChildNodes(InChildNodes);
 }
@@ -54,6 +55,11 @@ TArray<ULxInteractionNode*> ULxInteractionNode::GetValidChildNodes() const
 		}
 	}
 	return ValidChildNodes;
+}
+
+FGameplayTag ULxInteractionNode::GetPromptTextTag() const
+{
+	return ActionComponent ? ActionComponent->GetPromptTextTag() : PromptTextTag;
 }
 
 bool ULxInteractionNode::IsNodeValid() const

@@ -18,7 +18,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="初始化交互节点")
 	void InitializeInteractionNode(FGameplayTag InInteractionIDTag, FGameplayTag InPromptTextTag,
 		ELxInteractionActionType InInteractionType, const TArray<ULxInteractionNode*>& InChildNodes,
-		ULxInteractionActionComponentBase* InActionComponent = nullptr);
+		ULxInteractionActionComponentBase* InActionComponent = nullptr, FGameplayTag InNpcDialogueTextTag = FGameplayTag());
 
 	/** 添加一个子节点，并自动设置子节点的上级节点。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="添加子节点")
@@ -50,7 +50,15 @@ public:
 
 	/** 获取提示文本标签。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取提示文本标签")
-	FGameplayTag GetPromptTextTag() const { return PromptTextTag; }
+	FGameplayTag GetPromptTextTag() const;
+
+	/** 获取NPC发言文本标签，对话UI进入该节点时可用它显示NPC当前发言。 */
+	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取NPC发言文本标签")
+	FGameplayTag GetNpcDialogueTextTag() const { return NpcDialogueTextTag; }
+
+	/** 设置NPC发言文本标签，主要用于对话节点运行时补充或调整发言内容。 */
+	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="设置NPC发言文本标签")
+	void SetNpcDialogueTextTag(FGameplayTag InNpcDialogueTextTag) { NpcDialogueTextTag = InNpcDialogueTextTag; }
 
 	/** 获取节点声明的交互行为类型。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取交互行为类型")
@@ -80,6 +88,10 @@ private:
 	/** 标签型提示文本ID，由UI或文本系统解析为显示文本。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="提示文本标签", meta=(AllowPrivateAccess="true"))
 	FGameplayTag PromptTextTag;
+
+	/** NPC发言文本标签。仅对Dialogue节点有语义，入口/对话UI可用它展示NPC说的话。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="NPC发言文本标签", meta=(AllowPrivateAccess="true"))
+	FGameplayTag NpcDialogueTextTag;
 
 	/** 节点对应的交互行为类型。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="交互行为类型", meta=(AllowPrivateAccess="true"))

@@ -22,9 +22,15 @@ public:
 		FGameplayTag PromptTextTag, ELxInteractionActionType InteractionType,
 		const TArray<ULxInteractionNode*>& ChildNodes);
 
-	/** 创建一个对话交互节点。 */
+	/** 创建一个对话交互节点。PromptTextTag用于玩家选项文本，NpcDialogueTextTag用于NPC发言文本。 */
 	UFUNCTION(BlueprintPure, Category="交互", DisplayName="创建对话交互节点", meta=(DefaultToSelf="Outer"))
 	static ULxInteractionNode* CreateDialogueInteractionNode(UObject* Outer, FGameplayTag InteractionIDTag,
+		FGameplayTag PromptTextTag, const TArray<ULxInteractionNode*>& ChildNodes,
+		FGameplayTag NpcDialogueTextTag = FGameplayTag());
+
+	/** 创建一个入口交互节点，用作复杂交互树的根节点。 */
+	UFUNCTION(BlueprintPure, Category="交互", DisplayName="创建入口交互节点", meta=(DefaultToSelf="Outer"))
+	static ULxInteractionNode* CreateEntranceInteractionNode(UObject* Outer, FGameplayTag InteractionIDTag,
 		FGameplayTag PromptTextTag, const TArray<ULxInteractionNode*>& ChildNodes);
 
 	/** 创建一个带功能组件的交互节点。 */

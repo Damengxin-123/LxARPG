@@ -28,7 +28,7 @@ public:
 
 	/** 获取此功能组件的提示文本标签。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取提示文本标签")
-	FGameplayTag GetPromptTextTag() const { return PromptTextTag; }
+	virtual FGameplayTag GetPromptTextTag() const;
 
 	/** 获取此功能组件当前的可交互状态。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取交互状态")

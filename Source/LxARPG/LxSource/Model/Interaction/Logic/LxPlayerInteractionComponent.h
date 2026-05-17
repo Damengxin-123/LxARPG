@@ -12,6 +12,8 @@ class ULxInteractionNode;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxInteractionOptionListUpdated, const TArray<FLxInteractionOption>&, Options);
 /** 交互选项成功执行事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxInteractionOptionExecuted, const FLxInteractionOption&, Option);
+/** 交互选项被激活事件。InteractionType单独传出，方便各交互UI快速判断是否需要响应。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxInteractionOptionActivated, const FLxInteractionOption&, Option, ELxInteractionActionType, InteractionType);
 /** 当前交互被取消事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxInteractionCancelled);
 
@@ -59,6 +61,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="选择交互选项")
 	void SelectInteractionOption(const FLxInteractionOption& Option);
 
+	/** 激活一个交互选项，并广播给对话、交易等交互UI处理显示或后续逻辑。 */
+	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="激活交互选项")
+	bool ActivateInteractionOption(const FLxInteractionOption& Option);
+
 	/** 返回当前交互节点的上级节点。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="返回上级交互节点")
 	void BackToParentInteractionNode();
@@ -75,6 +81,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category="交互", DisplayName="交互选项执行事件")
 	FOnLxInteractionOptionExecuted OnInteractionOptionExecuted;
+
+	UPROPERTY(BlueprintAssignable, Category="交互", DisplayName="交互选项激活事件")
+	FOnLxInteractionOptionActivated OnInteractionOptionActivated;
 
 	UPROPERTY(BlueprintAssignable, Category="交互", DisplayName="交互取消事件")
 	FOnLxInteractionCancelled OnInteractionCancelled;
@@ -101,6 +110,8 @@ private:
 	TArray<FLxInteractionOption> CachedCurrentOptions;
 
 	FLxInteractionOption BuildOption(ULxInteractableComponent* SourceComponent, ULxInteractionNode* Node, bool bIsBackOption = false) const;
+	bool ShouldShowInEntranceOptions(const ULxInteractionNode* Node) const;
+	bool ValidateInteractionNodePlacement(const ULxInteractionNode* Node) const;
 	void BindInteractableComponent(ULxInteractableComponent* InInteractableComponent);
 	void UnbindInteractableComponent(ULxInteractableComponent* InInteractableComponent);
 	void RemoveInvalidInteractables();

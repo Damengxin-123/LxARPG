@@ -12,9 +12,20 @@ ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateInteractionNode(UOb
 }
 
 ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateDialogueInteractionNode(UObject* Outer,
+	FGameplayTag InteractionIDTag, FGameplayTag PromptTextTag, const TArray<ULxInteractionNode*>& ChildNodes,
+	FGameplayTag NpcDialogueTextTag)
+{
+	UObject* NodeOuter = Outer ? Outer : GetTransientPackage();
+	ULxInteractionNode* NewNode = NewObject<ULxInteractionNode>(NodeOuter);
+	NewNode->InitializeInteractionNode(InteractionIDTag, PromptTextTag, ELxInteractionActionType::Dialogue, ChildNodes,
+		nullptr, NpcDialogueTextTag);
+	return NewNode;
+}
+
+ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateEntranceInteractionNode(UObject* Outer,
 	FGameplayTag InteractionIDTag, FGameplayTag PromptTextTag, const TArray<ULxInteractionNode*>& ChildNodes)
 {
-	return CreateInteractionNode(Outer, InteractionIDTag, PromptTextTag, ELxInteractionActionType::Dialogue, ChildNodes);
+	return CreateInteractionNode(Outer, InteractionIDTag, PromptTextTag, ELxInteractionActionType::Entrance, ChildNodes);
 }
 
 ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateFunctionInteractionNode(UObject* Outer,

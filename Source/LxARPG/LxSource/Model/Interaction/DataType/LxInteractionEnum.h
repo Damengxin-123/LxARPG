@@ -7,6 +7,7 @@
 UENUM(BlueprintType)
 enum class ELxInteractionActionType : uint8
 {
+	Entrance UMETA(DisplayName="交互入口"),
 	Dialogue UMETA(DisplayName="对话交互"),
 	TriggerMechanism UMETA(DisplayName="触发机关"),
 	GiveItems UMETA(DisplayName="获得物品"),
