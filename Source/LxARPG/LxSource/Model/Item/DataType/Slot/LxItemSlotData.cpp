@@ -7,7 +7,7 @@ bool ULxItemSlotData::IsValid()
 
 void ULxItemSlotData::ItemUse()
 {
-	if (!IsValid())
+	if (!IsValid() || m_eSlotType == ELxItemSlotType::TreasureChest)
 	{
 		return;
 	}
@@ -97,6 +97,11 @@ ELxItemSlotDropResult ULxItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSl
 	}
 
 	if (!ItemIsEnter() || !InItemSlot->ItemIsLeave())
+	{
+		return ELxItemSlotDropResult::CannotEnter;
+	}
+
+	if (m_eSlotType == ELxItemSlotType::TreasureChest && InItemSlot->m_eSlotType == ELxItemSlotType::TreasureChest)
 	{
 		return ELxItemSlotDropResult::CannotEnter;
 	}

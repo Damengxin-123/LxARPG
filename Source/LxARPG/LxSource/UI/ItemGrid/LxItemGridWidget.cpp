@@ -49,7 +49,9 @@ ELxItemSlotType ULxItemGridWidget::GetSlotType() const
 bool ULxItemGridWidget::UseItem() const
 {
 	// 仓库格子只负责长期存放和拖拽物品，不响应右键使用。
-	if (!CurrentSlotData || CurrentSlotData->GetSlotType() == ELxItemSlotType::Warehouse)
+	if (!CurrentSlotData
+		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::Warehouse
+		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::TreasureChest)
 	{
 		return false;
 	}

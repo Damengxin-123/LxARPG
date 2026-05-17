@@ -4,6 +4,7 @@
 #include "LxInteractionEntranceWidget.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
+#include "LxARPG/LxSource/UI/TreasureChest/LxTreasureChestWidget.h"
 #include "LxARPG/LxSource/UI/Warehouse/LxWarehouseWidget.h"
 
 void ULxInteractionUIManager::SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent)
@@ -35,6 +36,12 @@ void ULxInteractionUIManager::RegisterWarehouseWidget(ULxWarehouseWidget* InWare
 	RefreshInteractionUI();
 }
 
+void ULxInteractionUIManager::RegisterTreasureChestWidget(ULxTreasureChestWidget* InTreasureChestWidget)
+{
+	TreasureChestWidget = InTreasureChestWidget;
+	RefreshInteractionUI();
+}
+
 void ULxInteractionUIManager::RefreshInteractionUI()
 {
 	if (EntranceWidget)
@@ -50,5 +57,10 @@ void ULxInteractionUIManager::RefreshInteractionUI()
 	if (WarehouseWidget)
 	{
 		WarehouseWidget->SetPlayerInteractionComponent(PlayerInteractionComponent);
+	}
+
+	if (TreasureChestWidget)
+	{
+		TreasureChestWidget->SetPlayerInteractionComponent(PlayerInteractionComponent);
 	}
 }

@@ -5,6 +5,7 @@
 #include "LxItemTransferInteractionComponent.h"
 #include "LxInteractionNode.h"
 #include "LxTriggerMechanismInteractionComponent.h"
+#include "LxTreasureChestInteractionComponent.h"
 #include "LxWarehouseInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputData.h"
 
@@ -248,6 +249,16 @@ bool ULxPlayerInteractionComponent::ActivateInteractionOption(const FLxInteracti
 		ULxWarehouseInteractionComponent* WarehouseComponent =
 			Cast<ULxWarehouseInteractionComponent>(CurrentInteractionNode->GetActionComponent());
 		if (!WarehouseComponent || !WarehouseComponent->ExecuteInteraction(this))
+		{
+			return false;
+		}
+	}
+
+	if (CurrentInteractionNode->GetInteractionActionType() == ELxInteractionActionType::TreasureChest)
+	{
+		ULxTreasureChestInteractionComponent* TreasureChestComponent =
+			Cast<ULxTreasureChestInteractionComponent>(CurrentInteractionNode->GetActionComponent());
+		if (!TreasureChestComponent || !TreasureChestComponent->ExecuteInteraction(this))
 		{
 			return false;
 		}

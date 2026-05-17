@@ -8,6 +8,7 @@ class ALxPlayerCharacter;
 class ULxDialogueInteractionWidget;
 class ULxInteractionEntranceWidget;
 class ULxPlayerInteractionComponent;
+class ULxTreasureChestWidget;
 class ULxWarehouseWidget;
 
 /** 交互UI管理器，用于统一持有和初始化交互相关UI。 */
@@ -37,6 +38,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="注册仓库UI")
 	void RegisterWarehouseWidget(ULxWarehouseWidget* InWarehouseWidget);
 
+	/** 注册宝箱交互 UI，并同步当前玩家交互组件。 */
+	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="注册宝箱UI")
+	void RegisterTreasureChestWidget(ULxTreasureChestWidget* InTreasureChestWidget);
+
 	/** 刷新所有交互UI持有的组件引用。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="刷新交互UI")
 	void RefreshInteractionUI();
@@ -54,4 +59,8 @@ private:
 	/** 仓库交互界面。 */
 	UPROPERTY(Transient)
 	TObjectPtr<ULxWarehouseWidget> WarehouseWidget = nullptr;
+
+	/** 宝箱交互界面。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxTreasureChestWidget> TreasureChestWidget = nullptr;
 };
