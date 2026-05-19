@@ -6,6 +6,11 @@
 
 bool ULxItemTooltipWidget::SetDisplayItemLogic(ULxItemBase* InItem)
 {
+	return SetDisplayItemLogicWithValue(InItem, 0, false);
+}
+
+bool ULxItemTooltipWidget::SetDisplayItemLogicWithValue(ULxItemBase* InItem, int32 InItemValue, bool bInShowItemValue)
+{
 	if (!InItem || !InItem->ItemIsValid())
 	{
 		return false;
@@ -14,8 +19,11 @@ bool ULxItemTooltipWidget::SetDisplayItemLogic(ULxItemBase* InItem)
 	m_pCurrentItem = InItem;
 
 	OnItemBaseInformationUpdated(m_pCurrentItem->ItemInformation());
+	const bool bShouldShowItemValue = bInShowItemValue
+		&& m_pCurrentItem->ItemType() != ELxItemType::Buff
+		&& m_pCurrentItem->ItemType() != ELxItemType::Skill;
+	OnItemValueUpdated(InItemValue, bShouldShowItemValue);
 
-	// 当前物品为装备时，额外把装备专属结构体交给蓝图显示。
 	if (ULxEquipment* Equipment = Cast<ULxEquipment>(m_pCurrentItem))
 	{
 		OnEquipmentInformationUpdated(Equipment->EquipmentInformation());
@@ -54,7 +62,6 @@ TArray<ULxUITextData*> ULxItemTooltipWidget::BuildItemEntryUITextDataList()
 			continue;
 		}
 
-		// C++ 只整理词条文本数据，具体布局和样式交给蓝图实现。
 		TextData->DisplayText = EntryObject->GetDisplayName();
 		TextData->IsDarkColor = bIsDarkColor;
 		Result.Add(TextData);

@@ -1,34 +1,87 @@
 #include "LxUIManager.h"
 
-#include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/CanvasPanelSlot.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
-#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
+#include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
+#include "LxARPG/LxSource/UI/Interaction/LxDialogueInteractionWidget.h"
+#include "LxARPG/LxSource/UI/Interaction/LxInteractionEntranceWidget.h"
+#include "LxARPG/LxSource/UI/Interaction/LxInteractionUIManager.h"
 #include "LxARPG/LxSource/UI/ItemInfo/LxItemTooltipWidget.h"
+#include "LxARPG/LxSource/UI/Manager/LxPersistentUIManager.h"
+#include "LxARPG/LxSource/UI/Manager/LxPopupUIManager.h"
+#include "LxARPG/LxSource/UI/Manager/LxTogglePanelUIManager.h"
+#include "LxARPG/LxSource/UI/Manager/LxTooltipUIManager.h"
+#include "LxARPG/LxSource/UI/Trade/LxTradeContainerWidget.h"
+#include "LxARPG/LxSource/UI/TreasureChest/LxTreasureChestWidget.h"
+#include "LxARPG/LxSource/UI/Warehouse/LxWarehouseWidget.h"
+
+void ULxUIManager::NativeConstruct()
+{
+	Super::NativeConstruct();
+	EnsureDefaultManagementObjects();
+	InitializeManagementObjects();
+}
+
+void ULxUIManager::NativeDestruct()
+{
+	HUDUIManager = nullptr;
+	TogglePanelUIManager = nullptr;
+	TooltipUIManager = nullptr;
+	InteractionUIManager = nullptr;
+	PopupUIManager = nullptr;
+	Super::NativeDestruct();
+}
+
+void ULxUIManager::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)
+{
+	Super::UpdateUIComponents(CharacterDataTransferComponent);
+	EnsureDefaultManagementObjects();
+	InitializeManagementObjects();
+}
 
 void ULxUIManager::SetPlayerController(ALxPlayerController* InPlayerController)
 {
+	EnsureDefaultManagementObjects();
 	m_pPlayerController = InPlayerController;
+	InitializeManagementObjects();
 	UpdateCursorState();
 }
 
 void ULxUIManager::SetControlledCharacter(ALxBaseCharacter* InCharacter)
 {
+	EnsureDefaultManagementObjects();
 	m_pCharacterDataTransferComponent = InCharacter ? InCharacter->GetCharacterDataTransferComponent() : nullptr;
 	UpdateUIComponents(m_pCharacterDataTransferComponent);
+	if (InteractionUIManager)
+	{
+		InteractionUIManager->SetPlayerCharacter(Cast<ALxPlayerCharacter>(InCharacter));
+	}
 	RefreshUI();
 }
 
 void ULxUIManager::RefreshUI()
 {
-	for (const FLxManagedUIWidgetData& WidgetData : RegisteredChildWidgets)
+	EnsureDefaultManagementObjects();
+	InitializeManagementObjects();
+
+	if (HUDUIManager)
 	{
-		if (WidgetData.UIWidget)
-		{
-			WidgetData.UIWidget->UpdateUIComponents(m_pCharacterDataTransferComponent);
-		}
+		HUDUIManager->RefreshManagedUI();
+	}
+	if (TogglePanelUIManager)
+	{
+		TogglePanelUIManager->RefreshManagedUI();
+	}
+	if (PopupUIManager)
+	{
+		PopupUIManager->RefreshManagedUI();
+	}
+	if (InteractionUIManager)
+	{
+		InteractionUIManager->RefreshManagedUI();
 	}
 
 	UpdateCursorState();
@@ -41,49 +94,213 @@ void ULxUIManager::RegisterChildUIWidget(ULxUIBaseObject* InChildUIWidget, ELxIn
 		return;
 	}
 
-	FLxManagedUIWidgetData* ExistData = FindManagedUIDataByWidget(InChildUIWidget);
-	ELxInputActionID PreviousInputActionID = ELxInputActionID::None;
-
-	if (!ExistData)
-	{
-		FLxManagedUIWidgetData& NewData = RegisteredChildWidgets.AddDefaulted_GetRef();
-		NewData.UIWidget = InChildUIWidget;
-		ExistData = &NewData;
-	}
-	else
-	{
-		PreviousInputActionID = ExistData->InputActionID;
-	}
-
-	if (PreviousInputActionID != ELxInputActionID::None && PreviousInputActionID != InInputActionID)
-	{
-		if (m_mapInputActionToWidget.FindRef(PreviousInputActionID) == InChildUIWidget)
-		{
-			m_mapInputActionToWidget.Remove(PreviousInputActionID);
-		}
-	}
-
-	ExistData->InputActionID = InInputActionID;
-	ExistData->bShowCursorWhenVisible = bInShowCursorWhenVisible;
-	InChildUIWidget->UpdateUIComponents(m_pCharacterDataTransferComponent);
-
 	if (ULxItemTooltipWidget* ItemTooltipWidget = Cast<ULxItemTooltipWidget>(InChildUIWidget))
 	{
-		m_pItemTooltipWidget = ItemTooltipWidget;
+		EnsureDefaultManagementObjects();
+		if (TooltipUIManager)
+		{
+			TooltipUIManager->SetItemTooltipWidget(ItemTooltipWidget, bInShowCursorWhenVisible);
+		}
+		UpdateCursorState();
+		return;
 	}
 
-	if (InInputActionID != ELxInputActionID::None)
+	RegisterTogglePanelWidget(InChildUIWidget, InInputActionID, bInShowCursorWhenVisible);
+}
+
+void ULxUIManager::RegisterUIWidget(const FLxUIWidgetRegistration& InRegistration)
+{
+	if (!InRegistration.UIWidget)
 	{
-		RegisterInputActionReceive(InInputActionID);
-		m_mapInputActionToWidget.FindOrAdd(InInputActionID) = InChildUIWidget;
+		return;
+	}
+
+	EnsureDefaultManagementObjects();
+	InitializeManagementObjects();
+
+	if (ULxItemTooltipWidget* ItemTooltipWidget = Cast<ULxItemTooltipWidget>(InRegistration.UIWidget))
+	{
+		EnsureDefaultManagementObjects();
+		if (TooltipUIManager)
+		{
+			TooltipUIManager->SetItemTooltipWidget(ItemTooltipWidget, InRegistration.bShowCursorWhenVisible);
+		}
+		UpdateCursorState();
+		return;
+	}
+
+	switch (InRegistration.LayerType)
+	{
+	case ELxUILayerType::HUD:
+		if (HUDUIManager)
+		{
+			HUDUIManager->RegisterPersistentWidget(InRegistration.UIWidget, InRegistration.bUpdateWithCharacterData);
+		}
+		break;
+	case ELxUILayerType::Panel:
+		if (TogglePanelUIManager)
+		{
+			TogglePanelUIManager->RegisterPanelWidget(
+				InRegistration.UIWidget,
+				InRegistration.InputActionID,
+				InRegistration.bShowCursorWhenVisible,
+				InRegistration.bCloseOtherPanelsWhenOpened,
+				InRegistration.bUpdateWithCharacterData);
+		}
+		break;
+	case ELxUILayerType::Popup:
+		if (PopupUIManager)
+		{
+			PopupUIManager->RegisterPopupWidget(InRegistration.UIWidget);
+		}
+		break;
+	case ELxUILayerType::Tooltip:
+		RegisterItemTooltipWidget(Cast<ULxItemTooltipWidget>(InRegistration.UIWidget));
+		break;
+	case ELxUILayerType::Interaction:
+		if (ULxInteractionEntranceWidget* EntranceWidget = Cast<ULxInteractionEntranceWidget>(InRegistration.UIWidget))
+		{
+			RegisterInteractionEntranceWidget(EntranceWidget);
+		}
+		else if (ULxDialogueInteractionWidget* DialogueWidget = Cast<ULxDialogueInteractionWidget>(InRegistration.UIWidget))
+		{
+			RegisterDialogueInteractionWidget(DialogueWidget);
+		}
+		else if (ULxWarehouseWidget* WarehouseWidget = Cast<ULxWarehouseWidget>(InRegistration.UIWidget))
+		{
+			RegisterWarehouseWidget(WarehouseWidget);
+		}
+		else if (ULxTreasureChestWidget* TreasureChestWidget = Cast<ULxTreasureChestWidget>(InRegistration.UIWidget))
+		{
+			RegisterTreasureChestWidget(TreasureChestWidget);
+		}
+		else if (ULxTradeContainerWidget* TradeContainerWidget = Cast<ULxTradeContainerWidget>(InRegistration.UIWidget))
+		{
+			RegisterTradeContainerWidget(TradeContainerWidget);
+		}
+		break;
+	case ELxUILayerType::Custom:
+	default:
+		if (HUDUIManager)
+		{
+			HUDUIManager->RegisterPersistentWidget(InRegistration.UIWidget, InRegistration.bUpdateWithCharacterData);
+		}
+		break;
 	}
 
 	UpdateCursorState();
 }
 
+void ULxUIManager::RegisterHUDWidget(ULxUIBaseObject* InChildUIWidget)
+{
+	FLxUIWidgetRegistration Registration;
+	Registration.UIWidget = InChildUIWidget;
+	Registration.LayerType = ELxUILayerType::HUD;
+	Registration.bShowCursorWhenVisible = false;
+	RegisterUIWidget(Registration);
+}
+
+void ULxUIManager::RegisterTogglePanelWidget(ULxUIBaseObject* InChildUIWidget, ELxInputActionID InInputActionID,
+	bool bInShowCursorWhenVisible, bool bInCloseOtherPanelsWhenOpened)
+{
+	FLxUIWidgetRegistration Registration;
+	Registration.UIWidget = InChildUIWidget;
+	Registration.LayerType = ELxUILayerType::Panel;
+	Registration.InputActionID = InInputActionID;
+	Registration.bShowCursorWhenVisible = bInShowCursorWhenVisible;
+	Registration.bCloseOtherPanelsWhenOpened = bInCloseOtherPanelsWhenOpened;
+	RegisterUIWidget(Registration);
+}
+
+void ULxUIManager::RegisterItemTooltipWidget(ULxItemTooltipWidget* InItemTooltipWidget)
+{
+	EnsureDefaultManagementObjects();
+	if (TooltipUIManager)
+	{
+		TooltipUIManager->SetItemTooltipWidget(InItemTooltipWidget);
+	}
+	UpdateCursorState();
+}
+
+void ULxUIManager::RegisterInteractionEntranceWidget(ULxInteractionEntranceWidget* InEntranceWidget)
+{
+	EnsureDefaultManagementObjects();
+	if (InteractionUIManager)
+	{
+		InteractionUIManager->RegisterEntranceWidget(InEntranceWidget);
+	}
+	UpdateCursorState();
+}
+
+void ULxUIManager::RegisterDialogueInteractionWidget(ULxDialogueInteractionWidget* InDialogueInteractionWidget)
+{
+	EnsureDefaultManagementObjects();
+	if (InteractionUIManager)
+	{
+		InteractionUIManager->RegisterDialogueInteractionWidget(InDialogueInteractionWidget);
+	}
+	UpdateCursorState();
+}
+
+void ULxUIManager::RegisterWarehouseWidget(ULxWarehouseWidget* InWarehouseWidget)
+{
+	EnsureDefaultManagementObjects();
+	if (InteractionUIManager)
+	{
+		InteractionUIManager->RegisterWarehouseWidget(InWarehouseWidget);
+	}
+	UpdateCursorState();
+}
+
+void ULxUIManager::RegisterTreasureChestWidget(ULxTreasureChestWidget* InTreasureChestWidget)
+{
+	EnsureDefaultManagementObjects();
+	if (InteractionUIManager)
+	{
+		InteractionUIManager->RegisterTreasureChestWidget(InTreasureChestWidget);
+	}
+	UpdateCursorState();
+}
+
+void ULxUIManager::RegisterTradeContainerWidget(ULxTradeContainerWidget* InTradeContainerWidget)
+{
+	EnsureDefaultManagementObjects();
+	if (InteractionUIManager)
+	{
+		InteractionUIManager->RegisterTradeContainerWidget(InTradeContainerWidget);
+	}
+	UpdateCursorState();
+}
+
+void ULxUIManager::RegisterPopupWidget(ULxUIBaseObject* InPopupWidget, bool bInHideOnRegister)
+{
+	EnsureDefaultManagementObjects();
+	if (PopupUIManager)
+	{
+		PopupUIManager->RegisterPopupWidget(InPopupWidget, bInHideOnRegister);
+	}
+	UpdateCursorState();
+}
+
 void ULxUIManager::SetChildUIVisible(ULxUIBaseObject* InChildUIWidget, bool bInVisible)
 {
-	if (!FindManagedUIDataByWidget(InChildUIWidget))
+	EnsureDefaultManagementObjects();
+
+	if (TogglePanelUIManager && TogglePanelUIManager->SetPanelVisible(InChildUIWidget, bInVisible))
+	{
+		UpdateCursorState();
+		return;
+	}
+
+	if (PopupUIManager && (bInVisible ? PopupUIManager->ShowPopup(InChildUIWidget) : PopupUIManager->HidePopup(InChildUIWidget)))
+	{
+		UpdateCursorState();
+		return;
+	}
+
+	if (!(HUDUIManager && HUDUIManager->ContainsWidget(InChildUIWidget))
+		&& !(TooltipUIManager && TooltipUIManager->ContainsWidget(InChildUIWidget))
+		&& !(InteractionUIManager && InteractionUIManager->ContainsWidget(InChildUIWidget)))
 	{
 		return;
 	}
@@ -96,6 +313,13 @@ void ULxUIManager::ToggleChildUI(ULxUIBaseObject* InChildUIWidget)
 {
 	if (!InChildUIWidget)
 	{
+		return;
+	}
+
+	EnsureDefaultManagementObjects();
+	if (TogglePanelUIManager && TogglePanelUIManager->TogglePanelWidget(InChildUIWidget))
+	{
+		UpdateCursorState();
 		return;
 	}
 
@@ -117,97 +341,118 @@ void ULxUIManager::UpdateManagedUIPosition_Implementation(ULxUIBaseObject* InChi
 
 bool ULxUIManager::ShowItemTooltip(ULxItemBase* InItem, FVector2D InMouseScreenPosition)
 {
-	if (!m_pItemTooltipWidget || !m_pItemTooltipWidget->SetDisplayItemLogic(InItem))
-	{
-		return false;
-	}
+	return ShowItemTooltipWithValue(InItem, 0, false, InMouseScreenPosition);
+}
 
-	m_pItemTooltipWidget->SetVisibility(ESlateVisibility::Visible);
-	UpdateTooltipPosition(m_pItemTooltipWidget, InMouseScreenPosition);
-	UpdateCursorState();
-	return true;
+bool ULxUIManager::ShowItemTooltipWithValue(ULxItemBase* InItem, int32 InItemValue, bool bInShowItemValue, FVector2D InMouseScreenPosition)
+{
+	EnsureDefaultManagementObjects();
+	if (TooltipUIManager)
+	{
+		const bool bResult = TooltipUIManager->ShowItemTooltipWithValue(InItem, InItemValue, bInShowItemValue, InMouseScreenPosition);
+		UpdateCursorState();
+		return bResult;
+	}
+	return false;
 }
 
 void ULxUIManager::UpdateItemTooltipPosition(FVector2D InMouseScreenPosition)
 {
-	if (!m_pItemTooltipWidget || !IsManagedUIVisible(m_pItemTooltipWidget))
+	EnsureDefaultManagementObjects();
+	if (TooltipUIManager)
 	{
+		TooltipUIManager->UpdateItemTooltipPosition(InMouseScreenPosition);
 		return;
 	}
-
-	UpdateTooltipPosition(m_pItemTooltipWidget, InMouseScreenPosition);
 }
 
 void ULxUIManager::HideItemTooltip()
 {
-	if (!m_pItemTooltipWidget)
+	EnsureDefaultManagementObjects();
+	if (TooltipUIManager)
 	{
+		TooltipUIManager->HideItemTooltip();
+		UpdateCursorState();
 		return;
 	}
+}
 
-	m_pItemTooltipWidget->SetVisibility(ESlateVisibility::Hidden);
+void ULxUIManager::RefreshCursorState() const
+{
 	UpdateCursorState();
 }
 
 void ULxUIManager::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
 {
-	ULxUIBaseObject* TargetWidget = m_mapInputActionToWidget.FindRef(InInputActionID);
-	if (!TargetWidget)
-	{
-		return;
-	}
-
-	if (TargetWidget->HandleInputEvent(InInputActionID, InValue))
+	EnsureDefaultManagementObjects();
+	if (TogglePanelUIManager && TogglePanelUIManager->HandleInputValue(InInputActionID, InValue))
 	{
 		UpdateCursorState();
 		return;
 	}
+}
 
-	if (InValue.m_blValue)
+void ULxUIManager::EnsureDefaultManagementObjects()
+{
+	if (!HUDUIManager)
 	{
-		ToggleChildUI(TargetWidget);
+		HUDUIManager = NewObject<ULxPersistentUIManager>(this);
+	}
+	if (!TogglePanelUIManager)
+	{
+		TogglePanelUIManager = NewObject<ULxTogglePanelUIManager>(this);
+	}
+	if (!TooltipUIManager)
+	{
+		TooltipUIManager = NewObject<ULxTooltipUIManager>(this);
+	}
+	if (!PopupUIManager)
+	{
+		PopupUIManager = NewObject<ULxPopupUIManager>(this);
+	}
+	if (!InteractionUIManager)
+	{
+		const ULxGameSettings* GameSettings = GetDefault<ULxGameSettings>();
+		UClass* InteractionManagerClass = GameSettings ? GameSettings->InteractionUIManagerClass.Get() : nullptr;
+		InteractionUIManager = NewObject<ULxInteractionUIManager>(
+			this,
+			InteractionManagerClass ? InteractionManagerClass : ULxInteractionUIManager::StaticClass());
 	}
 }
 
-FLxManagedUIWidgetData* ULxUIManager::FindManagedUIDataByWidget(ULxUIBaseObject* InChildUIWidget)
+void ULxUIManager::InitializeManagementObjects()
 {
-	return RegisteredChildWidgets.FindByPredicate(
-		[InChildUIWidget](const FLxManagedUIWidgetData& WidgetData)
+	ULxUIManagementObject* ManagementObjects[] =
+	{
+		HUDUIManager,
+		TogglePanelUIManager,
+		TooltipUIManager,
+		InteractionUIManager,
+		PopupUIManager
+	};
+
+	for (ULxUIManagementObject* ManagementObject : ManagementObjects)
+	{
+		if (!ManagementObject)
 		{
-			return WidgetData.UIWidget == InChildUIWidget;
-		});
+			continue;
+		}
+
+		ManagementObject->InitializeUIManagement(this);
+		ManagementObject->SetPlayerController(m_pPlayerController);
+		ManagementObject->SetCharacterDataTransferComponent(m_pCharacterDataTransferComponent);
+	}
+
+	if (InteractionUIManager)
+	{
+		InteractionUIManager->SetPlayerCharacter(Cast<ALxPlayerCharacter>(GetOwningPlayerPawn()));
+	}
 }
 
 bool ULxUIManager::IsManagedUIVisible(const ULxUIBaseObject* InChildUIWidget) const
 {
 	return InChildUIWidget && InChildUIWidget->GetVisibility() != ESlateVisibility::Collapsed
 		&& InChildUIWidget->GetVisibility() != ESlateVisibility::Hidden;
-}
-
-void ULxUIManager::UpdateTooltipPosition(ULxUIBaseObject* InChildUIWidget, FVector2D InAnchorScreenPosition)
-{
-	if (!InChildUIWidget)
-	{
-		return;
-	}
-
-	const FVector2D WidgetSize = InChildUIWidget->GetDesiredSize();
-	const float DPIScale = UWidgetLayoutLibrary::GetViewportScale(this);
-	FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(this);
-	ViewportSize = DPIScale > 0.0f ? ViewportSize / DPIScale : ViewportSize;
-
-	FVector2D FinalPos = InAnchorScreenPosition + FVector2D(12.0f, 12.0f);
-	if (InAnchorScreenPosition.X + WidgetSize.X + 12.0f > ViewportSize.X)
-	{
-		FinalPos.X = InAnchorScreenPosition.X - WidgetSize.X - 12.0f;
-	}
-
-	if (InAnchorScreenPosition.Y + WidgetSize.Y + 12.0f > ViewportSize.Y)
-	{
-		FinalPos.Y = InAnchorScreenPosition.Y - WidgetSize.Y - 12.0f;
-	}
-
-	UpdateManagedUIPosition(InChildUIWidget, FinalPos);
 }
 
 void ULxUIManager::UpdateCursorState() const
@@ -217,13 +462,13 @@ void ULxUIManager::UpdateCursorState() const
 		return;
 	}
 
-	for (const FLxManagedUIWidgetData& WidgetData : RegisteredChildWidgets)
+	if ((TogglePanelUIManager && TogglePanelUIManager->HasVisibleCursorPanel())
+		|| (PopupUIManager && PopupUIManager->HasVisiblePopup())
+		|| (InteractionUIManager && InteractionUIManager->HasVisibleCursorInteraction())
+		|| (TooltipUIManager && TooltipUIManager->ShouldShowCursorForTooltip()))
 	{
-		if (WidgetData.bShowCursorWhenVisible && IsManagedUIVisible(WidgetData.UIWidget))
-		{
-			m_pPlayerController->ShowCursorFun();
-			return;
-		}
+		m_pPlayerController->ShowCursorFun();
+		return;
 	}
 
 	m_pPlayerController->HideCursorFun();

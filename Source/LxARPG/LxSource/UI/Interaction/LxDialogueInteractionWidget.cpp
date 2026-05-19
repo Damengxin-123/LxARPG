@@ -2,6 +2,8 @@
 
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionNode.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
+#include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
 #include "GameFramework/PlayerController.h"
 
 void ULxDialogueInteractionWidget::NativeConstruct()
@@ -115,6 +117,15 @@ void ULxDialogueInteractionWidget::SetMouseCursorVisible(bool bInVisible)
 	if (!PlayerController)
 	{
 		return;
+	}
+
+	if (ULxLocalPlayerSubsystem* LocalPlayerSubsystem = ULxLocalPlayerSubsystem::GetFromLocalPlayer(PlayerController->GetLocalPlayer()))
+	{
+		if (ULxUIManager* UIManager = LocalPlayerSubsystem->GetUIManager())
+		{
+			UIManager->RefreshCursorState();
+			return;
+		}
 	}
 
 	if (bInVisible)

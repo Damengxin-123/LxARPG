@@ -15,6 +15,8 @@ class ULxItemSlotData;
 class ULxItemDragInfo;
 class ULxItemDragIconWidget;
 class ULxUIManager;
+class ULxCharacterDataTransferComponent;
+class ULxTradeContainerInteractionComponent;
 class UTexture2D;
 
 /**
@@ -145,6 +147,9 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category="Item Grid", DisplayName="空格子显示更新")
 	void OnItemIsEmpty();
+
+	UFUNCTION(BlueprintImplementableEvent, Category="Item Grid", DisplayName="是否满足购买需求")
+	void OnTradeRequirementUpdated(bool bCanBuy);
 	
 
 protected:
@@ -211,6 +216,10 @@ private:
 	void HideItemTooltip() const;
 
 	void InitItemData(UObject* ListItemObject);
+
+	bool TryHandleTradeDrop(ULxItemSlotData* SourceSlot);
+
+	ULxCharacterDataTransferComponent* GetCharacterDataTransferComponentForTrade() const;
 
 	/** * 处理当前槽位发生变化的事件。
 	 * 该方法会在当前槽位数据发生改变时被调用，用于刷新绑定的物品信息并广播格子数据变化。

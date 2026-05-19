@@ -453,6 +453,7 @@ void ULxCharacterBackpackComponent::HandleTrackedItemCountChanged(ULxItemBase* I
 void ULxCharacterBackpackComponent::HandleBackpackSlotChanged(ULxItemBase* InItemData)
 {
 	CleanupInvalidItems();
+	RefreshTrackedBindings();
 	OnDataChange.Broadcast();
 }
 

@@ -76,7 +76,7 @@ struct FLxItemQuote
 
 	FLxItemQuote() {}
 
-	FLxItemQuote(FGameplayTag InItemIDTag, FLxItemCount InItemCount)
+	FLxItemQuote(FGameplayTag InItemIDTag, int32 InItemCount)
 		: ItemIDTag(InItemIDTag)
 		, ItemCount(InItemCount)
 	{

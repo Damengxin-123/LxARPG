@@ -4,7 +4,9 @@
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxWarehouseInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
+#include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
+#include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
 #include "GameFramework/PlayerController.h"
 
 void ULxWarehouseWidget::NativeConstruct()
@@ -63,7 +65,6 @@ void ULxWarehouseWidget::SetWarehouseComponent(ULxWarehouseInteractionComponent*
 	WarehouseComponent = InWarehouseComponent;
 	BindWarehouseComponent();
 	RefreshWarehouseItemList();
-
 	if (WarehouseComponent)
 	{
 		ShowWarehouseInteraction();
@@ -117,6 +118,15 @@ void ULxWarehouseWidget::SetMouseCursorVisible(bool bInVisible)
 	if (!PlayerController)
 	{
 		return;
+	}
+
+	if (ULxLocalPlayerSubsystem* LocalPlayerSubsystem = ULxLocalPlayerSubsystem::GetFromLocalPlayer(PlayerController->GetLocalPlayer()))
+	{
+		if (ULxUIManager* UIManager = LocalPlayerSubsystem->GetUIManager())
+		{
+			UIManager->RefreshCursorState();
+			return;
+		}
 	}
 
 	if (bInVisible)

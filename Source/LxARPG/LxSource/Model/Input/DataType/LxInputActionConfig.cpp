@@ -82,11 +82,12 @@ namespace LxInputActionConfig
 
 		ReceivedObjects.Add(InRegisterObj);
 	}
-void UnregisterInputReceive(ELxInputActionID InInputActionID)
+	void UnregisterInputReceive(ELxInputActionID InInputActionID)
 	{
 		GInputReceivedObjectMap.Remove(InInputActionID);
 	}
-void UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj)
+
+	void UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj)
 	{
 		if (InInputActionID == ELxInputActionID::None || InRegisterObj == nullptr)
 		{
@@ -116,7 +117,10 @@ void UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InR
 				return ReceivedObject.GetObject() == nullptr;
 			});
 
-			for (const TScriptInterface<ILxInputReceiveInterface>& ReceivedObject : *ReceivedObjects)
+			// 输入回调中可能注册或反注册监听者，例如交互 UI 显隐时会调整输入监听。
+			// 这里使用快照遍历，避免回调期间修改原数组触发 ranged-for 的数组变化断言。
+			const TArray<TScriptInterface<ILxInputReceiveInterface>> ReceivedObjectSnapshot = *ReceivedObjects;
+			for (const TScriptInterface<ILxInputReceiveInterface>& ReceivedObject : ReceivedObjectSnapshot)
 			{
 				if (ReceivedObject)
 				{

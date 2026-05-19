@@ -7,7 +7,9 @@ bool ULxItemSlotData::IsValid()
 
 void ULxItemSlotData::ItemUse()
 {
-	if (!IsValid() || m_eSlotType == ELxItemSlotType::TreasureChest)
+	if (!IsValid()
+		|| m_eSlotType == ELxItemSlotType::TreasureChest
+		|| m_eSlotType == ELxItemSlotType::Transaction)
 	{
 		return;
 	}
@@ -58,6 +60,38 @@ bool ULxItemSlotData::SetItem(ULxItemBase* InItemData)
 	return true;
 }
 
+int32 ULxItemSlotData::GetItemValue() const
+{
+	if (m_pItemData == nullptr || !m_pItemData->ItemIsValid())
+	{
+		return 0;
+	}
+
+	const FLxItemInformationBase ItemInformation = m_pItemData->ItemInformation();
+	const int32 SingleValue = FMath::Max(0, ItemInformation.ItemSellPrice);
+	const int64 BaseValue = static_cast<int64>(SingleValue) * static_cast<int64>(m_pItemData->ItemCount());
+	const double AdjustedValue = static_cast<double>(BaseValue) * static_cast<double>(FMath::Max(0.0f, ItemValueRate));
+	if (AdjustedValue <= 0.0)
+	{
+		return 0;
+	}
+
+	const int64 RoundedValue = static_cast<int64>(AdjustedValue + 0.5);
+	return RoundedValue > MAX_int32 ? MAX_int32 : static_cast<int32>(RoundedValue);
+}
+
+void ULxItemSlotData::SetItemValueRate(float InItemValueRate)
+{
+	const float NewItemValueRate = FMath::Max(0.0f, InItemValueRate);
+	if (FMath::IsNearlyEqual(ItemValueRate, NewItemValueRate))
+	{
+		return;
+	}
+
+	ItemValueRate = NewItemValueRate;
+	OnItemDataChanged.Broadcast(m_pItemData);
+}
+
 void ULxItemSlotData::ClearItem()
 {
 	if (m_pItemData)
@@ -86,7 +120,23 @@ bool ULxItemSlotData::ItemIsEnter() const
 
 bool ULxItemSlotData::ItemIsLeave() const
 {
+	if (m_eSlotType == ELxItemSlotType::Transaction && !bCanTrade)
+	{
+		return false;
+	}
+
 	return m_fSlotLogicSet.ItemLeave;
+}
+
+void ULxItemSlotData::SetCanTrade(bool bInCanTrade)
+{
+	if (bCanTrade == bInCanTrade)
+	{
+		return;
+	}
+
+	bCanTrade = bInCanTrade;
+	OnItemDataChanged.Broadcast(m_pItemData);
 }
 
 ELxItemSlotDropResult ULxItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSlot)
@@ -97,6 +147,11 @@ ELxItemSlotDropResult ULxItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSl
 	}
 
 	if (!ItemIsEnter() || !InItemSlot->ItemIsLeave())
+	{
+		return ELxItemSlotDropResult::CannotEnter;
+	}
+
+	if (m_eSlotType == ELxItemSlotType::Transaction || InItemSlot->m_eSlotType == ELxItemSlotType::Transaction)
 	{
 		return ELxItemSlotDropResult::CannotEnter;
 	}

@@ -13,7 +13,8 @@ class ULxUIManager;
 
 #define GET_LOCAL_PLAYER_SYSTEM() ULxLocalPlayerSubsystem::GetFromLocalPlayer(GetLocalPlayer())
 
-UCLASS()
+/** 本地玩家子系统，负责缓存本地玩家相关的控制器、输入组件和 UI 管理器引用。 */
+UCLASS(DisplayName="本地玩家子系统")
 class LXARPG_API ULxLocalPlayerSubsystem : public ULocalPlayerSubsystem
 {
 	GENERATED_BODY()
@@ -34,11 +35,13 @@ public:
 
 	bool HasInputComponentQuote() const { return m_pInputComponentQuote != nullptr; }
 
-	UFUNCTION(BlueprintCallable, Category="LocalPlayerSubsystem", DisplayName="获取UI管理器")
+	/** 获取主 UI 管理器。 */
+	UFUNCTION(BlueprintCallable, Category="本地玩家子系统", DisplayName="获取UI管理器")
 	ULxUIManager* GetUIManager() const { return m_pUIManager; }
 
-	UFUNCTION(BlueprintCallable, Category="LocalPlayerSubsystem", DisplayName="获取交互UI管理器")
-	ULxInteractionUIManager* GetInteractionUIManager() const { return m_pInteractionUIManager; }
+	/** 获取主 UI 管理器内部的交互 UI 子管理器。 */
+	UFUNCTION(BlueprintCallable, Category="本地玩家子系统", DisplayName="获取交互UI管理器")
+	ULxInteractionUIManager* GetInteractionUIManager() const;
 
 private:
 	UPROPERTY()
@@ -52,7 +55,4 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<ULxUIManager> m_pUIManager = nullptr;
-
-	UPROPERTY()
-	TObjectPtr<ULxInteractionUIManager> m_pInteractionUIManager = nullptr;
 };

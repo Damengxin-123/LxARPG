@@ -64,6 +64,18 @@ public:
 
 	FGameplayTag GetItemTypeTag() const { return m_fItemTypeTag; }
 
+	UFUNCTION(BlueprintPure, Category="Item Slot", DisplayName="获取物品价值")
+	int32 GetItemValue() const;
+
+	UFUNCTION(BlueprintCallable, Category="Item Slot", DisplayName="设置物品价值倍率")
+	void SetItemValueRate(float InItemValueRate);
+
+	UFUNCTION(BlueprintCallable, Category="Item Slot", DisplayName="设置是否可以交易")
+	void SetCanTrade(bool bInCanTrade);
+
+	UFUNCTION(BlueprintPure, Category="Item Slot", DisplayName="是否可以交易")
+	bool CanTrade() const { return bCanTrade; }
+
 	/**
 	 * @brief 清空当前槽位中的物品。
 	 *
@@ -144,6 +156,12 @@ private:
 	 */
 	UPROPERTY(DisplayName="物品数据引用")
 	TObjectPtr<ULxItemBase> m_pItemData = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item Slot", DisplayName="是否可以交易", meta=(AllowPrivateAccess="true"))
+	bool bCanTrade = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item Slot", DisplayName="物品价值倍率", meta=(AllowPrivateAccess="true", ClampMin="0.0", UIMin="0.0"))
+	float ItemValueRate = 1.0f;
 	
 	
 };

@@ -6,6 +6,9 @@
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
+#include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxTradeContainerInteractionComponent.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemDragInfo.h"
@@ -51,7 +54,8 @@ bool ULxItemGridWidget::UseItem() const
 	// 仓库格子只负责长期存放和拖拽物品，不响应右键使用。
 	if (!CurrentSlotData
 		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::Warehouse
-		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::TreasureChest)
+		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::TreasureChest
+		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::Transaction)
 	{
 		return false;
 	}
@@ -205,6 +209,12 @@ bool ULxItemGridWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
 	{
 		return false;
 	}
+
+	if (TryHandleTradeDrop(DragOperation->SourceSlot))
+	{
+		return true;
+	}
+
 	// 调用槽位类型的接口进行堆叠
 	switch (CurrentSlotData->ItemEnterToThis(DragOperation->SourceSlot))
 	{
@@ -264,7 +274,7 @@ void ULxItemGridWidget::ShowItemTooltip(const FVector2D& InMouseScreenPosition) 
 
 	if (ULxUIManager* UIManager = GetUIManager())
 	{
-		UIManager->ShowItemTooltip(CurrentSlotData->GetItem(), InMouseScreenPosition);
+		UIManager->ShowItemTooltipWithValue(CurrentSlotData->GetItem(), CurrentSlotData->GetItemValue(), true, InMouseScreenPosition);
 	}
 }
 
@@ -302,6 +312,49 @@ void ULxItemGridWidget::InitItemData(UObject* ListItemObject)
 	SetCurrentSlotDataInternal(NewSlotData);
 }
 
+bool ULxItemGridWidget::TryHandleTradeDrop(ULxItemSlotData* SourceSlot)
+{
+	if (CurrentSlotData == nullptr || SourceSlot == nullptr)
+	{
+		return false;
+	}
+
+	ULxCharacterDataTransferComponent* DataTransferComponent = GetCharacterDataTransferComponentForTrade();
+	if (DataTransferComponent == nullptr)
+	{
+		return false;
+	}
+
+	if (SourceSlot->GetSlotType() == ELxItemSlotType::Transaction && CurrentSlotData->GetSlotType() == ELxItemSlotType::Backpack)
+	{
+		if (ULxTradeContainerInteractionComponent* TradeComponent = Cast<ULxTradeContainerInteractionComponent>(SourceSlot->GetOuter()))
+		{
+			return TradeComponent->BuyTradeSlotToBackpackSlot(SourceSlot, CurrentSlotData, DataTransferComponent);
+		}
+	}
+
+	if (CurrentSlotData->GetSlotType() == ELxItemSlotType::Transaction && SourceSlot->GetSlotType() == ELxItemSlotType::Backpack)
+	{
+		if (ULxTradeContainerInteractionComponent* TradeComponent = Cast<ULxTradeContainerInteractionComponent>(CurrentSlotData->GetOuter()))
+		{
+			return TradeComponent->SellBackpackSlot(SourceSlot, DataTransferComponent);
+		}
+	}
+
+	return false;
+}
+
+ULxCharacterDataTransferComponent* ULxItemGridWidget::GetCharacterDataTransferComponentForTrade() const
+{
+	if (m_pCharacterDataTransferComponent)
+	{
+		return m_pCharacterDataTransferComponent;
+	}
+
+	const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwningPlayerPawn());
+	return OwnerCharacter ? OwnerCharacter->GetCharacterDataTransferComponent() : nullptr;
+}
+
 void ULxItemGridWidget::SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData)
 {
 
@@ -335,6 +388,11 @@ void ULxItemGridWidget::HandleCurrentItemChanged(ULxItemBase* Item)
 
 void ULxItemGridWidget::BroadcastGridDataChanged()
 {
+	if (CurrentSlotData && CurrentSlotData->GetSlotType() == ELxItemSlotType::Transaction)
+	{
+		OnTradeRequirementUpdated(CurrentSlotData->CanTrade());
+	}
+
 	FGameplayTag EquipmentType;
 	if (!ItemIsVaild() && GetEquipmentType(EquipmentType))
 	{
