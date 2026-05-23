@@ -13,6 +13,12 @@ void ULxPlayerSystemOperateComponent::BaseComponentInitialize()
 	{
 		m_pPlayerController = Cast<ALxPlayerController>(GetOwner());
 	}
+	if (!m_pPlayerController || !m_pPlayerController->GetLocalPlayer())
+	{
+		UnregisterAllInputActionReceives();
+		return;
+	}
+
 	RegisterInputActionReceive(m_ShowMouseCursorInputActionID);
 }
 
@@ -34,6 +40,10 @@ void ULxPlayerSystemOperateComponent::HandleInputValue(ELxInputActionID InInputA
 		BaseComponentInitialize();
 	}
 	if (!m_pPlayerController)
+	{
+		return;
+	}
+	if (!m_pPlayerController->GetLocalPlayer())
 	{
 		return;
 	}

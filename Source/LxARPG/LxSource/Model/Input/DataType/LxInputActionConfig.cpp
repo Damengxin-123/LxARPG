@@ -1,5 +1,9 @@
 ﻿#include "LxInputActionConfig.h"
 
+#include "Blueprint/UserWidget.h"
+#include "Components/ActorComponent.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "InputAction.h"
 
 namespace
@@ -8,6 +12,64 @@ namespace
 	TMap<ELxInputActionID, TWeakObjectPtr<UInputAction>> GInputActionObjectMap;
 	TMap<const UInputAction*, ELxInputActionID> GInputActionIDByActionMap;
 	TMap<ELxInputActionID, TArray<TScriptInterface<ILxInputReceiveInterface>>> GInputReceivedObjectMap;
+
+	bool IsActorInInputScope(const AActor* InActor, const APlayerController* SourcePlayerController)
+	{
+		if (!InActor || !SourcePlayerController)
+		{
+			return false;
+		}
+
+		if (InActor == SourcePlayerController)
+		{
+			return true;
+		}
+
+		if (const APawn* Pawn = Cast<APawn>(InActor))
+		{
+			return Pawn == SourcePlayerController->GetPawn() || Pawn->GetController() == SourcePlayerController;
+		}
+
+		return false;
+	}
+
+	bool IsObjectInInputScope(const UObject* InObject, const APlayerController* SourcePlayerController)
+	{
+		if (!InObject || !SourcePlayerController)
+		{
+			return false;
+		}
+
+		if (InObject == SourcePlayerController)
+		{
+			return true;
+		}
+
+		if (const UActorComponent* ActorComponent = Cast<UActorComponent>(InObject))
+		{
+			return IsActorInInputScope(ActorComponent->GetOwner(), SourcePlayerController);
+		}
+
+		if (const AActor* Actor = Cast<AActor>(InObject))
+		{
+			return IsActorInInputScope(Actor, SourcePlayerController);
+		}
+
+		if (const UUserWidget* UserWidget = Cast<UUserWidget>(InObject))
+		{
+			return UserWidget->GetOwningPlayer() == SourcePlayerController;
+		}
+
+		for (const UObject* Outer = InObject->GetOuter(); Outer; Outer = Outer->GetOuter())
+		{
+			if (IsObjectInInputScope(Outer, SourcePlayerController))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
 }
 
 namespace LxInputActionConfig
@@ -15,9 +77,7 @@ namespace LxInputActionConfig
 	void ClearInputActionConfig()
 	{
 		GInputActionInfoMap.Empty();
-		GInputActionObjectMap.Empty();
-		GInputActionIDByActionMap.Empty();
-		GInputReceivedObjectMap.Empty();
+		// Runtime bindings can belong to other PIE worlds in the same process.
 	}
 
 	void SetInputActionInfo(const FLxInputActionInfo& InInputActionInfo)
@@ -108,7 +168,7 @@ namespace LxInputActionConfig
 		}
 	}
 
-	void SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue)
+	void SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue, const APlayerController* SourcePlayerController)
 	{
 		if (TArray<TScriptInterface<ILxInputReceiveInterface>>* ReceivedObjects = GInputReceivedObjectMap.Find(InInputActionID))
 		{
@@ -122,7 +182,7 @@ namespace LxInputActionConfig
 			const TArray<TScriptInterface<ILxInputReceiveInterface>> ReceivedObjectSnapshot = *ReceivedObjects;
 			for (const TScriptInterface<ILxInputReceiveInterface>& ReceivedObject : ReceivedObjectSnapshot)
 			{
-				if (ReceivedObject)
+				if (ReceivedObject && IsObjectInInputScope(ReceivedObject.GetObject(), SourcePlayerController))
 				{
 					ReceivedObject->HandleInputValue(InInputActionID, InInputValue);
 				}

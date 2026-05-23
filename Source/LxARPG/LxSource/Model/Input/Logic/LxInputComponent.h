@@ -9,6 +9,7 @@
 
 class UInputAction;
 class UInputMappingContext;
+class APlayerController;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="输入组件")
 class LXARPG_API ULxInputComponent : public ULxComponentBase
@@ -41,11 +42,13 @@ public:
 	void UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj);
 
 private:
-	void SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InINputValue);
+	void SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InINputValue, const APlayerController* SourcePlayerController);
 
 	UPROPERTY()
 	TObjectPtr<UInputMappingContext> m_pDefaultMappingContext;
 
 	UPROPERTY()
 	TMap<ELxInputActionID, TObjectPtr<UInputAction>> m_mapUserInputActionTable;
+
+	bool bInputBindingsInitialized = false;
 };

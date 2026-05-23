@@ -64,6 +64,5 @@ APawn* ALxARPGGameMode::SpawnPlayerCharacter(AController* NewPlayer)
 		return nullptr;
 	}
 
-	NewPlayer->SetPawn(NewPawn);
 	return NewPawn;
 }

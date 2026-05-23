@@ -8,11 +8,31 @@
 #include "LxTradeContainerInteractionComponent.h"
 #include "LxTreasureChestInteractionComponent.h"
 #include "LxWarehouseInteractionComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputData.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+
+namespace
+{
+	bool IsControlledByLocalPlayer(const ALxBaseCharacter* InCharacter)
+	{
+		const APlayerController* PlayerController = InCharacter
+			? Cast<APlayerController>(InCharacter->GetController())
+			: nullptr;
+		return PlayerController && PlayerController->GetLocalPlayer();
+	}
+}
 
 void ULxPlayerInteractionComponent::BaseComponentInitialize()
 {
 	Super::BaseComponentInitialize();
+	ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
+	if (!IsControlledByLocalPlayer(OwnerCharacter))
+	{
+		UnregisterAllInputActionReceives();
+		return;
+	}
+
 	InitMonitorRegistration();
 }
 
@@ -24,6 +44,12 @@ void ULxPlayerInteractionComponent::EndPlay(const EEndPlayReason::Type EndPlayRe
 
 void ULxPlayerInteractionComponent::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
 {
+	ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
+	if (!IsControlledByLocalPlayer(OwnerCharacter))
+	{
+		return;
+	}
+
 	if (!InValue.m_blValue)
 	{
 		return;

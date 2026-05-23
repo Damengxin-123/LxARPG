@@ -1,7 +1,19 @@
 #include "LxPlayerControlMoveComponent.h"
 
+#include "GameFramework/PlayerController.h"
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+
+namespace
+{
+	bool IsControlledByLocalPlayer(const ALxBaseCharacter* InCharacter)
+	{
+		const APlayerController* PlayerController = InCharacter
+			? Cast<APlayerController>(InCharacter->GetController())
+			: nullptr;
+		return PlayerController && PlayerController->GetLocalPlayer();
+	}
+}
 
 ULxPlayerControlMoveComponent::ULxPlayerControlMoveComponent()
 {
@@ -18,6 +30,12 @@ void ULxPlayerControlMoveComponent::BaseComponentInitialize()
 	{
 		m_pMoveComponent = m_pOwnerCharacter->GetCharacterMoveComponent();
 	}
+	if (!IsControlledByLocalPlayer(m_pOwnerCharacter))
+	{
+		UnregisterAllInputActionReceives();
+		return;
+	}
+
 	RegisterInputActionReceive(m_MoveWInputActionID);
 	RegisterInputActionReceive(m_MoveSInputActionID);
 	RegisterInputActionReceive(m_MoveAInputActionID);
@@ -40,6 +58,10 @@ void ULxPlayerControlMoveComponent::HandleInputValue(ELxInputActionID InInputAct
 		BaseComponentInitialize();
 	}
 	if (!m_pMoveComponent)
+	{
+		return;
+	}
+	if (!IsControlledByLocalPlayer(m_pOwnerCharacter))
 	{
 		return;
 	}

@@ -5,6 +5,7 @@
 
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "GameFramework/PlayerController.h"
 #include "InputMappingContext.h"
 #include "LxARPG/LxSource/Core/Tools/LxString.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputActionConfig.h"
@@ -17,6 +18,11 @@ ULxInputComponent::ULxInputComponent()
 
 void ULxInputComponent::BaseComponentInitialize()
 {
+	if (bInputBindingsInitialized)
+	{
+		return;
+	}
+
 	if (!m_pDefaultMappingContext)
 	{
 		m_pDefaultMappingContext = NewObject<UInputMappingContext>(this);
@@ -35,8 +41,13 @@ void ULxInputComponent::BaseComponentInitialize()
 			ERROR_TO_SCREEN("PlayerController is null!");
 			return;
 		}
+		ULocalPlayer* LocalPlayer = Parent->GetLocalPlayer();
+		if (!LocalPlayer)
+		{
+			return;
+		}
 		UEnhancedInputLocalPlayerSubsystem* Subsystem =
-			ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(Parent->GetLocalPlayer());
+			ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer);
 		if (!Subsystem)
 		{
 			ERROR_TO_SCREEN("Subsystem is null!");
@@ -100,6 +111,8 @@ void ULxInputComponent::BaseComponentInitialize()
 				Mapping.Modifiers = { Swizzle, Scalar };
 			}
 		}
+
+		bInputBindingsInitialized = true;
 	}
 }
 
@@ -115,7 +128,7 @@ void ULxInputComponent::HandleContinuousAction(const FInputActionInstance& Insta
 	ELxInputActionID ActionID = LxInputActionConfig::GetInputActionIDByAction(Action);
 
 	FLxInputValue InputValue(Value.Get<bool>(), Value.Get<float>(), Value.Get<FVector2D>(), Value.Get<FVector>());
-	SendInputEvent(ActionID, InputValue);
+	SendInputEvent(ActionID, InputValue, Cast<APlayerController>(GetOwner()));
 }
 
 void ULxInputComponent::HandlePressAndReleaseAction(const FInputActionInstance& Instance, ETriggerEvent Trigge)
@@ -126,7 +139,7 @@ void ULxInputComponent::HandlePressAndReleaseAction(const FInputActionInstance& 
 
 	FLxInputValue InputValue(Value.Get<bool>(), Value.Get<float>(), Value.Get<FVector2D>(), Value.Get<FVector>());
 	InputValue.m_blValue = Trigge == ETriggerEvent::Started;
-	SendInputEvent(ActionID, InputValue);
+	SendInputEvent(ActionID, InputValue, Cast<APlayerController>(GetOwner()));
 }
 
 void ULxInputComponent::RegisterInputReceive(ELxInputActionID InInputActionID,
@@ -145,7 +158,7 @@ void ULxInputComponent::UnregisterInputReceive(ELxInputActionID InInputActionID,
 	LxInputActionConfig::UnregisterInputReceive(InInputActionID, InRegisterObj);
 }
 
-void ULxInputComponent::SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue)
+void ULxInputComponent::SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue, const APlayerController* SourcePlayerController)
 {
-	LxInputActionConfig::SendInputEvent(InInputActionID, InInputValue);
+	LxInputActionConfig::SendInputEvent(InInputActionID, InInputValue, SourcePlayerController);
 }

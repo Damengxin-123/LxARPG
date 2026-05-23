@@ -43,6 +43,16 @@ void ALxPlayerController::BeginPlay()
 	}
 }
 
+void ALxPlayerController::SetupInputComponent()
+{
+	Super::SetupInputComponent();
+
+	if (m_pInputComponent)
+	{
+		m_pInputComponent->BaseComponentInitialize();
+	}
+}
+
 void ALxPlayerController::CreatePlayerCharacter()
 {
 	if (GetNetMode() == NM_Standalone)

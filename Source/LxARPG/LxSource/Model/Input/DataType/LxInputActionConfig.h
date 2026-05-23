@@ -5,6 +5,7 @@
 #include "LxInputReceiveInterface.h"
 
 class UInputAction;
+class APlayerController;
 
 namespace LxInputActionConfig
 {
@@ -23,5 +24,5 @@ namespace LxInputActionConfig
 	void UnregisterInputReceive(ELxInputActionID InInputActionID);
 	void UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj);
 
-	void SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue);
+	void SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue, const APlayerController* SourcePlayerController);
 }

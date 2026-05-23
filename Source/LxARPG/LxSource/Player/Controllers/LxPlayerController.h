@@ -52,6 +52,7 @@ protected:
 	 * 会初始化输入组件、系统操作组件以及本地玩家子系统引用。
 	 */
 	virtual void BeginPlay() override;
+	virtual void SetupInputComponent() override;
 
 private:
 	
