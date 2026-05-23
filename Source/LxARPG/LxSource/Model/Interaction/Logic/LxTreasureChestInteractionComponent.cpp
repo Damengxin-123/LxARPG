@@ -1,11 +1,17 @@
 #include "LxTreasureChestInteractionComponent.h"
 
+#include "GameFramework/Actor.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
+#include "Net/UnrealNetwork.h"
 
 ULxTreasureChestInteractionComponent::ULxTreasureChestInteractionComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(true);
 	InteractionActionType = ELxInteractionActionType::TreasureChest;
 }
 
@@ -18,7 +24,18 @@ void ULxTreasureChestInteractionComponent::BaseComponentInitialize()
 void ULxTreasureChestInteractionComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	if (AActor* OwnerActor = GetOwner())
+	{
+		OwnerActor->SetReplicates(true);
+	}
 	InitializeTreasureChestSlots();
+}
+
+void ULxTreasureChestInteractionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ULxTreasureChestInteractionComponent, ReplicatedTreasureChestSlots);
 }
 
 bool ULxTreasureChestInteractionComponent::ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent)
@@ -46,6 +63,7 @@ void ULxTreasureChestInteractionComponent::RefreshTreasureChestSlots()
 	RebuildTreasureChestItemList();
 	BroadcastTreasureChestSlotsChanged();
 	OnDataChange.Broadcast();
+	SyncReplicatedTreasureChestSlots();
 }
 
 void ULxTreasureChestInteractionComponent::SetTreasureChestState(ELxInteractionDataState InState)
@@ -76,11 +94,13 @@ void ULxTreasureChestInteractionComponent::InitializeTreasureChestSlots()
 	TreasureChestItems.Reset();
 	bCompletionBroadcasted = false;
 
-	for (const FLxItemQuote& ItemQuote : TreasureChestItemList)
+	for (int32 Index = 0; Index < TreasureChestItemList.Num(); ++Index)
 	{
+		const FLxItemQuote& ItemQuote = TreasureChestItemList[Index];
 		// 每个配置项创建一个独立物品对象和一个只可取出的宝箱槽位。
 		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, ItemQuote);
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
+		NewSlot->SetSlotIndex(Index);
 		NewSlot->InitItemSlot(ELxItemSlotType::TreasureChest, LxTag_Item, NewItem);
 		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
 
@@ -164,4 +184,142 @@ void ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged(ULxIte
 {
 	RefreshTreasureChestSlots();
 	CheckAcquireCompletion();
+}
+
+ULxItemSlotData* ULxTreasureChestInteractionComponent::GetTreasureChestSlotAt(int32 SlotIndex) const
+{
+	return TreasureChestItemSlotList.IsValidIndex(SlotIndex) ? TreasureChestItemSlotList[SlotIndex] : nullptr;
+}
+
+bool ULxTreasureChestInteractionComponent::MoveTreasureChestSlotToBackpack(ULxCharacterBackpackComponent* BackpackComponent, int32 TreasureChestSlotIndex, int32 BackpackSlotIndex)
+{
+	if (AActor* OwnerActor = GetOwner(); OwnerActor && !OwnerActor->HasAuthority())
+	{
+		const ALxBaseCharacter* OwnerCharacter = BackpackComponent ? Cast<ALxBaseCharacter>(BackpackComponent->GetOwner()) : nullptr;
+		ALxPlayerController* PlayerController = OwnerCharacter ? Cast<ALxPlayerController>(OwnerCharacter->GetController()) : nullptr;
+		if (PlayerController == nullptr)
+		{
+			return false;
+		}
+
+		PlayerController->ServerMoveTreasureChestSlotToBackpack(OwnerActor, TreasureChestSlotIndex, BackpackSlotIndex);
+		return true;
+	}
+
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !BackpackComponent)
+	{
+		return false;
+	}
+
+	ULxItemSlotData* SourceSlot = GetTreasureChestSlotAt(TreasureChestSlotIndex);
+	ULxItemSlotData* TargetSlot = BackpackComponent->GetBackpackSlotAt(BackpackSlotIndex);
+	if (!SourceSlot || !TargetSlot)
+	{
+		return false;
+	}
+
+	const ELxItemSlotDropResult DropResult = TargetSlot->ItemEnterToThis(SourceSlot);
+	const bool bSucceeded = DropResult == ELxItemSlotDropResult::Swapped
+		|| DropResult == ELxItemSlotDropResult::StackedAll
+		|| DropResult == ELxItemSlotDropResult::StackedPartial
+		|| DropResult == ELxItemSlotDropResult::EnterSuccess;
+	if (!bSucceeded)
+	{
+		return false;
+	}
+
+	BackpackComponent->SyncReplicatedBackpackSlots();
+	RefreshTreasureChestSlots();
+	CheckAcquireCompletion();
+	return true;
+}
+
+void ULxTreasureChestInteractionComponent::SyncReplicatedTreasureChestSlots()
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	ReplicatedTreasureChestSlots.Reset();
+	ReplicatedTreasureChestSlots.Reserve(TreasureChestItemSlotList.Num());
+	for (ULxItemSlotData* SlotData : TreasureChestItemSlotList)
+	{
+		ReplicatedTreasureChestSlots.Add(BuildItemQuoteFromSlot(SlotData));
+	}
+}
+
+void ULxTreasureChestInteractionComponent::ApplyReplicatedTreasureChestSlots()
+{
+	const int32 DesiredSlotCount = FMath::Max(TreasureChestItemList.Num(), ReplicatedTreasureChestSlots.Num());
+	if (TreasureChestItemSlotList.Num() != DesiredSlotCount)
+	{
+		for (ULxItemSlotData* SlotData : TreasureChestItemSlotList)
+		{
+			if (SlotData)
+			{
+				SlotData->OnItemDataChanged.RemoveDynamic(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
+			}
+		}
+
+		TreasureChestItemSlotList.Reset();
+		TreasureChestItems.Reset();
+		for (int32 Index = 0; Index < DesiredSlotCount; ++Index)
+		{
+			ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
+			NewSlot->SetSlotIndex(Index);
+			NewSlot->InitItemSlot(ELxItemSlotType::TreasureChest, LxTag_Item, nullptr);
+			NewSlot->OnItemDataChanged.AddDynamic(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
+			TreasureChestItemSlotList.Add(NewSlot);
+		}
+		bTreasureChestInitialized = true;
+	}
+
+	for (int32 Index = 0; Index < TreasureChestItemSlotList.Num(); ++Index)
+	{
+		ULxItemSlotData* SlotData = TreasureChestItemSlotList[Index];
+		if (!SlotData)
+		{
+			continue;
+		}
+
+		SlotData->SetSlotIndex(Index);
+		if (!ReplicatedTreasureChestSlots.IsValidIndex(Index)
+			|| !ReplicatedTreasureChestSlots[Index].ItemIDTag.IsValid()
+			|| ReplicatedTreasureChestSlots[Index].ItemCount <= 0)
+		{
+			SlotData->ClearItem();
+			continue;
+		}
+
+		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, ReplicatedTreasureChestSlots[Index]);
+		if (NewItem)
+		{
+			SlotData->SetItem(NewItem);
+		}
+		else
+		{
+			SlotData->ClearItem();
+		}
+	}
+
+	RebuildTreasureChestItemList();
+	BroadcastTreasureChestSlotsChanged();
+	OnDataChange.Broadcast();
+	CheckAcquireCompletion();
+}
+
+FLxItemQuote ULxTreasureChestInteractionComponent::BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const
+{
+	if (!SlotData || !SlotData->IsValid() || !SlotData->GetItem())
+	{
+		return FLxItemQuote();
+	}
+
+	return FLxItemQuote(SlotData->GetItem()->ItemIDTag(), SlotData->GetItem()->ItemCount());
+}
+
+void ULxTreasureChestInteractionComponent::OnRep_TreasureChestSlots()
+{
+	ApplyReplicatedTreasureChestSlots();
 }

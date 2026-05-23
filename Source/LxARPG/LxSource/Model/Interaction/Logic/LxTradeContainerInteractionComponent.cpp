@@ -1,14 +1,27 @@
 #include "LxTradeContainerInteractionComponent.h"
 
+#include "GameFramework/Actor.h"
 #include "LxPlayerInteractionComponent.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
+#include "Net/UnrealNetwork.h"
+
+namespace
+{
+	ALxPlayerController* GetPlayerControllerFromDataTransfer(ULxCharacterDataTransferComponent* DataTransferComponent)
+	{
+		const ALxBaseCharacter* OwnerCharacter = DataTransferComponent ? Cast<ALxBaseCharacter>(DataTransferComponent->GetOwner()) : nullptr;
+		return OwnerCharacter ? Cast<ALxPlayerController>(OwnerCharacter->GetController()) : nullptr;
+	}
+}
 
 ULxTradeContainerInteractionComponent::ULxTradeContainerInteractionComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(true);
 	InteractionActionType = ELxInteractionActionType::TradeContainer;
 }
 
@@ -21,7 +34,18 @@ void ULxTradeContainerInteractionComponent::BaseComponentInitialize()
 void ULxTradeContainerInteractionComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	if (AActor* OwnerActor = GetOwner())
+	{
+		OwnerActor->SetReplicates(true);
+	}
 	InitializeTradeSlots();
+}
+
+void ULxTradeContainerInteractionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ULxTradeContainerInteractionComponent, ReplicatedTradeSlots);
 }
 
 void ULxTradeContainerInteractionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -53,6 +77,11 @@ void ULxTradeContainerInteractionComponent::GetTradeItemSlotList(TArray<ULxItemS
 	}
 }
 
+ULxItemSlotData* ULxTradeContainerInteractionComponent::GetTradeSlotAt(int32 SlotIndex) const
+{
+	return TradeItemSlotList.IsValidIndex(SlotIndex) ? TradeItemSlotList[SlotIndex] : nullptr;
+}
+
 void ULxTradeContainerInteractionComponent::RefreshTradeSlots()
 {
 	ApplyTradeItemValueRateToSlots();
@@ -64,6 +93,7 @@ void ULxTradeContainerInteractionComponent::RefreshTradeSlots()
 
 	BroadcastTradeSlotsChanged();
 	OnDataChange.Broadcast();
+	SyncReplicatedTradeSlots();
 }
 
 void ULxTradeContainerInteractionComponent::SetTradeContainerState(ELxInteractionDataState InState)
@@ -106,6 +136,18 @@ bool ULxTradeContainerInteractionComponent::CanBuyTradeSlot(ULxItemSlotData* Tra
 
 bool ULxTradeContainerInteractionComponent::BuyTradeSlot(ULxItemSlotData* TradeSlot, ULxCharacterDataTransferComponent* DataTransferComponent)
 {
+	if (AActor* OwnerActor = GetOwner(); OwnerActor && !OwnerActor->HasAuthority())
+	{
+		ALxPlayerController* PlayerController = GetPlayerControllerFromDataTransfer(DataTransferComponent);
+		if (PlayerController == nullptr || TradeSlot == nullptr || TradeSlot->GetSlotIndex() == INDEX_NONE)
+		{
+			return false;
+		}
+
+		PlayerController->ServerBuyTradeSlot(OwnerActor, TradeSlot->GetSlotIndex());
+		return true;
+	}
+
 	if (!CanBuyTradeSlot(TradeSlot, DataTransferComponent))
 	{
 		RefreshTradeSlots();
@@ -139,6 +181,22 @@ bool ULxTradeContainerInteractionComponent::BuyTradeSlot(ULxItemSlotData* TradeS
 
 bool ULxTradeContainerInteractionComponent::BuyTradeSlotToBackpackSlot(ULxItemSlotData* TradeSlot, ULxItemSlotData* TargetBackpackSlot, ULxCharacterDataTransferComponent* DataTransferComponent)
 {
+	if (AActor* OwnerActor = GetOwner(); OwnerActor && !OwnerActor->HasAuthority())
+	{
+		ALxPlayerController* PlayerController = GetPlayerControllerFromDataTransfer(DataTransferComponent);
+		if (PlayerController == nullptr
+			|| TradeSlot == nullptr
+			|| TargetBackpackSlot == nullptr
+			|| TradeSlot->GetSlotIndex() == INDEX_NONE
+			|| TargetBackpackSlot->GetSlotIndex() == INDEX_NONE)
+		{
+			return false;
+		}
+
+		PlayerController->ServerBuyTradeSlotToBackpackSlot(OwnerActor, TradeSlot->GetSlotIndex(), TargetBackpackSlot->GetSlotIndex());
+		return true;
+	}
+
 	if (DataTransferComponent == nullptr || TradeSlot == nullptr || TradeSlot->GetSlotType() != ELxItemSlotType::Transaction)
 	{
 		return false;
@@ -181,6 +239,18 @@ bool ULxTradeContainerInteractionComponent::BuyTradeSlotToBackpackSlot(ULxItemSl
 
 bool ULxTradeContainerInteractionComponent::SellBackpackSlot(ULxItemSlotData* BackpackSlot, ULxCharacterDataTransferComponent* DataTransferComponent)
 {
+	if (AActor* OwnerActor = GetOwner(); OwnerActor && !OwnerActor->HasAuthority())
+	{
+		ALxPlayerController* PlayerController = GetPlayerControllerFromDataTransfer(DataTransferComponent);
+		if (PlayerController == nullptr || BackpackSlot == nullptr || BackpackSlot->GetSlotIndex() == INDEX_NONE)
+		{
+			return false;
+		}
+
+		PlayerController->ServerSellBackpackSlot(OwnerActor, BackpackSlot->GetSlotIndex());
+		return true;
+	}
+
 	if (BackpackSlot == nullptr
 		|| BackpackSlot->GetSlotType() != ELxItemSlotType::Backpack
 		|| !BackpackSlot->IsValid()
@@ -233,10 +303,12 @@ void ULxTradeContainerInteractionComponent::InitializeTradeSlots()
 	TradeItemSlotList.Reset();
 	TradeItems.Reset();
 
-	for (const FLxItemQuote& ItemQuote : TradeItemList)
+	for (int32 Index = 0; Index < TradeItemList.Num(); ++Index)
 	{
+		const FLxItemQuote& ItemQuote = TradeItemList[Index];
 		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, ItemQuote);
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
+		NewSlot->SetSlotIndex(Index);
 		NewSlot->InitItemSlot(ELxItemSlotType::Transaction, LxTag_Item, NewItem);
 		NewSlot->SetItemValueRate(TradeItemValueRate);
 
@@ -284,6 +356,81 @@ void ULxTradeContainerInteractionComponent::BroadcastTradeSlotsChanged() const
 	}
 
 	OnTradeSlotListChanged.Broadcast(SlotList);
+}
+
+void ULxTradeContainerInteractionComponent::SyncReplicatedTradeSlots()
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	ReplicatedTradeSlots.Reset();
+	ReplicatedTradeSlots.Reserve(TradeItemSlotList.Num());
+	for (ULxItemSlotData* SlotData : TradeItemSlotList)
+	{
+		ReplicatedTradeSlots.Add(BuildItemQuoteFromSlot(SlotData));
+	}
+}
+
+void ULxTradeContainerInteractionComponent::ApplyReplicatedTradeSlots()
+{
+	const int32 DesiredSlotCount = FMath::Max(TradeItemList.Num(), ReplicatedTradeSlots.Num());
+	if (TradeItemSlotList.Num() != DesiredSlotCount)
+	{
+		TradeItemSlotList.Reset();
+		TradeItems.Reset();
+		for (int32 Index = 0; Index < DesiredSlotCount; ++Index)
+		{
+			ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
+			NewSlot->SetSlotIndex(Index);
+			NewSlot->InitItemSlot(ELxItemSlotType::Transaction, LxTag_Item, nullptr);
+			NewSlot->SetItemValueRate(TradeItemValueRate);
+			TradeItemSlotList.Add(NewSlot);
+		}
+		bTradeContainerInitialized = true;
+	}
+
+	for (int32 Index = 0; Index < TradeItemSlotList.Num(); ++Index)
+	{
+		ULxItemSlotData* SlotData = TradeItemSlotList[Index];
+		if (!SlotData)
+		{
+			continue;
+		}
+
+		SlotData->SetSlotIndex(Index);
+		SlotData->SetItemValueRate(TradeItemValueRate);
+		if (!ReplicatedTradeSlots.IsValidIndex(Index)
+			|| !ReplicatedTradeSlots[Index].ItemIDTag.IsValid()
+			|| ReplicatedTradeSlots[Index].ItemCount <= 0)
+		{
+			SlotData->ClearItem();
+			continue;
+		}
+
+		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, ReplicatedTradeSlots[Index]);
+		if (NewItem)
+		{
+			SlotData->SetItem(NewItem);
+		}
+		else
+		{
+			SlotData->ClearItem();
+		}
+	}
+
+	RefreshTradeSlots();
+}
+
+FLxItemQuote ULxTradeContainerInteractionComponent::BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const
+{
+	if (!SlotData || !SlotData->IsValid() || !SlotData->GetItem())
+	{
+		return FLxItemQuote();
+	}
+
+	return FLxItemQuote(SlotData->GetItem()->ItemIDTag(), SlotData->GetItem()->ItemCount());
 }
 
 void ULxTradeContainerInteractionComponent::BindPlayerDataTransfer(ULxCharacterDataTransferComponent* DataTransferComponent)
@@ -408,4 +555,9 @@ int32 ULxTradeContainerInteractionComponent::CalculateSlotPrice(ULxItemSlotData*
 void ULxTradeContainerInteractionComponent::HandlePlayerBackpackItemChanged(const TArray<ULxItemSlotData*>& BackpackItems)
 {
 	RefreshTradeSlots();
+}
+
+void ULxTradeContainerInteractionComponent::OnRep_TradeSlots()
+{
+	ApplyReplicatedTradeSlots();
 }

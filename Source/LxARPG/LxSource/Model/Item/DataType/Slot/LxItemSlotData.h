@@ -62,6 +62,10 @@ public:
 
 	ELxItemSlotType GetSlotType() const { return m_eSlotType; }
 
+	int32 GetSlotIndex() const { return SlotIndex; }
+
+	void SetSlotIndex(int32 InSlotIndex) { SlotIndex = InSlotIndex; }
+
 	FGameplayTag GetItemTypeTag() const { return m_fItemTypeTag; }
 
 	UFUNCTION(BlueprintPure, Category="Item Slot", DisplayName="获取物品价值")
@@ -162,6 +166,8 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Item Slot", DisplayName="物品价值倍率", meta=(AllowPrivateAccess="true", ClampMin="0.0", UIMin="0.0"))
 	float ItemValueRate = 1.0f;
+
+	int32 SlotIndex = INDEX_NONE;
 	
 	
 };

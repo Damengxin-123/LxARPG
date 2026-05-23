@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "LxInteractionActionComponentBase.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxTreasureChestInteractionComponent.generated.h"
 
+class ULxCharacterBackpackComponent;
 class ULxItemBase;
 class ULxItemSlotData;
 
@@ -25,6 +27,7 @@ public:
 	virtual void BaseComponentInitialize() override;
 	/** 兜底初始化宝箱槽位，兼容未走项目自定义初始化入口的场景。 */
 	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	/** 宝箱被交互时进入交互中状态，并通知外部 UI 打开。 */
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) override;
 
@@ -34,6 +37,10 @@ public:
 
 	/** C++ 侧直接读取宝箱槽位列表。 */
 	const TArray<TObjectPtr<ULxItemSlotData>>& GetTreasureChestItemSlots() const { return TreasureChestItemSlotList; }
+
+	ULxItemSlotData* GetTreasureChestSlotAt(int32 SlotIndex) const;
+
+	bool MoveTreasureChestSlotToBackpack(ULxCharacterBackpackComponent* BackpackComponent, int32 TreasureChestSlotIndex, int32 BackpackSlotIndex);
 
 	/** 刷新宝箱物品缓存，并广播槽位列表变化。 */
 	UFUNCTION(BlueprintCallable, Category="交互|宝箱", DisplayName="刷新宝箱槽位")
@@ -72,6 +79,9 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="交互|宝箱", DisplayName="宝箱物品槽位列表")
 	TArray<TObjectPtr<ULxItemSlotData>> TreasureChestItemSlotList;
 
+	UPROPERTY(ReplicatedUsing=OnRep_TreasureChestSlots)
+	TArray<FLxItemQuote> ReplicatedTreasureChestSlots;
+
 private:
 	/** 按蓝图配置创建物品对象和宝箱槽位。 */
 	void InitializeTreasureChestSlots();
@@ -85,9 +95,15 @@ private:
 	int32 GetTakenItemEntryCount() const;
 	/** 获取宝箱完成所需的配置项数量。 */
 	int32 GetAcquireCompletionTargetCount() const;
+	void SyncReplicatedTreasureChestSlots();
+	void ApplyReplicatedTreasureChestSlots();
+	FLxItemQuote BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const;
 
 	UFUNCTION()
 	void HandleTreasureChestSlotChanged(ULxItemBase* InItemData);
+
+	UFUNCTION()
+	void OnRep_TreasureChestSlots();
 
 	/** 是否已经完成初始槽位创建。 */
 	bool bTreasureChestInitialized = false;

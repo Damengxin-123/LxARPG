@@ -7,10 +7,13 @@
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
+#include "Net/UnrealNetwork.h"
 
 ALxBaseCharacter::ALxBaseCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	bReplicates = true;
+	SetReplicateMovement(true);
 	m_pCharacterMoveComponent = CreateDefaultSubobject<ULxCharacterMoveComponent>(TEXT("CharacterMoveComponent"));
 	m_pCharacterBackpackComponent = CreateDefaultSubobject<ULxCharacterBackpackComponent>(TEXT("CharacterBackpackComponent"));
 	m_pCharacterEquipmentComponent = CreateDefaultSubobject<ULxCharacterEquipmentComponent>(TEXT("CharacterEquipmentComponent"));
@@ -57,15 +60,49 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	IsInitialized  = true;
 }
 
+void ALxBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ALxBaseCharacter, m_nCharacterState);
+}
+
 void ALxBaseCharacter::SetCharacterState(const ELxCharacterState InState)
 {
-	OnCharacterStateChange.Broadcast(InState);
+	if (m_nCharacterState == InState)
+	{
+		return;
+	}
+
 	m_nCharacterState = InState;
+	OnCharacterStateChange.Broadcast(m_nCharacterState);
+
+	if (!HasAuthority() && IsLocallyControlled())
+	{
+		ServerSetCharacterState(InState);
+	}
 }
 
 const ELxCharacterState ALxBaseCharacter::GetCurrentState()
 {
 	return m_nCharacterState;
+}
+
+void ALxBaseCharacter::ServerSetCharacterState_Implementation(ELxCharacterState InState)
+{
+	SetCharacterState(InState);
+}
+
+void ALxBaseCharacter::ServerSetCharacterRotation_Implementation(FRotator InRotation)
+{
+	InRotation.Pitch = 0.0f;
+	InRotation.Roll = 0.0f;
+	SetActorRotation(InRotation);
+}
+
+void ALxBaseCharacter::OnRep_CharacterState()
+{
+	OnCharacterStateChange.Broadcast(m_nCharacterState);
 }
 
 void ALxBaseCharacter::BeginPlay()
@@ -76,6 +113,11 @@ void ALxBaseCharacter::BeginPlay()
 void ALxBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	if (!HasAuthority() && !IsLocallyControlled())
+	{
+		return;
+	}
+
 	if (GetCharacterMovement()->Velocity.X + GetCharacterMovement()->Velocity.Y <= 0)
 	{
 		if (m_nCharacterState == ELxCharacterState::Moving ||

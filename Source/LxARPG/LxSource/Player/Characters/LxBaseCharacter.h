@@ -32,6 +32,8 @@ public:
 	 * 浼氬垵濮嬪寲瑙掕壊韬笂鐨勬牳蹇冪粍浠讹紝骞跺悓姝ュ垵濮嬬姸鎬佹暟鎹€?	 */
 	virtual void InitialCharacterInformation();
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	/**
 	 * 璁剧疆瑙掕壊褰撳墠鐘舵€併€?	 *
 	 * @param InState 瑕佸垏鎹㈠埌鐨勬柊瑙掕壊鐘舵€併€?	 */
@@ -41,6 +43,12 @@ public:
 	 * 鑾峰彇瑙掕壊褰撳墠鐘舵€併€?	 *
 	 * @return 褰撳墠瑙掕壊鐘舵€佹灇涓惧€笺€?	 */
 	virtual const ELxCharacterState GetCurrentState();
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetCharacterState(ELxCharacterState InState);
+
+	UFUNCTION(Server, Unreliable)
+	void ServerSetCharacterRotation(FRotator InRotation);
 
 	/** 瑙掕壊鐘舵€佸彉鍖栦簨浠躲€?*/
 	UPROPERTY(BlueprintAssignable)
@@ -125,8 +133,11 @@ protected:
 
 
 	/** 瑙掕壊褰撳墠鐘舵€併€?*/
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="Character State", DisplayName="Current Character State")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, ReplicatedUsing=OnRep_CharacterState, Category="Character State", DisplayName="Current Character State")
 	ELxCharacterState m_nCharacterState = ELxCharacterState::Idle;
+
+	UFUNCTION()
+	void OnRep_CharacterState();
 
 	/** 鏍囪瑙掕壊鏄惁宸茬粡瀹屾垚鍒濆鍖栵紝閬垮厤閲嶅鍒濆鍖栥€?*/
 	bool IsInitialized = false;

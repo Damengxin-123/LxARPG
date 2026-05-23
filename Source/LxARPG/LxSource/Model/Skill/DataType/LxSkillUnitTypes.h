@@ -18,6 +18,7 @@
 #include "SkillUnit/LxSkillTargetFilterSpec.h"
 #include "SkillUnit/LxSkillTriggerSpec.h"
 #include "SkillUnit/LxSkillTriggerUnitSpec.h"
+#include "SkillUnit/LxSkillUnitComponentTypes.h"
 #include "SkillUnit/LxSkillUnitResult.h"
 #include "SkillUnit/LxSkillUnitSpawnSpec.h"
 #include "SkillUnit/LxSkillUnitSpec.h"

@@ -219,6 +219,8 @@ private:
 
 	bool TryHandleTradeDrop(ULxItemSlotData* SourceSlot);
 
+	bool TryHandleServerSlotDrop(ULxItemSlotData* SourceSlot);
+
 	ULxCharacterDataTransferComponent* GetCharacterDataTransferComponentForTrade() const;
 
 	/** * 处理当前槽位发生变化的事件。

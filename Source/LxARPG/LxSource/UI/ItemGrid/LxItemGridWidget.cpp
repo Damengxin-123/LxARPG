@@ -8,7 +8,10 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTradeContainerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxTreasureChestInteractionComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxWarehouseInteractionComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemDragInfo.h"
@@ -215,6 +218,11 @@ bool ULxItemGridWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
 		return true;
 	}
 
+	if (TryHandleServerSlotDrop(DragOperation->SourceSlot))
+	{
+		return true;
+	}
+
 	// 调用槽位类型的接口进行堆叠
 	switch (CurrentSlotData->ItemEnterToThis(DragOperation->SourceSlot))
 	{
@@ -319,8 +327,13 @@ bool ULxItemGridWidget::TryHandleTradeDrop(ULxItemSlotData* SourceSlot)
 		return false;
 	}
 
-	ULxCharacterDataTransferComponent* DataTransferComponent = GetCharacterDataTransferComponentForTrade();
-	if (DataTransferComponent == nullptr)
+	if (SourceSlot->GetSlotIndex() == INDEX_NONE || CurrentSlotData->GetSlotIndex() == INDEX_NONE)
+	{
+		return false;
+	}
+
+	ALxPlayerController* PlayerController = Cast<ALxPlayerController>(GetOwningPlayer());
+	if (PlayerController == nullptr)
 	{
 		return false;
 	}
@@ -329,7 +342,16 @@ bool ULxItemGridWidget::TryHandleTradeDrop(ULxItemSlotData* SourceSlot)
 	{
 		if (ULxTradeContainerInteractionComponent* TradeComponent = Cast<ULxTradeContainerInteractionComponent>(SourceSlot->GetOuter()))
 		{
-			return TradeComponent->BuyTradeSlotToBackpackSlot(SourceSlot, CurrentSlotData, DataTransferComponent);
+			if (TradeComponent->GetOwner() == nullptr)
+			{
+				return false;
+			}
+
+			PlayerController->ServerBuyTradeSlotToBackpackSlot(
+				TradeComponent->GetOwner(),
+				SourceSlot->GetSlotIndex(),
+				CurrentSlotData->GetSlotIndex());
+			return true;
 		}
 	}
 
@@ -337,11 +359,103 @@ bool ULxItemGridWidget::TryHandleTradeDrop(ULxItemSlotData* SourceSlot)
 	{
 		if (ULxTradeContainerInteractionComponent* TradeComponent = Cast<ULxTradeContainerInteractionComponent>(CurrentSlotData->GetOuter()))
 		{
-			return TradeComponent->SellBackpackSlot(SourceSlot, DataTransferComponent);
+			if (TradeComponent->GetOwner() == nullptr)
+			{
+				return false;
+			}
+
+			PlayerController->ServerSellBackpackSlot(TradeComponent->GetOwner(), SourceSlot->GetSlotIndex());
+			return true;
 		}
 	}
 
 	return false;
+}
+
+bool ULxItemGridWidget::TryHandleServerSlotDrop(ULxItemSlotData* SourceSlot)
+{
+	if (CurrentSlotData == nullptr || SourceSlot == nullptr)
+	{
+		return false;
+	}
+
+	const bool bSourceBackpack = SourceSlot->GetSlotType() == ELxItemSlotType::Backpack;
+	const bool bSourceWarehouse = SourceSlot->GetSlotType() == ELxItemSlotType::Warehouse;
+	const bool bSourceTreasureChest = SourceSlot->GetSlotType() == ELxItemSlotType::TreasureChest;
+	const bool bTargetBackpack = CurrentSlotData->GetSlotType() == ELxItemSlotType::Backpack;
+	const bool bTargetWarehouse = CurrentSlotData->GetSlotType() == ELxItemSlotType::Warehouse;
+	const bool bMoveToWarehouse = bSourceBackpack && bTargetWarehouse;
+	const bool bMoveToBackpack = bSourceWarehouse && bTargetBackpack;
+	const bool bMoveTreasureChestToBackpack = bSourceTreasureChest && bTargetBackpack;
+	const bool bMoveWithinBackpack = bSourceBackpack && bTargetBackpack;
+	const bool bMoveWithinWarehouse = bSourceWarehouse && bTargetWarehouse;
+	if (!bMoveToWarehouse && !bMoveToBackpack && !bMoveTreasureChestToBackpack && !bMoveWithinBackpack && !bMoveWithinWarehouse)
+	{
+		return false;
+	}
+
+	if (SourceSlot->GetSlotIndex() == INDEX_NONE || CurrentSlotData->GetSlotIndex() == INDEX_NONE)
+	{
+		return false;
+	}
+
+	ALxPlayerController* PlayerController = Cast<ALxPlayerController>(GetOwningPlayer());
+	if (PlayerController == nullptr)
+	{
+		return false;
+	}
+
+	if (bMoveWithinBackpack)
+	{
+		PlayerController->ServerMoveBackpackSlot(SourceSlot->GetSlotIndex(), CurrentSlotData->GetSlotIndex());
+		return true;
+	}
+
+	if (bMoveTreasureChestToBackpack)
+	{
+		ULxTreasureChestInteractionComponent* TreasureChestComponent = Cast<ULxTreasureChestInteractionComponent>(SourceSlot->GetOuter());
+		if (TreasureChestComponent == nullptr || TreasureChestComponent->GetOwner() == nullptr)
+		{
+			return false;
+		}
+
+		PlayerController->ServerMoveTreasureChestSlotToBackpack(
+			TreasureChestComponent->GetOwner(),
+			SourceSlot->GetSlotIndex(),
+			CurrentSlotData->GetSlotIndex());
+		return true;
+	}
+
+	ULxWarehouseInteractionComponent* WarehouseComponent = nullptr;
+	if (bSourceWarehouse)
+	{
+		WarehouseComponent = Cast<ULxWarehouseInteractionComponent>(SourceSlot->GetOuter());
+	}
+	else if (bTargetWarehouse)
+	{
+		WarehouseComponent = Cast<ULxWarehouseInteractionComponent>(CurrentSlotData->GetOuter());
+	}
+
+	if (WarehouseComponent == nullptr || WarehouseComponent->GetOwner() == nullptr || PlayerController == nullptr)
+	{
+		return false;
+	}
+
+	if (bMoveWithinWarehouse)
+	{
+		PlayerController->ServerMoveWarehouseSlot(
+			WarehouseComponent->GetOwner(),
+			SourceSlot->GetSlotIndex(),
+			CurrentSlotData->GetSlotIndex());
+		return true;
+	}
+
+	PlayerController->ServerMoveItemBetweenBackpackAndWarehouse(
+		WarehouseComponent->GetOwner(),
+		SourceSlot->GetSlotIndex(),
+		CurrentSlotData->GetSlotIndex(),
+		bMoveToWarehouse);
+	return true;
 }
 
 ULxCharacterDataTransferComponent* ULxItemGridWidget::GetCharacterDataTransferComponentForTrade() const

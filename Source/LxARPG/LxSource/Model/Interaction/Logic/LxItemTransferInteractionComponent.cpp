@@ -1,8 +1,10 @@
 #include "LxItemTransferInteractionComponent.h"
 
+#include "GameFramework/Actor.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxPlayerInteractionComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 
 ULxItemTransferInteractionComponent::ULxItemTransferInteractionComponent()
 {
@@ -36,6 +38,19 @@ bool ULxItemTransferInteractionComponent::ExecuteInteraction_Implementation(ULxP
 	}
 
 	const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(PlayerInteractionComponent->GetOwner());
+	AActor* OwnerActor = GetOwner();
+	if (OwnerActor && !OwnerActor->HasAuthority())
+	{
+		ALxPlayerController* PlayerController = OwnerCharacter ? Cast<ALxPlayerController>(OwnerCharacter->GetController()) : nullptr;
+		if (PlayerController == nullptr)
+		{
+			return false;
+		}
+
+		PlayerController->ServerExecuteItemTransfer(OwnerActor);
+		return true;
+	}
+
 	ULxCharacterDataTransferComponent* DataTransferComponent = OwnerCharacter ? OwnerCharacter->GetCharacterDataTransferComponent() : nullptr;
 	if (DataTransferComponent == nullptr)
 	{

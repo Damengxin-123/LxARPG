@@ -1,8 +1,31 @@
 #include "LxTriggerMechanismInteractionComponent.h"
 
+#include "GameFramework/Actor.h"
+#include "LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
+#include "Net/UnrealNetwork.h"
+
 ULxTriggerMechanismInteractionComponent::ULxTriggerMechanismInteractionComponent()
 {
+	SetIsReplicatedByDefault(true);
 	InteractionActionType = ELxInteractionActionType::TriggerMechanism;
+}
+
+void ULxTriggerMechanismInteractionComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	if (AActor* OwnerActor = GetOwner())
+	{
+		OwnerActor->SetReplicates(true);
+	}
+}
+
+void ULxTriggerMechanismInteractionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ULxTriggerMechanismInteractionComponent, MechanismState);
 }
 
 bool ULxTriggerMechanismInteractionComponent::TriggerMechanism_Implementation(
@@ -11,6 +34,19 @@ bool ULxTriggerMechanismInteractionComponent::TriggerMechanism_Implementation(
 	if (!Super::ExecuteInteraction_Implementation(PlayerInteractionComponent))
 	{
 		return false;
+	}
+
+	if (AActor* OwnerActor = GetOwner(); OwnerActor && !OwnerActor->HasAuthority())
+	{
+		const ALxBaseCharacter* OwnerCharacter = PlayerInteractionComponent ? Cast<ALxBaseCharacter>(PlayerInteractionComponent->GetOwner()) : nullptr;
+		ALxPlayerController* PlayerController = OwnerCharacter ? Cast<ALxPlayerController>(OwnerCharacter->GetController()) : nullptr;
+		if (PlayerController == nullptr)
+		{
+			return false;
+		}
+
+		PlayerController->ServerTriggerMechanism(OwnerActor);
+		return true;
 	}
 
 	switch (MechanismState)
@@ -35,6 +71,12 @@ void ULxTriggerMechanismInteractionComponent::SetMechanismState(ELxMechanismStat
 	}
 
 	MechanismState = InMechanismState;
+	OnMechanismStateChanged.Broadcast(MechanismState);
+	OnDataChange.Broadcast();
+}
+
+void ULxTriggerMechanismInteractionComponent::OnRep_MechanismState()
+{
 	OnMechanismStateChanged.Broadcast(MechanismState);
 	OnDataChange.Broadcast();
 }

@@ -5,7 +5,9 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "Algo/Sort.h"
+#include "GameFramework/Actor.h"
 #include "Misc/Crc.h"
+#include "Net/UnrealNetwork.h"
 
 namespace
 {
@@ -49,6 +51,7 @@ namespace
 ULxCharacterBackpackComponent::ULxCharacterBackpackComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(true);
 }
 
 void ULxCharacterBackpackComponent::BaseComponentInitialize()
@@ -58,11 +61,24 @@ void ULxCharacterBackpackComponent::BaseComponentInitialize()
 	InitializeBackpack();
 }
 
+void ULxCharacterBackpackComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ULxCharacterBackpackComponent, ReplicatedBackpackSlots);
+}
+
 bool ULxCharacterBackpackComponent::AddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount)
 {
 	if (!InItemIDTag.IsValid() || InItemCount <= 0)
 	{
 		return false;
+	}
+
+	if (AActor* OwnerActor = GetOwner(); OwnerActor && !OwnerActor->HasAuthority())
+	{
+		ServerAddItemByTagID(InItemIDTag, InItemCount);
+		return true;
 	}
 
 	const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(InItemIDTag);
@@ -172,7 +188,13 @@ bool ULxCharacterBackpackComponent::AddItemByTagID(FGameplayTag InItemIDTag, int
 	CleanupInvalidItems();
 	RefreshTrackedBindings();
 	OnDataChange.Broadcast();
+	SyncReplicatedBackpackSlots();
 	return RemainingCount <= 0;
+}
+
+void ULxCharacterBackpackComponent::ServerAddItemByTagID_Implementation(FGameplayTag InItemIDTag, int32 InItemCount)
+{
+	AddItemByTagID(InItemIDTag, InItemCount);
 }
 
 bool ULxCharacterBackpackComponent::CanAddItemList(const TArray<FLxItemQuote>& InItemList) const
@@ -355,6 +377,7 @@ bool ULxCharacterBackpackComponent::RemoveItemAt(FGameplayTag InItemIDTag, int32
 	CleanupInvalidItems();
 	RefreshTrackedBindings();
 	OnDataChange.Broadcast();
+	SyncReplicatedBackpackSlots();
 	return true;
 }
 
@@ -411,11 +434,60 @@ void ULxCharacterBackpackComponent::SortingOfItems()
 
 	RefreshTrackedBindings();
 	OnDataChange.Broadcast();
+	SyncReplicatedBackpackSlots();
 }
 
 TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterBackpackComponent::GetAllItems()
 {
 	return m_vBackpackSlots;
+}
+
+ULxItemSlotData* ULxCharacterBackpackComponent::GetBackpackSlotAt(int32 SlotIndex) const
+{
+	return m_vBackpackSlots.IsValidIndex(SlotIndex) ? m_vBackpackSlots[SlotIndex] : nullptr;
+}
+
+bool ULxCharacterBackpackComponent::MoveBackpackSlot(int32 SourceSlotIndex, int32 TargetSlotIndex)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return false;
+	}
+
+	ULxItemSlotData* SourceSlot = GetBackpackSlotAt(SourceSlotIndex);
+	ULxItemSlotData* TargetSlot = GetBackpackSlotAt(TargetSlotIndex);
+	if (!SourceSlot || !TargetSlot || SourceSlot == TargetSlot)
+	{
+		return false;
+	}
+
+	const ELxItemSlotDropResult DropResult = TargetSlot->ItemEnterToThis(SourceSlot);
+	const bool bSucceeded = DropResult == ELxItemSlotDropResult::Swapped
+		|| DropResult == ELxItemSlotDropResult::StackedAll
+		|| DropResult == ELxItemSlotDropResult::StackedPartial
+		|| DropResult == ELxItemSlotDropResult::EnterSuccess;
+	if (!bSucceeded)
+	{
+		return false;
+	}
+
+	SyncReplicatedBackpackSlots();
+	return true;
+}
+
+void ULxCharacterBackpackComponent::SyncReplicatedBackpackSlots()
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	ReplicatedBackpackSlots.Reset();
+	ReplicatedBackpackSlots.Reserve(m_vBackpackSlots.Num());
+	for (ULxItemSlotData* SlotData : m_vBackpackSlots)
+	{
+		ReplicatedBackpackSlots.Add(BuildItemQuoteFromSlot(SlotData));
+	}
 }
 
 TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterBackpackComponent::QueryItemsOnItemType(ELxItemType InItemType)
@@ -448,6 +520,7 @@ void ULxCharacterBackpackComponent::HandleTrackedItemCountChanged(ULxItemBase* I
 	CleanupInvalidItems();
 	RefreshTrackedBindings();
 	OnDataChange.Broadcast();
+	SyncReplicatedBackpackSlots();
 }
 
 void ULxCharacterBackpackComponent::HandleBackpackSlotChanged(ULxItemBase* InItemData)
@@ -455,6 +528,7 @@ void ULxCharacterBackpackComponent::HandleBackpackSlotChanged(ULxItemBase* InIte
 	CleanupInvalidItems();
 	RefreshTrackedBindings();
 	OnDataChange.Broadcast();
+	SyncReplicatedBackpackSlots();
 }
 
 void ULxCharacterBackpackComponent::RefreshTrackedBindings()
@@ -511,8 +585,66 @@ void ULxCharacterBackpackComponent::InitializeBackpack()
 	for (int32 Index = 0; Index < BackpackSlotCount; ++Index)
 	{
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
+		NewSlot->SetSlotIndex(Index);
 		NewSlot->InitItemSlot(ELxItemSlotType::Backpack, LxTag_Item, nullptr);
 		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleBackpackSlotChanged);
 		m_vBackpackSlots.Add(NewSlot);
 	}
+}
+
+void ULxCharacterBackpackComponent::ApplyReplicatedBackpackSlots()
+{
+	const int32 DesiredSlotCount = FMath::Max(BackpackSlotCount, ReplicatedBackpackSlots.Num());
+	if (m_vBackpackSlots.Num() != DesiredSlotCount)
+	{
+		BackpackSlotCount = DesiredSlotCount;
+		InitializeBackpack();
+	}
+
+	for (int32 Index = 0; Index < m_vBackpackSlots.Num(); ++Index)
+	{
+		ULxItemSlotData* SlotData = m_vBackpackSlots[Index];
+		if (!SlotData)
+		{
+			continue;
+		}
+
+		SlotData->SetSlotIndex(Index);
+		if (!ReplicatedBackpackSlots.IsValidIndex(Index)
+			|| !ReplicatedBackpackSlots[Index].ItemIDTag.IsValid()
+			|| ReplicatedBackpackSlots[Index].ItemCount <= 0)
+		{
+			SlotData->ClearItem();
+			continue;
+		}
+
+		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, ReplicatedBackpackSlots[Index]);
+		if (NewItem)
+		{
+			SlotData->SetItem(NewItem);
+		}
+		else
+		{
+			SlotData->ClearItem();
+		}
+	}
+
+	CleanupInvalidItems();
+	RefreshTrackedBindings();
+	OnDataChange.Broadcast();
+}
+
+FLxItemQuote ULxCharacterBackpackComponent::BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const
+{
+	if (!SlotData || !SlotData->IsValid() || !SlotData->GetItem())
+	{
+		return FLxItemQuote();
+	}
+
+	return FLxItemQuote(SlotData->GetItem()->ItemIDTag(), SlotData->GetItem()->ItemCount());
+}
+
+void ULxCharacterBackpackComponent::OnRep_BackpackSlots()
+{
+	ApplyReplicatedBackpackSlots();
 }

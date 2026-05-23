@@ -34,6 +34,7 @@ public:
 
 	/** 初始化背包槽位和组件缓存。 */
 	virtual void BaseComponentInitialize() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/**
 	 * 按物品标签 ID 添加物品到背包。
@@ -44,6 +45,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="添加物品到背包-标签ID", meta=(Categories="物品"))
 	bool AddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount = 1);
+
+	UFUNCTION(Server, Reliable)
+	void ServerAddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount);
 
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="检查能否添加物品列表")
 	bool CanAddItemList(const TArray<FLxItemQuote>& InItemList) const;
@@ -81,6 +85,12 @@ public:
 	/** 获取背包全部槽位。 */
 	TArray<TObjectPtr<ULxItemSlotData>>& GetAllItems();
 
+	ULxItemSlotData* GetBackpackSlotAt(int32 SlotIndex) const;
+
+	bool MoveBackpackSlot(int32 SourceSlotIndex, int32 TargetSlotIndex);
+
+	void SyncReplicatedBackpackSlots();
+
 	/** 按物品类型查询背包槽位，结果缓存在组件内部数组中。 */
 	TArray<TObjectPtr<ULxItemSlotData>>& QueryItemsOnItemType(ELxItemType InItemType);
 
@@ -110,6 +120,10 @@ private:
 	/** 初始化背包槽位。 */
 	void InitializeBackpack();
 
+	void ApplyReplicatedBackpackSlots();
+
+	FLxItemQuote BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const;
+
 	/** 背包过滤查询缓存数组。 */
 	UPROPERTY()
 	TArray<TObjectPtr<ULxItemSlotData>> m_vFilteringCache;
@@ -122,7 +136,13 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<ULxItemBase>> m_vItemList;
 
+	UPROPERTY(ReplicatedUsing=OnRep_BackpackSlots)
+	TArray<FLxItemQuote> ReplicatedBackpackSlots;
+
 	/** 当前组件所属角色。 */
 	UPROPERTY()
 	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter = nullptr;
+
+	UFUNCTION()
+	void OnRep_BackpackSlots();
 };

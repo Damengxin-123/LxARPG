@@ -70,6 +70,10 @@ void ULxCharacterMoveComponent::HandleMoveInput(const FVector2D& InMoveValue)
 	);
 
 	m_pOwnerCharacter->SetActorRotation(NewRot);
+	if (!m_pOwnerCharacter->HasAuthority())
+	{
+		m_pOwnerCharacter->ServerSetCharacterRotation(NewRot);
+	}
 }
 
 void ULxCharacterMoveComponent::HandleJumpInput(bool bPressed)

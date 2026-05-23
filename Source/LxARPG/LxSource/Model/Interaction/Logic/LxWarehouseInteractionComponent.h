@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "LxInteractionActionComponentBase.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxWarehouseInteractionComponent.generated.h"
 
+class ULxCharacterBackpackComponent;
 class ULxItemBase;
 class ULxItemSlotData;
 
@@ -26,6 +28,7 @@ public:
 	virtual void BaseComponentInitialize() override;
 	/** 兜底初始化仓库槽位，支持未走项目自定义初始化入口的场景。 */
 	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	/** 仓库交互被触发时调用，进入交互中状态并通知外部表现。 */
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) override;
 
@@ -35,6 +38,12 @@ public:
 
 	/** C++ 侧直接读取仓库槽位列表。 */
 	const TArray<TObjectPtr<ULxItemSlotData>>& GetWarehouseItemSlots() const { return WarehouseItemSlotList; }
+
+	ULxItemSlotData* GetWarehouseSlotAt(int32 SlotIndex) const;
+
+	bool MoveBackpackSlotToWarehouse(ULxCharacterBackpackComponent* BackpackComponent, int32 BackpackSlotIndex, int32 WarehouseSlotIndex);
+	bool MoveWarehouseSlotToBackpack(ULxCharacterBackpackComponent* BackpackComponent, int32 WarehouseSlotIndex, int32 BackpackSlotIndex);
+	bool MoveWarehouseSlot(int32 SourceWarehouseSlotIndex, int32 TargetWarehouseSlotIndex);
 
 	/** 刷新仓库物品缓存，并广播槽位列表变化事件。 */
 	UFUNCTION(BlueprintCallable, Category="交互|仓库", DisplayName="刷新仓库槽位")
@@ -65,6 +74,9 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="交互|仓库", DisplayName="仓库物品槽位列表")
 	TArray<TObjectPtr<ULxItemSlotData>> WarehouseItemSlotList;
 
+	UPROPERTY(ReplicatedUsing=OnRep_WarehouseSlots)
+	TArray<FLxItemQuote> ReplicatedWarehouseSlots;
+
 private:
 	/** 按配置数量创建仓库槽位。 */
 	void InitializeWarehouseSlots();
@@ -72,7 +84,13 @@ private:
 	void RebuildWarehouseItemList();
 	/** 广播当前仓库槽位列表。 */
 	void BroadcastWarehouseSlotsChanged() const;
+	void SyncReplicatedWarehouseSlots();
+	void ApplyReplicatedWarehouseSlots();
+	FLxItemQuote BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const;
 
 	UFUNCTION()
 	void HandleWarehouseSlotChanged(ULxItemBase* InItemData);
+
+	UFUNCTION()
+	void OnRep_WarehouseSlots();
 };

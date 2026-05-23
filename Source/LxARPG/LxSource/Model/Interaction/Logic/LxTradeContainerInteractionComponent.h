@@ -21,10 +21,13 @@ public:
 
 	virtual void BaseComponentInitialize() override;
 	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) override;
 
 	UFUNCTION(BlueprintCallable, Category="Interaction|Trade", DisplayName="获取交易物品槽位列表")
 	void GetTradeItemSlotList(TArray<ULxItemSlotData*>& OutTradeSlots) const;
+
+	ULxItemSlotData* GetTradeSlotAt(int32 SlotIndex) const;
 
 	UFUNCTION(BlueprintCallable, Category="Interaction|Trade", DisplayName="刷新交易槽位")
 	void RefreshTradeSlots();
@@ -74,11 +77,17 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Interaction|Trade", DisplayName="交易物品槽位列表")
 	TArray<TObjectPtr<ULxItemSlotData>> TradeItemSlotList;
 
+	UPROPERTY(ReplicatedUsing=OnRep_TradeSlots)
+	TArray<FLxItemQuote> ReplicatedTradeSlots;
+
 private:
 	void InitializeTradeSlots();
 	void RebuildTradeItemList();
 	void ApplyTradeItemValueRateToSlots();
 	void BroadcastTradeSlotsChanged() const;
+	void SyncReplicatedTradeSlots();
+	void ApplyReplicatedTradeSlots();
+	FLxItemQuote BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const;
 	void BindPlayerDataTransfer(ULxCharacterDataTransferComponent* DataTransferComponent);
 	void UnbindPlayerDataTransfer();
 	bool BuildTradeItemQuote(ULxItemSlotData* TradeSlot, FLxItemQuote& OutItemQuote) const;
@@ -90,6 +99,9 @@ private:
 
 	UFUNCTION()
 	void HandlePlayerBackpackItemChanged(const TArray<ULxItemSlotData*>& BackpackItems);
+
+	UFUNCTION()
+	void OnRep_TradeSlots();
 
 	UPROPERTY(Transient)
 	TObjectPtr<ULxCharacterDataTransferComponent> BoundDataTransferComponent = nullptr;

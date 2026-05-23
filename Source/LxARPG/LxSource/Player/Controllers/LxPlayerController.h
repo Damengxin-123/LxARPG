@@ -8,6 +8,7 @@
 
 
 class ALxBaseCharacter;
+class AActor;
 class ULxInputComponent;
 class ULxPlayerSystemOperateComponent;
 
@@ -33,6 +34,33 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="创建角色", DisplayName="创建玩家角色")
 	void CreatePlayerCharacter();
+
+	UFUNCTION(Server, Reliable)
+	void ServerMoveItemBetweenBackpackAndWarehouse(AActor* WarehouseOwner, int32 SourceSlotIndex, int32 TargetSlotIndex, bool bMoveToWarehouse);
+
+	UFUNCTION(Server, Reliable)
+	void ServerMoveBackpackSlot(int32 SourceSlotIndex, int32 TargetSlotIndex);
+
+	UFUNCTION(Server, Reliable)
+	void ServerMoveWarehouseSlot(AActor* WarehouseOwner, int32 SourceSlotIndex, int32 TargetSlotIndex);
+
+	UFUNCTION(Server, Reliable)
+	void ServerMoveTreasureChestSlotToBackpack(AActor* TreasureChestOwner, int32 TreasureChestSlotIndex, int32 BackpackSlotIndex);
+
+	UFUNCTION(Server, Reliable)
+	void ServerBuyTradeSlot(AActor* TradeOwner, int32 TradeSlotIndex);
+
+	UFUNCTION(Server, Reliable)
+	void ServerBuyTradeSlotToBackpackSlot(AActor* TradeOwner, int32 TradeSlotIndex, int32 BackpackSlotIndex);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSellBackpackSlot(AActor* TradeOwner, int32 BackpackSlotIndex);
+
+	UFUNCTION(Server, Reliable)
+	void ServerExecuteItemTransfer(AActor* ItemTransferOwner);
+
+	UFUNCTION(Server, Reliable)
+	void ServerTriggerMechanism(AActor* MechanismOwner);
 
 	// 显示鼠标光标
 	/**
