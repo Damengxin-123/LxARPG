@@ -4,6 +4,7 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumable.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipment.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterial.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillItem.h"
 
 ULxItemBase* ULxItemBase::CreateItemObject(UObject* InParent, FLxItemQuote InItemQuote)
 {
@@ -27,6 +28,9 @@ ULxItemBase* ULxItemBase::CreateItemObject(UObject* InParent, FLxItemQuote InIte
 		break;
 	case ELxItemType::Buff:
 		OutItemObject = NewObject<ULxBuff>(InParent);
+		break;
+	case ELxItemType::Skill:
+		OutItemObject = NewObject<ULxSkillItem>(InParent);
 		break;
 	default:
 		return nullptr;

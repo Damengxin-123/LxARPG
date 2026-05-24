@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
@@ -46,18 +46,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="添加物品到背包-标签ID", meta=(Categories="物品"))
 	bool AddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount = 1);
 
+	/** 服务端RPC，按物品标签ID添加物品到背包。 */
 	UFUNCTION(Server, Reliable)
 	void ServerAddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount);
 
+	/** 检查背包能否容纳指定的物品列表。 */
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="检查能否添加物品列表")
 	bool CanAddItemList(const TArray<FLxItemQuote>& InItemList) const;
 
+	/** 添加物品列表到背包。 */
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="添加物品列表")
 	bool AddItemList(const TArray<FLxItemQuote>& InItemList);
 
+	/** 检查背包是否拥有物品列表中的所有物品。 */
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="检查是否拥有物品列表")
 	bool CheckHaveItemList(const TArray<FLxItemQuote>& InItemList) const;
 
+	/** 从背包中移除指定的物品列表。 */
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="移除物品列表")
 	bool RemoveItemList(const TArray<FLxItemQuote>& InItemList);
 
@@ -85,10 +90,13 @@ public:
 	/** 获取背包全部槽位。 */
 	TArray<TObjectPtr<ULxItemSlotData>>& GetAllItems();
 
+	/** 获取指定索引处的背包槽位。 */
 	ULxItemSlotData* GetBackpackSlotAt(int32 SlotIndex) const;
 
+	/** 将槽位从源索引移动到目标索引。 */
 	bool MoveBackpackSlot(int32 SourceSlotIndex, int32 TargetSlotIndex);
 
+	/** 将本地背包槽位数据同步到复制数组，用于网络同步。 */
 	void SyncReplicatedBackpackSlots();
 
 	/** 按物品类型查询背包槽位，结果缓存在组件内部数组中。 */
@@ -120,8 +128,10 @@ private:
 	/** 初始化背包槽位。 */
 	void InitializeBackpack();
 
+	/** 将服务器复制来的槽位数据应用到本地背包。 */
 	void ApplyReplicatedBackpackSlots();
 
+	/** 从槽位数据构建物品引用结构体。 */
 	FLxItemQuote BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const;
 
 	/** 背包过滤查询缓存数组。 */
@@ -136,6 +146,7 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<ULxItemBase>> m_vItemList;
 
+	/** 用于网络复制的背包槽位引用数组。 */
 	UPROPERTY(ReplicatedUsing=OnRep_BackpackSlots)
 	TArray<FLxItemQuote> ReplicatedBackpackSlots;
 
@@ -143,6 +154,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter = nullptr;
 
+	/** 复制回调，当服务器同步背包槽位数据到客户端时调用。 */
 	UFUNCTION()
 	void OnRep_BackpackSlots();
 };
