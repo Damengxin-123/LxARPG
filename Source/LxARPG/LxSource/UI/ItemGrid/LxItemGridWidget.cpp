@@ -34,12 +34,19 @@ void ULxItemGridWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 
 void ULxItemGridWidget::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
 {
-	if (!InValue.m_blValue || !IsShortcutInputActionID(InInputActionID) || GetSlotType() != ELxItemSlotType::Shortcut)
+	if (!IsShortcutInputActionID(InInputActionID) || GetSlotType() != ELxItemSlotType::Shortcut)
 	{
 		return;
 	}
 
-	UseItem();
+	if (InValue.m_blValue)
+	{
+		StartUseItem();
+	}
+	else
+	{
+		EndUseItem();
+	}
 }
 
 ELxItemSlotType ULxItemGridWidget::GetSlotType() const
@@ -64,6 +71,36 @@ bool ULxItemGridWidget::UseItem() const
 	}
 	CurrentSlotData->ItemUse();
 
+	return true;
+}
+
+bool ULxItemGridWidget::StartUseItem() const
+{
+	// 仓库格子只负责长期存放和拖拽物品，不响应使用输入。
+	if (!CurrentSlotData
+		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::Warehouse
+		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::TreasureChest
+		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::Transaction)
+	{
+		return false;
+	}
+
+	CurrentSlotData->StartUseItem();
+	return true;
+}
+
+bool ULxItemGridWidget::EndUseItem() const
+{
+	// 仓库格子只负责长期存放和拖拽物品，不响应使用输入。
+	if (!CurrentSlotData
+		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::Warehouse
+		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::TreasureChest
+		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::Transaction)
+	{
+		return false;
+	}
+
+	CurrentSlotData->EndUseItem();
 	return true;
 }
 
@@ -150,7 +187,7 @@ FReply ULxItemGridWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
-		return UseItem() ? FReply::Handled() : FReply::Unhandled();
+		return StartUseItem() ? FReply::Handled().CaptureMouse(TakeWidget()) : FReply::Unhandled();
 	}
 
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && ItemIsVaild() && CurrentSlotData->ItemIsLeave())
@@ -160,6 +197,16 @@ FReply ULxItemGridWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 
 	// return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 	return FReply::Handled();
+}
+
+FReply ULxItemGridWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		return EndUseItem() ? FReply::Handled().ReleaseMouseCapture() : FReply::Unhandled();
+	}
+
+	return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
 }
 
 void ULxItemGridWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,

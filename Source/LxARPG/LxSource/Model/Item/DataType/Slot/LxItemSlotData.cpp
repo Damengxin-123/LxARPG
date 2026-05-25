@@ -28,6 +28,30 @@ void ULxItemSlotData::ItemUse()
 	// }
 }
 
+void ULxItemSlotData::StartUseItem()
+{
+	if (!IsValid()
+		|| m_eSlotType == ELxItemSlotType::TreasureChest
+		|| m_eSlotType == ELxItemSlotType::Transaction)
+	{
+		return;
+	}
+
+	m_pItemData->ItemUseStart();
+}
+
+void ULxItemSlotData::EndUseItem()
+{
+	if (!IsValid()
+		|| m_eSlotType == ELxItemSlotType::TreasureChest
+		|| m_eSlotType == ELxItemSlotType::Transaction)
+	{
+		return;
+	}
+
+	m_pItemData->ItemUseEnd();
+}
+
 void ULxItemSlotData::InitItemSlot(ELxItemSlotType InItemSlotType, FGameplayTag InItemType, ULxItemBase* InItemData)
 {
 	if (InItemSlotType == ELxItemSlotType::None)

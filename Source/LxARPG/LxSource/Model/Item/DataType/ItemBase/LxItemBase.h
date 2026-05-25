@@ -32,7 +32,7 @@ class LXARPG_API ULxItemBase : public UObject
 
 public:
 	/** 物品数量改变时触发。 */
-	UPROPERTY(BlueprintAssignable, Category="Item", DisplayName="物品数量改变事件")
+	UPROPERTY(BlueprintAssignable, Category="物品", DisplayName="物品数量改变事件")
 	FOnItemCountChanged OnItemCountChanged;
 
 	static ULxItemBase* CreateItemObject(UObject* InParent, FLxItemQuote InItemQuote);
@@ -95,6 +95,12 @@ public:
 
 	/** 使用物品后返回对应的使用结果。 */
 	virtual ELxItemUseState ItemUse() PURE_VIRTUAL(ULxItemBase::ItemUse, return ELxItemUseState::Failed;);
+
+	/** 开始使用物品。用于按住输入、持续使用、技能蓄力等需要按下边沿的物品。 */
+	virtual ELxItemUseState ItemUseStart();
+
+	/** 结束使用物品。普通物品默认在抬起时执行一次性使用。 */
+	virtual ELxItemUseState ItemUseEnd();
 
 protected:
 	/** 广播物品数量改变事件，只有新旧数量不一致时才会真正通知。 */

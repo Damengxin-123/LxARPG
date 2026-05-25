@@ -30,6 +30,49 @@ ELxItemUseState ULxSkillItem::ItemUse()
 	return ELxItemUseState::CastSkill;
 }
 
+ELxItemUseState ULxSkillItem::ItemUseStart()
+{
+	if (!ItemIsValid())
+	{
+		return ELxItemUseState::Failed;
+	}
+
+	if (!SkillObject)
+	{
+		CreateSkillObject();
+	}
+
+	if (!SkillObject)
+	{
+		return ELxItemUseState::Failed;
+	}
+
+	if (SkillObject->CanSkillCharge())
+	{
+		SkillObject->StartSkillCharge();
+		return ELxItemUseState::CastSkill;
+	}
+
+	SkillObject->ReleaseSkillDirectly();
+	return ELxItemUseState::CastSkill;
+}
+
+ELxItemUseState ULxSkillItem::ItemUseEnd()
+{
+	if (!ItemIsValid() || !SkillObject)
+	{
+		return ELxItemUseState::Failed;
+	}
+
+	if (!SkillObject->CanSkillCharge())
+	{
+		return ELxItemUseState::Failed;
+	}
+
+	SkillObject->EndSkillCharge();
+	return ELxItemUseState::CastSkill;
+}
+
 FLxString ULxSkillItem::ItemCountText()
 {
 	return SkillItemInformation.ItemCount > 1 ? FLxString(SkillItemInformation.ItemCount) : FLxString();

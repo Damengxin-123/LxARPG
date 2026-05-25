@@ -42,6 +42,12 @@ public:
 	/** 使用技能物品时直接释放技能。 */
 	virtual ELxItemUseState ItemUse() override;
 
+	/** 按下技能物品时，蓄力技能开始蓄力，直接释放技能立即释放。 */
+	virtual ELxItemUseState ItemUseStart() override;
+
+	/** 抬起技能物品时，蓄力技能结束蓄力并释放。 */
+	virtual ELxItemUseState ItemUseEnd() override;
+
 	/** 技能物品默认不显示数量文本。 */
 	virtual FLxString ItemCountText() override;
 

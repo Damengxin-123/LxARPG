@@ -224,6 +224,16 @@ void ULxItemBase::BroadcastItemCountChanged()
 	OnItemCountChanged.Broadcast(this);
 }
 
+ELxItemUseState ULxItemBase::ItemUseStart()
+{
+	return ELxItemUseState::Failed;
+}
+
+ELxItemUseState ULxItemBase::ItemUseEnd()
+{
+	return ItemUse();
+}
+
 void ULxItemBase::SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount)
 {
 }
