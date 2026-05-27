@@ -7,6 +7,7 @@
 
 class UCameraComponent;
 class ULxInteractableComponent;
+class ULxPlayerAimComponent;
 class ULxPlayerControlMoveComponent;
 class ULxPlayerInteractionComponent;
 class USpringArmComponent;
@@ -33,6 +34,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件|交互", DisplayName="获取玩家交互组件")
 	ULxPlayerInteractionComponent* GetPlayerInteractionComponent() const { return m_pPlayerInteractionComponent; }
 
+	/** 获取玩家瞄准组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件|瞄准", DisplayName="获取玩家瞄准组件")
+	ULxPlayerAimComponent* GetPlayerAimComponent() const { return m_pPlayerAimComponent; }
+
 	virtual void ReceiveInteractableComponent_Implementation(ULxInteractableComponent* InInteractableComponent) override;
 	virtual void RemoveInteractableComponent_Implementation(ULxInteractableComponent* InInteractableComponent) override;
 
@@ -44,6 +49,10 @@ protected:
 	/** 玩家交互组件，用于收集和处理当前可交互对象。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|交互", DisplayName="玩家交互组件")
 	TObjectPtr<ULxPlayerInteractionComponent> m_pPlayerInteractionComponent;
+
+	/** 玩家瞄准组件，用于处理准星检测、瞄准相机和瞄准时角色转向。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|瞄准", DisplayName="玩家瞄准组件")
+	TObjectPtr<ULxPlayerAimComponent> m_pPlayerAimComponent;
 
 	/** 相机弹簧臂组件，用于控制跟随相机距离和旋转继承。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|相机", DisplayName="相机弹簧臂")

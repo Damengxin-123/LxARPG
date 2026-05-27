@@ -17,6 +17,7 @@ enum class ELxInputActionID : uint8
 	Jump UMETA(DisplayName="跳跃"),
 	LookX UMETA(DisplayName="视角X"),
 	LookY UMETA(DisplayName="视角Y"),
+	Aim UMETA(DisplayName="瞄准"),
 
 	Backpack UMETA(DisplayName="背包"),
 	CharacterAttribute UMETA(DisplayName="角色属性"),

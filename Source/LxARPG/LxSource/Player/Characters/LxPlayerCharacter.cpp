@@ -2,6 +2,7 @@
 
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "LxARPG/LxSource/Model/Aim/LxPlayerAimComponent.h"
 #include "LxARPG/LxSource/Model/ControlMove/LxPlayerControlMoveComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractableComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
@@ -14,6 +15,7 @@ ALxPlayerCharacter::ALxPlayerCharacter()
 
 	m_pPlayerControlMoveComponent = CreateDefaultSubobject<ULxPlayerControlMoveComponent>(TEXT("PlayerControlMoveComponent"));
 	m_pPlayerInteractionComponent = CreateDefaultSubobject<ULxPlayerInteractionComponent>(TEXT("PlayerInteractionComponent"));
+	m_pPlayerAimComponent = CreateDefaultSubobject<ULxPlayerAimComponent>(TEXT("m_pPlayerAimComponent"));
 
 	m_pCameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("相机弹簧臂"));
 	m_pCameraBoom->SetupAttachment(RootComponent);
@@ -21,7 +23,7 @@ ALxPlayerCharacter::ALxPlayerCharacter()
 	m_pCameraBoom->bUsePawnControlRotation = true;
 	m_pCameraBoom->bInheritPitch = true;
 	m_pCameraBoom->bInheritYaw = true;
-	m_pCameraBoom->bInheritRoll = false;
+	m_pCameraBoom->bInheritRoll = true;
 
 	m_pFollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("跟随相机"));
 	m_pFollowCamera->SetupAttachment(m_pCameraBoom, USpringArmComponent::SocketName);
@@ -40,6 +42,11 @@ void ALxPlayerCharacter::InitialCharacterInformation()
 	if (m_pPlayerInteractionComponent)
 	{
 		m_pPlayerInteractionComponent->BaseComponentInitialize();
+	}
+
+	if (m_pPlayerAimComponent)
+	{
+		m_pPlayerAimComponent->BaseComponentInitialize();
 	}
 }
 

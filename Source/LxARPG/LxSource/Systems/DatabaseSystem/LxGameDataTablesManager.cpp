@@ -8,6 +8,7 @@
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputActionConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
 #include "LxARPG/LxSource/Model/Style/TableConfig/LxTextLineStyleDataConfig.h"
+#include "InputCoreTypes.h"
 
 namespace
 {
@@ -31,6 +32,26 @@ namespace
 
 			InSetter(*RowData);
 		}
+	}
+
+	/** 确保玩家瞄准输入有默认右键配置，数据表中已配置时保持数据表优先。 */
+	void EnsureDefaultAimInputActionInfo()
+	{
+		if (LxInputActionConfig::GetInputActionInfo(ELxInputActionID::Aim))
+		{
+			return;
+		}
+
+		FLxInputActionInfo AimInputActionInfo;
+		AimInputActionInfo.InputActionID = ELxInputActionID::Aim;
+		AimInputActionInfo.DisplayName = FText::FromString(TEXT("瞄准"));
+		AimInputActionInfo.ValueType = EInputActionValueType::Boolean;
+		AimInputActionInfo.InteractionType = ELxInputInteractionType::PressAndRelease;
+		AimInputActionInfo.DefaultKey = EKeys::RightMouseButton;
+		AimInputActionInfo.ValueDirection = ELxInputValueAxial::None;
+		AimInputActionInfo.ValueMagnification = 1.f;
+
+		LxInputActionConfig::SetInputActionInfo(AimInputActionInfo);
 	}
 
 	void LoadCharacterAttributeDataTable(const UDataTable* InDataTable)
@@ -97,6 +118,8 @@ namespace
 
 			LxInputActionConfig::SetInputActionInfo(*RowData);
 		}
+
+		EnsureDefaultAimInputActionInfo();
 	}
 
 	template<typename RowType, typename SetterType>
