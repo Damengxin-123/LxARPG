@@ -16,10 +16,12 @@ class ULxCharacterEquipmentComponent;
 class ULxEquipmentSlotData;
 class ULxItemBase;
 class ULxItemSlotData;
+class ULxSkillBackpackComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeListChanged, const TArray<FLxAttributeData>&, AttributeList);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBackpackItemListChanged, const TArray<ULxItemSlotData*>&, BackpackItems);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxEquipmentSlotListChanged, const TArray<ULxItemSlotData*>&, EquipmentSlots);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillBackpackSlotListChanged, const TArray<ULxItemSlotData*>&, SkillSlots);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBuffListChanged, const TArray<ULxBuff*>&, BuffList);
 
 /**
@@ -59,6 +61,18 @@ public:
 	/** 获取所有装备槽位。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有装备")
 	void GetAllEquipment(TArray<ULxItemSlotData*>& OutEquipmentSlots) const;
+
+	/** 获取所有技能背包槽位。 */
+	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有技能背包槽位")
+	void GetAllSkillBackpackSlots(TArray<ULxItemSlotData*>& OutSkillSlots) const;
+
+	/** 按标签筛选技能背包槽位。传入空标签时返回全部技能槽位。 */
+	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="按标签筛选技能背包槽位", meta=(Categories="物品"))
+	void QuerySkillBackpackSlotsByTag(FGameplayTag InSkillTag, TArray<ULxItemSlotData*>& OutSkillSlots) const;
+
+	/** 通过数据中转组件向技能背包添加技能物品。 */
+	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="添加技能物品到技能背包", meta=(Categories="物品"))
+	bool AddSkillItemToSkillBackpack(FGameplayTag InSkillItemIDTag);
 
 	/** 获取所有生效中的 Buff。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有Buff")
@@ -100,6 +114,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色装备更新事件")
 	FOnLxEquipmentSlotListChanged OnEquipmentChanged;
 
+	/** 角色技能背包更新事件，广播当前技能背包槽位列表。 */
+	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色技能背包更新事件")
+	FOnLxSkillBackpackSlotListChanged OnSkillBackpackChanged;
+
 	/** 角色 Buff 更新事件，广播当前 Buff 列表。 */
 	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色Buff更新事件")
 	FOnLxBuffListChanged OnBuffChanged;
@@ -117,6 +135,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色装备组件")
 	TObjectPtr<ULxCharacterEquipmentComponent> EquipmentComponent = nullptr;
 
+	/** 当前角色技能背包组件。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色技能背包组件")
+	TObjectPtr<ULxSkillBackpackComponent> SkillBackpackComponent = nullptr;
+
 	/** 当前角色 Buff 组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色Buff组件")
 	TObjectPtr<ULxCharacterBuffComponent> BuffComponent = nullptr;
@@ -129,6 +151,7 @@ private:
 	void BroadcastAttributeData();
 	void BroadcastBackpackData();
 	void BroadcastEquipmentData();
+	void BroadcastSkillBackpackData();
 	void BroadcastBuffData();
 
 	void DispatchEntryList(ELxCharacterEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList);
@@ -151,6 +174,9 @@ private:
 
 	UFUNCTION()
 	void HandleEquipmentDataChanged();
+
+	UFUNCTION()
+	void HandleSkillBackpackDataChanged();
 
 	UFUNCTION()
 	void HandleBuffDataChanged();

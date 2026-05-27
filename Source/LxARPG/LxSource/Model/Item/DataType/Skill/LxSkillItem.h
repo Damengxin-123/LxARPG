@@ -55,6 +55,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="物品|技能", DisplayName="获取技能对象")
 	ULxSkill* GetSkillObject() const { return SkillObject; }
 
+	/** 获取或创建当前技能物品配置的技能对象。技能释放组件会通过此接口取得可释放的技能实例。 */
+	UFUNCTION(BlueprintCallable, Category="物品|技能", DisplayName="获取或创建技能对象")
+	ULxSkill* GetOrCreateSkillObject();
+
 	/** 获取技能物品静态信息。 */
 	UFUNCTION(BlueprintPure, Category="物品|技能", DisplayName="获取技能物品信息")
 	FLxSkillItemInformation GetSkillItemInformation() const { return SkillItemInformation; }

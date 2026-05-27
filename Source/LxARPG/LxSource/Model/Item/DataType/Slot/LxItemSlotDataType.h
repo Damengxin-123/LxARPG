@@ -52,5 +52,5 @@ const TMap<ELxItemSlotType, FLxSlotLogicSet> ConstItemSlotLogicSetMap = {
 	{ELxItemSlotType::Shortcut, FLxSlotLogicSet(true, false, true)},
 	{ELxItemSlotType::BuffDisplay, FLxSlotLogicSet(false, false, false, LxTag_Item_Buff)},
 	{ELxItemSlotType::BuffDisplay, FLxSlotLogicSet(false, false, false, LxTag_Item_Buff)},
-	{ELxItemSlotType::SkillDisplay, FLxSlotLogicSet(LxTag_Item_Skill)},
+	{ELxItemSlotType::SkillDisplay, FLxSlotLogicSet(false, true, false, LxTag_Item_Skill)},
 };

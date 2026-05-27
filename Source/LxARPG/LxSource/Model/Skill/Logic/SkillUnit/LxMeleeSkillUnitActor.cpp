@@ -8,5 +8,5 @@ void ALxMeleeSkillUnitActor::InitializeMeleeParameters(const FLxSkillMeleeSpec& 
 void ALxMeleeSkillUnitActor::HandleSkillTriggered(const FLxSkillTriggerResult& TriggerResult)
 {
 	Super::HandleSkillTriggered(TriggerResult);
-	OnMeleeHitTarget.Broadcast(TriggerResult);
+	OnMeleeHitTarget.Broadcast(this, TriggerResult);
 }

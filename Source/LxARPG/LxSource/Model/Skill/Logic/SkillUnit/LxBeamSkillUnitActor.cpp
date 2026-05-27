@@ -6,6 +6,6 @@ void ALxBeamSkillUnitActor::HandleLifeStateChanged(ELxSkillAbilityComponentState
 
 	if (NewState == ELxSkillAbilityComponentState::Finished)
 	{
-		OnBeamDurationFinished.Broadcast();
+		OnBeamDurationFinished.Broadcast(this);
 	}
 }

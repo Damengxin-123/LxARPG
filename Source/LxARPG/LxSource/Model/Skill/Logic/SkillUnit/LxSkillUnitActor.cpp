@@ -63,7 +63,7 @@ void ALxSkillUnitActor::ActivateSkillUnit_Implementation()
 		MovementComponent->StartMovement();
 	}
 
-	OnSkillUnitActivated.Broadcast(MakeSkillUnitResult(ELxSkillUnitResultType::Started, true));
+	OnSkillUnitActivated.Broadcast(this, MakeSkillUnitResult(ELxSkillUnitResultType::Started, true));
 }
 
 void ALxSkillUnitActor::CancelSkillUnit_Implementation()
@@ -91,8 +91,8 @@ void ALxSkillUnitActor::CancelSkillUnit_Implementation()
 	}
 
 	const FLxSkillUnitResult Result = MakeSkillUnitResult(ELxSkillUnitResultType::Cancelled, false);
-	OnSkillUnitCancelled.Broadcast(Result);
-	OnSkillUnitFinished.Broadcast(Result);
+	OnSkillUnitCancelled.Broadcast(this, Result);
+	OnSkillUnitFinished.Broadcast(this, Result);
 }
 
 void ALxSkillUnitActor::SetSkillUnitSpawnSpec(const FLxSkillUnitSpawnSpec& InSpawnSpec)
@@ -197,7 +197,7 @@ void ALxSkillUnitActor::BindSkillUnitComponentEvents()
 void ALxSkillUnitActor::FinishSkillUnit(const FLxSkillUnitResult& InResult)
 {
 	bSkillUnitActive = false;
-	OnSkillUnitFinished.Broadcast(InResult);
+	OnSkillUnitFinished.Broadcast(this, InResult);
 }
 
 FLxSkillUnitResult ALxSkillUnitActor::MakeSkillUnitResult(ELxSkillUnitResultType InResultType, bool bSuccess) const
@@ -221,7 +221,7 @@ void ALxSkillUnitActor::HandleLifeStateChanged(ELxSkillAbilityComponentState Old
 
 void ALxSkillUnitActor::HandleSkillTriggered(const FLxSkillTriggerResult& TriggerResult)
 {
-	OnSkillUnitTriggered.Broadcast(TriggerResult);
+	OnSkillUnitTriggered.Broadcast(this, TriggerResult);
 
 	if (ULxSkillPropagationComponent* PropagationComponent = GetSkillPropagationComponent())
 	{
@@ -231,5 +231,5 @@ void ALxSkillUnitActor::HandleSkillTriggered(const FLxSkillTriggerResult& Trigge
 
 void ALxSkillUnitActor::HandlePropagationEvaluated(const FLxSkillPropagationResult& PropagationResult)
 {
-	OnSkillUnitPropagationEvaluated.Broadcast(PropagationResult);
+	OnSkillUnitPropagationEvaluated.Broadcast(this, PropagationResult);
 }

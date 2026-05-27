@@ -20,6 +20,7 @@ enum class ELxInputActionID : uint8
 
 	Backpack UMETA(DisplayName="背包"),
 	CharacterAttribute UMETA(DisplayName="角色属性"),
+	SkillBackpack UMETA(DisplayName="技能面板"),
 
 	
 	Shortcut0 UMETA(DisplayName="快捷栏0"),

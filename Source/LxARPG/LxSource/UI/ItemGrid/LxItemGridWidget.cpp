@@ -5,11 +5,14 @@
 #include "InputCoreTypes.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillItem.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTradeContainerInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTreasureChestInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxWarehouseInteractionComponent.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkill.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
@@ -69,6 +72,12 @@ bool ULxItemGridWidget::UseItem() const
 	{
 		return false;
 	}
+
+	if (TryReleaseSkillItemDirectly())
+	{
+		return true;
+	}
+
 	CurrentSlotData->ItemUse();
 
 	return true;
@@ -85,6 +94,11 @@ bool ULxItemGridWidget::StartUseItem() const
 		return false;
 	}
 
+	if (TryStartUseSkillItem())
+	{
+		return true;
+	}
+
 	CurrentSlotData->StartUseItem();
 	return true;
 }
@@ -98,6 +112,11 @@ bool ULxItemGridWidget::EndUseItem() const
 		|| CurrentSlotData->GetSlotType() == ELxItemSlotType::Transaction)
 	{
 		return false;
+	}
+
+	if (TryEndUseSkillItem())
+	{
+		return true;
 	}
 
 	CurrentSlotData->EndUseItem();
@@ -514,6 +533,85 @@ ULxCharacterDataTransferComponent* ULxItemGridWidget::GetCharacterDataTransferCo
 
 	const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwningPlayerPawn());
 	return OwnerCharacter ? OwnerCharacter->GetCharacterDataTransferComponent() : nullptr;
+}
+
+ULxSkillCastComponent* ULxItemGridWidget::GetSkillCastComponent() const
+{
+	const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwningPlayerPawn());
+	return OwnerCharacter ? OwnerCharacter->GetSkillCastComponent() : nullptr;
+}
+
+ULxSkillItem* ULxItemGridWidget::GetCurrentSkillItem() const
+{
+	if (!CurrentSlotData || !CurrentSlotData->IsValid())
+	{
+		return nullptr;
+	}
+
+	return Cast<ULxSkillItem>(CurrentSlotData->GetItem());
+}
+
+bool ULxItemGridWidget::TryReleaseSkillItemDirectly() const
+{
+	ULxSkillItem* SkillItem = GetCurrentSkillItem();
+	ULxSkillCastComponent* SkillCastComponent = GetSkillCastComponent();
+	if (!SkillItem || !SkillCastComponent)
+	{
+		return false;
+	}
+
+	ULxSkill* Skill = SkillItem->GetOrCreateSkillObject();
+	if (!Skill)
+	{
+		return false;
+	}
+
+	return SkillCastComponent->HandleSkillReleaseInput(
+		Skill,
+		Skill->GetDirectReleaseInputState(),
+		SkillCastComponent->MakeSkillCastContext(SkillItem));
+}
+
+bool ULxItemGridWidget::TryStartUseSkillItem() const
+{
+	ULxSkillItem* SkillItem = GetCurrentSkillItem();
+	ULxSkillCastComponent* SkillCastComponent = GetSkillCastComponent();
+	if (!SkillItem || !SkillCastComponent)
+	{
+		return false;
+	}
+
+	ULxSkill* Skill = SkillItem->GetOrCreateSkillObject();
+	if (!Skill)
+	{
+		return false;
+	}
+
+	return SkillCastComponent->HandleSkillReleaseInput(
+		Skill,
+		ELxSkillReleaseInputState::Start,
+		SkillCastComponent->MakeSkillCastContext(SkillItem));
+}
+
+bool ULxItemGridWidget::TryEndUseSkillItem() const
+{
+	ULxSkillItem* SkillItem = GetCurrentSkillItem();
+	ULxSkillCastComponent* SkillCastComponent = GetSkillCastComponent();
+	if (!SkillItem || !SkillCastComponent)
+	{
+		return false;
+	}
+
+	ULxSkill* Skill = SkillItem->GetOrCreateSkillObject();
+	if (!Skill)
+	{
+		return false;
+	}
+
+	return SkillCastComponent->HandleSkillReleaseInput(
+		Skill,
+		ELxSkillReleaseInputState::End,
+		SkillCastComponent->MakeSkillCastContext(SkillItem));
 }
 
 void ULxItemGridWidget::SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData)

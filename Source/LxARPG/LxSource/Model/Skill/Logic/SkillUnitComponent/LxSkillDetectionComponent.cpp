@@ -2,6 +2,8 @@
 
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitActor.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 void ULxSkillDetectionComponent::SetTargetFilterSpec(const FLxSkillTargetFilterSpec& InTargetFilterSpec)
 {
@@ -25,6 +27,12 @@ void ULxSkillDetectionComponent::SetTriggerCollisionComponent(UPrimitiveComponen
 	}
 
 	TriggerCollisionComponent = InTriggerCollisionComponent;
+}
+
+void ULxSkillDetectionComponent::SetPublishWorldHit(bool bInPublishWorldHit)
+{
+	bPublishWorldHit = bInPublishWorldHit;
+	OnDataChange.Broadcast();
 }
 
 void ULxSkillDetectionComponent::StartDetection()
@@ -63,7 +71,7 @@ void ULxSkillDetectionComponent::PublishManualDetectionResult(const TArray<AActo
 
 	for (AActor* CandidateTarget : InCandidateTargets)
 	{
-		if (IsBasicCandidateValid(CandidateTarget))
+		if (IsTargetCandidateValid(CandidateTarget))
 		{
 			Result.CandidateTargets.Add(CandidateTarget);
 		}
@@ -87,18 +95,33 @@ TArray<AActor*> ULxSkillDetectionComponent::GetCurrentCandidateTargets() const
 
 void ULxSkillDetectionComponent::HandleBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!IsBasicCandidateValid(OtherActor))
+	if (ShouldIgnoreActor(OtherActor))
 	{
 		return;
 	}
 
-	CurrentCandidateTargets.AddUnique(OtherActor);
-	PublishSingleActorResult(ELxSkillDetectionEventType::OverlapBegin, OtherActor, SweepResult.ImpactPoint, SweepResult.ImpactNormal, false);
+	if (!IsBasicActorValid(OtherActor))
+	{
+		return;
+	}
+
+	const bool bIsTarget = IsTargetCandidateValid(OtherActor);
+	if (bIsTarget)
+	{
+		CurrentCandidateTargets.AddUnique(OtherActor);
+		PublishSingleActorResult(ELxSkillDetectionEventType::OverlapBegin, OtherActor, SweepResult.ImpactPoint, SweepResult.ImpactNormal, false);
+		return;
+	}
+
+	if (bPublishWorldHit)
+	{
+		PublishSingleActorResult(ELxSkillDetectionEventType::HitWorld, OtherActor, SweepResult.ImpactPoint, SweepResult.ImpactNormal, true);
+	}
 }
 
 void ULxSkillDetectionComponent::HandleEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	if (!OtherActor)
+	if (!IsTargetCandidateValid(OtherActor))
 	{
 		return;
 	}
@@ -109,13 +132,36 @@ void ULxSkillDetectionComponent::HandleEndOverlap(UPrimitiveComponent* Overlappe
 
 void ULxSkillDetectionComponent::HandleComponentHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	const bool bHitWorld = !IsBasicCandidateValid(OtherActor);
-	PublishSingleActorResult(bHitWorld ? ELxSkillDetectionEventType::HitWorld : ELxSkillDetectionEventType::HitTarget, OtherActor, Hit.ImpactPoint, Hit.ImpactNormal, bHitWorld);
+	if (ShouldIgnoreActor(OtherActor))
+	{
+		return;
+	}
+
+	if (IsTargetCandidateValid(OtherActor))
+	{
+		PublishSingleActorResult(ELxSkillDetectionEventType::HitTarget, OtherActor, Hit.ImpactPoint, Hit.ImpactNormal, false);
+		return;
+	}
+
+	if (bPublishWorldHit)
+	{
+		PublishSingleActorResult(ELxSkillDetectionEventType::HitWorld, OtherActor, Hit.ImpactPoint, Hit.ImpactNormal, true);
+	}
 }
 
-bool ULxSkillDetectionComponent::IsBasicCandidateValid(AActor* InActor) const
+bool ULxSkillDetectionComponent::IsBasicActorValid(AActor* InActor) const
 {
 	return InActor && InActor != GetOwner() && !InActor->IsPendingKillPending();
+}
+
+bool ULxSkillDetectionComponent::IsTargetCandidateValid(AActor* InActor) const
+{
+	return IsBasicActorValid(InActor) && InActor->IsA<ALxBaseCharacter>();
+}
+
+bool ULxSkillDetectionComponent::ShouldIgnoreActor(AActor* InActor) const
+{
+	return InActor && InActor->IsA<ALxSkillUnitActor>();
 }
 
 void ULxSkillDetectionComponent::PublishSingleActorResult(ELxSkillDetectionEventType EventType, AActor* InActor, const FVector& HitLocation, const FVector& HitNormal, bool bHitWorld)
@@ -130,7 +176,7 @@ void ULxSkillDetectionComponent::PublishSingleActorResult(ELxSkillDetectionEvent
 	Result.bHitWorld = bHitWorld;
 	Result.TriggerCollision = TriggerCollisionComponent;
 
-	if (IsBasicCandidateValid(InActor))
+	if (IsTargetCandidateValid(InActor))
 	{
 		Result.CandidateTargets.Add(InActor);
 	}

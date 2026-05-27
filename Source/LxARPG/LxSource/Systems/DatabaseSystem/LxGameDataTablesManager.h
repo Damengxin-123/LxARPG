@@ -74,6 +74,10 @@ public:
 	// Buff物品表，Row Struct 使用 FLxBuffInformation。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|物品", DisplayName="Buff物品表")
 	TObjectPtr<UDataTable> m_pBuffItemTable = nullptr;
+
+	// 技能物品表，Row Struct 使用 FLxSkillItemInformation。
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|物品", DisplayName="技能物品表")
+	TObjectPtr<UDataTable> m_pSkillItemTable = nullptr;
 	
 	virtual void LoadDataTables();
 };

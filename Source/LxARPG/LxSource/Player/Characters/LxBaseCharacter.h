@@ -11,37 +11,48 @@ class ULxCharacterBuffComponent;
 class ULxCharacterDataTransferComponent;
 class ULxCharacterEquipmentComponent;
 class ULxCharacterMoveComponent;
+class ULxSkillBackpackComponent;
+class ULxSkillCastComponent;
 
-/** 瑙掕壊鐘舵€佸彉鍖栦簨浠躲€?*/
+/** 角色状态变化事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterStateChange, const ELxCharacterState, State);
 
 /**
- * 瑙掕壊鍩虹绫汇€? *
- * 璐熻矗鎸佹湁瑙掕壊绉诲姩銆佸睘鎬с€佽儗鍖呫€佽澶囥€丅uff 鍜屾暟鎹腑杞瓑鏍稿績缁勪欢锛? * 骞舵彁渚涘垵濮嬪寲銆佺姸鎬佸垏鎹㈠拰缁勪欢璁块棶鎺ュ彛銆? */
-UCLASS(Blueprintable)
+ * 角色基础类。
+ *
+ * 负责持有角色移动、属性、背包、装备、Buff 和数据中转等核心组件，
+ * 并提供初始化、状态切换和组件访问接口。
+ */
+UCLASS(Blueprintable, DisplayName="基础角色")
 class LXARPG_API ALxBaseCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
 public:
-	/** 鍒涘缓瑙掕壊鍩虹瀵硅薄锛屽苟鍒濆鍖栭粯璁ょ粍浠躲€?*/
+	/** 创建角色基础对象，并初始化默认组件。 */
 	ALxBaseCharacter();
 
 	/**
-	 * 鍒濆鍖栬鑹茶繍琛屾椂淇℃伅銆?	 *
-	 * 浼氬垵濮嬪寲瑙掕壊韬笂鐨勬牳蹇冪粍浠讹紝骞跺悓姝ュ垵濮嬬姸鎬佹暟鎹€?	 */
+	 * 初始化角色运行时信息。
+	 *
+	 * 会初始化角色身上的核心组件，并同步初始状态数据。
+	 */
 	virtual void InitialCharacterInformation();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/**
-	 * 璁剧疆瑙掕壊褰撳墠鐘舵€併€?	 *
-	 * @param InState 瑕佸垏鎹㈠埌鐨勬柊瑙掕壊鐘舵€併€?	 */
+	 * 设置角色当前状态。
+	 *
+	 * @param InState 要切换到的新角色状态。
+	 */
 	virtual void SetCharacterState(const ELxCharacterState InState);
 
 	/**
-	 * 鑾峰彇瑙掕壊褰撳墠鐘舵€併€?	 *
-	 * @return 褰撳墠瑙掕壊鐘舵€佹灇涓惧€笺€?	 */
+	 * 获取角色当前状态。
+	 *
+	 * @return 当前角色状态枚举值。
+	 */
 	virtual const ELxCharacterState GetCurrentState();
 
 	UFUNCTION(Server, Reliable)
@@ -50,95 +61,125 @@ public:
 	UFUNCTION(Server, Unreliable)
 	void ServerSetCharacterRotation(FRotator InRotation);
 
-	/** 瑙掕壊鐘舵€佸彉鍖栦簨浠躲€?*/
-	UPROPERTY(BlueprintAssignable)
+	/** 角色状态变化事件。 */
+	UPROPERTY(BlueprintAssignable, Category="角色|状态", DisplayName="角色状态变化事件")
 	FOnCharacterStateChange OnCharacterStateChange;
 
 protected:
-	/** 瑙掕壊杩涘叆娓告垙鏃惰Е鍙戙€?*/
+	/** 角色进入游戏时触发。 */
 	virtual void BeginPlay() override;
 
 public:
 	/**
-	 * 瑙掕壊姣忓抚鏇存柊銆?	 *
-	 * @param DeltaTime 褰撳墠甯т笌涓婁竴甯т箣闂寸殑鏃堕棿宸€?	 */
+	 * 角色每帧更新。
+	 *
+	 * @param DeltaTime 当前帧与上一帧之间的时间差。
+	 */
 	virtual void Tick(float DeltaTime) override;
 
 	/**
-	 * 缁戝畾瑙掕壊杈撳叆缁勪欢銆?	 *
-	 * @param PlayerInputComponent 褰撳墠瑙掕壊鍙敤鐨勮緭鍏ョ粍浠躲€?	 */
+	 * 绑定角色输入组件。
+	 *
+	 * @param PlayerInputComponent 当前角色可用的输入组件。
+	 */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	/**
-	 * 鑾峰彇瑙掕壊绉诲姩缁勪欢銆?	 *
-	 * @return 瑙掕壊绉诲姩缁勪欢鎸囬拡锛涙湭鍒濆鍖栨椂杩斿洖 nullptr銆?	 */
+	 * 获取角色移动组件。
+	 *
+	 * @return 角色移动组件指针；未初始化时返回 nullptr。
+	 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色移动组件")
 	ULxCharacterMoveComponent* GetCharacterMoveComponent() const { return m_pCharacterMoveComponent; }
 
 	/**
-	 * 鑾峰彇瑙掕壊灞炴€х粍浠躲€?	 *
-	 * @return 瑙掕壊灞炴€х粍浠舵寚閽堬紱鏈垵濮嬪寲鏃惰繑鍥?nullptr銆?	 */
+	 * 获取角色属性组件。
+	 *
+	 * @return 角色属性组件指针；未初始化时返回 nullptr。
+	 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色属性组件")
 	ULxCharacterAttributeComponent* GetCharacterAttributeComponent() const { return m_pCharacterAttributeComponent; }
 
 	/**
-	 * 鑾峰彇瑙掕壊鑳屽寘缁勪欢銆?	 *
-	 * @return 瑙掕壊鑳屽寘缁勪欢鎸囬拡锛涙湭鍒濆鍖栨椂杩斿洖 nullptr銆?	 */
+	 * 获取角色背包组件。
+	 *
+	 * @return 角色背包组件指针；未初始化时返回 nullptr。
+	 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色背包组件")
 	ULxCharacterBackpackComponent* GetCharacterBackpackComponent() const { return m_pCharacterBackpackComponent; }
 
 	/**
-	 * 鑾峰彇瑙掕壊 Buff 缁勪欢銆?	 *
-	 * @return 瑙掕壊 Buff 缁勪欢鎸囬拡锛涙湭鍒濆鍖栨椂杩斿洖 nullptr銆?	 */
+	 * 获取角色 Buff 组件。
+	 *
+	 * @return 角色 Buff 组件指针；未初始化时返回 nullptr。
+	 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色Buff组件")
 	ULxCharacterBuffComponent* GetCharacterBuffComponent() const { return m_pCharacterBuffComponent; }
 
 	/**
-	 * 鑾峰彇瑙掕壊鏁版嵁涓浆缁勪欢銆?	 *
-	 * @return 瑙掕壊鏁版嵁涓浆缁勪欢鎸囬拡锛涙湭鍒濆鍖栨椂杩斿洖 nullptr銆?	 */
+	 * 获取角色数据中转组件。
+	 *
+	 * @return 角色数据中转组件指针；未初始化时返回 nullptr。
+	 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色数据中转组件")
 	ULxCharacterDataTransferComponent* GetCharacterDataTransferComponent() const { return m_pCharacterDataTransferComponent; }
 
 	/**
-	 * 鑾峰彇瑙掕壊瑁呭缁勪欢銆?	 *
-	 * @return 瑙掕壊瑁呭缁勪欢鎸囬拡锛涙湭鍒濆鍖栨椂杩斿洖 nullptr銆?	 */
+	 * 获取角色装备组件。
+	 *
+	 * @return 角色装备组件指针；未初始化时返回 nullptr。
+	 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色装备组件")
 	ULxCharacterEquipmentComponent* GetCharacterEquipmentComponent() const { return m_pCharacterEquipmentComponent; }
 
+	/** 获取角色技能释放组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取技能释放组件")
+	ULxSkillCastComponent* GetSkillCastComponent() const { return m_pSkillCastComponent; }
+
+	/** 获取角色技能背包组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取技能背包组件")
+	ULxSkillBackpackComponent* GetSkillBackpackComponent() const { return m_pSkillBackpackComponent; }
 
 protected:
-	/** 瑙掕壊绉诲姩缁勪欢锛岀敤浜庣鐞嗗拰鎺у埗瑙掕壊绉诲姩琛屼负銆?*/
+	/** 角色移动组件，用于管理和控制角色移动行为。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色移动组件")
 	TObjectPtr<ULxCharacterMoveComponent> m_pCharacterMoveComponent;
 
-	/** 瑙掕壊灞炴€х粍浠讹紝鐢ㄤ簬缁存姢瑙掕壊灞炴€ц〃鍜屽睘鎬ц瘝鏉＄紦瀛樸€?*/
+	/** 角色属性组件，用于维护角色属性表和属性词条缓存。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色属性组件")
 	TObjectPtr<ULxCharacterAttributeComponent> m_pCharacterAttributeComponent;
 
-	/** 瑙掕壊鑳屽寘缁勪欢锛岀敤浜庣鐞嗚儗鍖呮Ы浣嶅拰鑳屽寘鐗╁搧銆?*/
+	/** 角色背包组件，用于管理背包槽位和背包物品。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色背包组件")
 	TObjectPtr<ULxCharacterBackpackComponent> m_pCharacterBackpackComponent;
 
-	/** 瑙掕壊 Buff 缁勪欢锛岀敤浜庣鐞嗚繍琛屾椂 Buff銆?*/
+	/** 角色 Buff 组件，用于管理运行时 Buff。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色Buff组件")
 	TObjectPtr<ULxCharacterBuffComponent> m_pCharacterBuffComponent;
 
-	/** 瑙掕壊鏁版嵁涓浆缁勪欢锛岀敤浜庣粺涓€瀵瑰杞彂灞炴€с€佽儗鍖呫€佽澶囧拰 Buff 鏁版嵁銆?*/
+	/** 角色数据中转组件，用于统一对外转发属性、背包、装备和 Buff 数据。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色数据中转组件")
 	TObjectPtr<ULxCharacterDataTransferComponent> m_pCharacterDataTransferComponent;
 
-	/** 瑙掕壊瑁呭缁勪欢锛岀敤浜庣鐞嗚澶囨Ы浣嶅拰宸茶澶囩墿鍝併€?*/
+	/** 角色装备组件，用于管理装备槽位和已装备物品。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色装备组件")
 	TObjectPtr<ULxCharacterEquipmentComponent> m_pCharacterEquipmentComponent;
 
+	/** 技能释放组件，用于统一处理玩家和 AI 的技能释放、蓄力和释放上下文。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="技能释放组件")
+	TObjectPtr<ULxSkillCastComponent> m_pSkillCastComponent;
 
-	/** 瑙掕壊褰撳墠鐘舵€併€?*/
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, ReplicatedUsing=OnRep_CharacterState, Category="Character State", DisplayName="Current Character State")
+	/** 技能背包组件，用于保存角色已拥有的技能物品和技能背包槽位。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="技能背包组件")
+	TObjectPtr<ULxSkillBackpackComponent> m_pSkillBackpackComponent;
+
+	/** 角色当前状态。 */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, ReplicatedUsing=OnRep_CharacterState, Category="角色|状态", DisplayName="当前角色状态")
 	ELxCharacterState m_nCharacterState = ELxCharacterState::Idle;
 
 	UFUNCTION()
 	void OnRep_CharacterState();
 
-	/** 鏍囪瑙掕壊鏄惁宸茬粡瀹屾垚鍒濆鍖栵紝閬垮厤閲嶅鍒濆鍖栥€?*/
+	/** 标记角色是否已经完成初始化，避免重复初始化。 */
 	bool IsInitialized = false;
 };

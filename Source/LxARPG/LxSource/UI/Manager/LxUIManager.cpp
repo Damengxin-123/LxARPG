@@ -14,6 +14,7 @@
 #include "LxARPG/LxSource/UI/Manager/LxPopupUIManager.h"
 #include "LxARPG/LxSource/UI/Manager/LxTogglePanelUIManager.h"
 #include "LxARPG/LxSource/UI/Manager/LxTooltipUIManager.h"
+#include "LxARPG/LxSource/UI/SkillBackpack/LxSkillBackpackWidget.h"
 #include "LxARPG/LxSource/UI/Trade/LxTradeContainerWidget.h"
 #include "LxARPG/LxSource/UI/TreasureChest/LxTreasureChestWidget.h"
 #include "LxARPG/LxSource/UI/Warehouse/LxWarehouseWidget.h"
@@ -210,6 +211,16 @@ void ULxUIManager::RegisterTogglePanelWidget(ULxUIBaseObject* InChildUIWidget, E
 	Registration.bShowCursorWhenVisible = bInShowCursorWhenVisible;
 	Registration.bCloseOtherPanelsWhenOpened = bInCloseOtherPanelsWhenOpened;
 	RegisterUIWidget(Registration);
+}
+
+void ULxUIManager::RegisterSkillBackpackWidget(ULxSkillBackpackWidget* InSkillBackpackWidget,
+	bool bInShowCursorWhenVisible, bool bInCloseOtherPanelsWhenOpened)
+{
+	RegisterTogglePanelWidget(
+		InSkillBackpackWidget,
+		ELxInputActionID::SkillBackpack,
+		bInShowCursorWhenVisible,
+		bInCloseOtherPanelsWhenOpened);
 }
 
 void ULxUIManager::RegisterItemTooltipWidget(ULxItemTooltipWidget* InItemTooltipWidget)

@@ -46,6 +46,7 @@ void ALxProjectileSkillUnitActor::InitializeSkillUnitDefaultParameters_Implement
 	if (DetectionComponent)
 	{
 		DetectionComponent->SetTriggerCollisionComponent(ProjectileCollisionComponent);
+		DetectionComponent->SetPublishWorldHit(true);
 	}
 }
 
@@ -83,11 +84,11 @@ void ALxProjectileSkillUnitActor::HandleProjectileDetectionResult(const FLxSkill
 {
 	if (DetectionResult.EventType == ELxSkillDetectionEventType::HitTarget || DetectionResult.EventType == ELxSkillDetectionEventType::OverlapBegin)
 	{
-		OnProjectileHitTarget.Broadcast(DetectionResult);
+		OnProjectileHitTarget.Broadcast(this, DetectionResult);
 	}
 	else if (DetectionResult.EventType == ELxSkillDetectionEventType::HitWorld)
 	{
-		OnProjectileHitWorld.Broadcast(DetectionResult);
+		OnProjectileHitWorld.Broadcast(this, DetectionResult);
 	}
 }
 
@@ -95,11 +96,11 @@ void ALxProjectileSkillUnitActor::HandleProjectilePropagationResult(const FLxSki
 {
 	if (PropagationResult.DecisionType == ELxSkillPropagationDecisionType::Pierce)
 	{
-		OnProjectilePierceTarget.Broadcast(PropagationResult);
+		OnProjectilePierceTarget.Broadcast(this, PropagationResult);
 	}
 }
 
 void ALxProjectileSkillUnitActor::HandleProjectileReachMaxDistance(float MovementProgress)
 {
-	OnProjectileReachMaxDistance.Broadcast(MovementProgress);
+	OnProjectileReachMaxDistance.Broadcast(this, MovementProgress);
 }

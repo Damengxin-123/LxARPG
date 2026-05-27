@@ -78,6 +78,16 @@ FLxString ULxSkillItem::ItemCountText()
 	return SkillItemInformation.ItemCount > 1 ? FLxString(SkillItemInformation.ItemCount) : FLxString();
 }
 
+ULxSkill* ULxSkillItem::GetOrCreateSkillObject()
+{
+	if (!SkillObject)
+	{
+		CreateSkillObject();
+	}
+
+	return SkillObject;
+}
+
 void ULxSkillItem::SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount)
 {
 	if (!InItemData || InItemData->ItemType != ELxItemType::Skill)

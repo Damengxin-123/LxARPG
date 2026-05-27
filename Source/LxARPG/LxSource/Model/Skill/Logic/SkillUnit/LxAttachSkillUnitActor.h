@@ -8,8 +8,8 @@
 class ULxSkillLifeComponent;
 class ULxSkillTriggerComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxAttachPeriodEvent, float, RemainingTime);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxAttachTargetInvalidEvent, AActor*, AttachTarget);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxAttachPeriodEvent, ALxSkillUnitActor*, SkillUnit, float, RemainingTime);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxAttachTargetInvalidEvent, ALxSkillUnitActor*, SkillUnit, AActor*, AttachTarget);
 
 /** 附着技能单元类型，负责协调附着目标、生命周期和周期触发。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="附着技能单元")

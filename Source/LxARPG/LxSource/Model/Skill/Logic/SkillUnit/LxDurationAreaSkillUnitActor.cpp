@@ -14,5 +14,5 @@ void ALxDurationAreaSkillUnitActor::BindSkillUnitComponentEvents()
 
 void ALxDurationAreaSkillUnitActor::HandleAreaLifeTick(float RemainingTime)
 {
-	OnAreaPeriodTriggered.Broadcast(RemainingTime);
+	OnAreaPeriodTriggered.Broadcast(this, RemainingTime);
 }

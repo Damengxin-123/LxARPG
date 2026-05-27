@@ -15,7 +15,7 @@ ALxPlayerCharacter::ALxPlayerCharacter()
 	m_pPlayerControlMoveComponent = CreateDefaultSubobject<ULxPlayerControlMoveComponent>(TEXT("PlayerControlMoveComponent"));
 	m_pPlayerInteractionComponent = CreateDefaultSubobject<ULxPlayerInteractionComponent>(TEXT("PlayerInteractionComponent"));
 
-	m_pCameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+	m_pCameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("相机弹簧臂"));
 	m_pCameraBoom->SetupAttachment(RootComponent);
 	m_pCameraBoom->TargetArmLength = 360.f;
 	m_pCameraBoom->bUsePawnControlRotation = true;
@@ -23,7 +23,7 @@ ALxPlayerCharacter::ALxPlayerCharacter()
 	m_pCameraBoom->bInheritYaw = true;
 	m_pCameraBoom->bInheritRoll = false;
 
-	m_pFollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+	m_pFollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("跟随相机"));
 	m_pFollowCamera->SetupAttachment(m_pCameraBoom, USpringArmComponent::SocketName);
 	m_pFollowCamera->bUsePawnControlRotation = false;
 }

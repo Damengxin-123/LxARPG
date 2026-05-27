@@ -23,7 +23,7 @@ void ALxAttachSkillUnitActor::SetAttachTarget(AActor* InAttachTarget)
 	AttachTarget = InAttachTarget;
 	if (!AttachTarget)
 	{
-		OnAttachTargetInvalid.Broadcast(nullptr);
+		OnAttachTargetInvalid.Broadcast(this, nullptr);
 	}
 }
 
@@ -43,7 +43,7 @@ void ALxAttachSkillUnitActor::HandleLifeStateChanged(ELxSkillAbilityComponentSta
 
 	if (NewState == ELxSkillAbilityComponentState::Finished)
 	{
-		OnAttachExpired.Broadcast(MakeSkillUnitResult(ELxSkillUnitResultType::Expired, true));
+		OnAttachExpired.Broadcast(this, MakeSkillUnitResult(ELxSkillUnitResultType::Expired, true));
 	}
 }
 
@@ -51,9 +51,9 @@ void ALxAttachSkillUnitActor::HandleAttachLifeTick(float RemainingTime)
 {
 	if (!AttachTarget || AttachTarget->IsPendingKillPending())
 	{
-		OnAttachTargetInvalid.Broadcast(AttachTarget);
+		OnAttachTargetInvalid.Broadcast(this, AttachTarget);
 		return;
 	}
 
-	OnAttachPeriodTriggered.Broadcast(RemainingTime);
+	OnAttachPeriodTriggered.Broadcast(this, RemainingTime);
 }

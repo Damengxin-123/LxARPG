@@ -218,4 +218,12 @@ void ULxGameDataTablesManager::LoadDataTables()
 		{
 			LxItemConfig::SetBuffItemData(RowData);
 		});
+
+	LoadItemDataTable<FLxSkillItemInformation>(
+		m_pSkillItemTable.Get(),
+		TEXT("ULxGameDataTablesManager::LoadSkillItemTable"),
+		[](const FLxSkillItemInformation& RowData)
+		{
+			LxItemConfig::SetSkillItemData(RowData);
+		});
 }

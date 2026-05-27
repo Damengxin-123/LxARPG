@@ -8,6 +8,7 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumable.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipment.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Material/LxMaterial.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillItem.h"
 
 /**
  * Item static data cache.
@@ -23,11 +24,13 @@ namespace LxItemConfig
 	void SetConsumableItemData(const FLxConsumableInformation& InItemData);
 	void SetMaterialItemData(const FLxMaterialInformation& InItemData);
 	void SetBuffItemData(const FLxBuffInformation& InItemData);
+	void SetSkillItemData(const FLxSkillItemInformation& InItemData);
 
 	const TMap<FGameplayTag, FLxEquipmentInformation>& GetEquipmentItemMap();
 	const TMap<FGameplayTag, FLxConsumableInformation>& GetConsumableItemMap();
 	const TMap<FGameplayTag, FLxMaterialInformation>& GetMaterialItemMap();
 	const TMap<FGameplayTag, FLxBuffInformation>& GetBuffItemMap();
+	const TMap<FGameplayTag, FLxSkillItemInformation>& GetSkillItemMap();
 
 	/** Query item static data by its stable tag ID. */
 	const FLxItemInformationBase* GetItemData(FGameplayTag InItemIDTag);

@@ -19,6 +19,7 @@ class ULxTooltipUIManager;
 class ULxTradeContainerWidget;
 class ULxTreasureChestWidget;
 class ULxWarehouseWidget;
+class ULxSkillBackpackWidget;
 
 /** 主 UI 管理器，作为蓝图主界面的统一入口，并把不同表现形式的子 UI 分发给对应管理对象。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="UI管理器")
@@ -58,6 +59,10 @@ public:
 	/** 注册背包、属性等由输入行为打开/关闭的面板 UI。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="注册按键面板界面")
 	void RegisterTogglePanelWidget(ULxUIBaseObject* InChildUIWidget, ELxInputActionID InInputActionID, bool bInShowCursorWhenVisible = true, bool bInCloseOtherPanelsWhenOpened = false);
+
+	/** 注册技能背包 UI，并由按键面板管理器使用技能面板输入行为开关显示。 */
+	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="注册技能背包UI")
+	void RegisterSkillBackpackWidget(ULxSkillBackpackWidget* InSkillBackpackWidget, bool bInShowCursorWhenVisible = true, bool bInCloseOtherPanelsWhenOpened = false);
 
 	/** 注册物品悬浮提示 UI。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="注册物品提示界面")

@@ -25,5 +25,5 @@ void ALxRaySkillUnitActor::InitializeRayParameters(const FLxSkillRaySpec& InRayS
 void ALxRaySkillUnitActor::HandleSkillTriggered(const FLxSkillTriggerResult& TriggerResult)
 {
 	Super::HandleSkillTriggered(TriggerResult);
-	OnRayHitTarget.Broadcast(TriggerResult);
+	OnRayHitTarget.Broadcast(this, TriggerResult);
 }

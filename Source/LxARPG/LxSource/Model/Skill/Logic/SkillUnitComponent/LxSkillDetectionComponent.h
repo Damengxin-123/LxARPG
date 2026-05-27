@@ -7,6 +7,8 @@
 #include "LxSkillDetectionComponent.generated.h"
 
 class UPrimitiveComponent;
+class ALxBaseCharacter;
+class ALxSkillUnitActor;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillDetectionResult, const FLxSkillDetectionResult&, DetectionResult);
 
@@ -24,6 +26,10 @@ public:
 	/** 传入用于检测重叠和碰撞的碰撞体。 */
 	UFUNCTION(BlueprintCallable, Category="技能单元|检测", DisplayName="传入技能单元触发碰撞体")
 	void SetTriggerCollisionComponent(UPrimitiveComponent* InTriggerCollisionComponent);
+
+	/** 设置是否发布场景命中结果，投射物通常开启，范围和触发器默认关闭。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|检测", DisplayName="设置是否发布场景命中")
+	void SetPublishWorldHit(bool bInPublishWorldHit);
 
 	/** 开始检测，并绑定碰撞体事件。 */
 	UFUNCTION(BlueprintCallable, Category="技能单元|检测", DisplayName="开始检测")
@@ -55,12 +61,18 @@ private:
 	UFUNCTION()
 	void HandleComponentHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
-	bool IsBasicCandidateValid(AActor* InActor) const;
+	bool IsBasicActorValid(AActor* InActor) const;
+	bool IsTargetCandidateValid(AActor* InActor) const;
+	bool ShouldIgnoreActor(AActor* InActor) const;
 	void PublishSingleActorResult(ELxSkillDetectionEventType EventType, AActor* InActor, const FVector& HitLocation, const FVector& HitNormal, bool bHitWorld);
 
 	/** 检测参数，只做候选目标的基础筛选，深度命中限制交给触发组件。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|检测", DisplayName="目标筛选参数", meta=(AllowPrivateAccess="true"))
 	FLxSkillTargetFilterSpec TargetFilterSpec;
+
+	/** 是否将非角色对象的碰撞或重叠发布为场景命中结果。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|检测", DisplayName="发布场景命中", meta=(AllowPrivateAccess="true"))
+	bool bPublishWorldHit = false;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPrimitiveComponent> TriggerCollisionComponent = nullptr;

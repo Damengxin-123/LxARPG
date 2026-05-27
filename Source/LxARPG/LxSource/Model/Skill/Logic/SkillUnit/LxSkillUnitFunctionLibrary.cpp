@@ -1,6 +1,7 @@
 #include "LxSkillUnitFunctionLibrary.h"
 
 #include "Engine/World.h"
+#include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitSpec.h"
 #include "LxAreaSkillUnitActor.h"
 #include "LxAttachSkillUnitActor.h"
 #include "LxAuraSkillUnitActor.h"
@@ -18,6 +19,111 @@
 
 namespace LxSkillUnitCreate
 {
+	FLxSkillUnitSpec MakeProjectileSkillUnitSpec(const FLxProjectileSkillUnitCreateParams& CreateParams)
+	{
+		FLxSkillUnitSpec SkillUnitSpec;
+		SkillUnitSpec.SkillUnitType = ELxSkillUnitType::Projectile;
+		SkillUnitSpec.SpaceSpec.Radius = CreateParams.ProjectileSpec.CollisionRadius;
+		SkillUnitSpec.MovementSpec = CreateParams.MovementSpec;
+		SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
+		SkillUnitSpec.TriggerSpec = CreateParams.TriggerSpec;
+		SkillUnitSpec.PropagationSpec = CreateParams.PropagationSpec;
+		SkillUnitSpec.TargetFilterSpec = CreateParams.TargetFilterSpec;
+		SkillUnitSpec.HitLimitSpec = CreateParams.HitLimitSpec;
+		return SkillUnitSpec;
+	}
+
+	FLxSkillUnitSpec MakeAreaSkillUnitSpec(ELxSkillUnitType SkillUnitType, const FLxAreaSkillUnitCreateParams& CreateParams)
+	{
+		FLxSkillUnitSpec SkillUnitSpec;
+		SkillUnitSpec.SkillUnitType = SkillUnitType;
+		SkillUnitSpec.SpaceSpec = CreateParams.SpaceSpec;
+		SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
+		SkillUnitSpec.TriggerSpec = CreateParams.TriggerSpec;
+		SkillUnitSpec.TargetFilterSpec = CreateParams.TargetFilterSpec;
+		SkillUnitSpec.HitLimitSpec = CreateParams.HitLimitSpec;
+		return SkillUnitSpec;
+	}
+
+	FLxSkillUnitSpec MakeMovingAreaSkillUnitSpec(const FLxMovingAreaSkillUnitCreateParams& CreateParams)
+	{
+		FLxSkillUnitSpec SkillUnitSpec;
+		SkillUnitSpec.SkillUnitType = ELxSkillUnitType::Area;
+		SkillUnitSpec.SpaceSpec = CreateParams.SpaceSpec;
+		SkillUnitSpec.MovementSpec = CreateParams.MovementSpec;
+		SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
+		SkillUnitSpec.TriggerSpec = CreateParams.TriggerSpec;
+		SkillUnitSpec.TargetFilterSpec = CreateParams.TargetFilterSpec;
+		SkillUnitSpec.HitLimitSpec = CreateParams.HitLimitSpec;
+		return SkillUnitSpec;
+	}
+
+	FLxSkillUnitSpec MakeMeleeSkillUnitSpec(const FLxMeleeSkillUnitCreateParams& CreateParams)
+	{
+		FLxSkillUnitSpec SkillUnitSpec;
+		SkillUnitSpec.SkillUnitType = ELxSkillUnitType::Melee;
+		SkillUnitSpec.SpaceSpec = CreateParams.SpaceSpec;
+		SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
+		SkillUnitSpec.TriggerSpec = CreateParams.TriggerSpec;
+		SkillUnitSpec.TargetFilterSpec = CreateParams.TargetFilterSpec;
+		SkillUnitSpec.HitLimitSpec = CreateParams.HitLimitSpec;
+		return SkillUnitSpec;
+	}
+
+	FLxSkillUnitSpec MakeRaySkillUnitSpec(ELxSkillUnitType SkillUnitType, const FLxRaySkillUnitCreateParams& CreateParams)
+	{
+		FLxSkillUnitSpec SkillUnitSpec;
+		SkillUnitSpec.SkillUnitType = SkillUnitType;
+		SkillUnitSpec.MovementSpec = CreateParams.MovementSpec;
+		SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
+		SkillUnitSpec.TriggerSpec = CreateParams.TriggerSpec;
+		SkillUnitSpec.PropagationSpec = CreateParams.PropagationSpec;
+		SkillUnitSpec.TargetFilterSpec = CreateParams.TargetFilterSpec;
+		SkillUnitSpec.HitLimitSpec = CreateParams.HitLimitSpec;
+		return SkillUnitSpec;
+	}
+
+	FLxSkillUnitSpec MakeSpawnEntitySkillUnitSpec(ELxSkillUnitType SkillUnitType, const FLxSpawnEntitySkillUnitCreateParams& CreateParams)
+	{
+		FLxSkillUnitSpec SkillUnitSpec;
+		SkillUnitSpec.SkillUnitType = SkillUnitType;
+		SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
+		return SkillUnitSpec;
+	}
+
+	FLxSkillUnitSpec MakeTriggerSkillUnitSpec(const FLxTriggerSkillUnitCreateParams& CreateParams)
+	{
+		FLxSkillUnitSpec SkillUnitSpec;
+		SkillUnitSpec.SkillUnitType = ELxSkillUnitType::Trigger;
+		SkillUnitSpec.SpaceSpec = CreateParams.SpaceSpec;
+		SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
+		SkillUnitSpec.TriggerSpec = CreateParams.TriggerSpec;
+		SkillUnitSpec.TargetFilterSpec = CreateParams.TargetFilterSpec;
+		SkillUnitSpec.HitLimitSpec = CreateParams.HitLimitSpec;
+		return SkillUnitSpec;
+	}
+
+	FLxSkillUnitSpec MakeAttachSkillUnitSpec(const FLxAttachSkillUnitCreateParams& CreateParams)
+	{
+		FLxSkillUnitSpec SkillUnitSpec;
+		SkillUnitSpec.SkillUnitType = ELxSkillUnitType::Attach;
+		SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
+		SkillUnitSpec.TriggerSpec = CreateParams.TriggerSpec;
+		return SkillUnitSpec;
+	}
+
+	FLxSkillUnitSpec MakeAuraSkillUnitSpec(const FLxAuraSkillUnitCreateParams& CreateParams)
+	{
+		FLxSkillUnitSpec SkillUnitSpec;
+		SkillUnitSpec.SkillUnitType = ELxSkillUnitType::Aura;
+		SkillUnitSpec.SpaceSpec = CreateParams.SpaceSpec;
+		SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
+		SkillUnitSpec.TriggerSpec = CreateParams.TriggerSpec;
+		SkillUnitSpec.TargetFilterSpec = CreateParams.TargetFilterSpec;
+		SkillUnitSpec.HitLimitSpec = CreateParams.HitLimitSpec;
+		return SkillUnitSpec;
+	}
+
 	template <typename TSkillUnit>
 	TSkillUnit* SpawnAndInitializeSkillUnit(UObject* WorldContextObject,
 		TSubclassOf<TSkillUnit> SkillUnitClass, const FTransform& SpawnTransform,
@@ -56,14 +162,15 @@ namespace LxSkillUnitCreate
 
 ALxProjectileSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateProjectileSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxProjectileSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillProjectileSpec& ProjectileSpec,
+	const FLxProjectileSkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeProjectileSkillUnitSpec(CreateParams);
 	ALxProjectileSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeProjectileParameters(ProjectileSpec);
+		SkillUnit->InitializeProjectileParameters(CreateParams.ProjectileSpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -74,14 +181,15 @@ ALxProjectileSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateProjectileSkillU
 
 ALxAreaSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateAreaSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxAreaSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillAreaSpec& AreaSpec,
+	const FLxAreaSkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeAreaSkillUnitSpec(ELxSkillUnitType::Area, CreateParams);
 	ALxAreaSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeAreaParameters(AreaSpec);
+		SkillUnit->InitializeAreaParameters(CreateParams.AreaSpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -92,14 +200,15 @@ ALxAreaSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateAreaSkillUnit(UObject*
 
 ALxDurationAreaSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateDurationAreaSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxDurationAreaSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillAreaSpec& AreaSpec,
+	const FLxAreaSkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeAreaSkillUnitSpec(ELxSkillUnitType::DurationArea, CreateParams);
 	ALxDurationAreaSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeAreaParameters(AreaSpec);
+		SkillUnit->InitializeAreaParameters(CreateParams.AreaSpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -110,14 +219,15 @@ ALxDurationAreaSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateDurationAreaSk
 
 ALxMovingAreaSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateMovingAreaSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxMovingAreaSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillAreaSpec& AreaSpec,
+	const FLxMovingAreaSkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeMovingAreaSkillUnitSpec(CreateParams);
 	ALxMovingAreaSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeAreaParameters(AreaSpec);
+		SkillUnit->InitializeAreaParameters(CreateParams.AreaSpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -128,14 +238,15 @@ ALxMovingAreaSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateMovingAreaSkillU
 
 ALxMeleeSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateMeleeSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxMeleeSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillMeleeSpec& MeleeSpec,
+	const FLxMeleeSkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeMeleeSkillUnitSpec(CreateParams);
 	ALxMeleeSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeMeleeParameters(MeleeSpec);
+		SkillUnit->InitializeMeleeParameters(CreateParams.MeleeSpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -146,14 +257,15 @@ ALxMeleeSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateMeleeSkillUnit(UObjec
 
 ALxRaySkillUnitActor* ULxSkillUnitFunctionLibrary::CreateRaySkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxRaySkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillRaySpec& RaySpec,
+	const FLxRaySkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeRaySkillUnitSpec(ELxSkillUnitType::Ray, CreateParams);
 	ALxRaySkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeRayParameters(RaySpec);
+		SkillUnit->InitializeRayParameters(CreateParams.RaySpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -164,14 +276,15 @@ ALxRaySkillUnitActor* ULxSkillUnitFunctionLibrary::CreateRaySkillUnit(UObject* W
 
 ALxBeamSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateBeamSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxBeamSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillRaySpec& RaySpec,
+	const FLxRaySkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeRaySkillUnitSpec(ELxSkillUnitType::Beam, CreateParams);
 	ALxBeamSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeRayParameters(RaySpec);
+		SkillUnit->InitializeRayParameters(CreateParams.RaySpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -182,14 +295,15 @@ ALxBeamSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateBeamSkillUnit(UObject*
 
 ALxSpawnEntitySkillUnitActor* ULxSkillUnitFunctionLibrary::CreateSpawnEntitySkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxSpawnEntitySkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillSpawnEntitySpec& SpawnEntitySpec,
+	const FLxSpawnEntitySkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeSpawnEntitySkillUnitSpec(ELxSkillUnitType::SpawnEntity, CreateParams);
 	ALxSpawnEntitySkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeSpawnEntityParameters(SpawnEntitySpec);
+		SkillUnit->InitializeSpawnEntityParameters(CreateParams.SpawnEntitySpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -200,14 +314,15 @@ ALxSpawnEntitySkillUnitActor* ULxSkillUnitFunctionLibrary::CreateSpawnEntitySkil
 
 ALxSummonCreatureSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateSummonCreatureSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxSummonCreatureSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillSpawnEntitySpec& SpawnEntitySpec,
+	const FLxSpawnEntitySkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeSpawnEntitySkillUnitSpec(ELxSkillUnitType::SpawnEntity, CreateParams);
 	ALxSummonCreatureSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeSpawnEntityParameters(SpawnEntitySpec);
+		SkillUnit->InitializeSpawnEntityParameters(CreateParams.SpawnEntitySpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -218,14 +333,15 @@ ALxSummonCreatureSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateSummonCreatu
 
 ALxBarrierSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateBarrierSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxBarrierSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillSpawnEntitySpec& SpawnEntitySpec,
+	const FLxSpawnEntitySkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeSpawnEntitySkillUnitSpec(ELxSkillUnitType::Barrier, CreateParams);
 	ALxBarrierSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeSpawnEntityParameters(SpawnEntitySpec);
+		SkillUnit->InitializeSpawnEntityParameters(CreateParams.SpawnEntitySpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -236,14 +352,15 @@ ALxBarrierSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateBarrierSkillUnit(UO
 
 ALxMarkerSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateMarkerSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxMarkerSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillSpawnEntitySpec& SpawnEntitySpec,
+	const FLxSpawnEntitySkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeSpawnEntitySkillUnitSpec(ELxSkillUnitType::Marker, CreateParams);
 	ALxMarkerSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeSpawnEntityParameters(SpawnEntitySpec);
+		SkillUnit->InitializeSpawnEntityParameters(CreateParams.SpawnEntitySpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -254,14 +371,15 @@ ALxMarkerSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateMarkerSkillUnit(UObj
 
 ALxTriggerSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateTriggerSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxTriggerSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillTriggerUnitSpec& TriggerUnitSpec,
+	const FLxTriggerSkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeTriggerSkillUnitSpec(CreateParams);
 	ALxTriggerSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeTriggerUnitParameters(TriggerUnitSpec);
+		SkillUnit->InitializeTriggerUnitParameters(CreateParams.TriggerUnitSpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -272,15 +390,16 @@ ALxTriggerSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateTriggerSkillUnit(UO
 
 ALxAttachSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateAttachSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxAttachSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillAttachSpec& AttachSpec, AActor* AttachTarget,
+	const FLxAttachSkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeAttachSkillUnitSpec(CreateParams);
 	ALxAttachSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeAttachParameters(AttachSpec);
-		SkillUnit->SetAttachTarget(AttachTarget);
+		SkillUnit->InitializeAttachParameters(CreateParams.AttachSpec);
+		SkillUnit->SetAttachTarget(CreateParams.AttachTarget);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
@@ -291,14 +410,15 @@ ALxAttachSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateAttachSkillUnit(UObj
 
 ALxAuraSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateAuraSkillUnit(UObject* WorldContextObject,
 	TSubclassOf<ALxAuraSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
-	const FLxSkillUnitSpec& SkillUnitSpec, const FLxSkillAuraSpec& AuraSpec,
+	const FLxAuraSkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeAuraSkillUnitSpec(CreateParams);
 	ALxAuraSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
 		SpawnTransform, SkillUnitSpec, false);
 	if (SkillUnit)
 	{
-		SkillUnit->InitializeAuraParameters(AuraSpec);
+		SkillUnit->InitializeAuraParameters(CreateParams.AuraSpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();

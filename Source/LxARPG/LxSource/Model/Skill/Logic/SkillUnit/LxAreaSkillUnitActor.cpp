@@ -60,10 +60,10 @@ void ALxAreaSkillUnitActor::HandleAreaDetectionResult(const FLxSkillDetectionRes
 {
 	if (DetectionResult.EventType == ELxSkillDetectionEventType::OverlapBegin)
 	{
-		OnTargetEnterArea.Broadcast(DetectionResult);
+		OnTargetEnterArea.Broadcast(this, DetectionResult);
 	}
 	else if (DetectionResult.EventType == ELxSkillDetectionEventType::OverlapEnd)
 	{
-		OnTargetLeaveArea.Broadcast(DetectionResult);
+		OnTargetLeaveArea.Broadcast(this, DetectionResult);
 	}
 }

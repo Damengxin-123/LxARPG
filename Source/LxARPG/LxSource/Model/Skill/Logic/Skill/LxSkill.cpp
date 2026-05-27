@@ -2,6 +2,15 @@
 
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitActor.h"
 
+void ULxSkill::InitializeSkill_Implementation(const FLxSkillCastContext& InCastContext)
+{
+	CurrentCastContext = InCastContext;
+	if (!CurrentCastContext.WorldContextObject && CurrentCastContext.CasterActor)
+	{
+		CurrentCastContext.WorldContextObject = CurrentCastContext.CasterActor;
+	}
+}
+
 void ULxSkill::StartSkillCharge_Implementation()
 {
 	if (!CanSkillCharge())
@@ -62,4 +71,19 @@ TArray<ALxSkillUnitActor*> ULxSkill::GetSkillUnits() const
 		}
 	}
 	return Result;
+}
+
+UWorld* ULxSkill::GetWorld() const
+{
+	if (CurrentCastContext.WorldContextObject)
+	{
+		return CurrentCastContext.WorldContextObject->GetWorld();
+	}
+
+	if (CurrentCastContext.CasterActor)
+	{
+		return CurrentCastContext.CasterActor->GetWorld();
+	}
+
+	return nullptr;
 }

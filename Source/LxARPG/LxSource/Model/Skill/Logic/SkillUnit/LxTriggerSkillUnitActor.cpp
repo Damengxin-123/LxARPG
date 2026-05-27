@@ -49,7 +49,7 @@ void ALxTriggerSkillUnitActor::ApplySkillUnitSpecToComponents()
 void ALxTriggerSkillUnitActor::HandleSkillTriggered(const FLxSkillTriggerResult& TriggerResult)
 {
 	Super::HandleSkillTriggered(TriggerResult);
-	OnTriggerUnitTriggered.Broadcast(TriggerResult);
+	OnTriggerUnitTriggered.Broadcast(this, TriggerResult);
 }
 
 void ALxTriggerSkillUnitActor::HandleLifeStateChanged(ELxSkillAbilityComponentState OldState, ELxSkillAbilityComponentState NewState)
@@ -58,6 +58,6 @@ void ALxTriggerSkillUnitActor::HandleLifeStateChanged(ELxSkillAbilityComponentSt
 
 	if (NewState == ELxSkillAbilityComponentState::Finished)
 	{
-		OnTriggerUnitExpired.Broadcast(MakeSkillUnitResult(ELxSkillUnitResultType::Expired, true));
+		OnTriggerUnitExpired.Broadcast(this, MakeSkillUnitResult(ELxSkillUnitResultType::Expired, true));
 	}
 }

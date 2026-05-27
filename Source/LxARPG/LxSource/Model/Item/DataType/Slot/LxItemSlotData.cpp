@@ -180,7 +180,19 @@ ELxItemSlotDropResult ULxItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSl
 		return ELxItemSlotDropResult::CannotEnter;
 	}
 
+	// 技能展示槽只负责显示技能和向快捷栏拖出，不接收任何槽位拖入。
+	if (m_eSlotType == ELxItemSlotType::SkillDisplay)
+	{
+		return ELxItemSlotDropResult::CannotEnter;
+	}
+
 	if (m_eSlotType == ELxItemSlotType::TreasureChest && InItemSlot->m_eSlotType == ELxItemSlotType::TreasureChest)
+	{
+		return ELxItemSlotDropResult::CannotEnter;
+	}
+
+	// 技能物品只能进入快捷栏形成快捷引用，不能被放入背包、仓库、装备等普通槽位。
+	if (InItemSlot->m_pItemData->ItemType() == ELxItemType::Skill && m_eSlotType != ELxItemSlotType::Shortcut)
 	{
 		return ELxItemSlotDropResult::CannotEnter;
 	}

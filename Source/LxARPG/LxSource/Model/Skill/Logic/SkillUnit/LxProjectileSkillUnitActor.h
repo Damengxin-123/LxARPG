@@ -13,8 +13,9 @@ class ULxSkillMovementComponent;
 class ULxSkillPropagationComponent;
 class ULxSkillTriggerComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxProjectileDetectionEvent, const FLxSkillDetectionResult&, DetectionResult);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxProjectilePropagationEvent, const FLxSkillPropagationResult&, PropagationResult);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxProjectileDetectionEvent, ALxSkillUnitActor*, SkillUnit, const FLxSkillDetectionResult&, DetectionResult);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxProjectilePropagationEvent, ALxSkillUnitActor*, SkillUnit, const FLxSkillPropagationResult&, PropagationResult);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxProjectileMovementProgressEvent, ALxSkillUnitActor*, SkillUnit, float, MovementProgress);
 
 /** 投射物技能单元类型，负责协调运动、检测、触发、传播和生命周期组件。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="投射物技能单元")
@@ -36,7 +37,7 @@ public:
 	FOnLxProjectilePropagationEvent OnProjectilePierceTarget;
 
 	UPROPERTY(BlueprintAssignable, Category="技能单元|投射物", DisplayName="投射物达最大飞行距离")
-	FOnLxSkillMovementProgress OnProjectileReachMaxDistance;
+	FOnLxProjectileMovementProgressEvent OnProjectileReachMaxDistance;
 
 	UPROPERTY(BlueprintAssignable, Category="技能单元|投射物", DisplayName="投射物碰撞到障碍物")
 	FOnLxProjectileDetectionEvent OnProjectileHitWorld;

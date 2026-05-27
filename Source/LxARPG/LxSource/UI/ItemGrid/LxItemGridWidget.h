@@ -16,6 +16,8 @@ class ULxItemDragInfo;
 class ULxItemDragIconWidget;
 class ULxUIManager;
 class ULxCharacterDataTransferComponent;
+class ULxSkillCastComponent;
+class ULxSkillItem;
 class ULxTradeContainerInteractionComponent;
 class UTexture2D;
 
@@ -234,6 +236,16 @@ private:
 	bool TryHandleServerSlotDrop(ULxItemSlotData* SourceSlot);
 
 	ULxCharacterDataTransferComponent* GetCharacterDataTransferComponentForTrade() const;
+
+	ULxSkillCastComponent* GetSkillCastComponent() const;
+
+	ULxSkillItem* GetCurrentSkillItem() const;
+
+	bool TryReleaseSkillItemDirectly() const;
+
+	bool TryStartUseSkillItem() const;
+
+	bool TryEndUseSkillItem() const;
 
 	/** * 处理当前槽位发生变化的事件。
 	 * 该方法会在当前槽位数据发生改变时被调用，用于刷新绑定的物品信息并广播格子数据变化。

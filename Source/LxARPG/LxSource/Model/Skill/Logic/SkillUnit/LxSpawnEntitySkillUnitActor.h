@@ -7,8 +7,8 @@
 
 class ULxSkillLifeComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSpawnedEntityEvent, AActor*, EntityActor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSpawnedEntityTargetEvent, AActor*, EntityActor, AActor*, TargetActor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSpawnedEntityEvent, ALxSkillUnitActor*, SkillUnit, AActor*, EntityActor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLxSpawnedEntityTargetEvent, ALxSkillUnitActor*, SkillUnit, AActor*, EntityActor, AActor*, TargetActor);
 
 /** 召唤实体技能单元类型，负责协调生成实体的生命周期和事件转发。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="召唤实体技能单元")

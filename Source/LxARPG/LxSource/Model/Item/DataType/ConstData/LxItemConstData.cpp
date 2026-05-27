@@ -6,6 +6,7 @@ namespace
 	TMap<FGameplayTag, FLxConsumableInformation> GConsumableItemMap;
 	TMap<FGameplayTag, FLxMaterialInformation> GMaterialItemMap;
 	TMap<FGameplayTag, FLxBuffInformation> GBuffItemMap;
+	TMap<FGameplayTag, FLxSkillItemInformation> GSkillItemMap;
 
 	template<typename ItemDataType>
 	bool IsValidItemConfig(const ItemDataType& InItemData)
@@ -22,6 +23,7 @@ namespace LxItemConfig
 		GConsumableItemMap.Empty();
 		GMaterialItemMap.Empty();
 		GBuffItemMap.Empty();
+		GSkillItemMap.Empty();
 	}
 
 	void SetEquipmentItemData(const FLxEquipmentInformation& InItemData)
@@ -56,6 +58,14 @@ namespace LxItemConfig
 		}
 	}
 
+	void SetSkillItemData(const FLxSkillItemInformation& InItemData)
+	{
+		if (IsValidItemConfig(InItemData))
+		{
+			GSkillItemMap.Add(InItemData.ItemIDTag, InItemData);
+		}
+	}
+
 	const TMap<FGameplayTag, FLxEquipmentInformation>& GetEquipmentItemMap()
 	{
 		return GEquipmentItemMap;
@@ -74,6 +84,11 @@ namespace LxItemConfig
 	const TMap<FGameplayTag, FLxBuffInformation>& GetBuffItemMap()
 	{
 		return GBuffItemMap;
+	}
+
+	const TMap<FGameplayTag, FLxSkillItemInformation>& GetSkillItemMap()
+	{
+		return GSkillItemMap;
 	}
 
 	const FLxItemInformationBase* GetItemData(FGameplayTag InItemIDTag)
@@ -98,6 +113,10 @@ namespace LxItemConfig
 		if (const FLxBuffInformation* BuffData = GBuffItemMap.Find(InItemIDTag))
 		{
 			return BuffData;
+		}
+		if (const FLxSkillItemInformation* SkillData = GSkillItemMap.Find(InItemIDTag))
+		{
+			return SkillData;
 		}
 
 		return nullptr;

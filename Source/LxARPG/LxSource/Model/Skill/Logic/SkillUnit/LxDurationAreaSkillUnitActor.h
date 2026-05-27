@@ -4,7 +4,7 @@
 #include "LxAreaSkillUnitActor.h"
 #include "LxDurationAreaSkillUnitActor.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxDurationAreaPeriodEvent, float, RemainingTime);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxDurationAreaPeriodEvent, ALxSkillUnitActor*, SkillUnit, float, RemainingTime);
 
 /** 持续范围技能单元类型，在范围单元基础上转发生命周期周期事件。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="持续范围技能单元")

@@ -7,6 +7,7 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 namespace
@@ -69,6 +70,7 @@ void ULxCharacterDataTransferComponent::BaseComponentInitialize()
 	BroadcastAttributeData();
 	BroadcastBackpackData();
 	BroadcastEquipmentData();
+	BroadcastSkillBackpackData();
 	BroadcastBuffData();
 	RefreshEquipmentEntryPackage();
 	RefreshBuffEntryPackage();
@@ -165,6 +167,33 @@ void ULxCharacterDataTransferComponent::GetAllEquipment(TArray<ULxItemSlotData*>
 	}
 }
 
+void ULxCharacterDataTransferComponent::GetAllSkillBackpackSlots(TArray<ULxItemSlotData*>& OutSkillSlots) const
+{
+	OutSkillSlots.Reset();
+	if (SkillBackpackComponent == nullptr)
+	{
+		return;
+	}
+
+	SkillBackpackComponent->GetAllSkillItemSlots(OutSkillSlots);
+}
+
+void ULxCharacterDataTransferComponent::QuerySkillBackpackSlotsByTag(FGameplayTag InSkillTag, TArray<ULxItemSlotData*>& OutSkillSlots) const
+{
+	OutSkillSlots.Reset();
+	if (SkillBackpackComponent == nullptr)
+	{
+		return;
+	}
+
+	SkillBackpackComponent->QuerySkillItemSlotsByTag(InSkillTag, OutSkillSlots);
+}
+
+bool ULxCharacterDataTransferComponent::AddSkillItemToSkillBackpack(FGameplayTag InSkillItemIDTag)
+{
+	return SkillBackpackComponent != nullptr && SkillBackpackComponent->AddSkillItemByTagID(InSkillItemIDTag);
+}
+
 void ULxCharacterDataTransferComponent::GetAllBuffs(TArray<ULxBuff*>& OutBuffList) const
 {
 	OutBuffList.Reset();
@@ -233,6 +262,7 @@ void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 	AttributeComponent = OwnerCharacter->GetCharacterAttributeComponent();
 	BackpackComponent = OwnerCharacter->GetCharacterBackpackComponent();
 	EquipmentComponent = OwnerCharacter->GetCharacterEquipmentComponent();
+	SkillBackpackComponent = OwnerCharacter->GetSkillBackpackComponent();
 	BuffComponent = OwnerCharacter->GetCharacterBuffComponent();
 }
 
@@ -254,6 +284,11 @@ void ULxCharacterDataTransferComponent::BindComponentEvents()
 	if (EquipmentComponent)
 	{
 		EquipmentComponent->OnDataChange.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleEquipmentDataChanged);
+	}
+
+	if (SkillBackpackComponent)
+	{
+		SkillBackpackComponent->OnDataChange.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleSkillBackpackDataChanged);
 	}
 
 	if (BuffComponent)
@@ -280,6 +315,11 @@ void ULxCharacterDataTransferComponent::UnbindComponentEvents()
 	if (EquipmentComponent)
 	{
 		EquipmentComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleEquipmentDataChanged);
+	}
+
+	if (SkillBackpackComponent)
+	{
+		SkillBackpackComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleSkillBackpackDataChanged);
 	}
 
 	if (BuffComponent)
@@ -309,6 +349,13 @@ void ULxCharacterDataTransferComponent::BroadcastEquipmentData()
 	TArray<ULxItemSlotData*> EquipmentSlots;
 	GetAllEquipment(EquipmentSlots);
 	OnEquipmentChanged.Broadcast(EquipmentSlots);
+}
+
+void ULxCharacterDataTransferComponent::BroadcastSkillBackpackData()
+{
+	TArray<ULxItemSlotData*> SkillSlots;
+	GetAllSkillBackpackSlots(SkillSlots);
+	OnSkillBackpackChanged.Broadcast(SkillSlots);
 }
 
 void ULxCharacterDataTransferComponent::BroadcastBuffData()
@@ -529,6 +576,11 @@ void ULxCharacterDataTransferComponent::HandleEquipmentDataChanged()
 {
 	BroadcastEquipmentData();
 	RefreshEquipmentEntryPackage();
+}
+
+void ULxCharacterDataTransferComponent::HandleSkillBackpackDataChanged()
+{
+	BroadcastSkillBackpackData();
 }
 
 void ULxCharacterDataTransferComponent::HandleBuffDataChanged()

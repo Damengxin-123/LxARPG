@@ -24,7 +24,7 @@ void ALxSpawnEntitySkillUnitActor::RegisterSpawnedEntity(AActor* InEntityActor)
 	}
 
 	SpawnedEntities.AddUnique(InEntityActor);
-	OnEntityCreated.Broadcast(InEntityActor);
+	OnEntityCreated.Broadcast(this, InEntityActor);
 }
 
 void ALxSpawnEntitySkillUnitActor::NotifySpawnedEntityDestroyed(AActor* InEntityActor)
@@ -35,14 +35,14 @@ void ALxSpawnEntitySkillUnitActor::NotifySpawnedEntityDestroyed(AActor* InEntity
 	}
 
 	SpawnedEntities.Remove(InEntityActor);
-	OnEntityDestroyed.Broadcast(InEntityActor);
+	OnEntityDestroyed.Broadcast(this, InEntityActor);
 }
 
 void ALxSpawnEntitySkillUnitActor::NotifySpawnedEntityHitTarget(AActor* InEntityActor, AActor* InTargetActor)
 {
 	if (InEntityActor && InTargetActor)
 	{
-		OnEntityHitTarget.Broadcast(InEntityActor, InTargetActor);
+		OnEntityHitTarget.Broadcast(this, InEntityActor, InTargetActor);
 	}
 }
 
@@ -50,6 +50,6 @@ void ALxSpawnEntitySkillUnitActor::NotifySpawnedEntityKilledTarget(AActor* InEnt
 {
 	if (InEntityActor && InTargetActor)
 	{
-		OnEntityKilledTarget.Broadcast(InEntityActor, InTargetActor);
+		OnEntityKilledTarget.Broadcast(this, InEntityActor, InTargetActor);
 	}
 }

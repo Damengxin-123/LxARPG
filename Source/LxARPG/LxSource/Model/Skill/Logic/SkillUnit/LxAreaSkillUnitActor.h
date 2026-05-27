@@ -10,7 +10,7 @@ class ULxSkillDetectionComponent;
 class ULxSkillLifeComponent;
 class ULxSkillTriggerComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxAreaDetectionEvent, const FLxSkillDetectionResult&, DetectionResult);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxAreaDetectionEvent, ALxSkillUnitActor*, SkillUnit, const FLxSkillDetectionResult&, DetectionResult);
 
 /** 范围技能单元类型，负责协调范围碰撞、检测、触发和生命周期组件。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="范围技能单元")

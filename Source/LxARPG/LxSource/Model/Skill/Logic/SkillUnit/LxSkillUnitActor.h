@@ -12,10 +12,11 @@ class ULxSkillLifeComponent;
 class ULxSkillMovementComponent;
 class ULxSkillPropagationComponent;
 class ULxSkillTriggerComponent;
+class ALxSkillUnitActor;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillUnitResultEvent, const FLxSkillUnitResult&, SkillUnitResult);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillUnitTriggerEvent, const FLxSkillTriggerResult&, TriggerResult);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillUnitPropagationEvent, const FLxSkillPropagationResult&, PropagationResult);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitResultEvent, ALxSkillUnitActor*, SkillUnit, const FLxSkillUnitResult&, SkillUnitResult);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitTriggerEvent, ALxSkillUnitActor*, SkillUnit, const FLxSkillTriggerResult&, TriggerResult);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitPropagationEvent, ALxSkillUnitActor*, SkillUnit, const FLxSkillPropagationResult&, PropagationResult);
 
 /** 技能单元Actor基类，负责协调能力组件和对外提供统一生命周期接口。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="技能单元基类")

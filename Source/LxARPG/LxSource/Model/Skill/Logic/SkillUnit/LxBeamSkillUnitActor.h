@@ -4,7 +4,7 @@
 #include "LxRaySkillUnitActor.h"
 #include "LxBeamSkillUnitActor.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxBeamFinished);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBeamFinished, ALxSkillUnitActor*, SkillUnit);
 
 /** 持续射线技能单元类型，在射线单元基础上增加持续结束语义。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="持续射线技能单元")
