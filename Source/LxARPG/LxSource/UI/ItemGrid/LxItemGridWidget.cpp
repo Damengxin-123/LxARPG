@@ -39,7 +39,7 @@ namespace
 			? Cast<ALxPlayerCharacter>(Widget->GetOwningPlayerPawn())
 			: nullptr)
 		{
-			if (const ULxPlayerAimComponent* PlayerAimComponent = PlayerCharacter->GetPlayerAimComponent())
+			if (ULxPlayerAimComponent* PlayerAimComponent = PlayerCharacter->GetPlayerAimComponent())
 			{
 				return PlayerAimComponent->MakeAimSkillCastContext(SourceObject);
 			}

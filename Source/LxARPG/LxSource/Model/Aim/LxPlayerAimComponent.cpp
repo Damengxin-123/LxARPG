@@ -63,6 +63,7 @@ void ULxPlayerAimComponent::SetAiming(bool bNewAiming)
 		CalculateAimResult(CurrentAimResult);
 	}
 
+	OnAimingStateChanged.Broadcast(bIsAiming);
 	OnDataChange.Broadcast();
 }
 
@@ -117,7 +118,7 @@ bool ULxPlayerAimComponent::CalculateAimResult(FLxPlayerAimResult& OutAimResult)
 	return true;
 }
 
-FLxSkillCastContext ULxPlayerAimComponent::MakeAimSkillCastContext(UObject* SourceObject) const
+FLxSkillCastContext ULxPlayerAimComponent::MakeAimSkillCastContext(UObject* SourceObject)
 {
 	const ALxPlayerCharacter* PlayerCharacter = OwnerPlayerCharacter.Get();
 	if (!PlayerCharacter)
@@ -138,6 +139,17 @@ FLxSkillCastContext ULxPlayerAimComponent::MakeAimSkillCastContext(UObject* Sour
 	FLxPlayerAimResult AimResult;
 	if (CalculateAimResult(AimResult))
 	{
+		if (bRotateCharacterOnSkillCast)
+		{
+			RotateCharacterToAimResult(AimResult, true);
+			AimResult.ReleaseLocation = GetSkillReleasePoint();
+			AimResult.SkillDirection = (AimResult.AimLocation - AimResult.ReleaseLocation).GetSafeNormal();
+			if (AimResult.SkillDirection.IsNearlyZero())
+			{
+				AimResult.SkillDirection = AimResult.CameraRayDirection;
+			}
+		}
+
 		CastContext.TargetActor = AimResult.TargetActor;
 		CastContext.AimLocation = AimResult.AimLocation;
 		CastContext.bHasAimLocation = true;
@@ -155,6 +167,15 @@ FLxSkillCastContext ULxPlayerAimComponent::MakeAimSkillCastContext(UObject* Sour
 		CastContext.AimDirection = FallbackDirection;
 		CastContext.bHasAimDirection = true;
 		CastContext.SpawnTransform = FTransform(FallbackDirection.Rotation(), ReleaseLocation);
+
+		if (bRotateCharacterOnSkillCast && PlayerCharacter)
+		{
+			FLxPlayerAimResult FallbackAimResult;
+			FallbackAimResult.ReleaseLocation = ReleaseLocation;
+			FallbackAimResult.AimLocation = ReleaseLocation + FallbackDirection * MaxAimDistance;
+			FallbackAimResult.SkillDirection = FallbackDirection;
+			RotateCharacterToAimResult(FallbackAimResult, true);
+		}
 	}
 
 	return CastContext;
@@ -302,7 +323,31 @@ void ULxPlayerAimComponent::UpdateAimRotation(float DeltaTime)
 		return;
 	}
 
-	FVector ToAimLocation = CurrentAimResult.AimLocation - OwnerPlayerCharacter->GetActorLocation();
+	RotateCharacterToAimResult(CurrentAimResult, false, DeltaTime);
+}
+
+void ULxPlayerAimComponent::RotateCharacterToAimResult(const FLxPlayerAimResult& InAimResult, bool bInstantRotation, float DeltaTime)
+{
+	if (!OwnerPlayerCharacter)
+	{
+		CacheOwnerReferences();
+	}
+
+	if (!OwnerPlayerCharacter)
+	{
+		return;
+	}
+
+	FVector ToAimLocation = FVector::ZeroVector;
+	if (!InAimResult.SkillDirection.IsNearlyZero())
+	{
+		ToAimLocation = InAimResult.SkillDirection;
+	}
+	else
+	{
+		ToAimLocation = InAimResult.AimLocation - OwnerPlayerCharacter->GetActorLocation();
+	}
+
 	ToAimLocation.Z = 0.f;
 	if (ToAimLocation.IsNearlyZero())
 	{
@@ -310,11 +355,18 @@ void ULxPlayerAimComponent::UpdateAimRotation(float DeltaTime)
 	}
 
 	const FRotator TargetRotation(0.f, ToAimLocation.Rotation().Yaw, 0.f);
-	const FRotator NewRotation = FMath::RInterpTo(
-		OwnerPlayerCharacter->GetActorRotation(),
-		TargetRotation,
-		DeltaTime,
-		AimTurnSpeed);
+	if (DeltaTime <= 0.f)
+	{
+		DeltaTime = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.f;
+	}
+
+	const FRotator NewRotation = bInstantRotation
+		? TargetRotation
+		: FMath::RInterpTo(
+			OwnerPlayerCharacter->GetActorRotation(),
+			TargetRotation,
+			DeltaTime,
+			AimTurnSpeed);
 
 	OwnerPlayerCharacter->SetActorRotation(NewRotation);
 	if (!OwnerPlayerCharacter->HasAuthority())

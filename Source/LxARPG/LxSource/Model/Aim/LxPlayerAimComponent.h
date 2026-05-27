@@ -9,6 +9,9 @@ class ALxPlayerCharacter;
 class UCameraComponent;
 class USpringArmComponent;
 
+/** 玩家瞄准状态变化事件。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxPlayerAimingStateChanged, bool, bNewAiming);
+
 /** 玩家瞄准结果，记录准星检测点和技能从释放点出发的真实方向。 */
 USTRUCT(BlueprintType, DisplayName="玩家瞄准结果")
 struct FLxPlayerAimResult
@@ -71,9 +74,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="玩家|瞄准", DisplayName="计算当前瞄准结果")
 	bool CalculateAimResult(FLxPlayerAimResult& OutAimResult) const;
 
-	/** 构建带有准星瞄准位置和技能实际方向的技能释放上下文。 */
+	/** 构建带有准星瞄准位置和技能实际方向的技能释放上下文，并在释放瞬间让角色转向瞄准方向。 */
 	UFUNCTION(BlueprintCallable, Category="玩家|瞄准", DisplayName="构建瞄准技能释放上下文")
-	FLxSkillCastContext MakeAimSkillCastContext(UObject* SourceObject = nullptr) const;
+	FLxSkillCastContext MakeAimSkillCastContext(UObject* SourceObject = nullptr);
 
 	/** 获取最近一次缓存的瞄准结果。 */
 	UFUNCTION(BlueprintPure, Category="玩家|瞄准", DisplayName="获取当前瞄准结果")
@@ -82,6 +85,10 @@ public:
 	/** 获取技能实际释放点。 */
 	UFUNCTION(BlueprintPure, Category="玩家|瞄准", DisplayName="获取技能释放点")
 	FVector GetSkillReleasePoint() const;
+
+	/** 瞄准状态变化事件，可用于驱动蓄力准星或瞄准 UI。 */
+	UPROPERTY(BlueprintAssignable, Category="玩家|瞄准", DisplayName="瞄准状态变化事件")
+	FOnLxPlayerAimingStateChanged OnAimingStateChanged;
 
 protected:
 	/** 缓存玩家角色、相机和弹簧臂引用。 */
@@ -95,6 +102,9 @@ protected:
 
 	/** 瞄准状态下把角色水平朝向转到瞄准点。 */
 	void UpdateAimRotation(float DeltaTime);
+
+	/** 释放技能时立即让角色水平转向本次瞄准方向，瞄准态持续转向时使用插值。 */
+	void RotateCharacterToAimResult(const FLxPlayerAimResult& InAimResult, bool bInstantRotation, float DeltaTime = 0.f);
 
 	/** 瞄准输入行为，默认用于鼠标右键按下和松开。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准", DisplayName="瞄准输入行为")
@@ -136,9 +146,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准|相机", DisplayName="普通相机偏移")
 	FVector NormalCameraSocketOffset = FVector::ZeroVector;
 
-	/** 瞄准状态的弹簧臂 Socket 偏移，可用于肩射视角。 */
+	/** 瞄准状态的弹簧臂 Socket 偏移，可用于右肩视角，让角色在画面中偏向左侧。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准|相机", DisplayName="瞄准相机偏移")
-	FVector AimCameraSocketOffset = FVector::ZeroVector;
+	FVector AimCameraSocketOffset = FVector(0.f, 90.f, 15.f);
 
 	/** 相机进入和退出瞄准状态时的插值速度。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准|相机", DisplayName="相机插值速度")
@@ -151,6 +161,10 @@ protected:
 	/** 瞄准状态下角色转向准星位置的插值速度。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准|朝向", DisplayName="瞄准转向速度")
 	float AimTurnSpeed = 12.f;
+
+	/** 释放技能时是否立即让角色朝向本次相机准星目标。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准|朝向", DisplayName="释放时立即转向")
+	bool bRotateCharacterOnSkillCast = true;
 
 	/** 当前是否处于瞄准状态。 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category="玩家|瞄准", DisplayName="正在瞄准")
