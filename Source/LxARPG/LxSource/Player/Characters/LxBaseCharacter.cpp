@@ -9,6 +9,7 @@
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
+#include "LxARPG/LxSource/Model/State/Logic/LxCharacterStateComponent.h"
 #include "Net/UnrealNetwork.h"
 
 ALxBaseCharacter::ALxBaseCharacter()
@@ -20,6 +21,7 @@ ALxBaseCharacter::ALxBaseCharacter()
 	m_pCharacterBackpackComponent = CreateDefaultSubobject<ULxCharacterBackpackComponent>(TEXT("CharacterBackpackComponent"));
 	m_pCharacterEquipmentComponent = CreateDefaultSubobject<ULxCharacterEquipmentComponent>(TEXT("CharacterEquipmentComponent"));
 	m_pCharacterBuffComponent = CreateDefaultSubobject<ULxCharacterBuffComponent>(TEXT("CharacterBuffComponent"));
+	m_pCharacterStateComponent = CreateDefaultSubobject<ULxCharacterStateComponent>(TEXT("CharacterStateComponent"));
 	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
 	m_pSkillBackpackComponent = CreateDefaultSubobject<ULxSkillBackpackComponent>(TEXT("SkillBackpackComponent"));
 	m_pCharacterDataTransferComponent = CreateDefaultSubobject<ULxCharacterDataTransferComponent>(TEXT("CharacterDataTransferComponent"));
@@ -50,6 +52,11 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	if (m_pCharacterBuffComponent)
 	{
 		m_pCharacterBuffComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterStateComponent)
+	{
+		m_pCharacterStateComponent->BaseComponentInitialize();
 	}
 
 	if (m_pCharacterAttributeComponent)

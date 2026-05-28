@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
@@ -13,6 +14,7 @@ class ULxCharacterAttributeComponent;
 class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
 class ULxCharacterEquipmentComponent;
+class ULxCharacterStateComponent;
 class ULxEquipmentSlotData;
 class ULxItemBase;
 class ULxItemSlotData;
@@ -23,6 +25,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBackpackItemListChanged, const 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxEquipmentSlotListChanged, const TArray<ULxItemSlotData*>&, EquipmentSlots);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillBackpackSlotListChanged, const TArray<ULxItemSlotData*>&, SkillSlots);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBuffListChanged, const TArray<ULxBuff*>&, BuffList);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDataTransferStateTagsChanged, FGameplayTag, StateCategoryTag, const FGameplayTagContainer&, StateTags);
 
 /**
  * 角色数据中转组件。
@@ -82,6 +85,38 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取显示Buff")
 	void GetDisplayBuffs(TArray<ULxBuff*>& OutBuffList) const;
 
+	/** 获取角色状态组件。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|状态", DisplayName="获取角色状态组件")
+	ULxCharacterStateComponent* GetCharacterStateComponent() const;
+
+	/** 获取指定分类下的角色状态标签。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|状态", DisplayName="获取指定分类角色状态标签", meta=(Categories="CharacterState"))
+	bool GetCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag, FGameplayTagContainer& OutStateTags) const;
+
+	/** 设置指定分类下的角色状态标签。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|状态", DisplayName="设置指定分类角色状态标签", meta=(Categories="CharacterState"))
+	bool SetCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag, const FGameplayTagContainer& InStateTags);
+
+	/** 给角色添加一个状态标签。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|状态", DisplayName="添加角色状态标签", meta=(Categories="CharacterState"))
+	bool AddCharacterStateTag(FGameplayTag InStateCategoryTag, FGameplayTag InStateTag);
+
+	/** 从角色身上移除一个状态标签。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|状态", DisplayName="移除角色状态标签", meta=(Categories="CharacterState"))
+	bool RemoveCharacterStateTag(FGameplayTag InStateCategoryTag, FGameplayTag InStateTag);
+
+	/** 检查角色是否拥有指定状态标签。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|状态", DisplayName="是否拥有角色状态标签", meta=(Categories="CharacterState"))
+	bool HasCharacterStateTag(FGameplayTag InStateTag) const;
+
+	/** 获取角色当前拥有的全部状态标签。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|状态", DisplayName="获取全部角色状态标签")
+	void GetAllCharacterStateTags(FGameplayTagContainer& OutStateTags) const;
+
+	/** 清空指定分类下的角色状态标签。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|状态", DisplayName="清空指定分类角色状态标签", meta=(Categories="CharacterState"))
+	bool ClearCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag);
+
 	/** 接收外部传入的词条包，并按词条类型分发到属性、Buff 等模块。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="接收角色词条包")
 	void ReceiveEntryPackage(const FLxCharacterEntryPackage& InEntryPackage);
@@ -122,6 +157,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色Buff更新事件")
 	FOnLxBuffListChanged OnBuffChanged;
 
+	/** 角色状态标签变化事件，广播发生变化的状态分类及其当前标签集合。 */
+	UPROPERTY(BlueprintAssignable, Category="角色数据中转|状态", DisplayName="角色状态标签变化事件")
+	FOnLxCharacterDataTransferStateTagsChanged OnCharacterStateTagsChanged;
+
 protected:
 	/** 当前角色属性组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色属性组件")
@@ -143,6 +182,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色Buff组件")
 	TObjectPtr<ULxCharacterBuffComponent> BuffComponent = nullptr;
 
+	/** 当前角色状态组件。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|状态", DisplayName="角色状态组件")
+	TObjectPtr<ULxCharacterStateComponent> StateComponent = nullptr;
+
 private:
 	void CacheOwnerComponents();
 	void BindComponentEvents();
@@ -153,6 +196,7 @@ private:
 	void BroadcastEquipmentData();
 	void BroadcastSkillBackpackData();
 	void BroadcastBuffData();
+	void BroadcastStateData();
 
 	void DispatchEntryList(ELxCharacterEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList);
 	void DispatchEntryPackageByType(const FLxCharacterEntryPackage& InEntryPackage);
@@ -183,6 +227,9 @@ private:
 
 	UFUNCTION()
 	void HandleBuffPeriodActivated(ULxBuff* BuffLogic);
+
+	UFUNCTION()
+	void HandleStateTagsChanged(FGameplayTag StateCategoryTag, const FGameplayTagContainer& StateTags);
 
 	bool bDataTransferInitialized = false;
 

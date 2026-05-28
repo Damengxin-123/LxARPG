@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 
 ULxPlayerAimComponent::ULxPlayerAimComponent()
@@ -58,6 +59,26 @@ void ULxPlayerAimComponent::SetAiming(bool bNewAiming)
 	}
 
 	bIsAiming = bNewAiming;
+	if (!OwnerPlayerCharacter)
+	{
+		CacheOwnerReferences();
+	}
+
+	if (OwnerPlayerCharacter)
+	{
+		if (ULxCharacterMoveComponent* MoveComponent = OwnerPlayerCharacter->GetCharacterMoveComponent())
+		{
+			if (bIsAiming)
+			{
+				MoveComponent->AddMoveRotationLock();
+			}
+			else
+			{
+				MoveComponent->RemoveMoveRotationLock();
+			}
+		}
+	}
+
 	if (bIsAiming)
 	{
 		CalculateAimResult(CurrentAimResult);

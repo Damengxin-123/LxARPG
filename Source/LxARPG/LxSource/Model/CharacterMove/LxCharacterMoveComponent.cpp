@@ -41,6 +41,7 @@ void ULxCharacterMoveComponent::HandleMoveInput(const FVector2D& InMoveValue)
 	// 角色转向
 	// 2️⃣ 没输入就不转向
 	if (InMoveValue.IsNearlyZero()) return;
+	if (!CanRotateByMoveInput()) return;
 
 	// 3️⃣ 判断输入方向（四方向）
 	float TargetYawOffset = 0.f;
@@ -111,4 +112,14 @@ void ULxCharacterMoveComponent::HandleLookInput(const FVector2D& InMoveValue)
 	}
 	m_pOwnerCharacter->AddControllerYawInput(InMoveValue.X);
 	m_pOwnerCharacter->AddControllerPitchInput(InMoveValue.Y);
+}
+
+void ULxCharacterMoveComponent::AddMoveRotationLock()
+{
+	MoveRotationLockCount = FMath::Max(0, MoveRotationLockCount) + 1;
+}
+
+void ULxCharacterMoveComponent::RemoveMoveRotationLock()
+{
+	MoveRotationLockCount = FMath::Max(0, MoveRotationLockCount - 1);
 }

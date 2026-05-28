@@ -39,7 +39,9 @@ enum class ELxInputActionID : uint8
 	InteractionSelectCandidate UMETA(DisplayName="选择交互候选"),
 	InteractionCancel UMETA(DisplayName="取消交互"),
 	InteractionBack UMETA(DisplayName="返回上级交互"),
-	SystemShowMouseCursor UMETA(DisplayName="显示鼠标")
+	SystemShowMouseCursor UMETA(DisplayName="显示鼠标"),
+	ShortcutUse UMETA(DisplayName="快捷栏使用"),
+	ShortcutSwitch UMETA(DisplayName="快捷栏切换")
 };
 
 FORCEINLINE uint32 GetTypeHash(const ELxInputActionID InInputActionID)

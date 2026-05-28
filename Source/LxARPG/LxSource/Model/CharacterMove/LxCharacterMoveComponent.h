@@ -48,8 +48,24 @@ public:
 	 */
 	void HandleLookInput(const FVector2D& InMoveValue);
 
+	/** 增加移动转向锁，锁定期间移动输入仍然生效，但不会由移动方向旋转角色。 */
+	UFUNCTION(BlueprintCallable, Category="角色|移动", DisplayName="增加移动转向锁")
+	void AddMoveRotationLock();
+
+	/** 移除移动转向锁，所有锁移除后恢复移动方向旋转角色。 */
+	UFUNCTION(BlueprintCallable, Category="角色|移动", DisplayName="移除移动转向锁")
+	void RemoveMoveRotationLock();
+
+	/** 判断移动输入是否允许旋转角色。 */
+	UFUNCTION(BlueprintPure, Category="角色|移动", DisplayName="是否允许移动转向")
+	bool CanRotateByMoveInput() const { return MoveRotationLockCount <= 0; }
+
 	
 private:
 	UPROPERTY()
 	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter;
+
+	/** 移动转向锁计数，瞄准和技能释放可同时锁定，全部释放后才恢复。 */
+	UPROPERTY(Transient)
+	int32 MoveRotationLockCount = 0;
 };

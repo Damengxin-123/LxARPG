@@ -11,6 +11,7 @@ class ULxCharacterBuffComponent;
 class ULxCharacterDataTransferComponent;
 class ULxCharacterEquipmentComponent;
 class ULxCharacterMoveComponent;
+class ULxCharacterStateComponent;
 class ULxSkillBackpackComponent;
 class ULxSkillCastComponent;
 
@@ -117,6 +118,14 @@ public:
 	ULxCharacterBuffComponent* GetCharacterBuffComponent() const { return m_pCharacterBuffComponent; }
 
 	/**
+	 * 获取角色状态组件。
+	 *
+	 * @return 角色状态组件指针；未初始化时返回 nullptr。
+	 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色状态组件")
+	ULxCharacterStateComponent* GetCharacterStateComponent() const { return m_pCharacterStateComponent; }
+
+	/**
 	 * 获取角色数据中转组件。
 	 *
 	 * @return 角色数据中转组件指针；未初始化时返回 nullptr。
@@ -156,6 +165,10 @@ protected:
 	/** 角色 Buff 组件，用于管理运行时 Buff。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色Buff组件")
 	TObjectPtr<ULxCharacterBuffComponent> m_pCharacterBuffComponent;
+
+	/** 角色状态组件，用于按分类保存角色当前拥有的状态标签。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色状态组件")
+	TObjectPtr<ULxCharacterStateComponent> m_pCharacterStateComponent;
 
 	/** 角色数据中转组件，用于统一对外转发属性、背包、装备和 Buff 数据。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色数据中转组件")

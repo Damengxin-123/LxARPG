@@ -80,6 +80,21 @@ ELxItemSlotType ULxItemGridWidget::GetSlotType() const
 	return ELxItemSlotType::None;
 }
 
+ELxItemType ULxItemGridWidget::GetItemType() const
+{
+	ULxItemBase* CurrentItem = GetCurrentItem();
+	return CurrentItem ? CurrentItem->ItemType() : ELxItemType::None;
+}
+
+ULxItemBase* ULxItemGridWidget::GetCurrentItem() const
+{
+	return CurrentSlotData && CurrentSlotData->IsValid() ? CurrentSlotData->GetItem() : nullptr;
+}
+
+ULxSkillItem* ULxItemGridWidget::GetCurrentSkillItem() const
+{
+	return Cast<ULxSkillItem>(GetCurrentItem());
+}
 
 bool ULxItemGridWidget::UseItem() const
 {
@@ -145,6 +160,28 @@ bool ULxItemGridWidget::EndUseItem() const
 void ULxItemGridWidget::SetItemSlotData(ULxItemSlotData* InSlotData)
 {
 	SetCurrentSlotDataInternal(InSlotData);
+}
+
+void ULxItemGridWidget::SetShortcutSelected(bool bInSelected)
+{
+	if (bShortcutSelected == bInSelected)
+	{
+		return;
+	}
+
+	bShortcutSelected = bInSelected;
+	BroadcastSelectedStateChanged();
+}
+
+void ULxItemGridWidget::SetDragHoverSelected(bool bInSelected)
+{
+	if (bDragHoverSelected == bInSelected)
+	{
+		return;
+	}
+
+	bDragHoverSelected = bInSelected;
+	BroadcastSelectedStateChanged();
 }
 
 bool ULxItemGridWidget::ItemIsVaild() const
@@ -282,9 +319,24 @@ void ULxItemGridWidget::NativeOnDragDetected(const FGeometry& InGeometry, const 
 	OutOperation = DragOperation;
 }
 
+void ULxItemGridWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
+	UDragDropOperation* InOperation)
+{
+	Super::NativeOnDragEnter(InGeometry, InDragDropEvent, InOperation);
+	SetDragHoverSelected(ShouldSelectForDragHover(InOperation));
+}
+
+void ULxItemGridWidget::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	SetDragHoverSelected(false);
+	Super::NativeOnDragLeave(InDragDropEvent, InOperation);
+}
+
 bool ULxItemGridWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
 	UDragDropOperation* InOperation)
 {
+	SetDragHoverSelected(false);
+
 	const ULxItemDragInfo* DragOperation = Cast<ULxItemDragInfo>(InOperation);
 	// 判断拖拽事件处理参数是否有效 拖拽数据对象 本格子槽位指针  发起方槽位指针
 	if (DragOperation == nullptr || CurrentSlotData == nullptr || DragOperation->SourceSlot == nullptr)
@@ -560,16 +612,6 @@ ULxSkillCastComponent* ULxItemGridWidget::GetSkillCastComponent() const
 	return OwnerCharacter ? OwnerCharacter->GetSkillCastComponent() : nullptr;
 }
 
-ULxSkillItem* ULxItemGridWidget::GetCurrentSkillItem() const
-{
-	if (!CurrentSlotData || !CurrentSlotData->IsValid())
-	{
-		return nullptr;
-	}
-
-	return Cast<ULxSkillItem>(CurrentSlotData->GetItem());
-}
-
 bool ULxItemGridWidget::TryReleaseSkillItemDirectly() const
 {
 	ULxSkillItem* SkillItem = GetCurrentSkillItem();
@@ -693,4 +735,19 @@ void ULxItemGridWidget::BroadcastItemCountChanged()
 {
 	// 只有数量变化时避免重刷整块显示，蓝图只更新数量文本即可。
 	OnItemCountUpdated(GetItemCount());
+}
+
+bool ULxItemGridWidget::ShouldSelectForDragHover(UDragDropOperation* InOperation) const
+{
+	const ULxItemDragInfo* DragOperation = Cast<ULxItemDragInfo>(InOperation);
+	return DragOperation
+		&& CurrentSlotData
+		&& DragOperation->SourceSlot
+		&& DragOperation->SourceSlot != CurrentSlotData
+		&& CurrentSlotData->ItemIsEnter();
+}
+
+void ULxItemGridWidget::BroadcastSelectedStateChanged()
+{
+	OnSelectedStateUpdated(IsSelected(), bShortcutSelected, bDragHoverSelected);
 }

@@ -12,6 +12,13 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Module_Item);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Module_Skill);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Module_State);
 
+// Character state category tags.
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_CharacterState);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_CharacterState_ElementAbnormal);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_CharacterState_Lifecycle);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_CharacterState_Movement);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_CharacterState_Combat);
+
 // Attribute identity tags.
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Strength);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Wisdom);

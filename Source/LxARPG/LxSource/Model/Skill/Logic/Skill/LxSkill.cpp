@@ -35,6 +35,30 @@ void ULxSkill::ReleaseSkillDirectly_Implementation()
 {
 }
 
+float ULxSkill::GetEffectiveReleaseCooldown() const
+{
+	return FMath::Max(0.2f, ReleaseCooldown);
+}
+
+bool ULxSkill::IsReleaseCooldownReady() const
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return true;
+	}
+
+	return World->GetTimeSeconds() - LastReleaseTime >= GetEffectiveReleaseCooldown();
+}
+
+void ULxSkill::MarkSkillReleased()
+{
+	if (const UWorld* World = GetWorld())
+	{
+		LastReleaseTime = World->GetTimeSeconds();
+	}
+}
+
 void ULxSkill::AddSkillUnit(ALxSkillUnitActor* InSkillUnit)
 {
 	if (!InSkillUnit)

@@ -43,6 +43,18 @@ public:
 	UFUNCTION(BlueprintPure, Category="技能", DisplayName="是否可以蓄力")
 	bool CanSkillCharge() const { return SkillReleaseType == ELxSkillReleaseType::ChargeRelease; }
 
+	/** 获取技能实际释放冷却，最低限制为 0.2 秒，避免过高频率释放影响流畅度。 */
+	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="获取实际释放冷却")
+	float GetEffectiveReleaseCooldown() const;
+
+	/** 判断技能释放冷却是否已经结束。 */
+	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="释放冷却是否结束")
+	bool IsReleaseCooldownReady() const;
+
+	/** 记录本次技能释放时间，用于后续释放冷却判断。 */
+	UFUNCTION(BlueprintCallable, Category="技能|释放", DisplayName="记录技能释放时间")
+	void MarkSkillReleased();
+
 	/** 添加一个技能单元对象到长期保存列表中。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元", DisplayName="添加技能单元")
 	void AddSkillUnit(ALxSkillUnitActor* InSkillUnit);
@@ -94,6 +106,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="直接释放响应状态")
 	ELxSkillReleaseInputState DirectReleaseInputState = ELxSkillReleaseInputState::Start;
 
+	/** 技能释放冷却，实际生效值不会低于 0.2 秒。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="释放冷却", meta=(ClampMin="0.2", UIMin="0.2"))
+	float ReleaseCooldown = 0.2f;
+
 	/** 技能单元列表，用于长期保存和组织此技能创建出来的技能单元对象。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|技能单元", DisplayName="技能单元列表")
 	TArray<TObjectPtr<ALxSkillUnitActor>> SkillUnitList;
@@ -105,4 +121,8 @@ protected:
 	/** 最近一次释放或蓄力时由技能释放组件传入的上下文。 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放", DisplayName="技能释放上下文")
 	FLxSkillCastContext CurrentCastContext;
+
+	/** 上一次成功释放技能的世界时间。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放", DisplayName="上次释放时间")
+	float LastReleaseTime = -100000000.0f;
 };

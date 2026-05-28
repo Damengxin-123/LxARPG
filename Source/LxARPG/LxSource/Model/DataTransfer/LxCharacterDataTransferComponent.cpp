@@ -8,6 +8,8 @@
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
+#include "LxARPG/LxSource/Model/State/Logic/LxCharacterStateComponent.h"
+#include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 namespace
@@ -72,6 +74,7 @@ void ULxCharacterDataTransferComponent::BaseComponentInitialize()
 	BroadcastEquipmentData();
 	BroadcastSkillBackpackData();
 	BroadcastBuffData();
+	BroadcastStateData();
 	RefreshEquipmentEntryPackage();
 	RefreshBuffEntryPackage();
 }
@@ -216,6 +219,53 @@ void ULxCharacterDataTransferComponent::GetDisplayBuffs(TArray<ULxBuff*>& OutBuf
 	BuffComponent->GetDisplayBuffs(OutBuffList);
 }
 
+ULxCharacterStateComponent* ULxCharacterDataTransferComponent::GetCharacterStateComponent() const
+{
+	return StateComponent;
+}
+
+bool ULxCharacterDataTransferComponent::GetCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag, FGameplayTagContainer& OutStateTags) const
+{
+	OutStateTags.Reset();
+	return StateComponent != nullptr && StateComponent->GetStateTagsByCategory(InStateCategoryTag, OutStateTags);
+}
+
+bool ULxCharacterDataTransferComponent::SetCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag, const FGameplayTagContainer& InStateTags)
+{
+	return StateComponent != nullptr && StateComponent->SetStateTagsByCategory(InStateCategoryTag, InStateTags);
+}
+
+bool ULxCharacterDataTransferComponent::AddCharacterStateTag(FGameplayTag InStateCategoryTag, FGameplayTag InStateTag)
+{
+	return StateComponent != nullptr && StateComponent->AddStateTag(InStateCategoryTag, InStateTag);
+}
+
+bool ULxCharacterDataTransferComponent::RemoveCharacterStateTag(FGameplayTag InStateCategoryTag, FGameplayTag InStateTag)
+{
+	return StateComponent != nullptr && StateComponent->RemoveStateTag(InStateCategoryTag, InStateTag);
+}
+
+bool ULxCharacterDataTransferComponent::HasCharacterStateTag(FGameplayTag InStateTag) const
+{
+	return StateComponent != nullptr && StateComponent->HasStateTag(InStateTag);
+}
+
+void ULxCharacterDataTransferComponent::GetAllCharacterStateTags(FGameplayTagContainer& OutStateTags) const
+{
+	OutStateTags.Reset();
+	if (StateComponent == nullptr)
+	{
+		return;
+	}
+
+	StateComponent->GetAllStateTags(OutStateTags);
+}
+
+bool ULxCharacterDataTransferComponent::ClearCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag)
+{
+	return StateComponent != nullptr && StateComponent->ClearStateTagsByCategory(InStateCategoryTag);
+}
+
 void ULxCharacterDataTransferComponent::ReceiveEntryPackage(const FLxCharacterEntryPackage& InEntryPackage)
 {
 	DispatchEntryPackageByType(InEntryPackage);
@@ -264,6 +314,7 @@ void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 	EquipmentComponent = OwnerCharacter->GetCharacterEquipmentComponent();
 	SkillBackpackComponent = OwnerCharacter->GetSkillBackpackComponent();
 	BuffComponent = OwnerCharacter->GetCharacterBuffComponent();
+	StateComponent = OwnerCharacter->GetCharacterStateComponent();
 }
 
 void ULxCharacterDataTransferComponent::BindComponentEvents()
@@ -297,6 +348,11 @@ void ULxCharacterDataTransferComponent::BindComponentEvents()
 		BuffComponent->OnBuffPeriodActivated.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleBuffPeriodActivated);
 	}
 
+	if (StateComponent)
+	{
+		StateComponent->OnStateTagsChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleStateTagsChanged);
+	}
+
 }
 
 void ULxCharacterDataTransferComponent::UnbindComponentEvents()
@@ -326,6 +382,11 @@ void ULxCharacterDataTransferComponent::UnbindComponentEvents()
 	{
 		BuffComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleBuffDataChanged);
 		BuffComponent->OnBuffPeriodActivated.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleBuffPeriodActivated);
+	}
+
+	if (StateComponent)
+	{
+		StateComponent->OnStateTagsChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleStateTagsChanged);
 	}
 
 }
@@ -363,6 +424,28 @@ void ULxCharacterDataTransferComponent::BroadcastBuffData()
 	TArray<ULxBuff*> BuffList;
 	GetAllBuffs(BuffList);
 	OnBuffChanged.Broadcast(BuffList);
+}
+
+void ULxCharacterDataTransferComponent::BroadcastStateData()
+{
+	if (StateComponent == nullptr)
+	{
+		return;
+	}
+
+	FGameplayTagContainer StateTags;
+
+	StateComponent->GetStateTagsByCategory(LxTag_CharacterState_ElementAbnormal, StateTags);
+	OnCharacterStateTagsChanged.Broadcast(LxTag_CharacterState_ElementAbnormal, StateTags);
+
+	StateComponent->GetStateTagsByCategory(LxTag_CharacterState_Lifecycle, StateTags);
+	OnCharacterStateTagsChanged.Broadcast(LxTag_CharacterState_Lifecycle, StateTags);
+
+	StateComponent->GetStateTagsByCategory(LxTag_CharacterState_Movement, StateTags);
+	OnCharacterStateTagsChanged.Broadcast(LxTag_CharacterState_Movement, StateTags);
+
+	StateComponent->GetStateTagsByCategory(LxTag_CharacterState_Combat, StateTags);
+	OnCharacterStateTagsChanged.Broadcast(LxTag_CharacterState_Combat, StateTags);
 }
 
 void ULxCharacterDataTransferComponent::DispatchEntryPackageByType(const FLxCharacterEntryPackage& InEntryPackage)
@@ -607,4 +690,9 @@ void ULxCharacterDataTransferComponent::HandleBuffPeriodActivated(ULxBuff* BuffL
 		}
 	}
 	BroadcastBuffData();
+}
+
+void ULxCharacterDataTransferComponent::HandleStateTagsChanged(FGameplayTag StateCategoryTag, const FGameplayTagContainer& StateTags)
+{
+	OnCharacterStateTagsChanged.Broadcast(StateCategoryTag, StateTags);
 }

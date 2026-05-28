@@ -49,6 +49,18 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category="物品格子", DisplayName="获取槽位类型")
 	ELxItemSlotType GetSlotType() const;
+
+	/** 获取当前格子里的物品类型，空格子返回 None。 */
+	UFUNCTION(BlueprintPure, Category="物品格子", DisplayName="获取物品类型")
+	ELxItemType GetItemType() const;
+
+	/** 获取当前格子里的物品对象。 */
+	UFUNCTION(BlueprintPure, Category="物品格子", DisplayName="获取当前物品")
+	ULxItemBase* GetCurrentItem() const;
+
+	/** 获取当前格子里的技能物品对象，非技能物品返回空。 */
+	UFUNCTION(BlueprintPure, Category="物品格子", DisplayName="获取当前技能物品")
+	ULxSkillItem* GetCurrentSkillItem() const;
 	//
 	// /**
 	//  * @brief 获取当前格子中物品的类型。
@@ -80,6 +92,26 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="物品格子", DisplayName="设置槽位数据")
 	void SetItemSlotData(ULxItemSlotData* InSlotData);
+
+	/** 设置快捷栏长期选中状态。 */
+	UFUNCTION(BlueprintCallable, Category="物品格子|选中", DisplayName="设置快捷栏选中")
+	void SetShortcutSelected(bool bInSelected);
+
+	/** 设置拖拽悬浮选中状态。 */
+	UFUNCTION(BlueprintCallable, Category="物品格子|选中", DisplayName="设置拖拽悬浮选中")
+	void SetDragHoverSelected(bool bInSelected);
+
+	/** 获取格子是否处于任意选中状态。 */
+	UFUNCTION(BlueprintPure, Category="物品格子|选中", DisplayName="是否选中")
+	bool IsSelected() const { return bShortcutSelected || bDragHoverSelected; }
+
+	/** 获取格子是否处于快捷栏选中状态。 */
+	UFUNCTION(BlueprintPure, Category="物品格子|选中", DisplayName="是否快捷栏选中")
+	bool IsShortcutSelected() const { return bShortcutSelected; }
+
+	/** 获取格子是否处于拖拽悬浮选中状态。 */
+	UFUNCTION(BlueprintPure, Category="物品格子|选中", DisplayName="是否拖拽悬浮选中")
+	bool IsDragHoverSelected() const { return bDragHoverSelected; }
 	
 	/**
 	 * @brief 检查当前格子中的物品是否有效。
@@ -160,6 +192,10 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category="物品格子", DisplayName="是否满足购买需求")
 	void OnTradeRequirementUpdated(bool bCanBuy);
+
+	/** 选中状态变化时调用，蓝图中根据状态显示选中框或悬浮高亮。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="物品格子|选中", DisplayName="选中状态更新")
+	void OnSelectedStateUpdated(bool bSelected, bool bShortcutSelectedState, bool bDragHoverSelectedState);
 	
 
 protected:
@@ -195,6 +231,13 @@ protected:
 	 * @param OutOperation 输出参数，用于接收创建的`UDragDropOperation`实例，该实例将管理整个拖拽操作。
 	 */
 	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
+
+	/** 拖拽物品进入格子时激活拖拽悬浮选中状态。 */
+	virtual void NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
+	/** 拖拽物品离开格子时取消拖拽悬浮选中状态。 */
+	virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
 	/**
 	 * @brief 处理拖拽释放事件。
 	 * 该方法在用户将拖拽的物品释放到当前格子时被调用，用于处理放置逻辑并决定是否接受放置的物品。
@@ -239,8 +282,6 @@ private:
 
 	ULxSkillCastComponent* GetSkillCastComponent() const;
 
-	ULxSkillItem* GetCurrentSkillItem() const;
-
 	bool TryReleaseSkillItemDirectly() const;
 
 	bool TryStartUseSkillItem() const;
@@ -260,11 +301,23 @@ private:
 
 	void BroadcastItemCountChanged();
 
+	bool ShouldSelectForDragHover(UDragDropOperation* InOperation) const;
+
+	void BroadcastSelectedStateChanged();
+
 	
 	
 	/** 指向当前格子绑定的槽位数据对象。用于存储和管理与该格子关联的具体数据。 */
 	UPROPERTY()
 	TObjectPtr<ULxItemSlotData> CurrentSlotData = nullptr;
+
+	/** 快捷栏长期选中状态。 */
+	UPROPERTY(Transient)
+	bool bShortcutSelected = false;
+
+	/** 拖拽物品悬浮在本格子上时的临时选中状态。 */
+	UPROPERTY(Transient)
+	bool bDragHoverSelected = false;
 	
 	void SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData);
 };

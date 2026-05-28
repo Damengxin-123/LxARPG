@@ -55,18 +55,19 @@ bool ULxSkillCastComponent::InitializeSkillForCast(ULxSkill* InSkill, const FLxS
 
 bool ULxSkillCastComponent::ReleaseSkillDirectly(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
 {
-	if (!InitializeSkillForCast(InSkill, InCastContext))
+	if (!InSkill || !InSkill->IsReleaseCooldownReady() || !InitializeSkillForCast(InSkill, InCastContext))
 	{
 		return false;
 	}
 
+	InSkill->MarkSkillReleased();
 	InSkill->ReleaseSkillDirectly();
 	return true;
 }
 
 bool ULxSkillCastComponent::StartSkillCharge(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
 {
-	if (!InSkill || !InSkill->CanSkillCharge() || !InitializeSkillForCast(InSkill, InCastContext))
+	if (!InSkill || !InSkill->CanSkillCharge() || !InSkill->IsReleaseCooldownReady() || !InitializeSkillForCast(InSkill, InCastContext))
 	{
 		return false;
 	}
@@ -80,11 +81,12 @@ bool ULxSkillCastComponent::StartSkillCharge(ULxSkill* InSkill, const FLxSkillCa
 bool ULxSkillCastComponent::EndSkillCharge(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
 {
 	ULxSkill* SkillToEnd = InSkill ? InSkill : ChargingSkill.Get();
-	if (!SkillToEnd || !SkillToEnd->CanSkillCharge() || !InitializeSkillForCast(SkillToEnd, InCastContext))
+	if (!SkillToEnd || !SkillToEnd->CanSkillCharge() || !SkillToEnd->IsReleaseCooldownReady() || !InitializeSkillForCast(SkillToEnd, InCastContext))
 	{
 		return false;
 	}
 
+	SkillToEnd->MarkSkillReleased();
 	SkillToEnd->EndSkillCharge();
 	if (ChargingSkill == SkillToEnd)
 	{

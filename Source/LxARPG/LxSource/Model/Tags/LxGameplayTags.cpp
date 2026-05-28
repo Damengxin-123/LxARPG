@@ -8,6 +8,13 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Module_Item, "Module.Item", "模块.物品"
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Module_Skill, "Module.Skill", "模块.技能");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Module_State, "Module.State", "模块.状态");
 
+// Character state category tags.
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState, TEXT("角色状态"), "角色状态");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_ElementAbnormal, TEXT("角色状态.元素异常状态"), "角色状态.元素异常状态");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Lifecycle, TEXT("角色状态.生命周期状态"), "角色状态.生命周期状态");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Movement, TEXT("角色状态.角色移动状态"), "角色状态.角色移动状态");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat, TEXT("角色状态.战斗状态"), "角色状态.战斗状态");
+
 // Attribute identity tags.
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Strength, "Attribute.Strength", "属性.力量");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Wisdom, "Attribute.Wisdom", "属性.智慧");
