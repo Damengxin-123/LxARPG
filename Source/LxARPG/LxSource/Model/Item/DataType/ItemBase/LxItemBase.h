@@ -20,6 +20,25 @@ class UTexture2D;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemCountChanged, ULxItemBase*, Item);
 
 /**
+ * 运行时物品词条信息。
+ *
+ * 用于在运行时同时保存词条对象和该词条在物品修改逻辑中的分类。
+ */
+USTRUCT(BlueprintType, DisplayName="运行时物品词条信息")
+struct FLxItemEntryRuntimeInfo
+{
+	GENERATED_BODY()
+
+	/** 运行时词条对象。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="词条", DisplayName="运行时词条对象")
+	TObjectPtr<ULxEntryObjectBase> EntryObject = nullptr;
+
+	/** 词条逻辑类型。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="词条", DisplayName="词条逻辑类型")
+	ELxEntryLogicType EntryLogicType = ELxEntryLogicType::Normal;
+};
+
+/**
  * UObject 化后的运行时物品基类。
  *
  * 运行时物品对象只保存当前数量、词条对象和一份从数据表拷贝来的静态配置；
@@ -88,6 +107,9 @@ public:
 	/** 获取物品词条对象列表。 */
 	TArray<TObjectPtr<ULxEntryObjectBase>>& GetItemEntryList();
 
+	/** 获取带有逻辑类型的运行时物品词条信息列表。 */
+	const TArray<FLxItemEntryRuntimeInfo>& GetItemEntryRuntimeInfoList() const;
+
 	void BroadcastItemCountChanged();
 
 	/** 获取用于 UI 显示的数量文本。 */
@@ -114,8 +136,12 @@ private:
 	/**
 	 * 物品词条对象缓存。
 	 *
-	 * 数据来源于物品静态配置中的 ItemEntryQuotes，创建后由 UI、属性组件或效果组件读取。
+	 * 数据来源于物品静态配置中的 ItemEntryConfigs，创建后由 UI、属性组件或效果组件读取。
 	 */
 	UPROPERTY()
 	TArray<TObjectPtr<ULxEntryObjectBase>> ItemEntryArray;
+
+	/** 带有逻辑类型的物品词条对象缓存，供 UI 和后续物品修改功能按类型读取。 */
+	UPROPERTY()
+	TArray<FLxItemEntryRuntimeInfo> ItemEntryRuntimeInfoArray;
 };

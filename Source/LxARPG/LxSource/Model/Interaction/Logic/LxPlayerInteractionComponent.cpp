@@ -223,6 +223,14 @@ bool ULxPlayerInteractionComponent::ActivateInteractionOption(const FLxInteracti
 		return false;
 	}
 
+	if (CurrentInteractionNode->GetInteractionActionType() == ELxInteractionActionType::InteractionExit)
+	{
+		OnInteractionOptionExecuted.Broadcast(Option);
+		CancelInteraction();
+		RefreshEntranceOptions();
+		return true;
+	}
+
 	for (ULxInteractionNode* ChildNode : CurrentInteractionNode->GetValidChildNodes())
 	{
 		if (!ValidateInteractionNodePlacement(ChildNode))

@@ -53,9 +53,9 @@ struct FLxItemInformationBase : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|可视化", DisplayName="图标")
 	TSoftObjectPtr<UTexture2D> ItemIcon;
 
-	/** 物品自带词条引用，创建运行时物品对象后会初始化为词条对象。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品词条")
-	TArray<FLxEntryQuote> ItemEntryQuotes;
+	/** 物品自带词条配置，创建运行时物品对象后会按配置中的词条引用初始化为词条对象。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品词条配置")
+	TArray<FLxItemEntryConfig> ItemEntryConfigs;
 };
 
 /**

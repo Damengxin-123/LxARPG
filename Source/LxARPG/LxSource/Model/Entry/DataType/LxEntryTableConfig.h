@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "LxItemEntryData.h"
 
 namespace LxEntryConfig
@@ -14,17 +15,10 @@ namespace LxEntryConfig
 	void SetMultiTargetEntryData(const FLxEntryMultiTarget& InEntryData);
 	void SetDisplayTextEntryData(const FLxEntryDisplayText& InEntryData);
 
-	const TMap<ELxAttributeGainEntryID, FLxEntryAttributeGain>& GetAttributeGainEntryMap();
-	const TMap<ELxAttributeRecoveryEntryID, FLxEntryAttributeRecovery>& GetAttributeRecoveryEntryMap();
-	const TMap<ELxChangeStateEntryID, FLxEntryChangeState>& GetChangeStateEntryMap();
-	const TMap<ELxCreateBuffEntryID, FLxEntryCreateBuff>& GetCreateBuffEntryMap();
-	const TMap<ELxMultiTargetEntryID, FLxEntryMultiTarget>& GetMultiTargetEntryMap();
-	const TMap<ELxDisplayTextEntryID, FLxEntryDisplayText>& GetDisplayTextEntryMap();
-
 	/**
-	 * 根据词条类型和 uint8 ID 查询词条数据。
+	 * 根据词条标签 ID 查询词条数据。
 	 *
-	 * 调用方传入统一的 uint8 ID 后，函数会根据词条类型转换到对应的词条 ID 枚举并查询对应表。
+	 * 词条标签 ID 本身包含词条类型层级，查询结果中的 EntryType 用于区分运行时词条对象。
 	 */
-	FLxEntryBase* GetEntryData(ELxEntryType InEntryType, uint8 InEntryID);
+	const FLxEntryBase* GetEntryData(FGameplayTag InEntryID);
 }

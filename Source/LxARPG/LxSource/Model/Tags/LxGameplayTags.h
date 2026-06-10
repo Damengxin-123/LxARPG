@@ -19,15 +19,6 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_CharacterState_Lifecycle);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_CharacterState_Movement);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_CharacterState_Combat);
 
-// Attribute identity tags.
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Strength);
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Wisdom);
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Agility);
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Constitution);
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_AttackPower);
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Health);
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Mana);
-
 // Function category tags.
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Function_AttributeRecovery);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Function_AttributeEnhancement);

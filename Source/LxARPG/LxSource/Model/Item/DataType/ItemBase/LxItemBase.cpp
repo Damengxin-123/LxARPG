@@ -202,13 +202,21 @@ bool ULxItemBase::operator==(ULxItemBase& InItem)
 
 void ULxItemBase::InitItemEntry()
 {
+	ItemEntryArray.Reset();
+	ItemEntryRuntimeInfoArray.Reset();
+
 	if (FLxItemInformationBase* Item = ItemBase())
 	{
-		for (FLxEntryQuote& EntryQuote : Item->ItemEntryQuotes)
+		for (const FLxItemEntryConfig& EntryConfig : Item->ItemEntryConfigs)
 		{
-			if (ULxEntryObjectBase* EntryBase = ULxEntryObjectBase::CreateEnterObject(this, EntryQuote))
+			if (ULxEntryObjectBase* EntryBase = ULxEntryObjectBase::CreateEnterObject(this, EntryConfig.EntryQuote))
 			{
 				ItemEntryArray.Add(EntryBase);
+
+				FLxItemEntryRuntimeInfo RuntimeInfo;
+				RuntimeInfo.EntryObject = EntryBase;
+				RuntimeInfo.EntryLogicType = EntryConfig.EntryLogicType;
+				ItemEntryRuntimeInfoArray.Add(RuntimeInfo);
 			}
 		}
 	}
@@ -217,6 +225,11 @@ void ULxItemBase::InitItemEntry()
 TArray<TObjectPtr<ULxEntryObjectBase>>& ULxItemBase::GetItemEntryList()
 {
 	return ItemEntryArray;
+}
+
+const TArray<FLxItemEntryRuntimeInfo>& ULxItemBase::GetItemEntryRuntimeInfoList() const
+{
+	return ItemEntryRuntimeInfoArray;
 }
 
 void ULxItemBase::BroadcastItemCountChanged()

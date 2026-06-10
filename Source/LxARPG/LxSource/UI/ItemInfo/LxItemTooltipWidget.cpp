@@ -32,6 +32,18 @@ bool ULxItemTooltipWidget::SetDisplayItemLogicWithValue(ULxItemBase* InItem, int
 	TArray<ULxUITextData*> EntryUIDataList = BuildItemEntryUITextDataList();
 	OnItemEntryDisplayUpdated(EntryUIDataList.Num() > 0, EntryUIDataList);
 
+	FLxItemEntryDisplayDataByLogicType EntryUIDataByLogicType = BuildItemEntryUITextDataByLogicType();
+	const bool bHasTypedEntry = EntryUIDataByLogicType.NormalEntryDataList.Num() > 0
+		|| EntryUIDataByLogicType.BaseEntryDataList.Num() > 0
+		|| EntryUIDataByLogicType.LockedEntryDataList.Num() > 0
+		|| EntryUIDataByLogicType.SpecialEntryDataList.Num() > 0;
+	OnItemEntryDisplayUpdatedByLogicType(
+		bHasTypedEntry,
+		EntryUIDataByLogicType.NormalEntryDataList,
+		EntryUIDataByLogicType.BaseEntryDataList,
+		EntryUIDataByLogicType.LockedEntryDataList,
+		EntryUIDataByLogicType.SpecialEntryDataList);
+
 	return true;
 }
 
@@ -65,6 +77,54 @@ TArray<ULxUITextData*> ULxItemTooltipWidget::BuildItemEntryUITextDataList()
 		TextData->DisplayText = EntryObject->GetDisplayName();
 		TextData->IsDarkColor = bIsDarkColor;
 		Result.Add(TextData);
+		bIsDarkColor = !bIsDarkColor;
+	}
+
+	return Result;
+}
+
+FLxItemEntryDisplayDataByLogicType ULxItemTooltipWidget::BuildItemEntryUITextDataByLogicType()
+{
+	FLxItemEntryDisplayDataByLogicType Result;
+	if (!m_pCurrentItem || !m_pCurrentItem->ItemIsValid())
+	{
+		return Result;
+	}
+
+	bool bIsDarkColor = true;
+	for (const FLxItemEntryRuntimeInfo& EntryRuntimeInfo : m_pCurrentItem->GetItemEntryRuntimeInfoList())
+	{
+		if (!EntryRuntimeInfo.EntryObject)
+		{
+			continue;
+		}
+
+		ULxUITextData* TextData = NewObject<ULxUITextData>(this);
+		if (!TextData)
+		{
+			continue;
+		}
+
+		TextData->DisplayText = EntryRuntimeInfo.EntryObject->GetDisplayName();
+		TextData->IsDarkColor = bIsDarkColor;
+
+		switch (EntryRuntimeInfo.EntryLogicType)
+		{
+		case ELxEntryLogicType::Base:
+			Result.BaseEntryDataList.Add(TextData);
+			break;
+		case ELxEntryLogicType::Locked:
+			Result.LockedEntryDataList.Add(TextData);
+			break;
+		case ELxEntryLogicType::Special:
+			Result.SpecialEntryDataList.Add(TextData);
+			break;
+		case ELxEntryLogicType::Normal:
+		default:
+			Result.NormalEntryDataList.Add(TextData);
+			break;
+		}
+
 		bIsDarkColor = !bIsDarkColor;
 	}
 

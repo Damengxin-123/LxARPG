@@ -9,12 +9,43 @@ namespace
 
 	void ApplyBaseValueConfigToAttribute(const FLxAttributeValueConfig& InValueConfig, FLxAttributeData& InOutAttributeData)
 	{
-		InOutAttributeData.AttributeID = InValueConfig.AttributeID;
+		if (InValueConfig.AttributeID != ELxCharacterAttributeID::X_None)
+		{
+			InOutAttributeData.AttributeID = InValueConfig.AttributeID;
+		}
+		if (InValueConfig.AttributeIDTag.IsValid())
+		{
+			InOutAttributeData.AttributeIDTag = InValueConfig.AttributeIDTag;
+		}
+
 		InOutAttributeData.AttributeValue.UpwardFloatingRatio = InValueConfig.UpwardFloatingRatio;
 		InOutAttributeData.AttributeValue.DownwardFloatingRatio = InValueConfig.DownwardFloatingRatio;
 		InOutAttributeData.AttributeValue.ValueLimit = InValueConfig.ValueLimit;
 		InOutAttributeData.AttributeValue.Value = InValueConfig.Value;
 		InOutAttributeData.CalculatedAttributeValue = InOutAttributeData.AttributeValue;
+	}
+
+	ELxCharacterAttributeID ResolveAttributeID(const TMap<ELxCharacterAttributeID, FLxAttributeData>& InAttributeDataMap, const FLxAttributeValueConfig& InValueConfig)
+	{
+		if (InValueConfig.AttributeID != ELxCharacterAttributeID::X_None)
+		{
+			return InValueConfig.AttributeID;
+		}
+
+		if (!InValueConfig.AttributeIDTag.IsValid())
+		{
+			return ELxCharacterAttributeID::X_None;
+		}
+
+		for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : InAttributeDataMap)
+		{
+			if (AttributePair.Value.AttributeIDTag == InValueConfig.AttributeIDTag)
+			{
+				return AttributePair.Key;
+			}
+		}
+
+		return ELxCharacterAttributeID::X_None;
 	}
 }
 
@@ -77,17 +108,22 @@ namespace LxAttributeConfig
 
 		for (const FLxAttributeValueConfig& ValueConfig : *RaceBaseValues)
 		{
-			if (ValueConfig.AttributeID == ELxCharacterAttributeID::X_None)
+			const ELxCharacterAttributeID AttributeID = ResolveAttributeID(ResultMap, ValueConfig);
+			if (AttributeID == ELxCharacterAttributeID::X_None)
 			{
 				continue;
 			}
 
-			FLxAttributeData* FoundAttributeData = ResultMap.Find(ValueConfig.AttributeID);
+			FLxAttributeData* FoundAttributeData = ResultMap.Find(AttributeID);
 			if (FoundAttributeData == nullptr)
 			{
 				FLxAttributeData NewData;
 				ApplyBaseValueConfigToAttribute(ValueConfig, NewData);
-				ResultMap.Add(ValueConfig.AttributeID, NewData);
+				if (NewData.AttributeID == ELxCharacterAttributeID::X_None)
+				{
+					NewData.AttributeID = AttributeID;
+				}
+				ResultMap.Add(AttributeID, NewData);
 				continue;
 			}
 

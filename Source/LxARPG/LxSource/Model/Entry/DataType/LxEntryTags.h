@@ -1,0 +1,35 @@
+#pragma once
+
+#include "NativeGameplayTags.h"
+
+// 词条根标签。
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry);
+
+// 词条类型标签。
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_AttributeGain);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_AttributeRecovery);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_ChangeState);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_CreateBuff);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_MultiTarget);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_DisplayText);
+
+// 属性增益词条标签。
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_AttributeGain_GainStrength_1);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_AttributeGain_GainWisdom_1);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_AttributeGain_GainMaxHP_1);
+
+// 属性回复词条标签。
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_AttributeRecovery_RecoverHP_1);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_AttributeRecovery_RecoverHPPercent_1);
+
+// 状态改变词条标签。
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_ChangeState_ImmuneAllDamage_1);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_ChangeState_RecoveringHP_1);
+
+// 创建 Buff 词条标签。
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_CreateBuff_RestoreHPBuff_1);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_CreateBuff_GainStrengthBuff_1);
+
+// 显示文本词条标签。
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_DisplayText_DisplayRare_1);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Entry_DisplayText_DisplayUndroppable_1);

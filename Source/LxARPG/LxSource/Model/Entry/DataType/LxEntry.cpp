@@ -8,72 +8,9 @@ void ULxEntryObjectBase::InitEntry(const FLxEntryQuote& InEntryQuote)
 {
 	EntryQuote = InEntryQuote;
 
-	// EntryQuote
-	if (!InEntryQuote.EntryQuote.IsNull())
+	if (InEntryQuote.EntryID.IsValid())
 	{
-		if (FLxEntryBase* Base = InEntryQuote.EntryQuote.GetRow<FLxEntryBase>("ULxEntryObjectBase::InitEntry"))
-		{
-			uint8 EntryID = 0;
-			switch (Base->EntryType)
-			{
-			case ELxEntryType::AttributeGain:
-				{
-					if (FLxEntryAttributeGain* AttributeGain = static_cast<FLxEntryAttributeGain*>(Base))
-					{
-						EntryID = static_cast<uint8>(AttributeGain->EntryID);
-						SetEntryData(LxEntryConfig::GetEntryData(Base->EntryType, EntryID));
-					}
-				}
-				break;
-			case ELxEntryType::AttributeRecovery:
-				{
-					if (FLxEntryAttributeRecovery* AttributeRecovery = static_cast<FLxEntryAttributeRecovery*>(Base))
-					{
-						EntryID = static_cast<uint8>(AttributeRecovery->EntryID);
-						SetEntryData(LxEntryConfig::GetEntryData(Base->EntryType, EntryID));
-					}
-				}
-				break;
-			case ELxEntryType::ChangeState:
-				{
-					if (FLxEntryChangeState* ChangeState = static_cast<FLxEntryChangeState*>(Base))
-					{
-						EntryID = static_cast<uint8>(ChangeState->EntryID);
-						SetEntryData(LxEntryConfig::GetEntryData(Base->EntryType, EntryID));
-					}
-				}
-				break;
-			case ELxEntryType::CreateBuff:
-				{
-					if (FLxEntryCreateBuff* CreateBuff = static_cast<FLxEntryCreateBuff*>(Base))
-					{
-						EntryID = static_cast<uint8>(CreateBuff->EntryID);
-						SetEntryData(LxEntryConfig::GetEntryData(Base->EntryType, EntryID));
-					}
-				}
-				break;
-			case ELxEntryType::MultiTarget:
-				{
-					if (FLxEntryMultiTarget* MultiTarget = static_cast<FLxEntryMultiTarget*>(Base))
-					{
-						EntryID = static_cast<uint8>(MultiTarget->EntryID);
-						SetEntryData(LxEntryConfig::GetEntryData(Base->EntryType, EntryID));
-					}
-				}
-				break;
-			case ELxEntryType::DisplayText:
-				{
-					if (FLxEntryDisplayText* DisplayText = static_cast<FLxEntryDisplayText*>(Base))
-					{
-						EntryID = static_cast<uint8>(DisplayText->EntryID);
-						SetEntryData(LxEntryConfig::GetEntryData(Base->EntryType, EntryID));
-					}
-				}
-				break;
-			default:
-				break;
-			}
-		}
+		SetEntryData(LxEntryConfig::GetEntryData(InEntryQuote.EntryID));
 	}
 }
 
@@ -90,35 +27,37 @@ ULxEntryObjectBase* ULxEntryObjectBase::CreateEnterObject(UObject* InParent, con
 {
 	ULxEntryObjectBase* OutEntryObject = nullptr;
 
-	if (!InEntryQuote.EntryQuote.IsNull())
+	if (InEntryQuote.EntryID.IsValid())
 	{
-		if (FLxEntryBase* Base = InEntryQuote.EntryQuote.GetRow<FLxEntryBase>("ULxEntryObjectBase::InitEntry"))
+		const FLxEntryBase* EntryData = LxEntryConfig::GetEntryData(InEntryQuote.EntryID);
+		if (EntryData == nullptr)
 		{
-			switch (Base->EntryType)
-			{
-			case ELxEntryType::AttributeGain:
-				OutEntryObject = NewObject<ULxEntryObjectAttributeGain>(InParent);
-				break;
-			case ELxEntryType::AttributeRecovery:
-				OutEntryObject = NewObject<ULxEntryObjectAttributeRecovery>(InParent);
-				break;
-			case ELxEntryType::ChangeState:
-				OutEntryObject = NewObject<ULxEntryObjectChangeState>(InParent);
-				break;
-			case ELxEntryType::CreateBuff:
-				OutEntryObject = NewObject<ULxEntryObjectCreateBuff>(InParent);
-				break;
-			case ELxEntryType::MultiTarget:
-				OutEntryObject = NewObject<ULxEntryObjectMultiTarget>(InParent);
-				break;
-			case ELxEntryType::DisplayText:
-				OutEntryObject = NewObject<ULxEntryObjectDisplayText>(InParent);
-				break;
-			default:
-				return nullptr;
-			}
+			return nullptr;
 		}
-			
+
+		switch (EntryData->EntryType)
+		{
+		case ELxEntryType::AttributeGain:
+			OutEntryObject = NewObject<ULxEntryObjectAttributeGain>(InParent);
+			break;
+		case ELxEntryType::AttributeRecovery:
+			OutEntryObject = NewObject<ULxEntryObjectAttributeRecovery>(InParent);
+			break;
+		case ELxEntryType::ChangeState:
+			OutEntryObject = NewObject<ULxEntryObjectChangeState>(InParent);
+			break;
+		case ELxEntryType::CreateBuff:
+			OutEntryObject = NewObject<ULxEntryObjectCreateBuff>(InParent);
+			break;
+		case ELxEntryType::MultiTarget:
+			OutEntryObject = NewObject<ULxEntryObjectMultiTarget>(InParent);
+			break;
+		case ELxEntryType::DisplayText:
+			OutEntryObject = NewObject<ULxEntryObjectDisplayText>(InParent);
+			break;
+		default:
+			return nullptr;
+		}
 	}
 	if (OutEntryObject)
 	{

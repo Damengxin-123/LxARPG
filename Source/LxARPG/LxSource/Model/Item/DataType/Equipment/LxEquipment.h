@@ -51,18 +51,18 @@ struct FLxEquipmentInformation : public FLxItemInformationBase
 	 * @param EquipmentType 装备所属的具体部位类型。
 	 * @param EnhancementValueOverride 强化值覆盖项，用于指定装备的特定强化等级。
 	 * @param ForgePotential 装备的潜在锻造能力，影响装备可被锻造的程度或次数。
-	 * @param DefaultEntryQuoteList 初始化时提供的词条列表，其中第一个元素将被设为默认词条，其余则添加至扩展词条列表。
+	 * @param DefaultEntryConfigList 初始化时提供的词条配置列表，每条词条都带有后续物品修改系统使用的逻辑类型。
 	 * @return 无返回值。
 	 */
 	FLxEquipmentInformation(FGameplayTag InItemIDTag, ELxItemRarityType RarityType,
-	                        ELxEquipmentType EquipmentType, int32 EnhancementValueOverride, int32 ForgePotential, const TArray<FLxEntryQuote>& DefaultEntryQuoteList = TArray<FLxEntryQuote>())
+	                        ELxEquipmentType EquipmentType, int32 EnhancementValueOverride, int32 ForgePotential, const TArray<FLxItemEntryConfig>& DefaultEntryConfigList = TArray<FLxItemEntryConfig>())
 	{
 		this->ItemIDTag = InItemIDTag;
 		this->ItemRarity  = RarityType;
 		this->EquipmentType = EquipmentType;
 		this->EnhancementValueOverride = EnhancementValueOverride;
 		this->ForgePotential = ForgePotential;
-		this->ItemEntryQuotes = DefaultEntryQuoteList;
+		this->ItemEntryConfigs = DefaultEntryConfigList;
 
 		ItemCountMax = 1;
 		ItemType = ELxItemType::Equipment;

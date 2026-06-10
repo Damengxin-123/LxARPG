@@ -1,0 +1,31 @@
+#pragma once
+
+#include "NativeGameplayTags.h"
+
+// 旧版扁平角色属性 ID 标签，保留用于兼容已有配置。
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Strength);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Wisdom);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Agility);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Constitution);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_AttackPower);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Health);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Mana);
+
+// 按属性分类组织的角色属性 ID 标签。
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Basic);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Basic_Strength);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Basic_Wisdom);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Basic_Agility);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Basic_Constitution);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Resource);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Resource_Health);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Resource_Mana);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Resource_Stamina);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Judgement);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Judgement_CriticalChance);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Percentage);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Percentage_CriticalDamage);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Percentage_BlockDamageReduction);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Numeric);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Numeric_Armor);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Numeric_AttackPower);

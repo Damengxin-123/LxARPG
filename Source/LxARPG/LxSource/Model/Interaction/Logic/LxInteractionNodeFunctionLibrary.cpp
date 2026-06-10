@@ -29,6 +29,13 @@ ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateEntranceInteraction
 	return CreateInteractionNode(Outer, InteractionIDTag, PromptTextTag, ELxInteractionActionType::Entrance, ChildNodes);
 }
 
+ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateInteractionExitNode(UObject* Outer,
+	FGameplayTag InteractionIDTag, FGameplayTag PromptTextTag)
+{
+	return CreateInteractionNode(Outer, InteractionIDTag, PromptTextTag, ELxInteractionActionType::InteractionExit,
+		TArray<ULxInteractionNode*>());
+}
+
 ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateFunctionInteractionNode(UObject* Outer,
 	FGameplayTag InteractionIDTag, FGameplayTag PromptTextTag, ELxInteractionActionType InteractionType,
 	ULxInteractionActionComponentBase* ActionComponent)

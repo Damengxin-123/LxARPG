@@ -17,6 +17,10 @@ struct FLxInteractionAttributeRequirement
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="属性ID")
 	ELxCharacterAttributeID AttributeID = ELxCharacterAttributeID::X_None;
 
+	/** 交互需求的属性标签 ID，用于按 GameplayTag 判断角色属性是否达标。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="属性ID标签", meta=(Categories="Attribute"))
+	FGameplayTag AttributeIDTag;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="最小值")
 	float MinValue = 0.0f;
 };

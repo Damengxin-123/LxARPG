@@ -8,6 +8,15 @@
 class ULxItemBase;
 class ULxUITextData;
 
+/** 按词条逻辑类型拆分后的词条显示数据。 */
+struct FLxItemEntryDisplayDataByLogicType
+{
+	TArray<ULxUITextData*> NormalEntryDataList;
+	TArray<ULxUITextData*> BaseEntryDataList;
+	TArray<ULxUITextData*> LockedEntryDataList;
+	TArray<ULxUITextData*> SpecialEntryDataList;
+};
+
 UCLASS(BlueprintType, Blueprintable, DisplayName="物品悬浮信息控件")
 class LXARPG_API ULxItemTooltipWidget : public ULxUIBaseObject
 {
@@ -26,6 +35,15 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category="ItemTooltip", DisplayName="显示词条信息")
 	void OnItemEntryDisplayUpdated(bool bHasEntry, const TArray<ULxUITextData*>& ItemEntryDataList);
 
+	/** 按普通、基础、锁定、特殊四种词条逻辑类型显示词条信息。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="物品悬浮信息", DisplayName="按词条逻辑类型显示词条信息")
+	void OnItemEntryDisplayUpdatedByLogicType(
+		bool bHasEntry,
+		const TArray<ULxUITextData*>& NormalEntryDataList,
+		const TArray<ULxUITextData*>& BaseEntryDataList,
+		const TArray<ULxUITextData*>& LockedEntryDataList,
+		const TArray<ULxUITextData*>& SpecialEntryDataList);
+
 	UFUNCTION(BlueprintImplementableEvent, Category="ItemTooltip", DisplayName="显示物品基础信息")
 	void OnItemBaseInformationUpdated(const FLxItemInformationBase& ItemInformation);
 
@@ -40,5 +58,9 @@ protected:
 	TObjectPtr<ULxItemBase> m_pCurrentItem = nullptr;
 
 private:
+	/** 构建兼容旧显示事件的完整词条文本列表。 */
 	TArray<ULxUITextData*> BuildItemEntryUITextDataList();
+
+	/** 按词条逻辑类型构建词条文本列表。 */
+	FLxItemEntryDisplayDataByLogicType BuildItemEntryUITextDataByLogicType();
 };

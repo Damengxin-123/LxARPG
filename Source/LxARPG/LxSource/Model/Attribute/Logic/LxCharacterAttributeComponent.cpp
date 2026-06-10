@@ -1,5 +1,6 @@
 #include "LxCharacterAttributeComponent.h"
 
+#include "Engine/DataTable.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 
@@ -13,6 +14,104 @@ namespace
 			|| InValueType == ELxCharacterValueType::Switch
 			|| InValueType == ELxCharacterValueType::Setting;
 	}
+
+	bool LoadAttributeValueConfigsFromTable(const UDataTable* InAttributeValueTable, TArray<FLxAttributeValueConfig>& OutValueConfigs)
+	{
+		OutValueConfigs.Reset();
+		if (InAttributeValueTable == nullptr)
+		{
+			return true;
+		}
+
+		if (InAttributeValueTable->GetRowStruct() != FLxAttributeValueConfig::StaticStruct())
+		{
+			return false;
+		}
+
+		TArray<FLxAttributeValueConfig*> Rows;
+		InAttributeValueTable->GetAllRows<FLxAttributeValueConfig>(TEXT("ULxCharacterAttributeComponent::LoadAttributeValueConfigsFromTable"), Rows);
+		OutValueConfigs.Reserve(Rows.Num());
+
+		for (const FLxAttributeValueConfig* RowData : Rows)
+		{
+			if (RowData == nullptr)
+			{
+				continue;
+			}
+
+			OutValueConfigs.Add(*RowData);
+		}
+
+		return true;
+	}
+
+	ELxCharacterAttributeID ResolveAttributeID(const TMap<ELxCharacterAttributeID, FLxAttributeData>& InAttributeDataMap, const FLxAttributeValueConfig& InValueConfig)
+	{
+		if (InValueConfig.AttributeID != ELxCharacterAttributeID::X_None)
+		{
+			return InValueConfig.AttributeID;
+		}
+
+		if (!InValueConfig.AttributeIDTag.IsValid())
+		{
+			return ELxCharacterAttributeID::X_None;
+		}
+
+		for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : InAttributeDataMap)
+		{
+			if (AttributePair.Value.AttributeIDTag == InValueConfig.AttributeIDTag)
+			{
+				return AttributePair.Key;
+			}
+		}
+
+		return ELxCharacterAttributeID::X_None;
+	}
+
+	void ApplyBaseValueConfigToAttribute(const FLxAttributeValueConfig& InValueConfig, FLxAttributeData& InOutAttributeData)
+	{
+		if (InValueConfig.AttributeID != ELxCharacterAttributeID::X_None)
+		{
+			InOutAttributeData.AttributeID = InValueConfig.AttributeID;
+		}
+		if (InValueConfig.AttributeIDTag.IsValid())
+		{
+			InOutAttributeData.AttributeIDTag = InValueConfig.AttributeIDTag;
+		}
+
+		InOutAttributeData.AttributeValue.UpwardFloatingRatio = InValueConfig.UpwardFloatingRatio;
+		InOutAttributeData.AttributeValue.DownwardFloatingRatio = InValueConfig.DownwardFloatingRatio;
+		InOutAttributeData.AttributeValue.ValueLimit = InValueConfig.ValueLimit;
+		InOutAttributeData.AttributeValue.Value = InValueConfig.Value;
+		InOutAttributeData.CalculatedAttributeValue = InOutAttributeData.AttributeValue;
+	}
+
+	void ApplyBaseValueConfigsToAttributeMap(const TArray<FLxAttributeValueConfig>& InValueConfigs, TMap<ELxCharacterAttributeID, FLxAttributeData>& InOutAttributeDataMap)
+	{
+		for (const FLxAttributeValueConfig& ValueConfig : InValueConfigs)
+		{
+			const ELxCharacterAttributeID AttributeID = ResolveAttributeID(InOutAttributeDataMap, ValueConfig);
+			if (AttributeID == ELxCharacterAttributeID::X_None)
+			{
+				continue;
+			}
+
+			FLxAttributeData* FoundAttributeData = InOutAttributeDataMap.Find(AttributeID);
+			if (FoundAttributeData == nullptr)
+			{
+				FLxAttributeData NewData;
+				ApplyBaseValueConfigToAttribute(ValueConfig, NewData);
+				if (NewData.AttributeID == ELxCharacterAttributeID::X_None)
+				{
+					NewData.AttributeID = AttributeID;
+				}
+				InOutAttributeDataMap.Add(AttributeID, NewData);
+				continue;
+			}
+
+			ApplyBaseValueConfigToAttribute(ValueConfig, *FoundAttributeData);
+		}
+	}
 }
 
 ULxCharacterAttributeComponent::ULxCharacterAttributeComponent()
@@ -22,8 +121,33 @@ ULxCharacterAttributeComponent::ULxCharacterAttributeComponent()
 
 void ULxCharacterAttributeComponent::BaseComponentInitialize()
 {
+	if (CharacterAttributeValueTable != nullptr)
+	{
+		LoadAttributeValueConfigsFromTable(CharacterAttributeValueTable, CharacterAttributeValueConfigs);
+	}
+
 	InitializeAttributeTable();
 	BroadcastAttributeTableChanged();
+}
+
+bool ULxCharacterAttributeComponent::SetCharacterAttributeValueTable(UDataTable* InAttributeValueTable, bool bReinitializeAttribute)
+{
+	TArray<FLxAttributeValueConfig> LoadedValueConfigs;
+	if (!LoadAttributeValueConfigsFromTable(InAttributeValueTable, LoadedValueConfigs))
+	{
+		return false;
+	}
+
+	CharacterAttributeValueTable = InAttributeValueTable;
+	CharacterAttributeValueConfigs = LoadedValueConfigs;
+
+	if (bReinitializeAttribute)
+	{
+		InitializeAttributeTable();
+		BroadcastAttributeTableChanged();
+	}
+
+	return true;
 }
 
 void ULxCharacterAttributeComponent::ReceiveAttributeGainEntries(ELxCharacterAttributeEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList)
@@ -103,7 +227,14 @@ void ULxCharacterAttributeComponent::RebuildAttributeTableFromRaceConfig()
 {
 	CharacterAttributeTable.Empty();
 
-	const TMap<ELxCharacterAttributeID, FLxAttributeData> AttributeDataMap = LxAttributeConfig::GetCharacterAttributeDataByRaceType(CharacterRaceType);
+	TMap<ELxCharacterAttributeID, FLxAttributeData> AttributeDataMap = CharacterAttributeValueConfigs.IsEmpty()
+		? LxAttributeConfig::GetCharacterAttributeDataByRaceType(CharacterRaceType)
+		: LxAttributeConfig::GetAttributeDataMap();
+	if (!CharacterAttributeValueConfigs.IsEmpty())
+	{
+		ApplyBaseValueConfigsToAttributeMap(CharacterAttributeValueConfigs, AttributeDataMap);
+	}
+
 	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : AttributeDataMap)
 	{
 		const FLxAttributeData& AttributeData = AttributePair.Value;

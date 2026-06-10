@@ -22,7 +22,7 @@ enum class ELxEntryEffectiveType : uint8
 
 /**
  * 词条作用对象。
- * 指定属性类词条影响属性数值结构中的哪个字段。
+ * 指定属性类词条影响属性数值结构中的哪一个字段。
  */
 UENUM(BlueprintType, DisplayName="词条作用对象")
 enum class ELxEntryTarget : uint8
@@ -40,7 +40,24 @@ enum class ELxEntryTarget : uint8
 using ELxItemEntryType = ELxEntryEffectiveType;
 using ELxItemEntryTarget = ELxEntryTarget;
 
-/** 词条类型。 */
+/**
+ * 词条逻辑类型。
+ * 用于描述物品修改、交互编辑等系统对物品上某条词条的处理规则。
+ */
+UENUM(BlueprintType, DisplayName="词条逻辑类型")
+enum class ELxEntryLogicType : uint8
+{
+	// 普通词条：可在后续交互功能中被修改或删除。
+	Normal	UMETA(DisplayName="普通词条"),
+	// 基础词条：物品自带基础词条，玩家只能进行有限编辑，例如调整数值。
+	Base	UMETA(DisplayName="基础词条"),
+	// 锁定词条：无论位于何种物品上，都不可被编辑。
+	Locked	UMETA(DisplayName="锁定词条"),
+	// 特殊词条：具有特殊逻辑效果，例如不可强化、不可出售。
+	Special	UMETA(DisplayName="特殊词条"),
+};
+
+/** 词条类型。用于区分运行时词条对象类型，不再作为词条数据主键。 */
 UENUM(BlueprintType, DisplayName="词条类型")
 enum class ELxEntryType : uint8
 {
@@ -52,7 +69,7 @@ enum class ELxEntryType : uint8
 	AttributeRecovery	UMETA(DisplayName="属性回复"),
 	// 改变状态
 	ChangeState			UMETA(DisplayName="改变状态"),
-	// 创建Buff
+	// 创建 Buff
 	CreateBuff			UMETA(DisplayName="创建Buff"),
 	// 多目标
 	MultiTarget			UMETA(DisplayName="多目标"),
@@ -60,7 +77,7 @@ enum class ELxEntryType : uint8
 	DisplayText			UMETA(DisplayName="显示文本"),
 };
 
-/** 更改状态词条的取值。 */
+/** 状态词条取值。 */
 UENUM(BlueprintType, DisplayName="状态词条值")
 enum class ELxEntryStateValue : uint8
 {
@@ -70,57 +87,4 @@ enum class ELxEntryStateValue : uint8
 	Remove	UMETA(DisplayName="移除状态"),
 	// 切换状态
 	Toggle	UMETA(DisplayName="切换状态"),
-};
-
-/** 属性增益词条 ID。 */
-UENUM(BlueprintType, DisplayName="属性增益词条ID")
-enum class ELxAttributeGainEntryID : uint8
-{
-	None			UMETA(DisplayName="无"),
-	GainStrength_1	UMETA(DisplayName="力量增加1"),
-	GainWisdom_1	UMETA(DisplayName="智慧增加1"),
-	GainMaxHP_1		UMETA(DisplayName="生命上限增加1"),
-};
-
-/** 属性回复词条 ID。 */
-UENUM(BlueprintType, DisplayName="属性回复词条ID")
-enum class ELxAttributeRecoveryEntryID : uint8
-{
-	None				UMETA(DisplayName="无"),
-	RecoverHP_1			UMETA(DisplayName="生命回复1"),
-	RecoverHPPercent_1	UMETA(DisplayName="生命百分比回复1"),
-};
-
-/** 状态改变词条 ID。 */
-UENUM(BlueprintType, DisplayName="状态改变词条ID")
-enum class ELxChangeStateEntryID : uint8
-{
-	None				UMETA(DisplayName="无"),
-	ImmuneAllDamage_1	UMETA(DisplayName="免疫所有伤害1"),
-	RecoveringHP_1		UMETA(DisplayName="正在恢复生命1"),
-};
-
-/** 创建 Buff 词条 ID。 */
-UENUM(BlueprintType, DisplayName="创建Buff词条ID")
-enum class ELxCreateBuffEntryID : uint8
-{
-	None					UMETA(DisplayName="无"),
-	RestoreHPBuff_1			UMETA(DisplayName="创建生命回复Buff1"),
-	GainStrengthBuff_1		UMETA(DisplayName="创建力量提高Buff1"),
-};
-
-/** 多目标词条 ID。 */
-UENUM(BlueprintType, DisplayName="多目标词条ID")
-enum class ELxMultiTargetEntryID : uint8
-{
-	None UMETA(DisplayName="无"),
-};
-
-/** 显示文本词条 ID。 */
-UENUM(BlueprintType, DisplayName="显示文本词条ID")
-enum class ELxDisplayTextEntryID : uint8
-{
-	None					UMETA(DisplayName="无"),
-	DisplayRare_1			UMETA(DisplayName="十分稀有1"),
-	DisplayUndroppable_1	UMETA(DisplayName="不可丢弃1"),
 };

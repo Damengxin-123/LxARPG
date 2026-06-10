@@ -15,15 +15,6 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Lifecycle, TEXT("角色状�
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Movement, TEXT("角色状态.角色移动状态"), "角色状态.角色移动状态");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat, TEXT("角色状态.战斗状态"), "角色状态.战斗状态");
 
-// Attribute identity tags.
-UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Strength, "Attribute.Strength", "属性.力量");
-UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Wisdom, "Attribute.Wisdom", "属性.智慧");
-UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Agility, "Attribute.Agility", "属性.敏捷");
-UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Constitution, "Attribute.Constitution", "属性.体质");
-UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_AttackPower, "Attribute.AttackPower", "属性.攻击力");
-UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Health, "Attribute.Health", "属性.生命值");
-UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Mana, "Attribute.Mana", "属性.魔力值");
-
 // Function category tags.
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Function_AttributeRecovery, "Function.AttributeRecovery", "功能.属性回复");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Function_AttributeEnhancement, "Function.AttributeEnhancement", "功能.属性增益");

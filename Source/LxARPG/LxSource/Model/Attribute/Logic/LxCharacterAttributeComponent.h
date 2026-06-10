@@ -6,6 +6,7 @@
 #include "LxCharacterAttributeComponent.generated.h"
 
 class ULxEntryObjectBase;
+class UDataTable;
 
 /**
  * 角色属性词条来源。
@@ -43,6 +44,14 @@ public:
 
 	/** 初始化属性表，并广播一次当前完整属性数据。 */
 	virtual void BaseComponentInitialize() override;
+
+	/**
+	 * 设置角色属性数值表，并按需重新初始化角色属性。
+	 *
+	 * 数据表行结构使用 FLxAttributeValueConfig，用于给单个角色单位覆盖基础属性数值。
+	 */
+	UFUNCTION(BlueprintCallable, Category="角色属性", DisplayName="设置角色属性数值表")
+	bool SetCharacterAttributeValueTable(UDataTable* InAttributeValueTable, bool bReinitializeAttribute = true);
 
 	/**
 	 * 接收一组属性增益词条。
@@ -85,6 +94,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Character Attribute", DisplayName="角色种族")
 	ELxCharacterRaceType CharacterRaceType = ELxCharacterRaceType::None;
 
+	/** 角色单位专属属性数值表；设置后会优先使用该表覆盖基础属性，未设置时继续使用种族属性配置。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="角色属性", DisplayName="角色属性数值表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxAttributeValueConfig"))
+	TObjectPtr<UDataTable> CharacterAttributeValueTable = nullptr;
+
 	/** 当前角色属性表；每项属性同时保存基础值和计算后的实时有效值。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Character Attribute", DisplayName="角色属性表")
 	TMap<ELxCharacterAttributeID, FLxAttributeData> CharacterAttributeTable;
@@ -94,6 +107,9 @@ protected:
 
 	/** 运行时范围属性当前值缓存，避免装备或 Buff 重算时把已恢复/已消耗的当前值重置为配置默认值。 */
 	TMap<ELxCharacterAttributeID, float> RuntimeRangedAttributeValues;
+
+	/** 从角色单位专属属性数值表中读取并缓存的基础属性覆盖配置。 */
+	TArray<FLxAttributeValueConfig> CharacterAttributeValueConfigs;
 
 private:
 	/** 初始化属性组件内部数据。 */

@@ -15,6 +15,8 @@ enum class ELxInteractionActionType : uint8
 	Warehouse UMETA(DisplayName="仓库"),
 	TradeContainer UMETA(DisplayName="交易容器"),
 	FunctionPage UMETA(DisplayName="功能界面"),
+	/** 交互出口节点，选择后关闭当前交互流程。 */
+	InteractionExit UMETA(DisplayName="交互出口"),
 };
 
 /** 物品传递方向，表示对玩家角色背包增加或移除物品。 */

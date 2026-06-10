@@ -33,6 +33,11 @@ public:
 	static ULxInteractionNode* CreateEntranceInteractionNode(UObject* Outer, FGameplayTag InteractionIDTag,
 		FGameplayTag PromptTextTag, const TArray<ULxInteractionNode*>& ChildNodes);
 
+	/** 创建一个交互出口节点，玩家选择后会关闭当前交互流程。 */
+	UFUNCTION(BlueprintPure, Category="交互", DisplayName="创建交互出口节点", meta=(DefaultToSelf="Outer"))
+	static ULxInteractionNode* CreateInteractionExitNode(UObject* Outer, FGameplayTag InteractionIDTag,
+		FGameplayTag PromptTextTag);
+
 	/** 创建一个带功能组件的交互节点。 */
 	UFUNCTION(BlueprintPure, Category="交互", DisplayName="创建功能组件交互节点", meta=(DefaultToSelf="Outer"))
 	static ULxInteractionNode* CreateFunctionInteractionNode(UObject* Outer, FGameplayTag InteractionIDTag,
