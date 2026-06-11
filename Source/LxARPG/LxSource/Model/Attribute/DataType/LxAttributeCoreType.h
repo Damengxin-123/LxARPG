@@ -81,7 +81,7 @@ struct FLxAttributeDerivedRule
 	ELxCharacterAttributeID AttributeID = ELxCharacterAttributeID::X_None;
 
 	/** 被当前属性加成或衍生影响的目标属性标签。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性", DisplayName="加成对象标签", meta=(Categories="Attribute"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性", DisplayName="加成对象标签", meta=(Categories="属性"))
 	FGameplayTag AttributeIDTag;
 
 	/** 衍生结果要作用到目标属性值结构中的哪个字段。 */

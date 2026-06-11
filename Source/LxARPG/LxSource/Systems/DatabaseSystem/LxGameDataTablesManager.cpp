@@ -66,12 +66,16 @@ namespace
 
 		for (const FLxAttributeData* RowData : Rows)
 		{
-			if (RowData == nullptr || RowData->AttributeID == ELxCharacterAttributeID::X_None)
+			if (RowData == nullptr)
 			{
 				continue;
 			}
 
-			LxAttributeConfig::SetAttributeDataConfig(*RowData);
+			FLxAttributeData AttributeData = *RowData;
+			if (LxAttributeTools::NormalizeAttributeIDTag(AttributeData))
+			{
+				LxAttributeConfig::SetAttributeDataConfig(AttributeData);
+			}
 		}
 	}
 
@@ -88,7 +92,7 @@ namespace
 		TArray<FLxAttributeValueConfig> ValueConfigList;
 		for (const FLxAttributeValueConfig* RowData : Rows)
 		{
-			if (RowData == nullptr || RowData->AttributeID == ELxCharacterAttributeID::X_None)
+			if (RowData == nullptr || !LxAttributeTools::ResolveAttributeIDTag(*RowData).IsValid())
 			{
 				continue;
 			}

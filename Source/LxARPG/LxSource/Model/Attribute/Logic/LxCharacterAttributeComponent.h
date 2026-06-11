@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxCharacterAttributeComponent.generated.h"
 
 class ULxEntryObjectBase;
@@ -61,6 +62,9 @@ public:
 	 */
 	void ReceiveAttributeGainEntries(ELxCharacterAttributeEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList);
 
+	/** 接收一组属性增益减益效果，同来源替换策略会覆盖旧效果缓存。 */
+	void ReceiveAttributeModifierEffects(const FLxEffectSourceContext& InSourceContext, ELxEffectPackageApplyPolicy InApplyPolicy, const TArray<FLxAttributeModifierEffect>& InEffectList);
+
 	/**
 	 * 接收一组属性恢复词条。
 	 *
@@ -70,6 +74,9 @@ public:
 	 */
 	void ReceiveAttributeRecoveryEntries(const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList);
 
+	/** 接收一组属性恢复效果。属性恢复属于即时效果，不进入属性增益缓存。 */
+	void ReceiveAttributeRecoveryEffects(const TArray<FLxAttributeRecoveryEffect>& InEffectList);
+
 	/**
 	 * 获取当前完整角色属性列表。
 	 *
@@ -78,12 +85,12 @@ public:
 	void GetCharacterAttributeList(TArray<FLxAttributeData>& OutAttributeList) const;
 
 	/**
-	 * 按属性 ID 查询当前角色属性。
+	 * 按属性标签 ID 查询当前角色属性。
 	 *
-	 * @param InAttributeID 要查询的属性 ID。
+	 * @param InAttributeIDTag 要查询的属性标签 ID。
 	 * @return 找到时返回属性数据指针，否则返回 nullptr。
 	 */
-	const FLxAttributeData* GetCharacterAttributeByID(ELxCharacterAttributeID InAttributeID) const;
+	const FLxAttributeData* GetCharacterAttributeByIDTag(FGameplayTag InAttributeIDTag) const;
 
 	/** 属性更新事件，广播当前完整属性表。 */
 	UPROPERTY(BlueprintAssignable, Category="Character Attribute", DisplayName="属性更新事件")
@@ -100,13 +107,16 @@ protected:
 
 	/** 当前角色属性表；每项属性同时保存基础值和计算后的实时有效值。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Character Attribute", DisplayName="角色属性表")
-	TMap<ELxCharacterAttributeID, FLxAttributeData> CharacterAttributeTable;
+	TMap<FGameplayTag, FLxAttributeData> CharacterAttributeTable;
 
 	/** 按来源缓存的属性增益词条。 */
 	TMap<ELxCharacterAttributeEntrySource, TArray<TObjectPtr<ULxEntryObjectBase>>> AttributeGainEntryCache;
 
+	/** 按效果来源缓存的属性增益减益效果。 */
+	TMap<FName, TArray<FLxAttributeModifierEffect>> AttributeModifierEffectCache;
+
 	/** 运行时范围属性当前值缓存，避免装备或 Buff 重算时把已恢复/已消耗的当前值重置为配置默认值。 */
-	TMap<ELxCharacterAttributeID, float> RuntimeRangedAttributeValues;
+	TMap<FGameplayTag, float> RuntimeRangedAttributeValues;
 
 	/** 从角色单位专属属性数值表中读取并缓存的基础属性覆盖配置。 */
 	TArray<FLxAttributeValueConfig> CharacterAttributeValueConfigs;
@@ -139,9 +149,21 @@ private:
 	/** 将单条运行时词条应用到指定属性数据上。 */
 	static void ApplyEntryToAttribute(FLxAttributeData& InOutAttributeData, const ULxEntryObjectBase& InEntryObject);
 
+	/** 将单条属性增益减益效果应用到指定属性数据上。 */
+	static void ApplyModifierEffectToAttribute(FLxAttributeData& InOutAttributeData, const FLxAttributeModifierEffect& InEffect);
+
+	/** 将单条属性恢复效果应用到指定属性数据上。 */
+	static void ApplyRecoveryEffectToAttribute(FLxAttributeData& InOutAttributeData, const FLxAttributeRecoveryEffect& InEffect);
+
 	/** 将一条属性衍生规则应用到指定属性数据上。 */
 	static void ApplyDerivedRuleToAttribute(FLxAttributeData& InOutAttributeData, const FLxAttributeDerivedRule& InDerivedRule, float InSourceValue);
 
 	/** 判断属性标签是否满足词条或衍生规则要求的目标标签。 */
 	static bool AttributeMatchesTargetTags(const FLxAttributeData& InAttributeData, const FGameplayTagContainer& InTargetTags);
+
+	/** 判断属性是否满足属性增益减益效果的目标条件。 */
+	static bool AttributeMatchesModifierEffect(const FLxAttributeData& InAttributeData, const FLxAttributeModifierEffect& InEffect);
+
+	/** 判断属性是否满足属性恢复效果的目标条件。 */
+	static bool AttributeMatchesRecoveryEffect(const FLxAttributeData& InAttributeData, const FLxAttributeRecoveryEffect& InEffect);
 };

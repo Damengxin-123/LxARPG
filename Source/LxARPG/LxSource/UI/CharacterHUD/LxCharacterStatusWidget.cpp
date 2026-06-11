@@ -1,6 +1,6 @@
 #include "LxCharacterStatusWidget.h"
 
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 
 void ULxCharacterStatusWidget::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)
@@ -72,11 +72,11 @@ void ULxCharacterStatusWidget::UpdateAttributeTextFromList(const TArray<FLxAttri
 
 	for (const FLxAttributeData& AttributeData : AttributeList)
 	{
-		if (AttributeData.AttributeID == ELxCharacterAttributeID::C_HP)
+		if (AttributeData.AttributeIDTag == LxTag_Attribute_Resource_Health)
 		{
 			HPAttribute = &AttributeData;
 		}
-		else if (AttributeData.AttributeID == ELxCharacterAttributeID::C_MP)
+		else if (AttributeData.AttributeIDTag == LxTag_Attribute_Resource_Mana)
 		{
 			MPAttribute = &AttributeData;
 		}

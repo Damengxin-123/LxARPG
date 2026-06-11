@@ -31,6 +31,24 @@ namespace
 		}
 	}
 
+	/** 将效果包来源转换为现有 Buff 组件可识别的词条来源。 */
+	ELxCharacterEntrySource ConvertToEntrySource(ELxEffectPackageSource InEffectSource)
+	{
+		switch (InEffectSource)
+		{
+		case ELxEffectPackageSource::Backpack:
+			return ELxCharacterEntrySource::Backpack;
+		case ELxEffectPackageSource::Equipment:
+			return ELxCharacterEntrySource::Equipment;
+		case ELxEffectPackageSource::Buff:
+			return ELxCharacterEntrySource::Buff;
+		case ELxEffectPackageSource::Skill:
+			return ELxCharacterEntrySource::Skill;
+		default:
+			return ELxCharacterEntrySource::Other;
+		}
+	}
+
 	/** 判断该来源的属性增益词条是否需要按来源缓存，空列表也会清空旧缓存。 */
 	bool ShouldRefreshAttributeGainCache(ELxCharacterEntrySource InEntrySource)
 	{
@@ -85,14 +103,14 @@ void ULxCharacterDataTransferComponent::EndPlay(const EEndPlayReason::Type EndPl
 	Super::EndPlay(EndPlayReason);
 }
 
-bool ULxCharacterDataTransferComponent::QueryCharacterAttributeByID(ELxCharacterAttributeID InAttributeID, FLxAttributeData& OutAttributeData) const
+bool ULxCharacterDataTransferComponent::QueryCharacterAttributeByIDTag(FGameplayTag InAttributeIDTag, FLxAttributeData& OutAttributeData) const
 {
 	if (AttributeComponent == nullptr)
 	{
 		return false;
 	}
 
-	const FLxAttributeData* AttributeData = AttributeComponent->GetCharacterAttributeByID(InAttributeID);
+	const FLxAttributeData* AttributeData = AttributeComponent->GetCharacterAttributeByIDTag(InAttributeIDTag);
 	if (AttributeData == nullptr)
 	{
 		return false;
@@ -269,6 +287,11 @@ bool ULxCharacterDataTransferComponent::ClearCharacterStateTagsByCategory(FGamep
 void ULxCharacterDataTransferComponent::ReceiveEntryPackage(const FLxCharacterEntryPackage& InEntryPackage)
 {
 	DispatchEntryPackageByType(InEntryPackage);
+}
+
+void ULxCharacterDataTransferComponent::ReceiveEffectPackage(const FLxEffectPackage& InEffectPackage)
+{
+	DispatchEffectPackageByType(InEffectPackage);
 }
 
 void ULxCharacterDataTransferComponent::SortBackpackItems()
@@ -478,6 +501,72 @@ void ULxCharacterDataTransferComponent::DispatchEntryPackageByType(const FLxChar
 		if (bAddedBuff)
 		{
 			RefreshBuffEntryPackage();
+		}
+	}
+}
+
+void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEffectPackage& InEffectPackage)
+{
+	if (InEffectPackage.IsEmpty())
+	{
+		return;
+	}
+
+	if (AttributeComponent != nullptr)
+	{
+		if (!InEffectPackage.AttributeModifierEffects.IsEmpty())
+		{
+			AttributeComponent->ReceiveAttributeModifierEffects(InEffectPackage.SourceContext, InEffectPackage.ApplyPolicy, InEffectPackage.AttributeModifierEffects);
+		}
+
+		if (!InEffectPackage.AttributeRecoveryEffects.IsEmpty())
+		{
+			AttributeComponent->ReceiveAttributeRecoveryEffects(InEffectPackage.AttributeRecoveryEffects);
+		}
+	}
+
+	if (StateComponent != nullptr)
+	{
+		for (const FLxStateChangeEffect& StateEffect : InEffectPackage.StateChangeEffects)
+		{
+			if (!StateEffect.StateCategoryTag.IsValid() || !StateEffect.StateTag.IsValid())
+			{
+				continue;
+			}
+
+			switch (StateEffect.Operation)
+			{
+			case ELxStateEffectOperation::Add:
+				StateComponent->AddStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
+				break;
+			case ELxStateEffectOperation::Remove:
+				StateComponent->RemoveStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
+				break;
+			case ELxStateEffectOperation::Toggle:
+				if (StateComponent->HasStateTagInCategory(StateEffect.StateCategoryTag, StateEffect.StateTag))
+				{
+					StateComponent->RemoveStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
+				}
+				else
+				{
+					StateComponent->AddStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
+				}
+				break;
+			}
+		}
+	}
+
+	if (BuffComponent != nullptr)
+	{
+		const ELxCharacterEntrySource EntrySource = ConvertToEntrySource(InEffectPackage.SourceContext.SourceType);
+		for (const FLxBuffGrantEffect& BuffEffect : InEffectPackage.BuffGrantEffects)
+		{
+			if (!BuffEffect.BuffIDTag.IsValid())
+			{
+				continue;
+			}
+
+			BuffComponent->AddBuff(BuffEffect.BuffIDTag, BuffEffect.EffectProportion, BuffEffect.Duration, EntrySource);
 		}
 	}
 }

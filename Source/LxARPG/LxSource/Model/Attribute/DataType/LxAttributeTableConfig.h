@@ -17,7 +17,7 @@ namespace LxAttributeConfig
 	 *
 	 * 该表保存属性规则、标签、衍生规则和显示信息，是所有种族属性组装的基础。
 	 */
-	void SetAttributeDataMap(const TMap<ELxCharacterAttributeID, FLxAttributeData>& InAttributeDataMap);
+	void SetAttributeDataMap(const TMap<FGameplayTag, FLxAttributeData>& InAttributeDataMap);
 
 	/**
 	 * 写入完整的种族基础属性值表。
@@ -43,7 +43,7 @@ namespace LxAttributeConfig
 	/**
 	 * 获取完整的角色属性定义表。
 	 */
-	const TMap<ELxCharacterAttributeID, FLxAttributeData>& GetAttributeDataMap();
+	const TMap<FGameplayTag, FLxAttributeData>& GetAttributeDataMap();
 
 	/**
 	 * 获取完整的种族基础属性值表。
@@ -53,18 +53,51 @@ namespace LxAttributeConfig
 	/**
 	 * 从已加载的属性定义表中获取单个属性配置。
 	 */
-	const FLxAttributeData* GetAttributeDataConfig(ELxCharacterAttributeID InAttributeID);
+	const FLxAttributeData* GetAttributeDataConfig(FGameplayTag InAttributeIDTag);
 
 	/**
 	 * 按角色种族获取运行时属性表。
 	 *
 	 * 会先复制通用属性定义表，再将该种族配置的基础数值覆盖到对应属性上。
 	 */
-	TMap<ELxCharacterAttributeID, FLxAttributeData> GetCharacterAttributeDataByRaceType(ELxCharacterRaceType InRaceType);
+	TMap<FGameplayTag, FLxAttributeData> GetCharacterAttributeDataByRaceType(ELxCharacterRaceType InRaceType);
 }
 
 namespace LxAttributeTools
 {
+	/**
+	 * 将旧版角色属性枚举 ID 转换为角色属性标签 ID。
+	 *
+	 * 仅用于兼容旧数据；新逻辑应直接配置和传递 AttributeIDTag。
+	 */
+	FGameplayTag GetAttributeIDTagByLegacyID(ELxCharacterAttributeID InAttributeID);
+
+	/**
+	 * 解析属性数据的标签 ID。
+	 *
+	 * 当 AttributeIDTag 已配置时直接使用标签；否则从旧版枚举 ID 推导标签。
+	 */
+	FGameplayTag ResolveAttributeIDTag(const FLxAttributeData& InAttributeData);
+
+	/**
+	 * 解析属性数值覆盖配置的标签 ID。
+	 *
+	 * 用于种族或角色模板基础属性覆盖。
+	 */
+	FGameplayTag ResolveAttributeIDTag(const FLxAttributeValueConfig& InValueConfig);
+
+	/**
+	 * 解析属性衍生规则的目标属性标签 ID。
+	 */
+	FGameplayTag ResolveAttributeIDTag(const FLxAttributeDerivedRule& InDerivedRule);
+
+	/**
+	 * 补齐属性数据中的标签 ID。
+	 *
+	 * @return 成功得到有效属性标签时返回 true。
+	 */
+	bool NormalizeAttributeIDTag(FLxAttributeData& InOutAttributeData);
+
 	/**
 	 * 获取属性的显示文本。
 	 *

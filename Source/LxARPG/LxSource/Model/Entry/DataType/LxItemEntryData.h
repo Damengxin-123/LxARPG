@@ -68,7 +68,7 @@ struct FLxEntryAttributeGain : public FLxEntryBase
 	ELxCharacterAttributeID AttributeID = ELxCharacterAttributeID::X_None;
 
 	/** 作用属性标签 ID，用于按 GameplayTag 指定词条影响的属性。 */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="作用属性ID标签", meta=(Categories="Attribute"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="作用属性ID标签", meta=(Categories="属性"))
 	FGameplayTag AttributeIDTag;
 
 	/** 作用对象。 */
@@ -104,7 +104,7 @@ struct FLxEntryAttributeRecovery : public FLxEntryBase
 	ELxCharacterAttributeID AttributeID = ELxCharacterAttributeID::X_None;
 
 	/** 作用属性标签 ID，用于按 GameplayTag 指定词条恢复的属性。 */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="作用属性ID标签", meta=(Categories="Attribute"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="作用属性ID标签", meta=(Categories="属性"))
 	FGameplayTag AttributeIDTag;
 
 	/** 作用方式。 */

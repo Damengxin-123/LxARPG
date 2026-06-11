@@ -4,6 +4,7 @@
 #include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ShowInfoConfig/LxItemRarityType.h"
 #include "LxCharacterEntryPackage.h"
@@ -45,9 +46,9 @@ public:
 	virtual void BaseComponentInitialize() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/** 使用属性 ID 查询当前角色属性。 */
-	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="使用属性ID查询角色属性")
-	bool QueryCharacterAttributeByID(ELxCharacterAttributeID InAttributeID, FLxAttributeData& OutAttributeData) const;
+	/** 使用属性标签 ID 查询当前角色属性。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|属性", DisplayName="使用属性标签ID查询角色属性", meta=(Categories="属性"))
+	bool QueryCharacterAttributeByIDTag(FGameplayTag InAttributeIDTag, FLxAttributeData& OutAttributeData) const;
 
 	/** 按物品类型和稀有度过滤背包物品；传入 None 时表示不按该条件过滤。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="使用物品过滤查询物品")
@@ -120,6 +121,10 @@ public:
 	/** 接收外部传入的词条包，并按词条类型分发到属性、Buff 等模块。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="接收角色词条包")
 	void ReceiveEntryPackage(const FLxCharacterEntryPackage& InEntryPackage);
+
+	/** 接收外部传入的模块效果数据包，并按子效果类型分发到对应模块。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|效果", DisplayName="接收模块效果数据包")
+	void ReceiveEffectPackage(const FLxEffectPackage& InEffectPackage);
 
 	/** 通过数据中转组件请求背包排序，排序完成后仍由背包事件回流刷新 UI。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="背包物品排序")
@@ -200,6 +205,7 @@ private:
 
 	void DispatchEntryList(ELxCharacterEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList);
 	void DispatchEntryPackageByType(const FLxCharacterEntryPackage& InEntryPackage);
+	void DispatchEffectPackageByType(const FLxEffectPackage& InEffectPackage);
 	void SyncEquipmentBuffEntries(const TArray<TObjectPtr<ULxEntryObjectBase>>& InBuffEntryList);
 	void RefreshEquipmentEntryPackage();
 	void RefreshBuffEntryPackage();

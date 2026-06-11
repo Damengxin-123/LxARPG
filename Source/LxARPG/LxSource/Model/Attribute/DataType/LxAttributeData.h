@@ -22,7 +22,7 @@ struct FLxAttributeData : public FTableRowBase
 	ELxCharacterAttributeID AttributeID = ELxCharacterAttributeID::X_None;
 
 	/** 角色属性标签 ID，用于后续以 GameplayTag 替代枚举 ID 进行查找和配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性", DisplayName="属性ID标签", meta=(Categories="Attribute"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性", DisplayName="属性ID标签", meta=(Categories="属性"))
 	FGameplayTag AttributeIDTag;
 
 	/** 属性关联的目标标签，用于词条过滤和条件匹配。 */
@@ -62,7 +62,7 @@ struct FLxAttributeValueConfig : public FTableRowBase
 	ELxCharacterAttributeID AttributeID = ELxCharacterAttributeID::X_None;
 
 	/** 角色属性标签 ID，用于按标签覆盖指定属性的基础数值。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性", DisplayName="属性ID标签", meta=(Categories="Attribute"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性", DisplayName="属性ID标签", meta=(Categories="属性"))
 	FGameplayTag AttributeIDTag;
 
 	/** 该属性的基础数值上限。 */

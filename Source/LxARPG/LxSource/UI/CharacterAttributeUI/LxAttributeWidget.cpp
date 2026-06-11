@@ -25,7 +25,7 @@ void ULxAttributeWidget::HandleCharacterAttributesChanged(const TArray<FLxAttrib
 	OnAttributeListUpdated(BuildAttributesUIDataList(AttributeList));
 }
 
-FText ULxAttributeWidget::GetAttributeValueStringByID(ELxCharacterAttributeID InAttributeID) const
+FText ULxAttributeWidget::GetAttributeValueStringByIDTag(FGameplayTag InAttributeIDTag) const
 {
 	if (!m_pCharacterDataTransferComponent)
 	{
@@ -33,7 +33,7 @@ FText ULxAttributeWidget::GetAttributeValueStringByID(ELxCharacterAttributeID In
 	}
 
 	FLxAttributeData AttributeData;
-	if (!m_pCharacterDataTransferComponent->QueryCharacterAttributeByID(InAttributeID, AttributeData))
+	if (!m_pCharacterDataTransferComponent->QueryCharacterAttributeByIDTag(InAttributeIDTag, AttributeData))
 	{
 		return FLxString().ToFText();
 	}
@@ -41,14 +41,14 @@ FText ULxAttributeWidget::GetAttributeValueStringByID(ELxCharacterAttributeID In
 }
 
 
-bool ULxAttributeWidget::GetAttributeDataByID(ELxCharacterAttributeID InAttributeID, FLxAttributeData& OutAttributeData)
+bool ULxAttributeWidget::GetAttributeDataByIDTag(FGameplayTag InAttributeIDTag, FLxAttributeData& OutAttributeData)
 {
 	if (!m_pCharacterDataTransferComponent)
 	{
 		return false;
 	}
 
-	return m_pCharacterDataTransferComponent->QueryCharacterAttributeByID(InAttributeID, OutAttributeData);
+	return m_pCharacterDataTransferComponent->QueryCharacterAttributeByIDTag(InAttributeIDTag, OutAttributeData);
 }
 
 void ULxAttributeWidget::BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent)
@@ -112,7 +112,7 @@ TArray<ULxUITextData*> ULxAttributeWidget::BuildAttributesUIDataList(const TArra
 
 	Algo::Sort(VisibleAttributeList, [](const FLxAttributeData* Left, const FLxAttributeData* Right)
 	{
-		return static_cast<uint8>(Left->AttributeID) < static_cast<uint8>(Right->AttributeID);
+		return Left->AttributeIDTag.ToString() < Right->AttributeIDTag.ToString();
 	});
 
 	UIDataList.Reserve(VisibleAttributeList.Num());

@@ -29,13 +29,13 @@ public:
 	UFUNCTION()
 	void HandleCharacterAttributesChanged(const TArray<FLxAttributeData>& AttributeList);
 
-	/** 按属性 ID 获取当前运行时属性值字符串，普通数值取整数，百分比和概率类型自动追加%。 */
-	UFUNCTION(BlueprintPure, Category="Attribute", DisplayName="获取属性可视化字符串")
-	FText GetAttributeValueStringByID(ELxCharacterAttributeID InAttributeID) const;
+	/** 按属性标签 ID 获取当前运行时属性值字符串，普通数值取整数，百分比和概率类型自动追加%。 */
+	UFUNCTION(BlueprintPure, Category="角色属性", DisplayName="获取属性可视化字符串", meta=(Categories="属性"))
+	FText GetAttributeValueStringByIDTag(FGameplayTag InAttributeIDTag) const;
 
-	/** 获取属性完整数据，供蓝图或调试读取。 */
-	UFUNCTION(BlueprintCallable, Category="Attribute", DisplayName="获取属性数据")
-	bool GetAttributeDataByID(ELxCharacterAttributeID InAttributeID, FLxAttributeData& OutAttributeData);
+	/** 按属性标签 ID 获取属性完整数据，供蓝图或调试读取。 */
+	UFUNCTION(BlueprintCallable, Category="角色属性", DisplayName="获取属性数据", meta=(Categories="属性"))
+	bool GetAttributeDataByIDTag(FGameplayTag InAttributeIDTag, FLxAttributeData& OutAttributeData);
 
 	/** 可直接显示在列表中的属性刷新时调用，蓝图中负责更新列表显示。 */
 	UFUNCTION(BlueprintImplementableEvent, Category="Attribute", DisplayName="属性列表显示更新")

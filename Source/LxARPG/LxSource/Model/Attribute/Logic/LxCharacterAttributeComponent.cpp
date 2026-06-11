@@ -45,38 +45,20 @@ namespace
 		return true;
 	}
 
-	ELxCharacterAttributeID ResolveAttributeID(const TMap<ELxCharacterAttributeID, FLxAttributeData>& InAttributeDataMap, const FLxAttributeValueConfig& InValueConfig)
+	FGameplayTag ResolveAttributeIDTag(const FLxAttributeValueConfig& InValueConfig)
 	{
-		if (InValueConfig.AttributeID != ELxCharacterAttributeID::X_None)
-		{
-			return InValueConfig.AttributeID;
-		}
-
-		if (!InValueConfig.AttributeIDTag.IsValid())
-		{
-			return ELxCharacterAttributeID::X_None;
-		}
-
-		for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : InAttributeDataMap)
-		{
-			if (AttributePair.Value.AttributeIDTag == InValueConfig.AttributeIDTag)
-			{
-				return AttributePair.Key;
-			}
-		}
-
-		return ELxCharacterAttributeID::X_None;
+		return LxAttributeTools::ResolveAttributeIDTag(InValueConfig);
 	}
 
 	void ApplyBaseValueConfigToAttribute(const FLxAttributeValueConfig& InValueConfig, FLxAttributeData& InOutAttributeData)
 	{
-		if (InValueConfig.AttributeID != ELxCharacterAttributeID::X_None)
-		{
-			InOutAttributeData.AttributeID = InValueConfig.AttributeID;
-		}
 		if (InValueConfig.AttributeIDTag.IsValid())
 		{
 			InOutAttributeData.AttributeIDTag = InValueConfig.AttributeIDTag;
+		}
+		else if (!InOutAttributeData.AttributeIDTag.IsValid())
+		{
+			InOutAttributeData.AttributeIDTag = LxAttributeTools::GetAttributeIDTagByLegacyID(InValueConfig.AttributeID);
 		}
 
 		InOutAttributeData.AttributeValue.UpwardFloatingRatio = InValueConfig.UpwardFloatingRatio;
@@ -86,26 +68,26 @@ namespace
 		InOutAttributeData.CalculatedAttributeValue = InOutAttributeData.AttributeValue;
 	}
 
-	void ApplyBaseValueConfigsToAttributeMap(const TArray<FLxAttributeValueConfig>& InValueConfigs, TMap<ELxCharacterAttributeID, FLxAttributeData>& InOutAttributeDataMap)
+	void ApplyBaseValueConfigsToAttributeMap(const TArray<FLxAttributeValueConfig>& InValueConfigs, TMap<FGameplayTag, FLxAttributeData>& InOutAttributeDataMap)
 	{
 		for (const FLxAttributeValueConfig& ValueConfig : InValueConfigs)
 		{
-			const ELxCharacterAttributeID AttributeID = ResolveAttributeID(InOutAttributeDataMap, ValueConfig);
-			if (AttributeID == ELxCharacterAttributeID::X_None)
+			const FGameplayTag AttributeIDTag = ResolveAttributeIDTag(ValueConfig);
+			if (!AttributeIDTag.IsValid())
 			{
 				continue;
 			}
 
-			FLxAttributeData* FoundAttributeData = InOutAttributeDataMap.Find(AttributeID);
+			FLxAttributeData* FoundAttributeData = InOutAttributeDataMap.Find(AttributeIDTag);
 			if (FoundAttributeData == nullptr)
 			{
 				FLxAttributeData NewData;
 				ApplyBaseValueConfigToAttribute(ValueConfig, NewData);
-				if (NewData.AttributeID == ELxCharacterAttributeID::X_None)
+				if (!NewData.AttributeIDTag.IsValid())
 				{
-					NewData.AttributeID = AttributeID;
+					NewData.AttributeIDTag = AttributeIDTag;
 				}
-				InOutAttributeDataMap.Add(AttributeID, NewData);
+				InOutAttributeDataMap.Add(AttributeIDTag, NewData);
 				continue;
 			}
 
@@ -181,13 +163,83 @@ void ULxCharacterAttributeComponent::ReceiveAttributeRecoveryEntries(const TArra
 			continue;
 		}
 
-		for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+		for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 		{
 			ApplyEntryToAttribute(AttributePair.Value, *EntryObject);
 		}
 	}
 
-	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	{
+		NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);
+	}
+
+	CacheRuntimeRangedAttributeValues();
+	BroadcastAttributeTableChanged();
+}
+
+void ULxCharacterAttributeComponent::ReceiveAttributeModifierEffects(const FLxEffectSourceContext& InSourceContext, ELxEffectPackageApplyPolicy InApplyPolicy, const TArray<FLxAttributeModifierEffect>& InEffectList)
+{
+	if (CharacterAttributeTable.IsEmpty())
+	{
+		InitializeAttributeTable();
+	}
+
+	if (InApplyPolicy == ELxEffectPackageApplyPolicy::Instant)
+	{
+		for (const FLxAttributeModifierEffect& Effect : InEffectList)
+		{
+			for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+			{
+				ApplyModifierEffectToAttribute(AttributePair.Value, Effect);
+			}
+		}
+
+		for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+		{
+			NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);
+		}
+
+		CacheRuntimeRangedAttributeValues();
+		BroadcastAttributeTableChanged();
+		return;
+	}
+
+	FName SourceKey = InSourceContext.MakeSourceKey();
+	if (SourceKey.IsNone())
+	{
+		SourceKey = TEXT("DefaultAttributeModifierEffectSource");
+	}
+
+	if (InApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource)
+	{
+		AttributeModifierEffectCache.Add(SourceKey, InEffectList);
+	}
+	else
+	{
+		AttributeModifierEffectCache.FindOrAdd(SourceKey).Append(InEffectList);
+	}
+
+	RefreshCharacterAttributesByCachedEntries();
+	BroadcastAttributeTableChanged();
+}
+
+void ULxCharacterAttributeComponent::ReceiveAttributeRecoveryEffects(const TArray<FLxAttributeRecoveryEffect>& InEffectList)
+{
+	if (CharacterAttributeTable.IsEmpty())
+	{
+		InitializeAttributeTable();
+	}
+
+	for (const FLxAttributeRecoveryEffect& Effect : InEffectList)
+	{
+		for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+		{
+			ApplyRecoveryEffectToAttribute(AttributePair.Value, Effect);
+		}
+	}
+
+	for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 	{
 		NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);
 	}
@@ -199,24 +251,25 @@ void ULxCharacterAttributeComponent::ReceiveAttributeRecoveryEntries(const TArra
 void ULxCharacterAttributeComponent::GetCharacterAttributeList(TArray<FLxAttributeData>& OutAttributeList) const
 {
 	OutAttributeList.Reset();
-	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	for (const TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 	{
 		OutAttributeList.Add(AttributePair.Value);
 	}
 }
 
-const FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByID(ELxCharacterAttributeID InAttributeID) const
+const FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByIDTag(FGameplayTag InAttributeIDTag) const
 {
-	return CharacterAttributeTable.Find(InAttributeID);
+	return CharacterAttributeTable.Find(InAttributeIDTag);
 }
 
 void ULxCharacterAttributeComponent::InitializeAttributeTable()
 {
 	AttributeGainEntryCache.Empty();
+	AttributeModifierEffectCache.Empty();
 	RuntimeRangedAttributeValues.Empty();
 	RebuildAttributeTableFromRaceConfig();
 	RefreshDerivedAttributes();
-	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 	{
 		NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);
 	}
@@ -227,7 +280,7 @@ void ULxCharacterAttributeComponent::RebuildAttributeTableFromRaceConfig()
 {
 	CharacterAttributeTable.Empty();
 
-	TMap<ELxCharacterAttributeID, FLxAttributeData> AttributeDataMap = CharacterAttributeValueConfigs.IsEmpty()
+	TMap<FGameplayTag, FLxAttributeData> AttributeDataMap = CharacterAttributeValueConfigs.IsEmpty()
 		? LxAttributeConfig::GetCharacterAttributeDataByRaceType(CharacterRaceType)
 		: LxAttributeConfig::GetAttributeDataMap();
 	if (!CharacterAttributeValueConfigs.IsEmpty())
@@ -235,15 +288,15 @@ void ULxCharacterAttributeComponent::RebuildAttributeTableFromRaceConfig()
 		ApplyBaseValueConfigsToAttributeMap(CharacterAttributeValueConfigs, AttributeDataMap);
 	}
 
-	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : AttributeDataMap)
+	for (const TPair<FGameplayTag, FLxAttributeData>& AttributePair : AttributeDataMap)
 	{
-		const FLxAttributeData& AttributeData = AttributePair.Value;
-		if (AttributeData.AttributeID == ELxCharacterAttributeID::X_None)
+		FLxAttributeData AttributeData = AttributePair.Value;
+		if (!LxAttributeTools::NormalizeAttributeIDTag(AttributeData))
 		{
 			continue;
 		}
 
-		CharacterAttributeTable.Add(AttributeData.AttributeID, AttributeData);
+		CharacterAttributeTable.Add(AttributeData.AttributeIDTag, AttributeData);
 	}
 }
 
@@ -261,9 +314,20 @@ void ULxCharacterAttributeComponent::RefreshCharacterAttributesByCachedEntries()
 				continue;
 			}
 
-			for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+			for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 			{
 				ApplyEntryToAttribute(AttributePair.Value, *EntryObject);
+			}
+		}
+	}
+
+	for (const TPair<FName, TArray<FLxAttributeModifierEffect>>& EffectCachePair : AttributeModifierEffectCache)
+	{
+		for (const FLxAttributeModifierEffect& Effect : EffectCachePair.Value)
+		{
+			for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+			{
+				ApplyModifierEffectToAttribute(AttributePair.Value, Effect);
 			}
 		}
 	}
@@ -271,7 +335,7 @@ void ULxCharacterAttributeComponent::RefreshCharacterAttributesByCachedEntries()
 	RefreshDerivedAttributes();
 	RestoreRuntimeRangedAttributeValues();
 
-	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 	{
 		NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);
 	}
@@ -281,7 +345,7 @@ void ULxCharacterAttributeComponent::RefreshCharacterAttributesByCachedEntries()
 void ULxCharacterAttributeComponent::CacheRuntimeRangedAttributeValues()
 {
 	RuntimeRangedAttributeValues.Reset();
-	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	for (const TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 	{
 		const FLxAttributeValue& AttributeValue = AttributePair.Value.CalculatedAttributeValue;
 		if (AttributeValue.ValueType == ELxCharacterValueType::RangedNumeric)
@@ -293,7 +357,7 @@ void ULxCharacterAttributeComponent::CacheRuntimeRangedAttributeValues()
 
 void ULxCharacterAttributeComponent::RestoreRuntimeRangedAttributeValues()
 {
-	for (TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 	{
 		FLxAttributeValue& AttributeValue = AttributePair.Value.CalculatedAttributeValue;
 		if (AttributeValue.ValueType != ELxCharacterValueType::RangedNumeric)
@@ -311,15 +375,15 @@ void ULxCharacterAttributeComponent::RestoreRuntimeRangedAttributeValues()
 
 void ULxCharacterAttributeComponent::RefreshDerivedAttributes()
 {
-	TMap<ELxCharacterAttributeID, float> SourceValueSnapshot;
+	TMap<FGameplayTag, float> SourceValueSnapshot;
 	SourceValueSnapshot.Reserve(CharacterAttributeTable.Num());
 
-	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : CharacterAttributeTable)
+	for (const TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 	{
 		SourceValueSnapshot.Add(AttributePair.Key, AttributePair.Value.CalculatedAttributeValue.Value);
 	}
 
-	for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& SourcePair : CharacterAttributeTable)
+	for (const TPair<FGameplayTag, FLxAttributeData>& SourcePair : CharacterAttributeTable)
 	{
 		const float* SourceValue = SourceValueSnapshot.Find(SourcePair.Key);
 		if (SourceValue == nullptr || FMath::IsNearlyZero(*SourceValue))
@@ -329,17 +393,18 @@ void ULxCharacterAttributeComponent::RefreshDerivedAttributes()
 
 		for (const FLxAttributeDerivedRule& DerivedRule : SourcePair.Value.DerivedRulesArray)
 		{
-			if (DerivedRule.AttributeID == ELxCharacterAttributeID::X_None || FMath::IsNearlyZero(DerivedRule.Ratio))
+			const FGameplayTag TargetAttributeIDTag = LxAttributeTools::ResolveAttributeIDTag(DerivedRule);
+			if (!TargetAttributeIDTag.IsValid() || FMath::IsNearlyZero(DerivedRule.Ratio))
 			{
 				continue;
 			}
 
-			if (DerivedRule.AttributeID == SourcePair.Key)
+			if (TargetAttributeIDTag == SourcePair.Key)
 			{
 				continue;
 			}
 
-			if (FLxAttributeData* TargetAttributeData = CharacterAttributeTable.Find(DerivedRule.AttributeID))
+			if (FLxAttributeData* TargetAttributeData = CharacterAttributeTable.Find(TargetAttributeIDTag))
 			{
 				ApplyDerivedRuleToAttribute(*TargetAttributeData, DerivedRule, *SourceValue);
 			}
@@ -445,7 +510,10 @@ void ULxCharacterAttributeComponent::ApplyEntryToAttribute(FLxAttributeData& InO
 	case ELxEntryType::AttributeGain:
 		{
 			const FLxEntryAttributeGain* GainEntry = static_cast<const FLxEntryAttributeGain*>(EntryBase);
-			if (GainEntry->AttributeID != ELxCharacterAttributeID::X_None && GainEntry->AttributeID != InOutAttributeData.AttributeID)
+			const FGameplayTag EntryAttributeIDTag = GainEntry->AttributeIDTag.IsValid()
+				? GainEntry->AttributeIDTag
+				: LxAttributeTools::GetAttributeIDTagByLegacyID(GainEntry->AttributeID);
+			if (EntryAttributeIDTag.IsValid() && EntryAttributeIDTag != InOutAttributeData.AttributeIDTag)
 			{
 				return;
 			}
@@ -461,7 +529,10 @@ void ULxCharacterAttributeComponent::ApplyEntryToAttribute(FLxAttributeData& InO
 	case ELxEntryType::AttributeRecovery:
 		{
 			const FLxEntryAttributeRecovery* RecoveryEntry = static_cast<const FLxEntryAttributeRecovery*>(EntryBase);
-			if (RecoveryEntry->AttributeID != ELxCharacterAttributeID::X_None && RecoveryEntry->AttributeID != InOutAttributeData.AttributeID)
+			const FGameplayTag EntryAttributeIDTag = RecoveryEntry->AttributeIDTag.IsValid()
+				? RecoveryEntry->AttributeIDTag
+				: LxAttributeTools::GetAttributeIDTagByLegacyID(RecoveryEntry->AttributeID);
+			if (EntryAttributeIDTag.IsValid() && EntryAttributeIDTag != InOutAttributeData.AttributeIDTag)
 			{
 				return;
 			}
@@ -479,6 +550,83 @@ void ULxCharacterAttributeComponent::ApplyEntryToAttribute(FLxAttributeData& InO
 		break;
 	default:
 		break;
+	}
+}
+
+void ULxCharacterAttributeComponent::ApplyModifierEffectToAttribute(FLxAttributeData& InOutAttributeData, const FLxAttributeModifierEffect& InEffect)
+{
+	if (!AttributeMatchesModifierEffect(InOutAttributeData, InEffect))
+	{
+		return;
+	}
+
+	auto ApplyModifierValue = [&InEffect](float& InOutTargetValue)
+	{
+		switch (InEffect.ModifierOperation)
+		{
+		case ELxAttributeModifierOperation::AddValue:
+			InOutTargetValue += InEffect.ModifierValue;
+			break;
+		case ELxAttributeModifierOperation::AddBasePercent:
+		case ELxAttributeModifierOperation::AddTotalPercent:
+			InOutTargetValue += InOutTargetValue * InEffect.ModifierValue * 0.01f;
+			break;
+		case ELxAttributeModifierOperation::UseMaximumValue:
+			InOutTargetValue = FMath::Max(InOutTargetValue, InEffect.ModifierValue);
+			break;
+		case ELxAttributeModifierOperation::UseMinimumValue:
+			InOutTargetValue = FMath::Min(InOutTargetValue, InEffect.ModifierValue);
+			break;
+		}
+	};
+
+	FLxAttributeValue& AttributeValue = InOutAttributeData.CalculatedAttributeValue;
+	switch (InEffect.ModifierTarget)
+	{
+	case ELxAttributeModifierTarget::ToValue:
+		ApplyModifierValue(AttributeValue.Value);
+		break;
+	case ELxAttributeModifierTarget::ToValueLimit:
+		ApplyModifierValue(AttributeValue.ValueLimit);
+		break;
+	case ELxAttributeModifierTarget::ToUpwardFloatingRatio:
+		ApplyModifierValue(AttributeValue.UpwardFloatingRatio);
+		break;
+	case ELxAttributeModifierTarget::ToDownwardFloatingRatio:
+		ApplyModifierValue(AttributeValue.DownwardFloatingRatio);
+		break;
+	}
+}
+
+void ULxCharacterAttributeComponent::ApplyRecoveryEffectToAttribute(FLxAttributeData& InOutAttributeData, const FLxAttributeRecoveryEffect& InEffect)
+{
+	if (!AttributeMatchesRecoveryEffect(InOutAttributeData, InEffect))
+	{
+		return;
+	}
+
+	FLxAttributeValue& AttributeValue = InOutAttributeData.CalculatedAttributeValue;
+	switch (InEffect.RecoveryOperation)
+	{
+	case ELxAttributeModifierOperation::AddValue:
+		AttributeValue.Value += InEffect.RecoveryValue;
+		break;
+	case ELxAttributeModifierOperation::AddBasePercent:
+	case ELxAttributeModifierOperation::AddTotalPercent:
+		AttributeValue.Value += AttributeValue.ValueLimit * InEffect.RecoveryValue * 0.01f;
+		break;
+	case ELxAttributeModifierOperation::UseMaximumValue:
+		AttributeValue.Value = FMath::Max(AttributeValue.Value, InEffect.RecoveryValue);
+		break;
+	case ELxAttributeModifierOperation::UseMinimumValue:
+		AttributeValue.Value = FMath::Min(AttributeValue.Value, InEffect.RecoveryValue);
+		break;
+	}
+
+	if (AttributeValue.ValueType == ELxCharacterValueType::RangedNumeric)
+	{
+		AttributeValue.ValueLimit = FMath::Max(0.0f, AttributeValue.ValueLimit);
+		AttributeValue.Value = FMath::Clamp(AttributeValue.Value, 0.0f, AttributeValue.ValueLimit);
 	}
 }
 
@@ -530,4 +678,44 @@ bool ULxCharacterAttributeComponent::AttributeMatchesTargetTags(const FLxAttribu
 	}
 
 	return InAttributeData.TargetTags.HasAll(InTargetTags);
+}
+
+bool ULxCharacterAttributeComponent::AttributeMatchesModifierEffect(const FLxAttributeData& InAttributeData, const FLxAttributeModifierEffect& InEffect)
+{
+	const FGameplayTag EffectAttributeIDTag = InEffect.AttributeIDTag.IsValid()
+		? InEffect.AttributeIDTag
+		: LxAttributeTools::GetAttributeIDTagByLegacyID(InEffect.AttributeID);
+	const bool bHasAttributeIDTag = EffectAttributeIDTag.IsValid();
+	const bool bHasTargetTags = !InEffect.TargetTags.IsEmpty();
+	if (!bHasAttributeIDTag && !bHasTargetTags)
+	{
+		return false;
+	}
+
+	if (bHasAttributeIDTag && EffectAttributeIDTag != InAttributeData.AttributeIDTag)
+	{
+		return false;
+	}
+
+	return !bHasTargetTags || AttributeMatchesTargetTags(InAttributeData, InEffect.TargetTags);
+}
+
+bool ULxCharacterAttributeComponent::AttributeMatchesRecoveryEffect(const FLxAttributeData& InAttributeData, const FLxAttributeRecoveryEffect& InEffect)
+{
+	const FGameplayTag EffectAttributeIDTag = InEffect.AttributeIDTag.IsValid()
+		? InEffect.AttributeIDTag
+		: LxAttributeTools::GetAttributeIDTagByLegacyID(InEffect.AttributeID);
+	const bool bHasAttributeIDTag = EffectAttributeIDTag.IsValid();
+	const bool bHasTargetTags = !InEffect.TargetTags.IsEmpty();
+	if (!bHasAttributeIDTag && !bHasTargetTags)
+	{
+		return false;
+	}
+
+	if (bHasAttributeIDTag && EffectAttributeIDTag != InAttributeData.AttributeIDTag)
+	{
+		return false;
+	}
+
+	return !bHasTargetTags || AttributeMatchesTargetTags(InAttributeData, InEffect.TargetTags);
 }

@@ -1,21 +1,22 @@
 #include "LxAttributeTableConfig.h"
 
 #include "LxARPG/LxSource/Core/Tools/LxString.h"
+#include "LxAttributeTags.h"
 
 namespace
 {
-	TMap<ELxCharacterAttributeID, FLxAttributeData> GAttributeDataMap;
+	TMap<FGameplayTag, FLxAttributeData> GAttributeDataMap;
 	TMap<ELxCharacterRaceType, TArray<FLxAttributeValueConfig>> GCharacterRaceBaseAttributeValueMap;
 
 	void ApplyBaseValueConfigToAttribute(const FLxAttributeValueConfig& InValueConfig, FLxAttributeData& InOutAttributeData)
 	{
-		if (InValueConfig.AttributeID != ELxCharacterAttributeID::X_None)
-		{
-			InOutAttributeData.AttributeID = InValueConfig.AttributeID;
-		}
 		if (InValueConfig.AttributeIDTag.IsValid())
 		{
 			InOutAttributeData.AttributeIDTag = InValueConfig.AttributeIDTag;
+		}
+		else if (!InOutAttributeData.AttributeIDTag.IsValid())
+		{
+			InOutAttributeData.AttributeIDTag = LxAttributeTools::GetAttributeIDTagByLegacyID(InValueConfig.AttributeID);
 		}
 
 		InOutAttributeData.AttributeValue.UpwardFloatingRatio = InValueConfig.UpwardFloatingRatio;
@@ -25,27 +26,9 @@ namespace
 		InOutAttributeData.CalculatedAttributeValue = InOutAttributeData.AttributeValue;
 	}
 
-	ELxCharacterAttributeID ResolveAttributeID(const TMap<ELxCharacterAttributeID, FLxAttributeData>& InAttributeDataMap, const FLxAttributeValueConfig& InValueConfig)
+	FGameplayTag ResolveAttributeIDTag(const FLxAttributeValueConfig& InValueConfig)
 	{
-		if (InValueConfig.AttributeID != ELxCharacterAttributeID::X_None)
-		{
-			return InValueConfig.AttributeID;
-		}
-
-		if (!InValueConfig.AttributeIDTag.IsValid())
-		{
-			return ELxCharacterAttributeID::X_None;
-		}
-
-		for (const TPair<ELxCharacterAttributeID, FLxAttributeData>& AttributePair : InAttributeDataMap)
-		{
-			if (AttributePair.Value.AttributeIDTag == InValueConfig.AttributeIDTag)
-			{
-				return AttributePair.Key;
-			}
-		}
-
-		return ELxCharacterAttributeID::X_None;
+		return LxAttributeTools::ResolveAttributeIDTag(InValueConfig);
 	}
 }
 
@@ -57,9 +40,19 @@ namespace LxAttributeConfig
 		GCharacterRaceBaseAttributeValueMap.Empty();
 	}
 
-	void SetAttributeDataMap(const TMap<ELxCharacterAttributeID, FLxAttributeData>& InAttributeDataMap)
+	void SetAttributeDataMap(const TMap<FGameplayTag, FLxAttributeData>& InAttributeDataMap)
 	{
-		GAttributeDataMap = InAttributeDataMap;
+		GAttributeDataMap.Empty();
+		for (const TPair<FGameplayTag, FLxAttributeData>& AttributePair : InAttributeDataMap)
+		{
+			FLxAttributeData AttributeData = AttributePair.Value;
+			LxAttributeTools::NormalizeAttributeIDTag(AttributeData);
+			const FGameplayTag AttributeIDTag = AttributeData.AttributeIDTag.IsValid() ? AttributeData.AttributeIDTag : AttributePair.Key;
+			if (AttributeIDTag.IsValid())
+			{
+				GAttributeDataMap.Add(AttributeIDTag, AttributeData);
+			}
+		}
 	}
 
 	void SetCharacterRaceBaseAttributeValueMap(const TMap<ELxCharacterRaceType, TArray<FLxAttributeValueConfig>>& InRaceBaseValueMap)
@@ -69,12 +62,13 @@ namespace LxAttributeConfig
 
 	void SetAttributeDataConfig(const FLxAttributeData& InAttributeData)
 	{
-		if (InAttributeData.AttributeID == ELxCharacterAttributeID::X_None)
+		FLxAttributeData AttributeData = InAttributeData;
+		if (!LxAttributeTools::NormalizeAttributeIDTag(AttributeData))
 		{
 			return;
 		}
 
-		GAttributeDataMap.Add(InAttributeData.AttributeID, InAttributeData);
+		GAttributeDataMap.Add(AttributeData.AttributeIDTag, AttributeData);
 	}
 
 	void SetCharacterRaceBaseAttributeValues(ELxCharacterRaceType InRaceType, const TArray<FLxAttributeValueConfig>& InBaseValueList)
@@ -82,7 +76,7 @@ namespace LxAttributeConfig
 		GCharacterRaceBaseAttributeValueMap.Add(InRaceType, InBaseValueList);
 	}
 
-	const TMap<ELxCharacterAttributeID, FLxAttributeData>& GetAttributeDataMap()
+	const TMap<FGameplayTag, FLxAttributeData>& GetAttributeDataMap()
 	{
 		return GAttributeDataMap;
 	}
@@ -92,14 +86,14 @@ namespace LxAttributeConfig
 		return GCharacterRaceBaseAttributeValueMap;
 	}
 
-	const FLxAttributeData* GetAttributeDataConfig(ELxCharacterAttributeID InAttributeID)
+	const FLxAttributeData* GetAttributeDataConfig(FGameplayTag InAttributeIDTag)
 	{
-		return GAttributeDataMap.Find(InAttributeID);
+		return GAttributeDataMap.Find(InAttributeIDTag);
 	}
 
-	TMap<ELxCharacterAttributeID, FLxAttributeData> GetCharacterAttributeDataByRaceType(ELxCharacterRaceType InRaceType)
+	TMap<FGameplayTag, FLxAttributeData> GetCharacterAttributeDataByRaceType(ELxCharacterRaceType InRaceType)
 	{
-		TMap<ELxCharacterAttributeID, FLxAttributeData> ResultMap = GAttributeDataMap;
+		TMap<FGameplayTag, FLxAttributeData> ResultMap = GAttributeDataMap;
 		const TArray<FLxAttributeValueConfig>* RaceBaseValues = GCharacterRaceBaseAttributeValueMap.Find(InRaceType);
 		if (RaceBaseValues == nullptr)
 		{
@@ -108,22 +102,22 @@ namespace LxAttributeConfig
 
 		for (const FLxAttributeValueConfig& ValueConfig : *RaceBaseValues)
 		{
-			const ELxCharacterAttributeID AttributeID = ResolveAttributeID(ResultMap, ValueConfig);
-			if (AttributeID == ELxCharacterAttributeID::X_None)
+			const FGameplayTag AttributeIDTag = ResolveAttributeIDTag(ValueConfig);
+			if (!AttributeIDTag.IsValid())
 			{
 				continue;
 			}
 
-			FLxAttributeData* FoundAttributeData = ResultMap.Find(AttributeID);
+			FLxAttributeData* FoundAttributeData = ResultMap.Find(AttributeIDTag);
 			if (FoundAttributeData == nullptr)
 			{
 				FLxAttributeData NewData;
 				ApplyBaseValueConfigToAttribute(ValueConfig, NewData);
-				if (NewData.AttributeID == ELxCharacterAttributeID::X_None)
+				if (!NewData.AttributeIDTag.IsValid())
 				{
-					NewData.AttributeID = AttributeID;
+					NewData.AttributeIDTag = AttributeIDTag;
 				}
-				ResultMap.Add(AttributeID, NewData);
+				ResultMap.Add(AttributeIDTag, NewData);
 				continue;
 			}
 
@@ -132,6 +126,90 @@ namespace LxAttributeConfig
 
 		return ResultMap;
 	}
+}
+
+FGameplayTag LxAttributeTools::GetAttributeIDTagByLegacyID(ELxCharacterAttributeID InAttributeID)
+{
+	switch (InAttributeID)
+	{
+	case ELxCharacterAttributeID::A_Race:
+		return LxTag_Attribute_Setting_Race;
+	case ELxCharacterAttributeID::A_Camp:
+		return LxTag_Attribute_Setting_Camp;
+	case ELxCharacterAttributeID::A_CarryWeight:
+		return LxTag_Attribute_Numeric_CarryWeight;
+	case ELxCharacterAttributeID::A_Luck:
+		return LxTag_Attribute_Numeric_Luck;
+	case ELxCharacterAttributeID::B_Power:
+		return LxTag_Attribute_Basic_Strength;
+	case ELxCharacterAttributeID::B_Agility:
+		return LxTag_Attribute_Basic_Agility;
+	case ELxCharacterAttributeID::B_Intelligence:
+		return LxTag_Attribute_Basic_Wisdom;
+	case ELxCharacterAttributeID::B_Constitution:
+		return LxTag_Attribute_Basic_Constitution;
+	case ELxCharacterAttributeID::C_HP:
+		return LxTag_Attribute_Resource_Health;
+	case ELxCharacterAttributeID::C_MP:
+		return LxTag_Attribute_Resource_Mana;
+	case ELxCharacterAttributeID::C_Stamina:
+		return LxTag_Attribute_Resource_Stamina;
+	case ELxCharacterAttributeID::D_PhysicalAttack:
+		return LxTag_Attribute_Numeric_AttackPower;
+	case ELxCharacterAttributeID::D_CriticalChance:
+		return LxTag_Attribute_Judgement_CriticalChance;
+	case ELxCharacterAttributeID::D_CriticalDamage:
+		return LxTag_Attribute_Percentage_CriticalDamage;
+	case ELxCharacterAttributeID::D_AttackSpeed:
+		return LxTag_Attribute_Numeric_AttackSpeed;
+	case ELxCharacterAttributeID::E_Defense:
+		return LxTag_Attribute_Numeric_Armor;
+	case ELxCharacterAttributeID::E_Shield:
+		return LxTag_Attribute_Resource_Shield;
+	case ELxCharacterAttributeID::F_Fire:
+		return LxTag_Attribute_Element_FireAffinity;
+	case ELxCharacterAttributeID::F_Water:
+		return LxTag_Attribute_Element_WaterAffinity;
+	case ELxCharacterAttributeID::F_Electric:
+		return LxTag_Attribute_Element_ElectricAffinity;
+	case ELxCharacterAttributeID::G_LightGod:
+		return LxTag_Attribute_Faith_LightGod;
+	case ELxCharacterAttributeID::G_Nature:
+		return LxTag_Attribute_Faith_Nature;
+	default:
+		return FGameplayTag();
+	}
+}
+
+FGameplayTag LxAttributeTools::ResolveAttributeIDTag(const FLxAttributeData& InAttributeData)
+{
+	return InAttributeData.AttributeIDTag.IsValid()
+		? InAttributeData.AttributeIDTag
+		: GetAttributeIDTagByLegacyID(InAttributeData.AttributeID);
+}
+
+FGameplayTag LxAttributeTools::ResolveAttributeIDTag(const FLxAttributeValueConfig& InValueConfig)
+{
+	return InValueConfig.AttributeIDTag.IsValid()
+		? InValueConfig.AttributeIDTag
+		: GetAttributeIDTagByLegacyID(InValueConfig.AttributeID);
+}
+
+FGameplayTag LxAttributeTools::ResolveAttributeIDTag(const FLxAttributeDerivedRule& InDerivedRule)
+{
+	return InDerivedRule.AttributeIDTag.IsValid()
+		? InDerivedRule.AttributeIDTag
+		: GetAttributeIDTagByLegacyID(InDerivedRule.AttributeID);
+}
+
+bool LxAttributeTools::NormalizeAttributeIDTag(FLxAttributeData& InOutAttributeData)
+{
+	if (!InOutAttributeData.AttributeIDTag.IsValid())
+	{
+		InOutAttributeData.AttributeIDTag = GetAttributeIDTagByLegacyID(InOutAttributeData.AttributeID);
+	}
+
+	return InOutAttributeData.AttributeIDTag.IsValid();
 }
 
 FText LxAttributeTools::GetAttributeDisplayText(const FLxAttributeData& AttributeData)
