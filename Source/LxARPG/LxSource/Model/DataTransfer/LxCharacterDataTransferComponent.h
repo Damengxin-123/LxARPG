@@ -206,10 +206,11 @@ private:
 	void DispatchEntryList(ELxCharacterEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList);
 	void DispatchEntryPackageByType(const FLxCharacterEntryPackage& InEntryPackage);
 	void DispatchEffectPackageByType(const FLxEffectPackage& InEffectPackage);
-	void SyncEquipmentBuffEntries(const TArray<TObjectPtr<ULxEntryObjectBase>>& InBuffEntryList);
+	void SyncEquipmentBuffGrantEffects(const TArray<FLxBuffGrantEffect>& InBuffGrantEffects);
 	void RefreshEquipmentEntryPackage();
 	void RefreshBuffEntryPackage();
 	void BuildEntryPackage(ELxCharacterEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList, FLxCharacterEntryPackage& OutEntryPackage) const;
+	void BuildEffectPackageFromEntryPackage(const FLxCharacterEntryPackage& InEntryPackage, FLxEffectPackage& OutEffectPackage) const;
 	void CollectEquipmentEntries(TArray<TObjectPtr<ULxEntryObjectBase>>& OutEntryList) const;
 	void CollectBuffEntries(TArray<TObjectPtr<ULxEntryObjectBase>>& OutEntryList) const;
 

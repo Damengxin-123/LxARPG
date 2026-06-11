@@ -14,23 +14,6 @@
 
 namespace
 {
-	/** 将数据中转组件的词条来源转换为属性组件可识别的缓存来源。 */
-	ELxCharacterAttributeEntrySource ConvertToAttributeEntrySource(ELxCharacterEntrySource InEntrySource)
-	{
-		switch (InEntrySource)
-		{
-		case ELxCharacterEntrySource::Equipment:
-			return ELxCharacterAttributeEntrySource::Equipment;
-		case ELxCharacterEntrySource::Buff:
-			return ELxCharacterAttributeEntrySource::Buff;
-		case ELxCharacterEntrySource::Backpack:
-		case ELxCharacterEntrySource::Skill:
-			return ELxCharacterAttributeEntrySource::Item;
-		default:
-			return ELxCharacterAttributeEntrySource::Other;
-		}
-	}
-
 	/** 将效果包来源转换为现有 Buff 组件可识别的词条来源。 */
 	ELxCharacterEntrySource ConvertToEntrySource(ELxEffectPackageSource InEffectSource)
 	{
@@ -49,29 +32,80 @@ namespace
 		}
 	}
 
-	/** 判断该来源的属性增益词条是否需要按来源缓存，空列表也会清空旧缓存。 */
-	bool ShouldRefreshAttributeGainCache(ELxCharacterEntrySource InEntrySource)
+	/** 将旧词条来源转换为通用效果包来源。 */
+	ELxEffectPackageSource ConvertToEffectSource(ELxCharacterEntrySource InEntrySource)
 	{
-		return InEntrySource == ELxCharacterEntrySource::Equipment
-			|| InEntrySource == ELxCharacterEntrySource::Buff;
+		switch (InEntrySource)
+		{
+		case ELxCharacterEntrySource::Backpack:
+			return ELxEffectPackageSource::Backpack;
+		case ELxCharacterEntrySource::Equipment:
+			return ELxEffectPackageSource::Equipment;
+		case ELxCharacterEntrySource::Buff:
+			return ELxEffectPackageSource::Buff;
+		case ELxCharacterEntrySource::Skill:
+			return ELxEffectPackageSource::Skill;
+		default:
+			return ELxEffectPackageSource::Other;
+		}
 	}
 
-	bool GetCreateBuffIDTag(const ULxEntryObjectBase* InEntryObject, FGameplayTag& OutBuffIDTag)
+	/** 将词条作用对象转换为属性效果作用目标。 */
+	ELxAttributeModifierTarget ConvertToModifierTarget(ELxEntryTarget InEntryTarget)
 	{
-		OutBuffIDTag = FGameplayTag();
-		if (InEntryObject == nullptr || InEntryObject->GetEntryType() != ELxEntryType::CreateBuff)
+		switch (InEntryTarget)
 		{
-			return false;
+		case ELxEntryTarget::ToValueLimit:
+			return ELxAttributeModifierTarget::ToValueLimit;
+		case ELxEntryTarget::ToValue:
+			return ELxAttributeModifierTarget::ToValue;
+		case ELxEntryTarget::ToUpwardFloatingRatio:
+			return ELxAttributeModifierTarget::ToUpwardFloatingRatio;
+		case ELxEntryTarget::ToDownwardFloatingRatio:
+			return ELxAttributeModifierTarget::ToDownwardFloatingRatio;
+		default:
+			return ELxAttributeModifierTarget::ToValue;
+		}
+	}
+
+	/** 将词条作用方式转换为属性效果修改方式。 */
+	ELxAttributeModifierOperation ConvertToModifierOperation(ELxEntryEffectiveType InEffectiveType)
+	{
+		switch (InEffectiveType)
+		{
+		case ELxEntryEffectiveType::BasicValue:
+			return ELxAttributeModifierOperation::AddValue;
+		case ELxEntryEffectiveType::BasicImprove:
+			return ELxAttributeModifierOperation::AddBasePercent;
+		case ELxEntryEffectiveType::AdditionalImprove:
+			return ELxAttributeModifierOperation::AddTotalPercent;
+		case ELxEntryEffectiveType::Mechanism:
+			return ELxAttributeModifierOperation::UseMaximumValue;
+		default:
+			return ELxAttributeModifierOperation::AddValue;
+		}
+	}
+
+	/** 判断该来源的属性效果是否需要按来源刷新，空列表也会清空旧缓存。 */
+	bool ShouldRefreshAttributeModifierEffectCache(ELxEffectPackageSource InEffectSource)
+	{
+		return InEffectSource == ELxEffectPackageSource::Equipment
+			|| InEffectSource == ELxEffectPackageSource::Buff;
+	}
+
+	/** 将属性增益减益效果添加到列表，相同汇总键会合并数值。 */
+	void AddAggregatedAttributeModifierEffect(TArray<FLxAttributeModifierEffect>& InOutEffects, const FLxAttributeModifierEffect& InEffect)
+	{
+		for (FLxAttributeModifierEffect& ExistingEffect : InOutEffects)
+		{
+			if (ExistingEffect.HasSameAggregationKey(InEffect))
+			{
+				ExistingEffect.ModifierValue += InEffect.ModifierValue;
+				return;
+			}
 		}
 
-		const FLxEntryCreateBuff* CreateBuffEntry = static_cast<const FLxEntryCreateBuff*>(InEntryObject->GetEntryBase());
-		if (CreateBuffEntry == nullptr || !CreateBuffEntry->BuffIDTag.IsValid())
-		{
-			return false;
-		}
-
-		OutBuffIDTag = CreateBuffEntry->BuffIDTag;
-		return true;
+		InOutEffects.Add(InEffect);
 	}
 }
 
@@ -473,48 +507,23 @@ void ULxCharacterDataTransferComponent::BroadcastStateData()
 
 void ULxCharacterDataTransferComponent::DispatchEntryPackageByType(const FLxCharacterEntryPackage& InEntryPackage)
 {
-	if (AttributeComponent != nullptr
-		&& (ShouldRefreshAttributeGainCache(InEntryPackage.EntrySource) || !InEntryPackage.CharacterAttributeEntryList.IsEmpty()))
-	{
-		AttributeComponent->ReceiveAttributeGainEntries(ConvertToAttributeEntrySource(InEntryPackage.EntrySource), InEntryPackage.CharacterAttributeEntryList);
-	}
-
-	if (AttributeComponent != nullptr && !InEntryPackage.AttributeRecoveryEntryList.IsEmpty())
-	{
-		AttributeComponent->ReceiveAttributeRecoveryEntries(InEntryPackage.AttributeRecoveryEntryList);
-	}
-
-	if (BuffComponent != nullptr && InEntryPackage.EntrySource != ELxCharacterEntrySource::Buff)
-	{
-		if (InEntryPackage.EntrySource == ELxCharacterEntrySource::Equipment)
-		{
-			SyncEquipmentBuffEntries(InEntryPackage.BuffEntryList);
-			return;
-		}
-
-		bool bAddedBuff = false;
-		for (ULxEntryObjectBase* EntryObject : InEntryPackage.BuffEntryList)
-		{
-			bAddedBuff |= BuffComponent->AddBuffByCreatorEntry(EntryObject, 1.f, InEntryPackage.EntrySource) != nullptr;
-		}
-
-		if (bAddedBuff)
-		{
-			RefreshBuffEntryPackage();
-		}
-	}
+	FLxEffectPackage EffectPackage;
+	BuildEffectPackageFromEntryPackage(InEntryPackage, EffectPackage);
+	DispatchEffectPackageByType(EffectPackage);
 }
 
 void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEffectPackage& InEffectPackage)
 {
-	if (InEffectPackage.IsEmpty())
+	if (InEffectPackage.IsEmpty() && InEffectPackage.ApplyPolicy != ELxEffectPackageApplyPolicy::ReplaceSameSource)
 	{
 		return;
 	}
 
 	if (AttributeComponent != nullptr)
 	{
-		if (!InEffectPackage.AttributeModifierEffects.IsEmpty())
+		if (!InEffectPackage.AttributeModifierEffects.IsEmpty()
+			|| (InEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource
+				&& ShouldRefreshAttributeModifierEffectCache(InEffectPackage.SourceContext.SourceType)))
 		{
 			AttributeComponent->ReceiveAttributeModifierEffects(InEffectPackage.SourceContext, InEffectPackage.ApplyPolicy, InEffectPackage.AttributeModifierEffects);
 		}
@@ -559,6 +568,18 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 	if (BuffComponent != nullptr)
 	{
 		const ELxCharacterEntrySource EntrySource = ConvertToEntrySource(InEffectPackage.SourceContext.SourceType);
+		if (InEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Equipment)
+		{
+			SyncEquipmentBuffGrantEffects(InEffectPackage.BuffGrantEffects);
+			return;
+		}
+
+		if (InEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Buff
+			&& InEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource)
+		{
+			return;
+		}
+
 		for (const FLxBuffGrantEffect& BuffEffect : InEffectPackage.BuffGrantEffects)
 		{
 			if (!BuffEffect.BuffIDTag.IsValid())
@@ -578,7 +599,7 @@ void ULxCharacterDataTransferComponent::DispatchEntryList(ELxCharacterEntrySourc
 	DispatchEntryPackageByType(EntryPackage);
 }
 
-void ULxCharacterDataTransferComponent::SyncEquipmentBuffEntries(const TArray<TObjectPtr<ULxEntryObjectBase>>& InBuffEntryList)
+void ULxCharacterDataTransferComponent::SyncEquipmentBuffGrantEffects(const TArray<FLxBuffGrantEffect>& InBuffGrantEffects)
 {
 	if (BuffComponent == nullptr)
 	{
@@ -587,15 +608,14 @@ void ULxCharacterDataTransferComponent::SyncEquipmentBuffEntries(const TArray<TO
 	}
 
 	TMap<FGameplayTag, int32> NewEquipmentBuffSourceCounts;
-	for (ULxEntryObjectBase* EntryObject : InBuffEntryList)
+	for (const FLxBuffGrantEffect& BuffEffect : InBuffGrantEffects)
 	{
-		FGameplayTag BuffIDTag;
-		if (!GetCreateBuffIDTag(EntryObject, BuffIDTag))
+		if (!BuffEffect.BuffIDTag.IsValid())
 		{
 			continue;
 		}
 
-		int32& NewSourceCount = NewEquipmentBuffSourceCounts.FindOrAdd(BuffIDTag);
+		int32& NewSourceCount = NewEquipmentBuffSourceCounts.FindOrAdd(BuffEffect.BuffIDTag);
 		++NewSourceCount;
 	}
 
@@ -620,21 +640,20 @@ void ULxCharacterDataTransferComponent::SyncEquipmentBuffEntries(const TArray<TO
 		}
 	}
 
-	for (ULxEntryObjectBase* EntryObject : InBuffEntryList)
+	for (const FLxBuffGrantEffect& BuffEffect : InBuffGrantEffects)
 	{
-		FGameplayTag BuffIDTag;
-		if (!GetCreateBuffIDTag(EntryObject, BuffIDTag))
+		if (!BuffEffect.BuffIDTag.IsValid())
 		{
 			continue;
 		}
 
-		int32* RemainingAddedSourceCount = RemainingAddedSourceCounts.Find(BuffIDTag);
+		int32* RemainingAddedSourceCount = RemainingAddedSourceCounts.Find(BuffEffect.BuffIDTag);
 		if (RemainingAddedSourceCount == nullptr || *RemainingAddedSourceCount <= 0)
 		{
 			continue;
 		}
 
-		BuffComponent->AddBuffByCreatorEntry(EntryObject, 1.f, ELxCharacterEntrySource::Equipment);
+		BuffComponent->AddBuff(BuffEffect.BuffIDTag, BuffEffect.EffectProportion, BuffEffect.Duration, ELxCharacterEntrySource::Equipment);
 		--(*RemainingAddedSourceCount);
 	}
 
@@ -683,6 +702,90 @@ void ULxCharacterDataTransferComponent::BuildEntryPackage(ELxCharacterEntrySourc
 			break;
 		case ELxEntryType::CreateBuff:
 			OutEntryPackage.BuffEntryList.Add(EntryObject);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void ULxCharacterDataTransferComponent::BuildEffectPackageFromEntryPackage(const FLxCharacterEntryPackage& InEntryPackage, FLxEffectPackage& OutEffectPackage) const
+{
+	OutEffectPackage = FLxEffectPackage();
+	OutEffectPackage.SourceContext.SourceType = ConvertToEffectSource(InEntryPackage.EntrySource);
+	OutEffectPackage.SourceContext.SourceName = FName(*StaticEnum<ELxCharacterEntrySource>()->GetNameStringByValue(static_cast<int64>(InEntryPackage.EntrySource)));
+	OutEffectPackage.TargetActor = GetOwner();
+	OutEffectPackage.ApplyPolicy = ShouldRefreshAttributeModifierEffectCache(OutEffectPackage.SourceContext.SourceType)
+		? ELxEffectPackageApplyPolicy::ReplaceSameSource
+		: ELxEffectPackageApplyPolicy::Instant;
+
+	for (ULxEntryObjectBase* EntryObject : InEntryPackage.EntryList)
+	{
+		if (EntryObject == nullptr || EntryObject->GetEntryBase() == nullptr)
+		{
+			continue;
+		}
+
+		switch (EntryObject->GetEntryType())
+		{
+		case ELxEntryType::AttributeGain:
+			{
+				const FLxEntryAttributeGain* GainEntry = static_cast<const FLxEntryAttributeGain*>(EntryObject->GetEntryBase());
+				if (GainEntry == nullptr)
+				{
+					break;
+				}
+
+				FLxAttributeModifierEffect ModifierEffect;
+				ModifierEffect.AttributeID = GainEntry->AttributeID;
+				ModifierEffect.AttributeIDTag = GainEntry->AttributeIDTag;
+				ModifierEffect.ModifierTarget = ConvertToModifierTarget(GainEntry->EntryTarget);
+				ModifierEffect.ModifierOperation = ConvertToModifierOperation(GainEntry->EffectiveType);
+				ModifierEffect.ModifierValue = GainEntry->EntryValue;
+				ModifierEffect.TargetTags = GainEntry->TargetTags;
+				AddAggregatedAttributeModifierEffect(OutEffectPackage.AttributeModifierEffects, ModifierEffect);
+			}
+			break;
+		case ELxEntryType::AttributeRecovery:
+			{
+				const FLxEntryAttributeRecovery* RecoveryEntry = static_cast<const FLxEntryAttributeRecovery*>(EntryObject->GetEntryBase());
+				if (RecoveryEntry == nullptr)
+				{
+					break;
+				}
+
+				const float RecoveryScale = EntryObject->GetEntryQuote().EntryCD > KINDA_SMALL_NUMBER
+					? EntryObject->GetEntryQuote().EntryCD
+					: 1.0f;
+
+				FLxAttributeRecoveryEffect RecoveryEffect;
+				RecoveryEffect.AttributeID = RecoveryEntry->AttributeID;
+				RecoveryEffect.AttributeIDTag = RecoveryEntry->AttributeIDTag;
+				RecoveryEffect.RecoveryOperation = ConvertToModifierOperation(RecoveryEntry->EffectiveType);
+				RecoveryEffect.RecoveryValue = RecoveryEntry->EntryValue * RecoveryScale;
+				if (RecoveryEntry->EffectiveType == ELxEntryEffectiveType::BasicImprove
+					|| RecoveryEntry->EffectiveType == ELxEntryEffectiveType::AdditionalImprove)
+				{
+					RecoveryEffect.RecoveryValue *= 100.f;
+				}
+				RecoveryEffect.TargetTags = RecoveryEntry->TargetTags;
+				OutEffectPackage.AttributeRecoveryEffects.Add(RecoveryEffect);
+			}
+			break;
+		case ELxEntryType::CreateBuff:
+			{
+				const FLxEntryCreateBuff* CreateBuffEntry = static_cast<const FLxEntryCreateBuff*>(EntryObject->GetEntryBase());
+				if (CreateBuffEntry == nullptr || !CreateBuffEntry->BuffIDTag.IsValid())
+				{
+					break;
+				}
+
+				FLxBuffGrantEffect BuffGrantEffect;
+				BuffGrantEffect.BuffIDTag = CreateBuffEntry->BuffIDTag;
+				BuffGrantEffect.EffectProportion = 1.f;
+				BuffGrantEffect.Duration = CreateBuffEntry->BuffDuration;
+				OutEffectPackage.BuffGrantEffects.Add(BuffGrantEffect);
+			}
 			break;
 		default:
 			break;
@@ -763,21 +866,18 @@ void ULxCharacterDataTransferComponent::HandleBuffDataChanged()
 
 void ULxCharacterDataTransferComponent::HandleBuffPeriodActivated(ULxBuff* BuffLogic)
 {
-	if (BuffLogic == nullptr || !BuffLogic->ItemIsValid() || AttributeComponent == nullptr)
+	if (BuffLogic == nullptr || !BuffLogic->ItemIsValid())
 	{
 		return;
 	}
 
 	FLxCharacterEntryPackage EntryPackage;
 	BuildEntryPackage(ELxCharacterEntrySource::Buff, BuffLogic->GetItemEntryList(), EntryPackage);
-	AttributeComponent->ReceiveAttributeRecoveryEntries(EntryPackage.AttributeRecoveryEntryList);
-	if (BuffComponent != nullptr)
-	{
-		for (ULxEntryObjectBase* EntryObject : EntryPackage.BuffEntryList)
-		{
-			BuffComponent->AddBuffByCreatorEntry(EntryObject, 1.f, ELxCharacterEntrySource::Buff);
-		}
-	}
+	FLxEffectPackage EffectPackage;
+	BuildEffectPackageFromEntryPackage(EntryPackage, EffectPackage);
+	EffectPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::Instant;
+	EffectPackage.AttributeModifierEffects.Reset();
+	DispatchEffectPackageByType(EffectPackage);
 	BroadcastBuffData();
 }
 

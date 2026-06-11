@@ -6,24 +6,7 @@
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxCharacterAttributeComponent.generated.h"
 
-class ULxEntryObjectBase;
 class UDataTable;
-
-/**
- * 角色属性词条来源。
- *
- * 属性组件按来源缓存增益词条，同一来源的新词条列表会覆盖旧列表，
- * 以便装备、Buff 等模块刷新时可以重新计算最终属性。
- */
-UENUM(BlueprintType, DisplayName="角色属性词条来源")
-enum class ELxCharacterAttributeEntrySource : uint8
-{
-	None		UMETA(DisplayName="无"),
-	Equipment	UMETA(DisplayName="装备"),
-	Buff		UMETA(DisplayName="Buff"),
-	Item		UMETA(DisplayName="物品"),
-	Other		UMETA(DisplayName="其他"),
-};
 
 /** 属性表刷新事件，广播当前完整的角色属性列表。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeTableChanged, const TArray<FLxAttributeData>&, AttributeList);
@@ -31,7 +14,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeTableChanged,
 /**
  * 角色属性组件。
  *
- * 负责维护角色基础属性、运行时计算属性和按来源缓存的属性增益词条。
+ * 负责维护角色基础属性、运行时计算属性和按来源缓存的属性增益减益效果。
  * 其他模块通常通过数据中转组件访问它，不直接持有属性组件。
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色属性组件")
@@ -54,25 +37,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category="角色属性", DisplayName="设置角色属性数值表")
 	bool SetCharacterAttributeValueTable(UDataTable* InAttributeValueTable, bool bReinitializeAttribute = true);
 
-	/**
-	 * 接收一组属性增益词条。
-	 *
-	 * @param InEntrySource 词条来源；同一来源的新列表会覆盖旧缓存。
-	 * @param InEntryList 属性增益词条列表。
-	 */
-	void ReceiveAttributeGainEntries(ELxCharacterAttributeEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList);
-
 	/** 接收一组属性增益减益效果，同来源替换策略会覆盖旧效果缓存。 */
 	void ReceiveAttributeModifierEffects(const FLxEffectSourceContext& InSourceContext, ELxEffectPackageApplyPolicy InApplyPolicy, const TArray<FLxAttributeModifierEffect>& InEffectList);
-
-	/**
-	 * 接收一组属性恢复词条。
-	 *
-	 * 恢复词条属于一次性生效数据，不进入增益缓存。
-	 *
-	 * @param InEntryList 属性恢复词条列表。
-	 */
-	void ReceiveAttributeRecoveryEntries(const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList);
 
 	/** 接收一组属性恢复效果。属性恢复属于即时效果，不进入属性增益缓存。 */
 	void ReceiveAttributeRecoveryEffects(const TArray<FLxAttributeRecoveryEffect>& InEffectList);
@@ -109,9 +75,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Character Attribute", DisplayName="角色属性表")
 	TMap<FGameplayTag, FLxAttributeData> CharacterAttributeTable;
 
-	/** 按来源缓存的属性增益词条。 */
-	TMap<ELxCharacterAttributeEntrySource, TArray<TObjectPtr<ULxEntryObjectBase>>> AttributeGainEntryCache;
-
 	/** 按效果来源缓存的属性增益减益效果。 */
 	TMap<FName, TArray<FLxAttributeModifierEffect>> AttributeModifierEffectCache;
 
@@ -145,9 +108,6 @@ private:
 
 	/** 根据属性值类型修正最终数值，例如取整或限制到范围内。 */
 	static void NormalizeAttributeValueByType(FLxAttributeValue& InOutAttributeValue);
-
-	/** 将单条运行时词条应用到指定属性数据上。 */
-	static void ApplyEntryToAttribute(FLxAttributeData& InOutAttributeData, const ULxEntryObjectBase& InEntryObject);
 
 	/** 将单条属性增益减益效果应用到指定属性数据上。 */
 	static void ApplyModifierEffectToAttribute(FLxAttributeData& InOutAttributeData, const FLxAttributeModifierEffect& InEffect);

@@ -7,7 +7,6 @@
 #include "LxCharacterBuffComponent.generated.h"
 
 class ALxBaseCharacter;
-class ULxEntryObjectBase;
 
 /** Buff 添加、移除等单个 Buff 变化事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuffLogicChanged, ULxBuff*, BuffLogic);
@@ -44,7 +43,7 @@ struct FLxBuffRuntimeInfo
  * 角色 Buff 组件。
  *
  * 当前组件使用新的物品对象体系创建 Buff：Buff 本身是 ULxBuff，
- * 创建 Buff 的词条来源使用 ULxEntryObjectBase，并从其中读取 FLxEntryCreateBuff 数据。
+ * 创建 Buff 的来源由通用效果包传入，并在组件内按来源记录引用次数。
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色Buff组件")
 class LXARPG_API ULxCharacterBuffComponent : public ULxCharacterComponentBase
@@ -71,15 +70,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="添加Buff")
 	ULxBuff* AddBuff(FGameplayTag InBuffIDTag, float InEffectProportion = 1.f, float InDurationOverride = -1.f, ELxCharacterEntrySource InEntrySource = ELxCharacterEntrySource::Other);
-
-	/**
-	 * 根据创建 Buff 词条添加 Buff。
-	 *
-	 * @param InEntryObject 创建 Buff 的运行时词条对象。
-	 * @param InCreatorEntryRatio 创建者词条额外比例。
-	 * @return 创建或刷新后的 Buff 对象。
-	 */
-	ULxBuff* AddBuffByCreatorEntry(const ULxEntryObjectBase* InEntryObject, float InCreatorEntryRatio = 1.f, ELxCharacterEntrySource InEntrySource = ELxCharacterEntrySource::Other);
 
 	/** 移除指定 Buff 对象。 */
 	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="移除Buff")

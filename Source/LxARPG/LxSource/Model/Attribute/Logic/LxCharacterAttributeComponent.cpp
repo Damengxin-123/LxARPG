@@ -2,7 +2,6 @@
 
 #include "Engine/DataTable.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
-#include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 
 namespace
 {
@@ -45,12 +44,12 @@ namespace
 		return true;
 	}
 
-	FGameplayTag ResolveAttributeIDTag(const FLxAttributeValueConfig& InValueConfig)
+	FGameplayTag ResolveComponentAttributeIDTag(const FLxAttributeValueConfig& InValueConfig)
 	{
 		return LxAttributeTools::ResolveAttributeIDTag(InValueConfig);
 	}
 
-	void ApplyBaseValueConfigToAttribute(const FLxAttributeValueConfig& InValueConfig, FLxAttributeData& InOutAttributeData)
+	void ApplyComponentBaseValueConfigToAttribute(const FLxAttributeValueConfig& InValueConfig, FLxAttributeData& InOutAttributeData)
 	{
 		if (InValueConfig.AttributeIDTag.IsValid())
 		{
@@ -72,7 +71,7 @@ namespace
 	{
 		for (const FLxAttributeValueConfig& ValueConfig : InValueConfigs)
 		{
-			const FGameplayTag AttributeIDTag = ResolveAttributeIDTag(ValueConfig);
+			const FGameplayTag AttributeIDTag = ResolveComponentAttributeIDTag(ValueConfig);
 			if (!AttributeIDTag.IsValid())
 			{
 				continue;
@@ -82,7 +81,7 @@ namespace
 			if (FoundAttributeData == nullptr)
 			{
 				FLxAttributeData NewData;
-				ApplyBaseValueConfigToAttribute(ValueConfig, NewData);
+				ApplyComponentBaseValueConfigToAttribute(ValueConfig, NewData);
 				if (!NewData.AttributeIDTag.IsValid())
 				{
 					NewData.AttributeIDTag = AttributeIDTag;
@@ -91,7 +90,7 @@ namespace
 				continue;
 			}
 
-			ApplyBaseValueConfigToAttribute(ValueConfig, *FoundAttributeData);
+			ApplyComponentBaseValueConfigToAttribute(ValueConfig, *FoundAttributeData);
 		}
 	}
 }
@@ -130,52 +129,6 @@ bool ULxCharacterAttributeComponent::SetCharacterAttributeValueTable(UDataTable*
 	}
 
 	return true;
-}
-
-void ULxCharacterAttributeComponent::ReceiveAttributeGainEntries(ELxCharacterAttributeEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList)
-{
-	if (CharacterAttributeTable.IsEmpty())
-	{
-		InitializeAttributeTable();
-	}
-
-	if (InEntrySource == ELxCharacterAttributeEntrySource::None)
-	{
-		InEntrySource = ELxCharacterAttributeEntrySource::Other;
-	}
-
-	AttributeGainEntryCache.Add(InEntrySource, InEntryList);
-	RefreshCharacterAttributesByCachedEntries();
-	BroadcastAttributeTableChanged();
-}
-
-void ULxCharacterAttributeComponent::ReceiveAttributeRecoveryEntries(const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList)
-{
-	if (CharacterAttributeTable.IsEmpty())
-	{
-		InitializeAttributeTable();
-	}
-
-	for (ULxEntryObjectBase* EntryObject : InEntryList)
-	{
-		if (EntryObject == nullptr)
-		{
-			continue;
-		}
-
-		for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
-		{
-			ApplyEntryToAttribute(AttributePair.Value, *EntryObject);
-		}
-	}
-
-	for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
-	{
-		NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);
-	}
-
-	CacheRuntimeRangedAttributeValues();
-	BroadcastAttributeTableChanged();
 }
 
 void ULxCharacterAttributeComponent::ReceiveAttributeModifierEffects(const FLxEffectSourceContext& InSourceContext, ELxEffectPackageApplyPolicy InApplyPolicy, const TArray<FLxAttributeModifierEffect>& InEffectList)
@@ -264,7 +217,6 @@ const FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByI
 
 void ULxCharacterAttributeComponent::InitializeAttributeTable()
 {
-	AttributeGainEntryCache.Empty();
 	AttributeModifierEffectCache.Empty();
 	RuntimeRangedAttributeValues.Empty();
 	RebuildAttributeTableFromRaceConfig();
@@ -304,22 +256,6 @@ void ULxCharacterAttributeComponent::RefreshCharacterAttributesByCachedEntries()
 {
 	CacheRuntimeRangedAttributeValues();
 	RebuildAttributeTableFromRaceConfig();
-
-	for (const TPair<ELxCharacterAttributeEntrySource, TArray<TObjectPtr<ULxEntryObjectBase>>>& EntryCachePair : AttributeGainEntryCache)
-	{
-		for (ULxEntryObjectBase* EntryObject : EntryCachePair.Value)
-		{
-			if (EntryObject == nullptr)
-			{
-				continue;
-			}
-
-			for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
-			{
-				ApplyEntryToAttribute(AttributePair.Value, *EntryObject);
-			}
-		}
-	}
 
 	for (const TPair<FName, TArray<FLxAttributeModifierEffect>>& EffectCachePair : AttributeModifierEffectCache)
 	{
@@ -432,124 +368,6 @@ void ULxCharacterAttributeComponent::NormalizeAttributeValueByType(FLxAttributeV
 	{
 		InOutAttributeValue.ValueLimit = FMath::Max(0.0f, InOutAttributeValue.ValueLimit);
 		InOutAttributeValue.Value = FMath::Clamp(InOutAttributeValue.Value, 0.0f, InOutAttributeValue.ValueLimit);
-	}
-}
-
-void ULxCharacterAttributeComponent::ApplyEntryToAttribute(FLxAttributeData& InOutAttributeData, const ULxEntryObjectBase& InEntryObject)
-{
-	const FLxEntryBase* EntryBase = InEntryObject.GetEntryBase();
-	if (EntryBase == nullptr)
-	{
-		return;
-	}
-
-	auto ApplyEntryValue = [](float& InOutTargetValue, ELxEntryEffectiveType InEffectiveType, float InEntryValue)
-	{
-		switch (InEffectiveType)
-		{
-		case ELxEntryEffectiveType::BasicValue:
-			InOutTargetValue += InEntryValue;
-			break;
-		case ELxEntryEffectiveType::BasicImprove:
-		case ELxEntryEffectiveType::AdditionalImprove:
-			InOutTargetValue += InOutTargetValue * InEntryValue * 0.01f;
-			break;
-		case ELxEntryEffectiveType::Mechanism:
-			InOutTargetValue = FMath::Max(InOutTargetValue, InEntryValue);
-			break;
-		}
-	};
-
-	auto ApplyValueToTarget = [&InOutAttributeData, &ApplyEntryValue](ELxEntryTarget InEntryTarget, ELxEntryEffectiveType InEffectiveType, float InEntryValue)
-	{
-		FLxAttributeValue& AttributeValue = InOutAttributeData.CalculatedAttributeValue;
-		switch (InEntryTarget)
-		{
-		case ELxEntryTarget::ToValueLimit:
-			ApplyEntryValue(AttributeValue.ValueLimit, InEffectiveType, InEntryValue);
-			break;
-		case ELxEntryTarget::ToValue:
-			ApplyEntryValue(AttributeValue.Value, InEffectiveType, InEntryValue);
-			break;
-		case ELxEntryTarget::ToUpwardFloatingRatio:
-			ApplyEntryValue(AttributeValue.UpwardFloatingRatio, InEffectiveType, InEntryValue);
-			break;
-		case ELxEntryTarget::ToDownwardFloatingRatio:
-			ApplyEntryValue(AttributeValue.DownwardFloatingRatio, InEffectiveType, InEntryValue);
-			break;
-		}
-	};
-
-	auto ApplyRecoveryValue = [&InOutAttributeData](ELxEntryEffectiveType InEffectiveType, float InEntryValue, float InRecoveryScale)
-	{
-		FLxAttributeValue& AttributeValue = InOutAttributeData.CalculatedAttributeValue;
-		const float ScaledEntryValue = InEntryValue * InRecoveryScale;
-		switch (InEffectiveType)
-		{
-		case ELxEntryEffectiveType::BasicValue:
-			AttributeValue.Value += ScaledEntryValue;
-			break;
-		case ELxEntryEffectiveType::BasicImprove:
-		case ELxEntryEffectiveType::AdditionalImprove:
-			AttributeValue.Value += AttributeValue.ValueLimit * ScaledEntryValue;
-			break;
-		case ELxEntryEffectiveType::Mechanism:
-			AttributeValue.Value = FMath::Max(AttributeValue.Value, InEntryValue);
-			break;
-		}
-
-		if (AttributeValue.ValueType == ELxCharacterValueType::RangedNumeric)
-		{
-			AttributeValue.ValueLimit = FMath::Max(0.0f, AttributeValue.ValueLimit);
-			AttributeValue.Value = FMath::Clamp(AttributeValue.Value, 0.0f, AttributeValue.ValueLimit);
-		}
-	};
-
-	switch (EntryBase->EntryType)
-	{
-	case ELxEntryType::AttributeGain:
-		{
-			const FLxEntryAttributeGain* GainEntry = static_cast<const FLxEntryAttributeGain*>(EntryBase);
-			const FGameplayTag EntryAttributeIDTag = GainEntry->AttributeIDTag.IsValid()
-				? GainEntry->AttributeIDTag
-				: LxAttributeTools::GetAttributeIDTagByLegacyID(GainEntry->AttributeID);
-			if (EntryAttributeIDTag.IsValid() && EntryAttributeIDTag != InOutAttributeData.AttributeIDTag)
-			{
-				return;
-			}
-
-			if (!GainEntry->TargetTags.IsEmpty() && !AttributeMatchesTargetTags(InOutAttributeData, GainEntry->TargetTags))
-			{
-				return;
-			}
-
-			ApplyValueToTarget(GainEntry->EntryTarget, GainEntry->EffectiveType, GainEntry->EntryValue);
-		}
-		break;
-	case ELxEntryType::AttributeRecovery:
-		{
-			const FLxEntryAttributeRecovery* RecoveryEntry = static_cast<const FLxEntryAttributeRecovery*>(EntryBase);
-			const FGameplayTag EntryAttributeIDTag = RecoveryEntry->AttributeIDTag.IsValid()
-				? RecoveryEntry->AttributeIDTag
-				: LxAttributeTools::GetAttributeIDTagByLegacyID(RecoveryEntry->AttributeID);
-			if (EntryAttributeIDTag.IsValid() && EntryAttributeIDTag != InOutAttributeData.AttributeIDTag)
-			{
-				return;
-			}
-
-			if (!RecoveryEntry->TargetTags.IsEmpty() && !AttributeMatchesTargetTags(InOutAttributeData, RecoveryEntry->TargetTags))
-			{
-				return;
-			}
-
-			const float RecoveryScale = InEntryObject.GetEntryQuote().EntryCD > KINDA_SMALL_NUMBER
-				? InEntryObject.GetEntryQuote().EntryCD
-				: 1.0f;
-			ApplyRecoveryValue(RecoveryEntry->EffectiveType, RecoveryEntry->EntryValue, RecoveryScale);
-		}
-		break;
-	default:
-		break;
 	}
 }
 

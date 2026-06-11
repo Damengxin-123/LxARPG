@@ -1,7 +1,6 @@
 #include "LxCharacterBuffComponent.h"
 
 #include "LxARPG/LxSource/Core/Database/LxConstValue.h"
-#include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 ULxCharacterBuffComponent::ULxCharacterBuffComponent()
@@ -81,22 +80,6 @@ ULxBuff* ULxCharacterBuffComponent::AddBuff(FGameplayTag InBuffIDTag, float InEf
 	OnBuffAdded.Broadcast(NewBuffLogic);
 	OnDataChange.Broadcast();
 	return NewBuffLogic;
-}
-
-ULxBuff* ULxCharacterBuffComponent::AddBuffByCreatorEntry(const ULxEntryObjectBase* InEntryObject, float InCreatorEntryRatio, ELxCharacterEntrySource InEntrySource)
-{
-	if (InEntryObject == nullptr || InEntryObject->GetEntryType() != ELxEntryType::CreateBuff)
-	{
-		return nullptr;
-	}
-
-	const FLxEntryCreateBuff* CreateBuffEntry = static_cast<const FLxEntryCreateBuff*>(InEntryObject->GetEntryBase());
-	if (CreateBuffEntry == nullptr || !CreateBuffEntry->BuffIDTag.IsValid())
-	{
-		return nullptr;
-	}
-
-	return AddBuff(CreateBuffEntry->BuffIDTag, InCreatorEntryRatio, CreateBuffEntry->BuffDuration, InEntrySource);
 }
 
 bool ULxCharacterBuffComponent::RemoveBuff(ULxBuff* InBuffLogic)
