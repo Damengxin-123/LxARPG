@@ -3,6 +3,90 @@
 #include "LxEntry.h"
 
 #include "LxEntryTableConfig.h"
+#include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxEffectFunctionLibrary.h"
+
+namespace
+{
+	/** 将词条作用对象转换为属性效果作用目标。 */
+	ELxAttributeModifierTarget ConvertToModifierTarget(ELxEntryTarget InEntryTarget)
+	{
+		switch (InEntryTarget)
+		{
+		case ELxEntryTarget::ToValueLimit:
+			return ELxAttributeModifierTarget::ToValueLimit;
+		case ELxEntryTarget::ToValue:
+			return ELxAttributeModifierTarget::ToValue;
+		case ELxEntryTarget::ToUpwardFloatingRatio:
+			return ELxAttributeModifierTarget::ToUpwardFloatingRatio;
+		case ELxEntryTarget::ToDownwardFloatingRatio:
+			return ELxAttributeModifierTarget::ToDownwardFloatingRatio;
+		default:
+			return ELxAttributeModifierTarget::ToValue;
+		}
+	}
+
+	/** 将词条作用方式转换为属性效果修改方式。 */
+	ELxAttributeModifierOperation ConvertToModifierOperation(ELxEntryEffectiveType InEffectiveType)
+	{
+		switch (InEffectiveType)
+		{
+		case ELxEntryEffectiveType::BasicValue:
+			return ELxAttributeModifierOperation::AddValue;
+		case ELxEntryEffectiveType::BasicImprove:
+			return ELxAttributeModifierOperation::AddBasePercent;
+		case ELxEntryEffectiveType::AdditionalImprove:
+			return ELxAttributeModifierOperation::AddTotalPercent;
+		case ELxEntryEffectiveType::Mechanism:
+			return ELxAttributeModifierOperation::UseMaximumValue;
+		default:
+			return ELxAttributeModifierOperation::AddValue;
+		}
+	}
+
+	/** 将状态词条操作转换为状态效果操作。 */
+	ELxStateEffectOperation ConvertToStateOperation(ELxEntryStateValue InStateValue)
+	{
+		switch (InStateValue)
+		{
+		case ELxEntryStateValue::Remove:
+			return ELxStateEffectOperation::Remove;
+		case ELxEntryStateValue::Toggle:
+			return ELxStateEffectOperation::Toggle;
+		case ELxEntryStateValue::Add:
+		default:
+			return ELxStateEffectOperation::Add;
+		}
+	}
+
+	/** 计算词条最终缩放比例。 */
+	float MakeEntryEffectScale(const FLxEntryQuote& InEntryQuote, float InEffectScale)
+	{
+		return InEntryQuote.EntryProportion * InEffectScale;
+	}
+
+	/** 计算词条显示用最终数值。 */
+	float MakeEntryDisplayValue(float InEntryValue, const FLxEntryQuote& InEntryQuote)
+	{
+		return InEntryValue * InEntryQuote.EntryProportion;
+	}
+
+	/** 将词条显示名称中的数值占位符替换后，再转换为 UI 可识别的富文本字符串。 */
+	FText MakeStyledEntryDisplayName(const FLxRichStyledText& InDisplayName)
+	{
+		return FText::FromString(InDisplayName.ToRichTextString());
+	}
+
+	/** 将词条显示名称中的数值占位符替换后，再转换为 UI 可识别的富文本字符串。 */
+	FText MakeStyledEntryDisplayName(const FLxRichStyledText& InDisplayName, const FString& InDisplayValue)
+	{
+		FLxRichStyledText DisplayName = InDisplayName;
+		FLxString DisplayText(DisplayName.Text);
+		DisplayText.Arg(InDisplayValue);
+		DisplayName.Text = DisplayText.ToFText();
+		return FText::FromString(DisplayName.ToRichTextString());
+	}
+}
 
 void ULxEntryObjectBase::InitEntry(const FLxEntryQuote& InEntryQuote)
 {
@@ -55,6 +139,9 @@ ULxEntryObjectBase* ULxEntryObjectBase::CreateEnterObject(UObject* InParent, con
 		case ELxEntryType::DisplayText:
 			OutEntryObject = NewObject<ULxEntryObjectDisplayText>(InParent);
 			break;
+		case ELxEntryType::GrantSkill:
+			OutEntryObject = NewObject<ULxEntryObjectGrantSkill>(InParent);
+			break;
 		default:
 			return nullptr;
 		}
@@ -70,22 +157,24 @@ ULxEntryObjectBase* ULxEntryObjectBase::CreateEnterObject(UObject* InParent, con
 
 FText ULxEntryObjectAttributeGain::GetDisplayName() const
 {
-	FLxString OutText(AttributeGainData.EntryText.EntryDisplayName);
+	const float DisplayEntryValue = MakeEntryDisplayValue(AttributeGainData.EntryValue, GetEntryQuote());
+	FString DisplayValueString;
 
 	switch (AttributeGainData.EffectiveType)
 	{
 	case ELxEntryEffectiveType::BasicValue:
-		OutText.Arg(FLxString::DoubleToIntStr(AttributeGainData.EntryValue));
+		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue).ToFString();
 		break;
 	case ELxEntryEffectiveType::BasicImprove:
 	case ELxEntryEffectiveType::AdditionalImprove:
-		OutText.Arg(FLxString::DoubleToIntStr(AttributeGainData.EntryValue).ToFString() + TEXT("%"));
+		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue).ToFString() + TEXT("%");
 		break;
 	case ELxEntryEffectiveType::Mechanism:
-		OutText.Arg(FLxString::DoubleToIntStr(AttributeGainData.EntryValue));
+		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue).ToFString();
 		break;
 	}
-	return OutText.ToFText();
+
+	return MakeStyledEntryDisplayName(AttributeGainData.EntryText.EntryDisplayName, DisplayValueString);
 }
 
 void ULxEntryObjectAttributeGain::SetEntryData(const FLxEntryBase* InEntryData)
@@ -97,26 +186,44 @@ void ULxEntryObjectAttributeGain::SetEntryData(const FLxEntryBase* InEntryData)
 	}
 }
 
+void ULxEntryObjectAttributeGain::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale) const
+{
+	if (!AttributeGainData.AttributeIDTag.IsValid())
+	{
+		return;
+	}
+
+	FLxAttributeModifierEffect ModifierEffect;
+	ModifierEffect.AttributeIDTag = AttributeGainData.AttributeIDTag;
+	ModifierEffect.ModifierTarget = ConvertToModifierTarget(AttributeGainData.EntryTarget);
+	ModifierEffect.ModifierOperation = ConvertToModifierOperation(AttributeGainData.EffectiveType);
+	ModifierEffect.ModifierValue = AttributeGainData.EntryValue * MakeEntryEffectScale(GetEntryQuote(), InEffectScale);
+	ModifierEffect.TargetTags = AttributeGainData.TargetTags;
+	ULxEffectFunctionLibrary::AddAggregatedAttributeModifierEffect(InOutEffectPackage.AttributeModifierEffects, ModifierEffect);
+}
+
 //////////////////////////////////////////////////
 
 FText ULxEntryObjectAttributeRecovery::GetDisplayName() const
 {
-	FLxString OutText(AttributeRecoveryData.EntryText.EntryDisplayName);
+	const float DisplayEntryValue = MakeEntryDisplayValue(AttributeRecoveryData.EntryValue, GetEntryQuote());
+	FString DisplayValueString;
 
 	switch (AttributeRecoveryData.EffectiveType)
 	{
 	case ELxEntryEffectiveType::BasicValue:
-		OutText.Arg(FLxString::DoubleToIntStr(AttributeRecoveryData.EntryValue));
+		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue).ToFString();
 		break;
 	case ELxEntryEffectiveType::BasicImprove:
 	case ELxEntryEffectiveType::AdditionalImprove:
-		OutText.Arg(FLxString::DoubleToIntStr(AttributeRecoveryData.EntryValue * 100).ToFString() + TEXT("%"));
+		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue * 100).ToFString() + TEXT("%");
 		break;
 	case ELxEntryEffectiveType::Mechanism:
-		OutText.Arg(FLxString::DoubleToIntStr(AttributeRecoveryData.EntryValue));
+		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue).ToFString();
 		break;
 	}
-	return OutText.ToFText();
+
+	return MakeStyledEntryDisplayName(AttributeRecoveryData.EntryText.EntryDisplayName, DisplayValueString);
 }
 
 void ULxEntryObjectAttributeRecovery::SetEntryData(const FLxEntryBase* InEntryData)
@@ -127,13 +234,31 @@ void ULxEntryObjectAttributeRecovery::SetEntryData(const FLxEntryBase* InEntryDa
 		AttributeRecoveryData = *static_cast<const FLxEntryAttributeRecovery*>(InEntryData);
 	}
 }
+
+void ULxEntryObjectAttributeRecovery::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale) const
+{
+	if (!AttributeRecoveryData.AttributeIDTag.IsValid())
+	{
+		return;
+	}
+
+	FLxAttributeRecoveryEffect RecoveryEffect;
+	RecoveryEffect.AttributeIDTag = AttributeRecoveryData.AttributeIDTag;
+	RecoveryEffect.RecoveryOperation = ConvertToModifierOperation(AttributeRecoveryData.EffectiveType);
+	RecoveryEffect.RecoveryValue = AttributeRecoveryData.EntryValue * MakeEntryEffectScale(GetEntryQuote(), InEffectScale);
+	if (AttributeRecoveryData.EffectiveType == ELxEntryEffectiveType::BasicImprove
+		|| AttributeRecoveryData.EffectiveType == ELxEntryEffectiveType::AdditionalImprove)
+	{
+		RecoveryEffect.RecoveryValue *= 100.f;
+	}
+	RecoveryEffect.TargetTags = AttributeRecoveryData.TargetTags;
+	InOutEffectPackage.AttributeRecoveryEffects.Add(RecoveryEffect);
+}
 /////////////////////////////////////////////////////
 ///
 FText ULxEntryObjectChangeState::GetDisplayName() const
 {
-	FLxString OutText(ChangeStateData.EntryText.EntryDisplayName);
-
-	return OutText.ToFText();
+	return MakeStyledEntryDisplayName(ChangeStateData.EntryText.EntryDisplayName);
 }
 
 void ULxEntryObjectChangeState::SetEntryData(const FLxEntryBase* InEntryData)
@@ -144,12 +269,24 @@ void ULxEntryObjectChangeState::SetEntryData(const FLxEntryBase* InEntryData)
 		ChangeStateData = *static_cast<const FLxEntryChangeState*>(InEntryData);
 	}
 }
+
+void ULxEntryObjectChangeState::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale) const
+{
+	if (!ChangeStateData.StateCategoryTag.IsValid() || !ChangeStateData.StateTag.IsValid())
+	{
+		return;
+	}
+
+	FLxStateChangeEffect StateChangeEffect;
+	StateChangeEffect.StateCategoryTag = ChangeStateData.StateCategoryTag;
+	StateChangeEffect.StateTag = ChangeStateData.StateTag;
+	StateChangeEffect.Operation = ConvertToStateOperation(ChangeStateData.StateValue);
+	InOutEffectPackage.StateChangeEffects.Add(StateChangeEffect);
+}
 /////////////////////////////////////////////////////
 FText ULxEntryObjectCreateBuff::GetDisplayName() const
 {
-	FLxString OutText(CreateBuffData.EntryText.EntryDisplayName);
-
-	return OutText.ToFText();
+	return MakeStyledEntryDisplayName(CreateBuffData.EntryText.EntryDisplayName);
 }
 
 void ULxEntryObjectCreateBuff::SetEntryData(const FLxEntryBase* InEntryData)
@@ -160,12 +297,24 @@ void ULxEntryObjectCreateBuff::SetEntryData(const FLxEntryBase* InEntryData)
 		CreateBuffData = *static_cast<const FLxEntryCreateBuff*>(InEntryData);
 	}
 }
+
+void ULxEntryObjectCreateBuff::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale) const
+{
+	if (!CreateBuffData.BuffIDTag.IsValid())
+	{
+		return;
+	}
+
+	FLxBuffGrantEffect BuffGrantEffect;
+	BuffGrantEffect.BuffIDTag = CreateBuffData.BuffIDTag;
+	BuffGrantEffect.EffectProportion = MakeEntryEffectScale(GetEntryQuote(), InEffectScale);
+	BuffGrantEffect.Duration = CreateBuffData.BuffDuration;
+	InOutEffectPackage.BuffGrantEffects.Add(BuffGrantEffect);
+}
 /////////////////////////////////////////////////////
 FText ULxEntryObjectMultiTarget::GetDisplayName() const
 {
-	FLxString OutText(MultiTargetData.EntryText.EntryDisplayName);
-
-	return OutText.ToFText();
+	return MakeStyledEntryDisplayName(MultiTargetData.EntryText.EntryDisplayName);
 }
 
 void ULxEntryObjectMultiTarget::SetEntryData(const FLxEntryBase* InEntryData)
@@ -179,9 +328,7 @@ void ULxEntryObjectMultiTarget::SetEntryData(const FLxEntryBase* InEntryData)
 
 FText ULxEntryObjectDisplayText::GetDisplayName() const
 {
-	FLxString OutText(DisplayTextData.EntryText.EntryDisplayName);
-
-	return OutText.ToFText();
+	return MakeStyledEntryDisplayName(DisplayTextData.EntryText.EntryDisplayName);
 }
 
 void ULxEntryObjectDisplayText::SetEntryData(const FLxEntryBase* InEntryData)
@@ -191,4 +338,30 @@ void ULxEntryObjectDisplayText::SetEntryData(const FLxEntryBase* InEntryData)
 	{
 		DisplayTextData = *static_cast<const FLxEntryDisplayText*>(InEntryData);
 	}
+}
+
+FText ULxEntryObjectGrantSkill::GetDisplayName() const
+{
+	return MakeStyledEntryDisplayName(GrantSkillData.EntryText.EntryDisplayName);
+}
+
+void ULxEntryObjectGrantSkill::SetEntryData(const FLxEntryBase* InEntryData)
+{
+	Super::SetEntryData(InEntryData);
+	if (InEntryData && InEntryData->EntryType == ELxEntryType::GrantSkill)
+	{
+		GrantSkillData = *static_cast<const FLxEntryGrantSkill*>(InEntryData);
+	}
+}
+
+void ULxEntryObjectGrantSkill::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale) const
+{
+	if (!GrantSkillData.SkillItemIDTag.IsValid())
+	{
+		return;
+	}
+
+	FLxSkillGrantEffect SkillGrantEffect;
+	SkillGrantEffect.SkillItemIDTag = GrantSkillData.SkillItemIDTag;
+	InOutEffectPackage.SkillGrantEffects.Add(SkillGrantEffect);
 }

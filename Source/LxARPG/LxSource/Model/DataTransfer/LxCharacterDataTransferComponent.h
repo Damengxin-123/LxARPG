@@ -7,6 +7,7 @@
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ShowInfoConfig/LxItemRarityType.h"
+#include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
 #include "LxCharacterEntryPackage.h"
 #include "LxCharacterDataTransferComponent.generated.h"
 
@@ -15,10 +16,12 @@ class ULxCharacterAttributeComponent;
 class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
 class ULxCharacterEquipmentComponent;
+class ULxCharacterProfessionComponent;
 class ULxCharacterStateComponent;
 class ULxEquipmentSlotData;
 class ULxItemBase;
 class ULxItemSlotData;
+class ULxProfessionDefinition;
 class ULxSkillBackpackComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeListChanged, const TArray<FLxAttributeData>&, AttributeList);
@@ -26,6 +29,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBackpackItemListChanged, const 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxEquipmentSlotListChanged, const TArray<ULxItemSlotData*>&, EquipmentSlots);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillBackpackSlotListChanged, const TArray<ULxItemSlotData*>&, SkillSlots);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBuffListChanged, const TArray<ULxBuff*>&, BuffList);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxCharacterProfessionDataChanged);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDataTransferStateTagsChanged, FGameplayTag, StateCategoryTag, const FGameplayTagContainer&, StateTags);
 
 /**
@@ -78,9 +82,37 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="添加技能物品到技能背包", meta=(Categories="物品"))
 	bool AddSkillItemToSkillBackpack(FGameplayTag InSkillItemIDTag);
 
+	/** 通过数据中转组件检查角色是否可以学习指定职业。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="检查能否学习职业", meta=(Categories="Profession"))
+	bool CanLearnProfession(FGameplayTag InProfessionIDTag, FLxProfessionLearnCheckResult& OutCheckResult);
+
+	/** 通过数据中转组件让角色学习指定职业。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="学习职业", meta=(Categories="Profession"))
+	bool LearnProfession(FGameplayTag InProfessionIDTag);
+
+	/** 通过数据中转组件给同类型已学习职业平分增加经验。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="增加同类型职业经验")
+	void AddProfessionExperienceByType(ELxProfessionType InProfessionType, float InExperience);
+
 	/** 获取所有生效中的 Buff。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有Buff")
 	void GetAllBuffs(TArray<ULxBuff*>& OutBuffList) const;
+
+	/** 获取所有可显示职业定义。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="获取所有职业定义")
+	void GetAllProfessionDefinitions(TArray<ULxProfessionDefinition*>& OutProfessionDefinitions) const;
+
+	/** 根据职业标签 ID 获取职业定义。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="获取职业定义", meta=(Categories="Profession"))
+	ULxProfessionDefinition* GetProfessionDefinition(FGameplayTag InProfessionIDTag) const;
+
+	/** 根据职业标签 ID 获取职业运行时数据。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="获取职业运行时数据", meta=(Categories="Profession"))
+	bool GetProfessionRuntimeData(FGameplayTag InProfessionIDTag, FLxProfessionRuntimeData& OutProfessionData) const;
+
+	/** 获取所有已学习职业运行时数据。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="获取已学习职业")
+	void GetLearnedProfessions(TArray<FLxProfessionRuntimeData>& OutProfessionList) const;
 
 	/** 获取需要展示在 UI 中的 Buff。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取显示Buff")
@@ -162,6 +194,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色Buff更新事件")
 	FOnLxBuffListChanged OnBuffChanged;
 
+	/** 角色职业数据变化事件。 */
+	UPROPERTY(BlueprintAssignable, Category="角色数据中转|职业", DisplayName="角色职业数据变化事件")
+	FOnLxCharacterProfessionDataChanged OnProfessionChanged;
+
 	/** 角色状态标签变化事件，广播发生变化的状态分类及其当前标签集合。 */
 	UPROPERTY(BlueprintAssignable, Category="角色数据中转|状态", DisplayName="角色状态标签变化事件")
 	FOnLxCharacterDataTransferStateTagsChanged OnCharacterStateTagsChanged;
@@ -182,6 +218,10 @@ protected:
 	/** 当前角色技能背包组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色技能背包组件")
 	TObjectPtr<ULxSkillBackpackComponent> SkillBackpackComponent = nullptr;
+
+	/** 当前角色职业组件。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|职业", DisplayName="角色职业组件")
+	TObjectPtr<ULxCharacterProfessionComponent> ProfessionComponent = nullptr;
 
 	/** 当前角色 Buff 组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色Buff组件")
@@ -207,8 +247,10 @@ private:
 	void DispatchEntryPackageByType(const FLxCharacterEntryPackage& InEntryPackage);
 	void DispatchEffectPackageByType(const FLxEffectPackage& InEffectPackage);
 	void SyncEquipmentBuffGrantEffects(const TArray<FLxBuffGrantEffect>& InBuffGrantEffects);
+	void SyncProfessionBuffGrantEffects(const TArray<FLxBuffGrantEffect>& InBuffGrantEffects);
 	void RefreshEquipmentEntryPackage();
 	void RefreshBuffEntryPackage();
+	void RefreshProfessionEffectPackages();
 	void BuildEntryPackage(ELxCharacterEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList, FLxCharacterEntryPackage& OutEntryPackage) const;
 	void BuildEffectPackageFromEntryPackage(const FLxCharacterEntryPackage& InEntryPackage, FLxEffectPackage& OutEffectPackage) const;
 	void CollectEquipmentEntries(TArray<TObjectPtr<ULxEntryObjectBase>>& OutEntryList) const;
@@ -230,6 +272,9 @@ private:
 	void HandleSkillBackpackDataChanged();
 
 	UFUNCTION()
+	void HandleProfessionDataChanged();
+
+	UFUNCTION()
 	void HandleBuffDataChanged();
 
 	UFUNCTION()
@@ -241,4 +286,5 @@ private:
 	bool bDataTransferInitialized = false;
 
 	TMap<FGameplayTag, int32> EquipmentBuffSourceCounts;
+	TMap<FGameplayTag, int32> ProfessionBuffSourceCounts;
 };

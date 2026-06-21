@@ -41,7 +41,10 @@ enum class ELxInputActionID : uint8
 	InteractionBack UMETA(DisplayName="返回上级交互"),
 	SystemShowMouseCursor UMETA(DisplayName="显示鼠标"),
 	ShortcutUse UMETA(DisplayName="快捷栏使用"),
-	ShortcutSwitch UMETA(DisplayName="快捷栏切换")
+	ShortcutSwitch UMETA(DisplayName="快捷栏切换"),
+
+	/** 职业界面快捷键输入。 */
+	Profession UMETA(DisplayName="职业界面")
 };
 
 FORCEINLINE uint32 GetTypeHash(const ELxInputActionID InInputActionID)

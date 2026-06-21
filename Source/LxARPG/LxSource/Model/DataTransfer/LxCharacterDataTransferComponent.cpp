@@ -7,6 +7,7 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
+#include "LxARPG/LxSource/Model/Profession/Logic/LxCharacterProfessionComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
 #include "LxARPG/LxSource/Model/State/Logic/LxCharacterStateComponent.h"
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
@@ -27,6 +28,8 @@ namespace
 			return ELxCharacterEntrySource::Buff;
 		case ELxEffectPackageSource::Skill:
 			return ELxCharacterEntrySource::Skill;
+		case ELxEffectPackageSource::Profession:
+			return ELxCharacterEntrySource::Profession;
 		default:
 			return ELxCharacterEntrySource::Other;
 		}
@@ -45,44 +48,10 @@ namespace
 			return ELxEffectPackageSource::Buff;
 		case ELxCharacterEntrySource::Skill:
 			return ELxEffectPackageSource::Skill;
+		case ELxCharacterEntrySource::Profession:
+			return ELxEffectPackageSource::Profession;
 		default:
 			return ELxEffectPackageSource::Other;
-		}
-	}
-
-	/** 将词条作用对象转换为属性效果作用目标。 */
-	ELxAttributeModifierTarget ConvertToModifierTarget(ELxEntryTarget InEntryTarget)
-	{
-		switch (InEntryTarget)
-		{
-		case ELxEntryTarget::ToValueLimit:
-			return ELxAttributeModifierTarget::ToValueLimit;
-		case ELxEntryTarget::ToValue:
-			return ELxAttributeModifierTarget::ToValue;
-		case ELxEntryTarget::ToUpwardFloatingRatio:
-			return ELxAttributeModifierTarget::ToUpwardFloatingRatio;
-		case ELxEntryTarget::ToDownwardFloatingRatio:
-			return ELxAttributeModifierTarget::ToDownwardFloatingRatio;
-		default:
-			return ELxAttributeModifierTarget::ToValue;
-		}
-	}
-
-	/** 将词条作用方式转换为属性效果修改方式。 */
-	ELxAttributeModifierOperation ConvertToModifierOperation(ELxEntryEffectiveType InEffectiveType)
-	{
-		switch (InEffectiveType)
-		{
-		case ELxEntryEffectiveType::BasicValue:
-			return ELxAttributeModifierOperation::AddValue;
-		case ELxEntryEffectiveType::BasicImprove:
-			return ELxAttributeModifierOperation::AddBasePercent;
-		case ELxEntryEffectiveType::AdditionalImprove:
-			return ELxAttributeModifierOperation::AddTotalPercent;
-		case ELxEntryEffectiveType::Mechanism:
-			return ELxAttributeModifierOperation::UseMaximumValue;
-		default:
-			return ELxAttributeModifierOperation::AddValue;
 		}
 	}
 
@@ -90,23 +59,10 @@ namespace
 	bool ShouldRefreshAttributeModifierEffectCache(ELxEffectPackageSource InEffectSource)
 	{
 		return InEffectSource == ELxEffectPackageSource::Equipment
-			|| InEffectSource == ELxEffectPackageSource::Buff;
+			|| InEffectSource == ELxEffectPackageSource::Buff
+			|| InEffectSource == ELxEffectPackageSource::Profession;
 	}
 
-	/** 将属性增益减益效果添加到列表，相同汇总键会合并数值。 */
-	void AddAggregatedAttributeModifierEffect(TArray<FLxAttributeModifierEffect>& InOutEffects, const FLxAttributeModifierEffect& InEffect)
-	{
-		for (FLxAttributeModifierEffect& ExistingEffect : InOutEffects)
-		{
-			if (ExistingEffect.HasSameAggregationKey(InEffect))
-			{
-				ExistingEffect.ModifierValue += InEffect.ModifierValue;
-				return;
-			}
-		}
-
-		InOutEffects.Add(InEffect);
-	}
 }
 
 ULxCharacterDataTransferComponent::ULxCharacterDataTransferComponent()
@@ -129,6 +85,7 @@ void ULxCharacterDataTransferComponent::BaseComponentInitialize()
 	BroadcastStateData();
 	RefreshEquipmentEntryPackage();
 	RefreshBuffEntryPackage();
+	RefreshProfessionEffectPackages();
 }
 
 void ULxCharacterDataTransferComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -158,6 +115,9 @@ void ULxCharacterDataTransferComponent::QueryBackpackItemsByFilter(ELxItemType I
 {
 	OutItemSlots.Reset();
 
+	const bool bFilterByItemType = InItemType != ELxItemType::None;
+	const bool bFilterByRarity = InRarityType != ELxItemRarityType::None;
+
 	TArray<ULxItemSlotData*> AllSlots;
 	GetAllBackpackItems(AllSlots);
 
@@ -169,12 +129,12 @@ void ULxCharacterDataTransferComponent::QueryBackpackItemsByFilter(ELxItemType I
 		}
 
 		ULxItemBase* ItemData = SlotData->GetItem();
-		if (InItemType != ELxItemType::None && ItemData->ItemType() != InItemType)
+		if (bFilterByItemType && ItemData->ItemType() != InItemType)
 		{
 			continue;
 		}
 
-		if (InRarityType != ELxItemRarityType::None && ItemData->ItemRarity() != InRarityType)
+		if (bFilterByRarity && ItemData->ItemRarity() != InRarityType)
 		{
 			continue;
 		}
@@ -249,6 +209,27 @@ bool ULxCharacterDataTransferComponent::AddSkillItemToSkillBackpack(FGameplayTag
 	return SkillBackpackComponent != nullptr && SkillBackpackComponent->AddSkillItemByTagID(InSkillItemIDTag);
 }
 
+bool ULxCharacterDataTransferComponent::CanLearnProfession(FGameplayTag InProfessionIDTag, FLxProfessionLearnCheckResult& OutCheckResult)
+{
+	OutCheckResult = FLxProfessionLearnCheckResult();
+	return ProfessionComponent != nullptr && ProfessionComponent->CanLearnProfession(InProfessionIDTag, OutCheckResult);
+}
+
+bool ULxCharacterDataTransferComponent::LearnProfession(FGameplayTag InProfessionIDTag)
+{
+	return ProfessionComponent != nullptr && ProfessionComponent->LearnProfession(InProfessionIDTag);
+}
+
+void ULxCharacterDataTransferComponent::AddProfessionExperienceByType(ELxProfessionType InProfessionType, float InExperience)
+{
+	if (ProfessionComponent == nullptr)
+	{
+		return;
+	}
+
+	ProfessionComponent->AddProfessionExperienceByType(InProfessionType, InExperience);
+}
+
 void ULxCharacterDataTransferComponent::GetAllBuffs(TArray<ULxBuff*>& OutBuffList) const
 {
 	OutBuffList.Reset();
@@ -258,6 +239,44 @@ void ULxCharacterDataTransferComponent::GetAllBuffs(TArray<ULxBuff*>& OutBuffLis
 	}
 
 	BuffComponent->GetActiveBuffs(OutBuffList);
+}
+
+void ULxCharacterDataTransferComponent::GetAllProfessionDefinitions(TArray<ULxProfessionDefinition*>& OutProfessionDefinitions) const
+{
+	OutProfessionDefinitions.Reset();
+	if (ProfessionComponent == nullptr)
+	{
+		return;
+	}
+
+	ProfessionComponent->GetAllProfessionDefinitions(OutProfessionDefinitions);
+}
+
+ULxProfessionDefinition* ULxCharacterDataTransferComponent::GetProfessionDefinition(FGameplayTag InProfessionIDTag) const
+{
+	return ProfessionComponent != nullptr ? ProfessionComponent->GetProfessionDefinition(InProfessionIDTag) : nullptr;
+}
+
+bool ULxCharacterDataTransferComponent::GetProfessionRuntimeData(FGameplayTag InProfessionIDTag, FLxProfessionRuntimeData& OutProfessionData) const
+{
+	if (ProfessionComponent == nullptr)
+	{
+		OutProfessionData = FLxProfessionRuntimeData();
+		return false;
+	}
+
+	return ProfessionComponent->GetProfessionRuntimeData(InProfessionIDTag, OutProfessionData);
+}
+
+void ULxCharacterDataTransferComponent::GetLearnedProfessions(TArray<FLxProfessionRuntimeData>& OutProfessionList) const
+{
+	OutProfessionList.Reset();
+	if (ProfessionComponent == nullptr)
+	{
+		return;
+	}
+
+	ProfessionComponent->GetLearnedProfessions(OutProfessionList);
 }
 
 void ULxCharacterDataTransferComponent::GetDisplayBuffs(TArray<ULxBuff*>& OutBuffList) const
@@ -370,6 +389,7 @@ void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 	BackpackComponent = OwnerCharacter->GetCharacterBackpackComponent();
 	EquipmentComponent = OwnerCharacter->GetCharacterEquipmentComponent();
 	SkillBackpackComponent = OwnerCharacter->GetSkillBackpackComponent();
+	ProfessionComponent = OwnerCharacter->GetCharacterProfessionComponent();
 	BuffComponent = OwnerCharacter->GetCharacterBuffComponent();
 	StateComponent = OwnerCharacter->GetCharacterStateComponent();
 }
@@ -397,6 +417,11 @@ void ULxCharacterDataTransferComponent::BindComponentEvents()
 	if (SkillBackpackComponent)
 	{
 		SkillBackpackComponent->OnDataChange.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleSkillBackpackDataChanged);
+	}
+
+	if (ProfessionComponent)
+	{
+		ProfessionComponent->OnProfessionChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleProfessionDataChanged);
 	}
 
 	if (BuffComponent)
@@ -433,6 +458,11 @@ void ULxCharacterDataTransferComponent::UnbindComponentEvents()
 	if (SkillBackpackComponent)
 	{
 		SkillBackpackComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleSkillBackpackDataChanged);
+	}
+
+	if (ProfessionComponent)
+	{
+		ProfessionComponent->OnProfessionChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleProfessionDataChanged);
 	}
 
 	if (BuffComponent)
@@ -574,20 +604,40 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 			return;
 		}
 
-		if (InEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Buff
+		if (InEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Profession
+			&& !InEffectPackage.BuffGrantEffects.IsEmpty())
+		{
+			SyncProfessionBuffGrantEffects(InEffectPackage.BuffGrantEffects);
+		}
+		else if (InEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Buff
 			&& InEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource)
 		{
 			return;
 		}
-
-		for (const FLxBuffGrantEffect& BuffEffect : InEffectPackage.BuffGrantEffects)
+		else
 		{
-			if (!BuffEffect.BuffIDTag.IsValid())
+			for (const FLxBuffGrantEffect& BuffEffect : InEffectPackage.BuffGrantEffects)
+			{
+				if (!BuffEffect.BuffIDTag.IsValid())
+				{
+					continue;
+				}
+
+				BuffComponent->AddBuff(BuffEffect.BuffIDTag, BuffEffect.EffectProportion, BuffEffect.Duration, EntrySource);
+			}
+		}
+	}
+
+	if (SkillBackpackComponent != nullptr)
+	{
+		for (const FLxSkillGrantEffect& SkillGrantEffect : InEffectPackage.SkillGrantEffects)
+		{
+			if (!SkillGrantEffect.SkillItemIDTag.IsValid())
 			{
 				continue;
 			}
 
-			BuffComponent->AddBuff(BuffEffect.BuffIDTag, BuffEffect.EffectProportion, BuffEffect.Duration, EntrySource);
+			SkillBackpackComponent->AddSkillItemByTagID(SkillGrantEffect.SkillItemIDTag);
 		}
 	}
 }
@@ -660,6 +710,36 @@ void ULxCharacterDataTransferComponent::SyncEquipmentBuffGrantEffects(const TArr
 	EquipmentBuffSourceCounts = MoveTemp(NewEquipmentBuffSourceCounts);
 }
 
+void ULxCharacterDataTransferComponent::SyncProfessionBuffGrantEffects(const TArray<FLxBuffGrantEffect>& InBuffGrantEffects)
+{
+	if (BuffComponent == nullptr)
+	{
+		ProfessionBuffSourceCounts.Reset();
+		return;
+	}
+
+	for (const TPair<FGameplayTag, int32>& OldBuffSourceCount : ProfessionBuffSourceCounts)
+	{
+		if (OldBuffSourceCount.Value > 0)
+		{
+			BuffComponent->RemoveBuffSourceReferenceByTagID(OldBuffSourceCount.Key, ELxCharacterEntrySource::Profession, OldBuffSourceCount.Value);
+		}
+	}
+
+	ProfessionBuffSourceCounts.Reset();
+	for (const FLxBuffGrantEffect& BuffEffect : InBuffGrantEffects)
+	{
+		if (!BuffEffect.BuffIDTag.IsValid())
+		{
+			continue;
+		}
+
+		BuffComponent->AddBuff(BuffEffect.BuffIDTag, BuffEffect.EffectProportion, BuffEffect.Duration, ELxCharacterEntrySource::Profession);
+		int32& SourceCount = ProfessionBuffSourceCounts.FindOrAdd(BuffEffect.BuffIDTag);
+		++SourceCount;
+	}
+}
+
 void ULxCharacterDataTransferComponent::RefreshEquipmentEntryPackage()
 {
 	TArray<TObjectPtr<ULxEntryObjectBase>> EntryList;
@@ -672,6 +752,28 @@ void ULxCharacterDataTransferComponent::RefreshBuffEntryPackage()
 	TArray<TObjectPtr<ULxEntryObjectBase>> EntryList;
 	CollectBuffEntries(EntryList);
 	DispatchEntryList(ELxCharacterEntrySource::Buff, EntryList);
+}
+
+void ULxCharacterDataTransferComponent::RefreshProfessionEffectPackages()
+{
+	if (ProfessionComponent == nullptr)
+	{
+		SyncProfessionBuffGrantEffects(TArray<FLxBuffGrantEffect>());
+		return;
+	}
+
+	TArray<FLxEffectPackage> ProfessionEffectPackages;
+	ProfessionComponent->BuildAllProfessionEffectPackages(ProfessionEffectPackages);
+
+	TArray<FLxBuffGrantEffect> ProfessionBuffGrantEffects;
+	for (FLxEffectPackage& EffectPackage : ProfessionEffectPackages)
+	{
+		ProfessionBuffGrantEffects.Append(EffectPackage.BuffGrantEffects);
+		EffectPackage.BuffGrantEffects.Reset();
+		DispatchEffectPackageByType(EffectPackage);
+	}
+
+	SyncProfessionBuffGrantEffects(ProfessionBuffGrantEffects);
 }
 
 void ULxCharacterDataTransferComponent::BuildEntryPackage(ELxCharacterEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList, FLxCharacterEntryPackage& OutEntryPackage) const
@@ -726,70 +828,7 @@ void ULxCharacterDataTransferComponent::BuildEffectPackageFromEntryPackage(const
 			continue;
 		}
 
-		switch (EntryObject->GetEntryType())
-		{
-		case ELxEntryType::AttributeGain:
-			{
-				const FLxEntryAttributeGain* GainEntry = static_cast<const FLxEntryAttributeGain*>(EntryObject->GetEntryBase());
-				if (GainEntry == nullptr)
-				{
-					break;
-				}
-
-				FLxAttributeModifierEffect ModifierEffect;
-				ModifierEffect.AttributeID = GainEntry->AttributeID;
-				ModifierEffect.AttributeIDTag = GainEntry->AttributeIDTag;
-				ModifierEffect.ModifierTarget = ConvertToModifierTarget(GainEntry->EntryTarget);
-				ModifierEffect.ModifierOperation = ConvertToModifierOperation(GainEntry->EffectiveType);
-				ModifierEffect.ModifierValue = GainEntry->EntryValue;
-				ModifierEffect.TargetTags = GainEntry->TargetTags;
-				AddAggregatedAttributeModifierEffect(OutEffectPackage.AttributeModifierEffects, ModifierEffect);
-			}
-			break;
-		case ELxEntryType::AttributeRecovery:
-			{
-				const FLxEntryAttributeRecovery* RecoveryEntry = static_cast<const FLxEntryAttributeRecovery*>(EntryObject->GetEntryBase());
-				if (RecoveryEntry == nullptr)
-				{
-					break;
-				}
-
-				const float RecoveryScale = EntryObject->GetEntryQuote().EntryCD > KINDA_SMALL_NUMBER
-					? EntryObject->GetEntryQuote().EntryCD
-					: 1.0f;
-
-				FLxAttributeRecoveryEffect RecoveryEffect;
-				RecoveryEffect.AttributeID = RecoveryEntry->AttributeID;
-				RecoveryEffect.AttributeIDTag = RecoveryEntry->AttributeIDTag;
-				RecoveryEffect.RecoveryOperation = ConvertToModifierOperation(RecoveryEntry->EffectiveType);
-				RecoveryEffect.RecoveryValue = RecoveryEntry->EntryValue * RecoveryScale;
-				if (RecoveryEntry->EffectiveType == ELxEntryEffectiveType::BasicImprove
-					|| RecoveryEntry->EffectiveType == ELxEntryEffectiveType::AdditionalImprove)
-				{
-					RecoveryEffect.RecoveryValue *= 100.f;
-				}
-				RecoveryEffect.TargetTags = RecoveryEntry->TargetTags;
-				OutEffectPackage.AttributeRecoveryEffects.Add(RecoveryEffect);
-			}
-			break;
-		case ELxEntryType::CreateBuff:
-			{
-				const FLxEntryCreateBuff* CreateBuffEntry = static_cast<const FLxEntryCreateBuff*>(EntryObject->GetEntryBase());
-				if (CreateBuffEntry == nullptr || !CreateBuffEntry->BuffIDTag.IsValid())
-				{
-					break;
-				}
-
-				FLxBuffGrantEffect BuffGrantEffect;
-				BuffGrantEffect.BuffIDTag = CreateBuffEntry->BuffIDTag;
-				BuffGrantEffect.EffectProportion = 1.f;
-				BuffGrantEffect.Duration = CreateBuffEntry->BuffDuration;
-				OutEffectPackage.BuffGrantEffects.Add(BuffGrantEffect);
-			}
-			break;
-		default:
-			break;
-		}
+		EntryObject->AppendEffectsToPackage(OutEffectPackage);
 	}
 }
 
@@ -856,6 +895,12 @@ void ULxCharacterDataTransferComponent::HandleEquipmentDataChanged()
 void ULxCharacterDataTransferComponent::HandleSkillBackpackDataChanged()
 {
 	BroadcastSkillBackpackData();
+}
+
+void ULxCharacterDataTransferComponent::HandleProfessionDataChanged()
+{
+	RefreshProfessionEffectPackages();
+	OnProfessionChanged.Broadcast();
 }
 
 void ULxCharacterDataTransferComponent::HandleBuffDataChanged()

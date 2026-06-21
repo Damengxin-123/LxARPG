@@ -10,6 +10,8 @@ class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
 class ULxCharacterDataTransferComponent;
 class ULxCharacterEquipmentComponent;
+class ULxCharacterProfessionComponent;
+class ULxCharacterTestComponent;
 class ULxCharacterMoveComponent;
 class ULxCharacterStateComponent;
 class ULxSkillBackpackComponent;
@@ -149,6 +151,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取技能背包组件")
 	ULxSkillBackpackComponent* GetSkillBackpackComponent() const { return m_pSkillBackpackComponent; }
 
+	/** 获取角色职业组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色职业组件")
+	ULxCharacterProfessionComponent* GetCharacterProfessionComponent() const { return m_pCharacterProfessionComponent; }
+
+	/** 获取角色测试组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色测试组件")
+	ULxCharacterTestComponent* GetCharacterTestComponent() const { return m_pCharacterTestComponent; }
+
 protected:
 	/** 角色移动组件，用于管理和控制角色移动行为。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色移动组件")
@@ -185,6 +195,14 @@ protected:
 	/** 技能背包组件，用于保存角色已拥有的技能物品和技能背包槽位。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="技能背包组件")
 	TObjectPtr<ULxSkillBackpackComponent> m_pSkillBackpackComponent;
+
+	/** 角色职业组件，用于管理角色已学习职业、职业等级经验和职业效果。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色职业组件")
+	TObjectPtr<ULxCharacterProfessionComponent> m_pCharacterProfessionComponent;
+
+	/** 角色测试组件，用于集中提供物品、技能、职业等测试接口。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色测试组件")
+	TObjectPtr<ULxCharacterTestComponent> m_pCharacterTestComponent;
 
 	/** 角色当前状态。 */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, ReplicatedUsing=OnRep_CharacterState, Category="角色|状态", DisplayName="当前角色状态")

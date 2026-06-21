@@ -11,7 +11,8 @@ namespace
 	TMap<ELxInputActionID, FLxInputActionInfo> GInputActionInfoMap;
 	TMap<ELxInputActionID, TWeakObjectPtr<UInputAction>> GInputActionObjectMap;
 	TMap<const UInputAction*, ELxInputActionID> GInputActionIDByActionMap;
-	TMap<ELxInputActionID, TArray<TScriptInterface<ILxInputReceiveInterface>>> GInputReceivedObjectMap;
+	// 输入监听对象可能随角色或 UI 销毁，使用弱引用避免全局注册表保留失效对象。
+	TMap<ELxInputActionID, TArray<TWeakObjectPtr<UObject>>> GInputReceivedObjectMap;
 
 	bool IsActorInInputScope(const AActor* InActor, const APlayerController* SourcePlayerController)
 	{
@@ -131,16 +132,27 @@ namespace LxInputActionConfig
 			return;
 		}
 
-		TArray<TScriptInterface<ILxInputReceiveInterface>>& ReceivedObjects = GInputReceivedObjectMap.FindOrAdd(InInputActionID);
-		for (const TScriptInterface<ILxInputReceiveInterface>& ReceivedObject : ReceivedObjects)
+		UObject* RegisterObject = InRegisterObj.GetObject();
+		if (RegisterObject == nullptr)
 		{
-			if (ReceivedObject.GetObject() == InRegisterObj.GetObject())
+			return;
+		}
+
+		TArray<TWeakObjectPtr<UObject>>& ReceivedObjects = GInputReceivedObjectMap.FindOrAdd(InInputActionID);
+		ReceivedObjects.RemoveAll([](const TWeakObjectPtr<UObject>& ReceivedObject)
+		{
+			return !ReceivedObject.IsValid();
+		});
+
+		for (const TWeakObjectPtr<UObject>& ReceivedObject : ReceivedObjects)
+		{
+			if (ReceivedObject.Get() == RegisterObject)
 			{
 				return;
 			}
 		}
 
-		ReceivedObjects.Add(InRegisterObj);
+		ReceivedObjects.Add(RegisterObject);
 	}
 	void UnregisterInputReceive(ELxInputActionID InInputActionID)
 	{
@@ -154,11 +166,11 @@ namespace LxInputActionConfig
 			return;
 		}
 
-		if (TArray<TScriptInterface<ILxInputReceiveInterface>>* ReceivedObjects = GInputReceivedObjectMap.Find(InInputActionID))
+		if (TArray<TWeakObjectPtr<UObject>>* ReceivedObjects = GInputReceivedObjectMap.Find(InInputActionID))
 		{
-			ReceivedObjects->RemoveAll([InRegisterObj](const TScriptInterface<ILxInputReceiveInterface>& ReceivedObject)
+			ReceivedObjects->RemoveAll([InRegisterObj](const TWeakObjectPtr<UObject>& ReceivedObject)
 			{
-				return ReceivedObject.GetObject() == nullptr || ReceivedObject.GetObject() == InRegisterObj;
+				return !ReceivedObject.IsValid() || ReceivedObject.Get() == InRegisterObj;
 			});
 
 			if (ReceivedObjects->IsEmpty())
@@ -170,21 +182,27 @@ namespace LxInputActionConfig
 
 	void SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue, const APlayerController* SourcePlayerController)
 	{
-		if (TArray<TScriptInterface<ILxInputReceiveInterface>>* ReceivedObjects = GInputReceivedObjectMap.Find(InInputActionID))
+		if (TArray<TWeakObjectPtr<UObject>>* ReceivedObjects = GInputReceivedObjectMap.Find(InInputActionID))
 		{
-			ReceivedObjects->RemoveAll([](const TScriptInterface<ILxInputReceiveInterface>& ReceivedObject)
+			ReceivedObjects->RemoveAll([](const TWeakObjectPtr<UObject>& ReceivedObject)
 			{
-				return ReceivedObject.GetObject() == nullptr;
+				return !ReceivedObject.IsValid();
 			});
 
 			// 输入回调中可能注册或反注册监听者，例如交互 UI 显隐时会调整输入监听。
 			// 这里使用快照遍历，避免回调期间修改原数组触发 ranged-for 的数组变化断言。
-			const TArray<TScriptInterface<ILxInputReceiveInterface>> ReceivedObjectSnapshot = *ReceivedObjects;
-			for (const TScriptInterface<ILxInputReceiveInterface>& ReceivedObject : ReceivedObjectSnapshot)
+			const TArray<TWeakObjectPtr<UObject>> ReceivedObjectSnapshot = *ReceivedObjects;
+			for (const TWeakObjectPtr<UObject>& ReceivedObject : ReceivedObjectSnapshot)
 			{
-				if (ReceivedObject && IsObjectInInputScope(ReceivedObject.GetObject(), SourcePlayerController))
+				UObject* ReceiverObject = ReceivedObject.Get();
+				if (ReceiverObject == nullptr || !IsObjectInInputScope(ReceiverObject, SourcePlayerController))
 				{
-					ReceivedObject->HandleInputValue(InInputActionID, InInputValue);
+					continue;
+				}
+
+				if (ILxInputReceiveInterface* ReceiverInterface = Cast<ILxInputReceiveInterface>(ReceiverObject))
+				{
+					ReceiverInterface->HandleInputValue(InInputActionID, InInputValue);
 				}
 			}
 		}

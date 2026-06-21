@@ -56,6 +56,11 @@ namespace LxEntryConfig
 		SetEntryData(InEntryData);
 	}
 
+	void SetGrantSkillEntryData(const FLxEntryGrantSkill& InEntryData)
+	{
+		SetEntryData(InEntryData);
+	}
+
 	const FLxEntryBase* GetEntryData(FGameplayTag InEntryID)
 	{
 		if (!InEntryID.IsValid())

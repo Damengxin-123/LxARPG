@@ -1,7 +1,6 @@
 #include "LxEffectTypes.h"
 
 #include "GameFramework/Actor.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
 #include "UObject/Object.h"
 
 FName FLxEffectSourceContext::MakeSourceKey() const
@@ -31,14 +30,7 @@ FName FLxEffectSourceContext::MakeSourceKey() const
 
 bool FLxAttributeModifierEffect::HasSameAggregationKey(const FLxAttributeModifierEffect& Other) const
 {
-	const FGameplayTag ThisAttributeIDTag = AttributeIDTag.IsValid()
-		? AttributeIDTag
-		: LxAttributeTools::GetAttributeIDTagByLegacyID(AttributeID);
-	const FGameplayTag OtherAttributeIDTag = Other.AttributeIDTag.IsValid()
-		? Other.AttributeIDTag
-		: LxAttributeTools::GetAttributeIDTagByLegacyID(Other.AttributeID);
-
-	return ThisAttributeIDTag == OtherAttributeIDTag
+	return AttributeIDTag == Other.AttributeIDTag
 		&& ModifierTarget == Other.ModifierTarget
 		&& ModifierOperation == Other.ModifierOperation
 		&& TargetTags.Num() == Other.TargetTags.Num()
@@ -52,5 +44,6 @@ bool FLxEffectPackage::IsEmpty() const
 		&& AttributeRecoveryEffects.IsEmpty()
 		&& DamageEffects.IsEmpty()
 		&& StateChangeEffects.IsEmpty()
-		&& BuffGrantEffects.IsEmpty();
+		&& BuffGrantEffects.IsEmpty()
+		&& SkillGrantEffects.IsEmpty();
 }

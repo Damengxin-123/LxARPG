@@ -3,6 +3,7 @@
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
+#include "LxARPG/LxSource/UI/ItemGrid/LxItemGridWidget.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
 
 void ULxBackpackWidget::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)
@@ -24,8 +25,10 @@ void ULxBackpackWidget::UpdatedBackpack()
 	{
 		m_vItemSlotList.Reset();
 		m_vEquipmentSlotList.Reset();
+		PendingEquipmentSlotBindingList.Reset();
 		OnItemListUpdated(GetItemUIDataList());
 		OnEquipmentListUpdated(GetEquipmentUIDataList());
+		OnEquipmentSlotBindingRequested();
 		return;
 	}
 
@@ -69,6 +72,32 @@ TArray<UObject*> ULxBackpackWidget::GetEquipmentUIDataList()
 		EquipmentUIDataList.Add(EquipmentUIData);
 	}
 	return EquipmentUIDataList;
+}
+
+bool ULxBackpackWidget::BindEquipmentSlotToItemGrid(ULxItemGridWidget* ItemGridWidget, FGameplayTag EquipmentTypeTag)
+{
+	if (ItemGridWidget == nullptr)
+	{
+		return false;
+	}
+
+	for (int32 SlotIndex = 0; SlotIndex < PendingEquipmentSlotBindingList.Num(); ++SlotIndex)
+	{
+		ULxItemSlotData* SlotData = PendingEquipmentSlotBindingList[SlotIndex];
+		if (SlotData == nullptr || SlotData->GetItemTypeTag() != EquipmentTypeTag)
+		{
+			continue;
+		}
+
+		ItemGridWidget->SetItemSlotData(SlotData);
+		ItemGridWidget->SetVisibility(ESlateVisibility::Visible);
+		PendingEquipmentSlotBindingList.RemoveAt(SlotIndex);
+		return true;
+	}
+
+	ItemGridWidget->SetItemSlotData(nullptr);
+	ItemGridWidget->SetVisibility(ESlateVisibility::Collapsed);
+	return false;
 }
 
 void ULxBackpackWidget::SwitchItemType(ELxItemType NewType)
@@ -132,9 +161,12 @@ void ULxBackpackWidget::HandleBackpackItemsChanged(const TArray<ULxItemSlotData*
 void ULxBackpackWidget::HandleEquipmentSlotsChanged(const TArray<ULxItemSlotData*>& EquipmentSlots)
 {
 	m_vEquipmentSlotList.Reset();
+	PendingEquipmentSlotBindingList.Reset();
 	for (ULxItemSlotData* SlotData : EquipmentSlots)
 	{
 		m_vEquipmentSlotList.Add(SlotData);
+		PendingEquipmentSlotBindingList.Add(SlotData);
 	}
 	OnEquipmentListUpdated(GetEquipmentUIDataList());
+	OnEquipmentSlotBindingRequested();
 }

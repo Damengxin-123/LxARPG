@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -6,6 +6,7 @@
 #include "LxARPG/LxSource/Core/Database/LxDataTableBase.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
+#include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
 #include "LxGameDataTablesManager.generated.h"
 
 class UDataTable;
@@ -59,6 +60,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|词条", DisplayName="显示文本词条表")
 	TObjectPtr<UDataTable> m_pDisplayTextEntryTable = nullptr;
 
+	// 授予技能词条表，Row Struct 使用 FLxEntryGrantSkill。
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|词条", DisplayName="授予技能词条表")
+	TObjectPtr<UDataTable> m_pGrantSkillEntryTable = nullptr;
+
 	// 装备物品表，Row Struct 使用 FLxEquipmentInformation。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|物品", DisplayName="装备物品表")
 	TObjectPtr<UDataTable> m_pEquipmentItemTable = nullptr;
@@ -78,6 +83,14 @@ public:
 	// 技能物品表，Row Struct 使用 FLxSkillItemInformation。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|物品", DisplayName="技能物品表")
 	TObjectPtr<UDataTable> m_pSkillItemTable = nullptr;
+
+	// 角色职业表，Row Struct 使用 FLxProfessionDefinitionTableRow。
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|职业", DisplayName="角色职业表")
+	TObjectPtr<UDataTable> m_pProfessionDefinitionTable = nullptr;
+
+	// 富文本样式映射表，Row Struct 使用 FLxRichTextStyleRow，内部行引用指向 FRichTextStyleRow 样式表。
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|富文本样式", DisplayName="富文本样式映射表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxRichTextStyleRow"))
+	TObjectPtr<UDataTable> m_pRichTextStyleTable = nullptr;
 	
 	virtual void LoadDataTables();
 };

@@ -7,9 +7,11 @@
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
+#include "LxARPG/LxSource/Model/Profession/Logic/LxCharacterProfessionComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
 #include "LxARPG/LxSource/Model/State/Logic/LxCharacterStateComponent.h"
+#include "LxARPG/LxSource/Model/Test/Logic/LxCharacterTestComponent.h"
 #include "Net/UnrealNetwork.h"
 
 ALxBaseCharacter::ALxBaseCharacter()
@@ -24,7 +26,9 @@ ALxBaseCharacter::ALxBaseCharacter()
 	m_pCharacterStateComponent = CreateDefaultSubobject<ULxCharacterStateComponent>(TEXT("CharacterStateComponent"));
 	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
 	m_pSkillBackpackComponent = CreateDefaultSubobject<ULxSkillBackpackComponent>(TEXT("SkillBackpackComponent"));
+	m_pCharacterProfessionComponent = CreateDefaultSubobject<ULxCharacterProfessionComponent>(TEXT("CharacterProfessionComponent"));
 	m_pCharacterDataTransferComponent = CreateDefaultSubobject<ULxCharacterDataTransferComponent>(TEXT("CharacterDataTransferComponent"));
+	m_pCharacterTestComponent = CreateDefaultSubobject<ULxCharacterTestComponent>(TEXT("CharacterTestComponent"));
 	m_pSkillCastComponent = CreateDefaultSubobject<ULxSkillCastComponent>(TEXT("SkillCastComponent"));
 }
 
@@ -68,10 +72,20 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	{
 		m_pSkillBackpackComponent->BaseComponentInitialize();
 	}
+
+	if (m_pCharacterProfessionComponent)
+	{
+		m_pCharacterProfessionComponent->BaseComponentInitialize();
+	}
 	
 	if (m_pCharacterDataTransferComponent)
 	{
 		m_pCharacterDataTransferComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterTestComponent)
+	{
+		m_pCharacterTestComponent->BaseComponentInitialize();
 	}
 
 	if (m_pSkillCastComponent)

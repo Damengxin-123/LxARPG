@@ -55,10 +55,6 @@ namespace
 		{
 			InOutAttributeData.AttributeIDTag = InValueConfig.AttributeIDTag;
 		}
-		else if (!InOutAttributeData.AttributeIDTag.IsValid())
-		{
-			InOutAttributeData.AttributeIDTag = LxAttributeTools::GetAttributeIDTagByLegacyID(InValueConfig.AttributeID);
-		}
 
 		InOutAttributeData.AttributeValue.UpwardFloatingRatio = InValueConfig.UpwardFloatingRatio;
 		InOutAttributeData.AttributeValue.DownwardFloatingRatio = InValueConfig.DownwardFloatingRatio;
@@ -500,9 +496,7 @@ bool ULxCharacterAttributeComponent::AttributeMatchesTargetTags(const FLxAttribu
 
 bool ULxCharacterAttributeComponent::AttributeMatchesModifierEffect(const FLxAttributeData& InAttributeData, const FLxAttributeModifierEffect& InEffect)
 {
-	const FGameplayTag EffectAttributeIDTag = InEffect.AttributeIDTag.IsValid()
-		? InEffect.AttributeIDTag
-		: LxAttributeTools::GetAttributeIDTagByLegacyID(InEffect.AttributeID);
+	const FGameplayTag EffectAttributeIDTag = InEffect.AttributeIDTag;
 	const bool bHasAttributeIDTag = EffectAttributeIDTag.IsValid();
 	const bool bHasTargetTags = !InEffect.TargetTags.IsEmpty();
 	if (!bHasAttributeIDTag && !bHasTargetTags)
@@ -520,9 +514,7 @@ bool ULxCharacterAttributeComponent::AttributeMatchesModifierEffect(const FLxAtt
 
 bool ULxCharacterAttributeComponent::AttributeMatchesRecoveryEffect(const FLxAttributeData& InAttributeData, const FLxAttributeRecoveryEffect& InEffect)
 {
-	const FGameplayTag EffectAttributeIDTag = InEffect.AttributeIDTag.IsValid()
-		? InEffect.AttributeIDTag
-		: LxAttributeTools::GetAttributeIDTagByLegacyID(InEffect.AttributeID);
+	const FGameplayTag EffectAttributeIDTag = InEffect.AttributeIDTag;
 	const bool bHasAttributeIDTag = EffectAttributeIDTag.IsValid();
 	const bool bHasTargetTags = !InEffect.TargetTags.IsEmpty();
 	if (!bHasAttributeIDTag && !bHasTargetTags)

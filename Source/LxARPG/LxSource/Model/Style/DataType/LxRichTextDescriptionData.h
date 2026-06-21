@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "LxARPG/LxSource/Model/Style/RichText/LxRichTextStyleTypes.h"
 #include "LxRichTextDescriptionData.generated.h"
 
 USTRUCT(BlueprintType, DisplayName="富文本描述片段")
@@ -16,7 +17,7 @@ struct FLxRichTextDescriptionData
 	FText Text;
 
 	/** 编辑期通过样式表行引用选择文本样式。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="文本样式行引用", meta=(RowType="RichTextStyleRow"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="文本样式行引用", meta=(RowType="/Script/UMG.RichTextStyleRow"))
 	FDataTableRowHandle TextStyleRow;
 
 	/** 编辑期通过图标表行引用选择内联图片，可为空。 */

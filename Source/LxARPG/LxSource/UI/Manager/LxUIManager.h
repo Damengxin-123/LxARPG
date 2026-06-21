@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
@@ -14,6 +14,7 @@ class ULxInteractionEntranceWidget;
 class ULxInteractionUIManager;
 class ULxPersistentUIManager;
 class ULxPopupUIManager;
+class ULxProfessionWidget;
 class ULxTogglePanelUIManager;
 class ULxTooltipUIManager;
 class ULxTradeContainerWidget;
@@ -63,6 +64,10 @@ public:
 	/** 注册技能背包 UI，并由按键面板管理器使用技能面板输入行为开关显示。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="注册技能背包UI")
 	void RegisterSkillBackpackWidget(ULxSkillBackpackWidget* InSkillBackpackWidget, bool bInShowCursorWhenVisible = true, bool bInCloseOtherPanelsWhenOpened = false);
+
+	/** 注册职业 UI，并由按键面板管理器使用职业界面输入行为开关显示。 */
+	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="注册职业UI")
+	void RegisterProfessionWidget(ULxProfessionWidget* InProfessionWidget, bool bInShowCursorWhenVisible = true, bool bInCloseOtherPanelsWhenOpened = false);
 
 	/** 注册物品悬浮提示 UI。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="注册物品提示界面")
@@ -147,6 +152,8 @@ public:
 private:
 	/** 确保默认子管理器已经创建。 */
 	void EnsureDefaultManagementObjects();
+	/** 绑定已注册 UI 所属的主 UI 管理器。 */
+	void InitializeRegisteredUIWidget(ULxUIBaseObject* InChildUIWidget);
 	/** 将主 UI 管理器当前上下文同步到全部子管理器。 */
 	void InitializeManagementObjects();
 	/** 判断 UI 当前是否处于可见状态。 */

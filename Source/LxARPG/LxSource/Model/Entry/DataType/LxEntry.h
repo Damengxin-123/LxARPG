@@ -8,6 +8,8 @@
 #include "UObject/Object.h"
 #include "LxEntry.generated.h"
 
+struct FLxEffectPackage;
+
 /**
  * 运行时词条对象基类。
  *
@@ -70,6 +72,13 @@ public:
 	 */
 	virtual FText GetDisplayName() const { return FLxString("None").ToFText(); };
 
+	/**
+	 * 将当前词条转换并追加到效果数据包。
+	 *
+	 * 默认词条不产生运行时效果，属性、Buff、状态和授予技能等子类会重写该函数。
+	 */
+	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const {};
+
 private:
 	/** 创建运行时词条时传入的引用参数。 */
 	UPROPERTY()
@@ -104,6 +113,8 @@ public:
 	virtual const FLxEntryBase* GetEntryBase() const override { return &AttributeGainData; }
 
 	virtual FText GetDisplayName() const override;
+
+	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
 protected:
 	/** 将基础词条数据转换并缓存为属性增益词条数据。 */
 	virtual void SetEntryData(const FLxEntryBase* InEntryData) override;
@@ -132,6 +143,8 @@ public:
 	virtual const FLxEntryBase* GetEntryBase() const override { return &AttributeRecoveryData; }
 
 	virtual FText GetDisplayName() const override;
+
+	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
 protected:
 	/** 将基础词条数据转换并缓存为属性回复词条数据。 */
 	virtual void SetEntryData(const FLxEntryBase* InEntryData) override;
@@ -160,6 +173,8 @@ public:
 	virtual const FLxEntryBase* GetEntryBase() const override { return &ChangeStateData; }
 
 	virtual FText GetDisplayName() const override;
+
+	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
 protected:
 	/** 将基础词条数据转换并缓存为状态改变词条数据。 */
 	virtual void SetEntryData(const FLxEntryBase* InEntryData) override;
@@ -188,6 +203,8 @@ public:
 	virtual const FLxEntryBase* GetEntryBase() const override { return &CreateBuffData; }
 
 	virtual FText GetDisplayName() const override;
+
+	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
 protected:
 	/** 将基础词条数据转换并缓存为创建 Buff 词条数据。 */
 	virtual void SetEntryData(const FLxEntryBase* InEntryData) override;
@@ -252,4 +269,35 @@ private:
 	/** 当前对象缓存的显示文本词条数据。 */
 	UPROPERTY()
 	FLxEntryDisplayText DisplayTextData;
+};
+
+/**
+ * 授予技能词条运行时对象。
+ *
+ * 用于缓存并访问 FLxEntryGrantSkill 类型的词条数据。
+ */
+UCLASS(BlueprintType)
+class LXARPG_API ULxEntryObjectGrantSkill : public ULxEntryObjectBase
+{
+	GENERATED_BODY()
+
+public:
+	/** 获取授予技能词条的完整配置数据。 */
+	const FLxEntryGrantSkill& GetGrantSkillData() const { return GrantSkillData; }
+
+	/** 获取当前词条的基础数据指针。 */
+	virtual const FLxEntryBase* GetEntryBase() const override { return &GrantSkillData; }
+
+	virtual FText GetDisplayName() const override;
+
+	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
+
+protected:
+	/** 将基础词条数据转换并缓存为授予技能词条数据。 */
+	virtual void SetEntryData(const FLxEntryBase* InEntryData) override;
+
+private:
+	/** 当前对象缓存的授予技能词条数据。 */
+	UPROPERTY()
+	FLxEntryGrantSkill GrantSkillData;
 };

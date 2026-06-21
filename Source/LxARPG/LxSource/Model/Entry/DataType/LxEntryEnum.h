@@ -75,6 +75,8 @@ enum class ELxEntryType : uint8
 	MultiTarget			UMETA(DisplayName="多目标"),
 	// 显示文本
 	DisplayText			UMETA(DisplayName="显示文本"),
+	// 授予技能
+	GrantSkill			UMETA(DisplayName="授予技能"),
 };
 
 /** 状态词条取值。 */

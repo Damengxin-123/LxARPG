@@ -14,6 +14,7 @@
 #include "LxARPG/LxSource/UI/Manager/LxPopupUIManager.h"
 #include "LxARPG/LxSource/UI/Manager/LxTogglePanelUIManager.h"
 #include "LxARPG/LxSource/UI/Manager/LxTooltipUIManager.h"
+#include "LxARPG/LxSource/UI/Profession/LxProfessionWidget.h"
 #include "LxARPG/LxSource/UI/SkillBackpack/LxSkillBackpackWidget.h"
 #include "LxARPG/LxSource/UI/Trade/LxTradeContainerWidget.h"
 #include "LxARPG/LxSource/UI/TreasureChest/LxTreasureChestWidget.h"
@@ -106,6 +107,12 @@ void ULxUIManager::RegisterChildUIWidget(ULxUIBaseObject* InChildUIWidget, ELxIn
 		return;
 	}
 
+	if (ULxProfessionWidget* ProfessionWidget = Cast<ULxProfessionWidget>(InChildUIWidget))
+	{
+		RegisterProfessionWidget(ProfessionWidget, bInShowCursorWhenVisible);
+		return;
+	}
+
 	RegisterTogglePanelWidget(InChildUIWidget, InInputActionID, bInShowCursorWhenVisible);
 }
 
@@ -118,6 +125,7 @@ void ULxUIManager::RegisterUIWidget(const FLxUIWidgetRegistration& InRegistratio
 
 	EnsureDefaultManagementObjects();
 	InitializeManagementObjects();
+	InitializeRegisteredUIWidget(InRegistration.UIWidget);
 
 	if (ULxItemTooltipWidget* ItemTooltipWidget = Cast<ULxItemTooltipWidget>(InRegistration.UIWidget))
 	{
@@ -223,9 +231,20 @@ void ULxUIManager::RegisterSkillBackpackWidget(ULxSkillBackpackWidget* InSkillBa
 		bInCloseOtherPanelsWhenOpened);
 }
 
+void ULxUIManager::RegisterProfessionWidget(ULxProfessionWidget* InProfessionWidget,
+	bool bInShowCursorWhenVisible, bool bInCloseOtherPanelsWhenOpened)
+{
+	RegisterTogglePanelWidget(
+		InProfessionWidget,
+		ELxInputActionID::Profession,
+		bInShowCursorWhenVisible,
+		bInCloseOtherPanelsWhenOpened);
+}
+
 void ULxUIManager::RegisterItemTooltipWidget(ULxItemTooltipWidget* InItemTooltipWidget)
 {
 	EnsureDefaultManagementObjects();
+	InitializeRegisteredUIWidget(InItemTooltipWidget);
 	if (TooltipUIManager)
 	{
 		TooltipUIManager->SetItemTooltipWidget(InItemTooltipWidget);
@@ -236,6 +255,7 @@ void ULxUIManager::RegisterItemTooltipWidget(ULxItemTooltipWidget* InItemTooltip
 void ULxUIManager::RegisterInteractionEntranceWidget(ULxInteractionEntranceWidget* InEntranceWidget)
 {
 	EnsureDefaultManagementObjects();
+	InitializeRegisteredUIWidget(InEntranceWidget);
 	if (InteractionUIManager)
 	{
 		InteractionUIManager->RegisterEntranceWidget(InEntranceWidget);
@@ -246,6 +266,7 @@ void ULxUIManager::RegisterInteractionEntranceWidget(ULxInteractionEntranceWidge
 void ULxUIManager::RegisterDialogueInteractionWidget(ULxDialogueInteractionWidget* InDialogueInteractionWidget)
 {
 	EnsureDefaultManagementObjects();
+	InitializeRegisteredUIWidget(InDialogueInteractionWidget);
 	if (InteractionUIManager)
 	{
 		InteractionUIManager->RegisterDialogueInteractionWidget(InDialogueInteractionWidget);
@@ -256,6 +277,7 @@ void ULxUIManager::RegisterDialogueInteractionWidget(ULxDialogueInteractionWidge
 void ULxUIManager::RegisterWarehouseWidget(ULxWarehouseWidget* InWarehouseWidget)
 {
 	EnsureDefaultManagementObjects();
+	InitializeRegisteredUIWidget(InWarehouseWidget);
 	if (InteractionUIManager)
 	{
 		InteractionUIManager->RegisterWarehouseWidget(InWarehouseWidget);
@@ -266,6 +288,7 @@ void ULxUIManager::RegisterWarehouseWidget(ULxWarehouseWidget* InWarehouseWidget
 void ULxUIManager::RegisterTreasureChestWidget(ULxTreasureChestWidget* InTreasureChestWidget)
 {
 	EnsureDefaultManagementObjects();
+	InitializeRegisteredUIWidget(InTreasureChestWidget);
 	if (InteractionUIManager)
 	{
 		InteractionUIManager->RegisterTreasureChestWidget(InTreasureChestWidget);
@@ -276,6 +299,7 @@ void ULxUIManager::RegisterTreasureChestWidget(ULxTreasureChestWidget* InTreasur
 void ULxUIManager::RegisterTradeContainerWidget(ULxTradeContainerWidget* InTradeContainerWidget)
 {
 	EnsureDefaultManagementObjects();
+	InitializeRegisteredUIWidget(InTradeContainerWidget);
 	if (InteractionUIManager)
 	{
 		InteractionUIManager->RegisterTradeContainerWidget(InTradeContainerWidget);
@@ -286,6 +310,7 @@ void ULxUIManager::RegisterTradeContainerWidget(ULxTradeContainerWidget* InTrade
 void ULxUIManager::RegisterPopupWidget(ULxUIBaseObject* InPopupWidget, bool bInHideOnRegister)
 {
 	EnsureDefaultManagementObjects();
+	InitializeRegisteredUIWidget(InPopupWidget);
 	if (PopupUIManager)
 	{
 		PopupUIManager->RegisterPopupWidget(InPopupWidget, bInHideOnRegister);
@@ -428,6 +453,14 @@ void ULxUIManager::EnsureDefaultManagementObjects()
 		InteractionUIManager = NewObject<ULxInteractionUIManager>(
 			this,
 			InteractionManagerClass ? InteractionManagerClass : ULxInteractionUIManager::StaticClass());
+	}
+}
+
+void ULxUIManager::InitializeRegisteredUIWidget(ULxUIBaseObject* InChildUIWidget)
+{
+	if (InChildUIWidget)
+	{
+		InChildUIWidget->SetOwningUIManager(this);
 	}
 }
 

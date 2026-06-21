@@ -7,6 +7,9 @@
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntryTableConfig.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputActionConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
+#include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTableConfig.h"
+#include "LxARPG/LxSource/Model/Profession/Logic/LxProfessionDefinition.h"
+#include "LxARPG/LxSource/Model/Style/RichText/LxRichTextStyleConfig.h"
 #include "LxARPG/LxSource/Model/Style/TableConfig/LxTextLineStyleDataConfig.h"
 #include "InputCoreTypes.h"
 
@@ -52,6 +55,33 @@ namespace
 		AimInputActionInfo.ValueMagnification = 1.f;
 
 		LxInputActionConfig::SetInputActionInfo(AimInputActionInfo);
+	}
+
+	/** 确保职业界面快捷键拥有默认 P 键配置，数据表中已配置时保持数据表优先。 */
+	void EnsureDefaultProfessionInputActionInfo()
+	{
+		if (LxInputActionConfig::GetInputActionInfo(ELxInputActionID::Profession))
+		{
+			return;
+		}
+
+		FLxInputActionInfo ProfessionInputActionInfo;
+		ProfessionInputActionInfo.InputActionID = ELxInputActionID::Profession;
+		ProfessionInputActionInfo.DisplayName = FText::FromString(TEXT("职业界面"));
+		ProfessionInputActionInfo.ValueType = EInputActionValueType::Boolean;
+		ProfessionInputActionInfo.InteractionType = ELxInputInteractionType::SingleTrigger;
+		ProfessionInputActionInfo.DefaultKey = EKeys::P;
+		ProfessionInputActionInfo.ValueDirection = ELxInputValueAxial::None;
+		ProfessionInputActionInfo.ValueMagnification = 1.f;
+
+		LxInputActionConfig::SetInputActionInfo(ProfessionInputActionInfo);
+	}
+
+	/** 确保关键默认输入行为存在，避免新增功能必须同步修改数据表才能使用。 */
+	void EnsureDefaultInputActionInfos()
+	{
+		EnsureDefaultAimInputActionInfo();
+		EnsureDefaultProfessionInputActionInfo();
 	}
 
 	void LoadCharacterAttributeDataTable(const UDataTable* InDataTable)
@@ -123,7 +153,54 @@ namespace
 			LxInputActionConfig::SetInputActionInfo(*RowData);
 		}
 
-		EnsureDefaultAimInputActionInfo();
+		EnsureDefaultInputActionInfos();
+	}
+
+	void LoadProfessionDefinitionDataTable(const UDataTable* InDataTable)
+	{
+		if (InDataTable == nullptr)
+		{
+			return;
+		}
+
+		TArray<FLxProfessionDefinitionTableRow*> Rows;
+		InDataTable->GetAllRows<FLxProfessionDefinitionTableRow>(TEXT("ULxGameDataTablesManager::LoadProfessionDefinitionDataTable"), Rows);
+
+		for (const FLxProfessionDefinitionTableRow* RowData : Rows)
+		{
+			if (RowData == nullptr || !RowData->ProfessionIDTag.IsValid() || !RowData->ProfessionClass)
+			{
+				continue;
+			}
+
+			LxProfessionConfig::SetProfessionDefinitionTableRow(*RowData);
+		}
+	}
+
+	void LoadRichTextStyleMappingDataTable(UDataTable* InDataTable)
+	{
+		if (InDataTable == nullptr)
+		{
+			return;
+		}
+
+		const UScriptStruct* RowStruct = InDataTable->GetRowStruct();
+		if (RowStruct == nullptr || !RowStruct->IsChildOf(FLxRichTextStyleRow::StaticStruct()))
+		{
+			return;
+		}
+
+		LxRichTextStyleConfig::SetRichTextStyleDataTable(InDataTable);
+		for (const TPair<FName, uint8*>& RowPair : InDataTable->GetRowMap())
+		{
+			const FLxRichTextStyleRow* StyleRow = reinterpret_cast<const FLxRichTextStyleRow*>(RowPair.Value);
+			if (StyleRow == nullptr)
+			{
+				continue;
+			}
+
+			LxRichTextStyleConfig::SetRichTextStyleRow(RowPair.Key, *StyleRow);
+		}
 	}
 
 	template<typename RowType, typename SetterType>
@@ -157,9 +234,14 @@ void ULxGameDataTablesManager::LoadDataTables()
 	LxEntryConfig::ClearEntryConfig();
 	LxInputActionConfig::ClearInputActionConfig();
 	LxItemConfig::ClearItemConfig();
+	LxProfessionConfig::ClearProfessionConfig();
+	LxRichTextStyleConfig::ClearRichTextStyleConfig();
 
 	LoadInputActionInfoDataTable(m_pInputActionInfoTableConfig.Get());
+	EnsureDefaultInputActionInfos();
 	LoadCharacterAttributeDataTable(m_pCharacterAttributeDataTable.Get());
+	LoadProfessionDefinitionDataTable(m_pProfessionDefinitionTable.Get());
+	LoadRichTextStyleMappingDataTable(m_pRichTextStyleTable.Get());
 
 	for (const TPair<ELxCharacterRaceType, TObjectPtr<UDataTable>>& RaceTablePair : m_mapRaceAttributeValueConfigTables)
 	{
@@ -212,6 +294,14 @@ void ULxGameDataTablesManager::LoadDataTables()
 		[](const FLxEntryDisplayText& RowData)
 		{
 			LxEntryConfig::SetDisplayTextEntryData(RowData);
+		});
+
+	LoadEntryDataTable<FLxEntryGrantSkill>(
+		m_pGrantSkillEntryTable.Get(),
+		TEXT("ULxGameDataTablesManager::LoadGrantSkillEntryTable"),
+		[](const FLxEntryGrantSkill& RowData)
+		{
+			LxEntryConfig::SetGrantSkillEntryData(RowData);
 		});
 
 	LoadItemDataTable<FLxEquipmentInformation>(

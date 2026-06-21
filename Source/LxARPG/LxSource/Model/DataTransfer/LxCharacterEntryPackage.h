@@ -17,6 +17,7 @@ enum class ELxCharacterEntrySource : uint8
 	Equipment UMETA(DisplayName="装备"),
 	Buff UMETA(DisplayName="Buff"),
 	Skill UMETA(DisplayName="技能"),
+	Profession UMETA(DisplayName="职业"),
 	Other UMETA(DisplayName="其他"),
 };
 
