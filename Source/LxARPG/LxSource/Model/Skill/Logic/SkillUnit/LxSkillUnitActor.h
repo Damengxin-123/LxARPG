@@ -5,6 +5,7 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitComponentTypes.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitResult.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitSpec.h"
+#include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEntryPackage.h"
 #include "LxSkillUnitActor.generated.h"
 
 class ULxSkillDetectionComponent;
@@ -48,8 +49,12 @@ public:
 	void SetSkillUnitSpawnSpec(const FLxSkillUnitSpawnSpec& InSpawnSpec);
 
 	/** 设置技能单元携带的效果对象；效果系统接入前仅作为预留数据。 */
-	UFUNCTION(BlueprintCallable, Category="技能单元", DisplayName="设置技能单元效果")
-	void SetSkillUnitEffects(const TArray<UObject*>& InSkillEffects);
+	UFUNCTION(BlueprintCallable, Category="技能单元", DisplayName="设置技能单元词条包")
+	void SetSkillUnitEntryPackages(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages);
+
+	/** 获取技能单元携带的词条包数组。 */
+	UFUNCTION(BlueprintPure, Category="技能单元|词条", DisplayName="获取技能单元词条包数组")
+	TArray<FLxSkillEntryPackage> GetSkillUnitEntryPackages() const { return SkillEntryPackages; }
 
 	/** 技能单元参数限制初始化，具体类型可重写以声明自身支持哪些参数。 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="技能单元", DisplayName="技能单元参数限制初始化")
@@ -128,9 +133,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元", DisplayName="技能单元参数")
 	FLxSkillUnitSpec SkillUnitSpec;
 
-	/** 技能单元携带的效果对象，后续由效果系统解释。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元", DisplayName="技能单元效果")
-	TArray<TObjectPtr<UObject>> SkillEffects;
+	/** 技能单元携带的词条包，命中目标后可转换为技能效果。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|词条", DisplayName="技能单元词条包数组")
+	TArray<FLxSkillEntryPackage> SkillEntryPackages;
 
 	/** 是否在BeginPlay时自动激活。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元", DisplayName="自动激活")

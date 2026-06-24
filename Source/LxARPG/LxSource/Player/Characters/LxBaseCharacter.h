@@ -1,15 +1,18 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "LxCharacterStateEnum.h"
 #include "LxBaseCharacter.generated.h"
 
+class UDataTable;
 class ULxCharacterAttributeComponent;
 class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
 class ULxCharacterDataTransferComponent;
+class ULxCharacterDamageComponent;
 class ULxCharacterEquipmentComponent;
+class ULxCharacterLifecycleComponent;
 class ULxCharacterProfessionComponent;
 class ULxCharacterTestComponent;
 class ULxCharacterMoveComponent;
@@ -135,6 +138,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色数据中转组件")
 	ULxCharacterDataTransferComponent* GetCharacterDataTransferComponent() const { return m_pCharacterDataTransferComponent; }
 
+	/** 获取角色伤害计算组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色伤害计算组件")
+	ULxCharacterDamageComponent* GetCharacterDamageComponent() const { return m_pCharacterDamageComponent; }
+
+	/** 获取角色生命周期组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色生命周期组件")
+	ULxCharacterLifecycleComponent* GetCharacterLifecycleComponent() const { return m_pCharacterLifecycleComponent; }
+
 	/**
 	 * 获取角色装备组件。
 	 *
@@ -159,7 +170,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色测试组件")
 	ULxCharacterTestComponent* GetCharacterTestComponent() const { return m_pCharacterTestComponent; }
 
+	/** 获取当前角色使用的基础属性数值表。 */
+	UFUNCTION(BlueprintPure, Category="角色|属性", DisplayName="获取基础属性数值表")
+	UDataTable* GetCharacterAttributeValueTable() const { return CharacterAttributeValueTable; }
 protected:
+	/** 当前角色使用的基础属性数值表，行结构使用 FLxAttributeValueConfig，所有基础角色派生类型都需要手动配置。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性", DisplayName="基础属性数值表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxAttributeValueConfig"))
+	TObjectPtr<UDataTable> CharacterAttributeValueTable = nullptr;
+
 	/** 角色移动组件，用于管理和控制角色移动行为。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色移动组件")
 	TObjectPtr<ULxCharacterMoveComponent> m_pCharacterMoveComponent;
@@ -183,6 +201,14 @@ protected:
 	/** 角色数据中转组件，用于统一对外转发属性、背包、装备和 Buff 数据。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色数据中转组件")
 	TObjectPtr<ULxCharacterDataTransferComponent> m_pCharacterDataTransferComponent;
+
+	/** 角色伤害计算组件，用于处理伤害输出和伤害接收流程。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色伤害计算组件")
+	TObjectPtr<ULxCharacterDamageComponent> m_pCharacterDamageComponent;
+
+	/** 角色生命周期组件，用于管理存活、死亡等生命周期状态。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色生命周期组件")
+	TObjectPtr<ULxCharacterLifecycleComponent> m_pCharacterLifecycleComponent;
 
 	/** 角色装备组件，用于管理装备槽位和已装备物品。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色装备组件")

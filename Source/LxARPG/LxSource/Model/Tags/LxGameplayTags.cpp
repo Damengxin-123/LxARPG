@@ -12,6 +12,8 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Module_State, "Module.State", "模块.状�
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState, TEXT("角色状态"), "角色状态");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_ElementAbnormal, TEXT("角色状态.元素异常状态"), "角色状态.元素异常状态");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Lifecycle, TEXT("角色状态.生命周期状态"), "角色状态.生命周期状态");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Lifecycle_Alive, TEXT("角色状态.生命周期状态.存活"), "存活");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Lifecycle_Dead, TEXT("角色状态.生命周期状态.死亡"), "死亡");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Movement, TEXT("角色状态.角色移动状态"), "角色状态.角色移动状态");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat, TEXT("角色状态.战斗状态"), "角色状态.战斗状态");
 

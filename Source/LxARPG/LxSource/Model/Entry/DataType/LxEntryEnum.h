@@ -77,6 +77,8 @@ enum class ELxEntryType : uint8
 	DisplayText			UMETA(DisplayName="显示文本"),
 	// 授予技能
 	GrantSkill			UMETA(DisplayName="授予技能"),
+	// 造成伤害
+	Damage				UMETA(DisplayName="造成伤害"),
 };
 
 /** 状态词条取值。 */

@@ -100,18 +100,10 @@ void ALxSkillUnitActor::SetSkillUnitSpawnSpec(const FLxSkillUnitSpawnSpec& InSpa
 	SkillUnitSpec.SpawnSpec = InSpawnSpec;
 }
 
-void ALxSkillUnitActor::SetSkillUnitEffects(const TArray<UObject*>& InSkillEffects)
+void ALxSkillUnitActor::SetSkillUnitEntryPackages(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages)
 {
-	SkillEffects.Reset();
-	for (UObject* SkillEffect : InSkillEffects)
-	{
-		if (SkillEffect)
-		{
-			SkillEffects.Add(SkillEffect);
-		}
-	}
+	SkillEntryPackages = InSkillEntryPackages;
 }
-
 void ALxSkillUnitActor::InitializeSkillUnitParameterLimits_Implementation()
 {
 }

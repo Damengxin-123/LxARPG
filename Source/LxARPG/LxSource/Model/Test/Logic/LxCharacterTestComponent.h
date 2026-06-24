@@ -5,9 +5,18 @@
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
+#include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxCharacterTestComponent.generated.h"
 
+class AActor;
 class ULxCharacterDataTransferComponent;
+class ULxCharacterDamageComponent;
+
+/** 测试受伤最终伤害数字输出事件。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTestReceivedDamageValueOutput, float, FinalDamageValue);
+
+/** 测试受伤攻击者输出事件。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTestReceivedDamageAttackerOutput, AActor*, AttackerActor);
 
 /**
  * 角色测试组件。
@@ -22,6 +31,9 @@ class LXARPG_API ULxCharacterTestComponent : public ULxCharacterComponentBase
 public:
 	/** 创建角色测试组件。 */
 	ULxCharacterTestComponent();
+
+	/** 初始化角色测试组件，并绑定伤害测试输出事件。 */
+	virtual void BaseComponentInitialize() override;
 
 	/** 添加一个测试物品到角色背包。 */
 	UFUNCTION(BlueprintCallable, Category="角色测试|物品", DisplayName="添加测试物品到背包", meta=(Categories="物品"))
@@ -47,7 +59,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category="角色测试|职业", DisplayName="增加测试职业经验")
 	void AddTestProfessionExperienceByType(ELxProfessionType InProfessionType, float InExperience);
 
+	/** 使用攻击者的伤害组件对当前角色执行一次测试伤害，并输出最终实际伤害和攻击者。 */
+	UFUNCTION(BlueprintCallable, Category="角色测试|伤害", DisplayName="测试受到攻击者伤害")
+	bool ApplyTestDamageFromAttacker(AActor* InAttackerActor, float& OutFinalDamageValue, AActor*& OutAttackerActor, bool bApplyResult = true);
+
+	/** 测试受伤后输出最终实际伤害数字。 */
+	UPROPERTY(BlueprintAssignable, Category="角色测试|伤害", DisplayName="测试受伤输出最终伤害数字")
+	FOnLxTestReceivedDamageValueOutput OnTestReceivedDamageValueOutput;
+
+	/** 测试受伤后输出攻击者。 */
+	UPROPERTY(BlueprintAssignable, Category="角色测试|伤害", DisplayName="测试受伤输出攻击者")
+	FOnLxTestReceivedDamageAttackerOutput OnTestReceivedDamageAttackerOutput;
+
 private:
 	/** 获取当前角色的数据中转组件。 */
 	ULxCharacterDataTransferComponent* GetDataTransferComponent() const;
+
+	/** 获取当前角色的伤害计算组件。 */
+	ULxCharacterDamageComponent* GetDamageComponent() const;
+
+	/** 从实际应用的效果包中汇总最终造成的伤害数值。 */
+	static float CalculateFinalDamageValueFromAppliedPackage(const FLxEffectPackage& InAppliedPackage);
+
+	/** 处理角色伤害组件的受伤事件，并转发测试输出事件。 */
+	UFUNCTION()
+	void HandleCharacterDamageReceived(const FLxEffectPackage& InAppliedDamagePackage, AActor* InAttackerActor);
 };

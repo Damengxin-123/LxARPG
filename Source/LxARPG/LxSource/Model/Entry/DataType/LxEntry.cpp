@@ -142,6 +142,9 @@ ULxEntryObjectBase* ULxEntryObjectBase::CreateEnterObject(UObject* InParent, con
 		case ELxEntryType::GrantSkill:
 			OutEntryObject = NewObject<ULxEntryObjectGrantSkill>(InParent);
 			break;
+		case ELxEntryType::Damage:
+			OutEntryObject = NewObject<ULxEntryObjectDamage>(InParent);
+			break;
 		default:
 			return nullptr;
 		}
@@ -364,4 +367,40 @@ void ULxEntryObjectGrantSkill::AppendEffectsToPackage(FLxEffectPackage& InOutEff
 	FLxSkillGrantEffect SkillGrantEffect;
 	SkillGrantEffect.SkillItemIDTag = GrantSkillData.SkillItemIDTag;
 	InOutEffectPackage.SkillGrantEffects.Add(SkillGrantEffect);
+}
+
+
+FText ULxEntryObjectDamage::GetDisplayName() const
+{
+	const float DisplayRatio = MakeEntryDisplayValue(DamageData.SourceAttributeRatio, GetEntryQuote());
+	const FString DisplayValueString = FLxString::DoubleToIntStr(DisplayRatio * 100.f).ToFString() + TEXT("%");
+	return MakeStyledEntryDisplayName(DamageData.EntryText.EntryDisplayName, DisplayValueString);
+}
+
+void ULxEntryObjectDamage::SetEntryData(const FLxEntryBase* InEntryData)
+{
+	Super::SetEntryData(InEntryData);
+	if (InEntryData && InEntryData->EntryType == ELxEntryType::Damage)
+	{
+		DamageData = *static_cast<const FLxEntryDamage*>(InEntryData);
+	}
+}
+
+void ULxEntryObjectDamage::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale) const
+{
+	if (!DamageData.SourceAttributeIDTag.IsValid() || !DamageData.DamageTypeTag.IsValid())
+	{
+		return;
+	}
+
+	FLxDamageValue DamageValue;
+	DamageValue.DamageTypeTag = DamageData.DamageTypeTag;
+	DamageValue.SourceAttributeIDTag = DamageData.SourceAttributeIDTag;
+	DamageValue.SourceAttributeRatio = DamageData.SourceAttributeRatio * MakeEntryEffectScale(GetEntryQuote(), InEffectScale);
+
+	FLxDamageEffect DamageEffect;
+	DamageEffect.TargetAttributeIDTag = DamageData.TargetAttributeIDTag;
+	DamageEffect.DamageTags.AddTag(DamageData.DamageTypeTag);
+	DamageEffect.DamageValues.Add(DamageValue);
+	InOutEffectPackage.DamageEffects.Add(DamageEffect);
 }

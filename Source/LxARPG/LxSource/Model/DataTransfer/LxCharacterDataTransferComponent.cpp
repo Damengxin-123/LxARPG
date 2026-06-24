@@ -3,10 +3,12 @@
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
+#include "LxARPG/LxSource/Model/Damage/Logic/LxCharacterDamageComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
+#include "LxARPG/LxSource/Model/Lifecycle/Logic/LxCharacterLifecycleComponent.h"
 #include "LxARPG/LxSource/Model/Profession/Logic/LxCharacterProfessionComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
 #include "LxARPG/LxSource/Model/State/Logic/LxCharacterStateComponent.h"
@@ -295,6 +297,24 @@ ULxCharacterStateComponent* ULxCharacterDataTransferComponent::GetCharacterState
 	return StateComponent;
 }
 
+ULxCharacterLifecycleComponent* ULxCharacterDataTransferComponent::GetCharacterLifecycleComponent() const
+{
+	return LifecycleComponent;
+}
+
+bool ULxCharacterDataTransferComponent::IsCharacterAlive() const
+{
+	return LifecycleComponent == nullptr || LifecycleComponent->IsCharacterAlive();
+}
+
+void ULxCharacterDataTransferComponent::SetCharacterAliveState(bool bInAlive)
+{
+	if (LifecycleComponent != nullptr)
+	{
+		LifecycleComponent->SetCharacterAliveState(bInAlive);
+	}
+}
+
 bool ULxCharacterDataTransferComponent::GetCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag, FGameplayTagContainer& OutStateTags) const
 {
 	OutStateTags.Reset();
@@ -339,11 +359,13 @@ bool ULxCharacterDataTransferComponent::ClearCharacterStateTagsByCategory(FGamep
 
 void ULxCharacterDataTransferComponent::ReceiveEntryPackage(const FLxCharacterEntryPackage& InEntryPackage)
 {
+	EnsureOwnerComponentsCached();
 	DispatchEntryPackageByType(InEntryPackage);
 }
 
 void ULxCharacterDataTransferComponent::ReceiveEffectPackage(const FLxEffectPackage& InEffectPackage)
 {
+	EnsureOwnerComponentsCached();
 	DispatchEffectPackageByType(InEffectPackage);
 }
 
@@ -392,6 +414,22 @@ void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 	ProfessionComponent = OwnerCharacter->GetCharacterProfessionComponent();
 	BuffComponent = OwnerCharacter->GetCharacterBuffComponent();
 	StateComponent = OwnerCharacter->GetCharacterStateComponent();
+	LifecycleComponent = OwnerCharacter->GetCharacterLifecycleComponent();
+	DamageComponent = OwnerCharacter->GetCharacterDamageComponent();
+}
+
+void ULxCharacterDataTransferComponent::EnsureOwnerComponentsCached()
+{
+	if (!bDataTransferInitialized)
+	{
+		BaseComponentInitialize();
+		return;
+	}
+
+	if (AttributeComponent == nullptr || StateComponent == nullptr || DamageComponent == nullptr)
+	{
+		CacheOwnerComponents();
+	}
 }
 
 void ULxCharacterDataTransferComponent::BindComponentEvents()
@@ -435,6 +473,11 @@ void ULxCharacterDataTransferComponent::BindComponentEvents()
 		StateComponent->OnStateTagsChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleStateTagsChanged);
 	}
 
+	if (LifecycleComponent)
+	{
+		LifecycleComponent->OnLifecycleStateChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleLifecycleStateChanged);
+	}
+
 }
 
 void ULxCharacterDataTransferComponent::UnbindComponentEvents()
@@ -474,6 +517,11 @@ void ULxCharacterDataTransferComponent::UnbindComponentEvents()
 	if (StateComponent)
 	{
 		StateComponent->OnStateTagsChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleStateTagsChanged);
+	}
+
+	if (LifecycleComponent)
+	{
+		LifecycleComponent->OnLifecycleStateChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleLifecycleStateChanged);
 	}
 
 }
@@ -547,6 +595,12 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 	if (InEffectPackage.IsEmpty() && InEffectPackage.ApplyPolicy != ELxEffectPackageApplyPolicy::ReplaceSameSource)
 	{
 		return;
+	}
+
+	if (DamageComponent != nullptr && !InEffectPackage.DamageEffects.IsEmpty())
+	{
+		FLxEffectPackage AppliedDamagePackage;
+		DamageComponent->ReceiveIncomingDamagePackage(InEffectPackage, AppliedDamagePackage);
 	}
 
 	if (AttributeComponent != nullptr)
@@ -805,6 +859,9 @@ void ULxCharacterDataTransferComponent::BuildEntryPackage(ELxCharacterEntrySourc
 		case ELxEntryType::CreateBuff:
 			OutEntryPackage.BuffEntryList.Add(EntryObject);
 			break;
+		case ELxEntryType::Damage:
+			OutEntryPackage.DamageEntryList.Add(EntryObject);
+			break;
 		default:
 			break;
 		}
@@ -929,4 +986,9 @@ void ULxCharacterDataTransferComponent::HandleBuffPeriodActivated(ULxBuff* BuffL
 void ULxCharacterDataTransferComponent::HandleStateTagsChanged(FGameplayTag StateCategoryTag, const FGameplayTagContainer& StateTags)
 {
 	OnCharacterStateTagsChanged.Broadcast(StateCategoryTag, StateTags);
+}
+
+void ULxCharacterDataTransferComponent::HandleLifecycleStateChanged(bool bIsAlive, FGameplayTag LifecycleStateTag)
+{
+	OnCharacterLifecycleStateChanged.Broadcast(bIsAlive, LifecycleStateTag);
 }

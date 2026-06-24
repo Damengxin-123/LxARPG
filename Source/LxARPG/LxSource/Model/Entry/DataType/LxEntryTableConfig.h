@@ -15,6 +15,7 @@ namespace LxEntryConfig
 	void SetMultiTargetEntryData(const FLxEntryMultiTarget& InEntryData);
 	void SetDisplayTextEntryData(const FLxEntryDisplayText& InEntryData);
 	void SetGrantSkillEntryData(const FLxEntryGrantSkill& InEntryData);
+	void SetDamageEntryData(const FLxEntryDamage& InEntryData);
 
 	/**
 	 * 根据词条标签 ID 查询词条数据。

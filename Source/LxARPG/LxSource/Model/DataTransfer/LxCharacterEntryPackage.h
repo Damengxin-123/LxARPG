@@ -51,6 +51,10 @@ struct LXARPG_API FLxCharacterEntryPackage
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色词条包", DisplayName="Buff词条列表")
 	TArray<TObjectPtr<ULxEntryObjectBase>> BuffEntryList;
 
+	/** 需要转发给伤害组件的伤害词条列表。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色词条包", DisplayName="伤害词条列表")
+	TArray<TObjectPtr<ULxEntryObjectBase>> DamageEntryList;
+
 	/** 需要转发给装备组件的装备属性词条列表。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色词条包", DisplayName="装备属性词条列表")
 	TArray<TObjectPtr<ULxEntryObjectBase>> EquipmentAttributeEntryList;

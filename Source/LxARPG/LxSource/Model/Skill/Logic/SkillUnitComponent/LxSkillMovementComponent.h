@@ -22,7 +22,7 @@ public:
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	/** 传入本次释放使用的运动参数。 */
+	/** 传入本次释放使用的运动参数，配置单位为 m、m/s、m/s²。 */
 	UFUNCTION(BlueprintCallable, Category="技能单元|运动", DisplayName="传入运动参数")
 	void SetMovementSpec(const FLxSkillMovementSpec& InMovementSpec);
 
@@ -63,7 +63,7 @@ protected:
 	USceneComponent* ResolveMovementTargetComponent() const;
 
 private:
-	/** 运动参数，描述速度、最大距离、加速度等本次释放的运行时限制。 */
+	/** 运动参数，配置单位为 m、m/s、m/s²，组件运行时会转换为 UE 世界单位。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|运动", DisplayName="运动参数", meta=(AllowPrivateAccess="true"))
 	FLxSkillMovementSpec MovementSpec;
 
@@ -71,6 +71,6 @@ private:
 	TObjectPtr<USceneComponent> MovementTargetComponent = nullptr;
 
 	ELxSkillAbilityComponentState MovementState = ELxSkillAbilityComponentState::Ready;
-	float TraveledDistance = 0.0f;
-	float CurrentSpeed = 0.0f;
+	float TraveledDistanceCm = 0.0f;
+	float CurrentSpeedCmPerSecond = 0.0f;
 };

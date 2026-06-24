@@ -2,6 +2,8 @@
 
 #include "Engine/DataTable.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 namespace
 {
@@ -47,6 +49,27 @@ namespace
 	FGameplayTag ResolveComponentAttributeIDTag(const FLxAttributeValueConfig& InValueConfig)
 	{
 		return LxAttributeTools::ResolveAttributeIDTag(InValueConfig);
+	}
+
+	// 判断属性是否需要在初始化时把当前值补满到上限值。
+	bool ShouldInitializeCurrentValueToLimit(const FLxAttributeData& InAttributeData)
+	{
+		return InAttributeData.AttributeIDTag.MatchesTag(LxTag_Attribute_Resource)
+			&& InAttributeData.CalculatedAttributeValue.ValueType == ELxCharacterValueType::RangedNumeric;
+	}
+
+	// 初始化资源属性当前值，后续存档接入后可以在这里替换为存档值恢复。
+	void InitializeResourceCurrentValuesToLimit(TMap<FGameplayTag, FLxAttributeData>& InOutAttributeDataMap)
+	{
+		for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : InOutAttributeDataMap)
+		{
+			if (!ShouldInitializeCurrentValueToLimit(AttributePair.Value))
+			{
+				continue;
+			}
+
+			AttributePair.Value.CalculatedAttributeValue.Value = AttributePair.Value.CalculatedAttributeValue.ValueLimit;
+		}
 	}
 
 	void ApplyComponentBaseValueConfigToAttribute(const FLxAttributeValueConfig& InValueConfig, FLxAttributeData& InOutAttributeData)
@@ -98,33 +121,14 @@ ULxCharacterAttributeComponent::ULxCharacterAttributeComponent()
 
 void ULxCharacterAttributeComponent::BaseComponentInitialize()
 {
-	if (CharacterAttributeValueTable != nullptr)
+	CharacterAttributeValueConfigs.Reset();
+	if (const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner()))
 	{
-		LoadAttributeValueConfigsFromTable(CharacterAttributeValueTable, CharacterAttributeValueConfigs);
+		LoadAttributeValueConfigsFromTable(OwnerCharacter->GetCharacterAttributeValueTable(), CharacterAttributeValueConfigs);
 	}
 
 	InitializeAttributeTable();
 	BroadcastAttributeTableChanged();
-}
-
-bool ULxCharacterAttributeComponent::SetCharacterAttributeValueTable(UDataTable* InAttributeValueTable, bool bReinitializeAttribute)
-{
-	TArray<FLxAttributeValueConfig> LoadedValueConfigs;
-	if (!LoadAttributeValueConfigsFromTable(InAttributeValueTable, LoadedValueConfigs))
-	{
-		return false;
-	}
-
-	CharacterAttributeValueTable = InAttributeValueTable;
-	CharacterAttributeValueConfigs = LoadedValueConfigs;
-
-	if (bReinitializeAttribute)
-	{
-		InitializeAttributeTable();
-		BroadcastAttributeTableChanged();
-	}
-
-	return true;
 }
 
 void ULxCharacterAttributeComponent::ReceiveAttributeModifierEffects(const FLxEffectSourceContext& InSourceContext, ELxEffectPackageApplyPolicy InApplyPolicy, const TArray<FLxAttributeModifierEffect>& InEffectList)
@@ -217,6 +221,7 @@ void ULxCharacterAttributeComponent::InitializeAttributeTable()
 	RuntimeRangedAttributeValues.Empty();
 	RebuildAttributeTableFromRaceConfig();
 	RefreshDerivedAttributes();
+	InitializeResourceCurrentValuesToLimit(CharacterAttributeTable);
 	for (TPair<FGameplayTag, FLxAttributeData>& AttributePair : CharacterAttributeTable)
 	{
 		NormalizeAttributeValueByType(AttributePair.Value.CalculatedAttributeValue);

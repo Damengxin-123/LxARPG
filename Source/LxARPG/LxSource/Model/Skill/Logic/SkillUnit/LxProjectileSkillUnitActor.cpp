@@ -5,8 +5,6 @@
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillDetectionComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillLifeComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillMovementComponent.h"
-#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillPropagationComponent.h"
-#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillTriggerComponent.h"
 
 ALxProjectileSkillUnitActor::ALxProjectileSkillUnitActor()
 {
@@ -20,18 +18,26 @@ ALxProjectileSkillUnitActor::ALxProjectileSkillUnitActor()
 
 	MovementComponent = CreateDefaultSubobject<ULxSkillMovementComponent>(TEXT("MovementComponent"));
 	DetectionComponent = CreateDefaultSubobject<ULxSkillDetectionComponent>(TEXT("DetectionComponent"));
-	TriggerComponent = CreateDefaultSubobject<ULxSkillTriggerComponent>(TEXT("TriggerComponent"));
-	PropagationComponent = CreateDefaultSubobject<ULxSkillPropagationComponent>(TEXT("PropagationComponent"));
 	LifeComponent = CreateDefaultSubobject<ULxSkillLifeComponent>(TEXT("LifeComponent"));
 }
 
 void ALxProjectileSkillUnitActor::InitializeProjectileParameters(const FLxSkillProjectileSpec& InProjectileSpec)
 {
 	ProjectileSpec = InProjectileSpec;
-	if (ProjectileCollisionComponent)
+	SkillUnitSpec.MovementSpec.Speed = ProjectileSpec.FlightSpeed;
+	SkillUnitSpec.MovementSpec.Acceleration = ProjectileSpec.FlightAcceleration;
+	SkillUnitSpec.MovementSpec.MaxDistance = ProjectileSpec.MaxFlightDistance;
+
+	if (MovementComponent)
 	{
-		ProjectileCollisionComponent->SetSphereRadius(ProjectileSpec.CollisionRadius);
+		MovementComponent->SetMovementSpec(SkillUnitSpec.MovementSpec);
 	}
+}
+
+void ALxProjectileSkillUnitActor::ActivateSkillUnit_Implementation()
+{
+	ResetProjectileRuntimeState();
+	Super::ActivateSkillUnit_Implementation();
 }
 
 void ALxProjectileSkillUnitActor::InitializeSkillUnitDefaultParameters_Implementation()
@@ -53,11 +59,6 @@ void ALxProjectileSkillUnitActor::InitializeSkillUnitDefaultParameters_Implement
 void ALxProjectileSkillUnitActor::ApplySkillUnitSpecToComponents()
 {
 	Super::ApplySkillUnitSpecToComponents();
-
-	if (ProjectileCollisionComponent && SkillUnitSpec.SpaceSpec.Radius > 0.0f)
-	{
-		ProjectileCollisionComponent->SetSphereRadius(SkillUnitSpec.SpaceSpec.Radius);
-	}
 }
 
 void ALxProjectileSkillUnitActor::BindSkillUnitComponentEvents()
@@ -73,34 +74,151 @@ void ALxProjectileSkillUnitActor::BindSkillUnitComponentEvents()
 	{
 		MovementComponent->OnReachMaxDistance.AddUniqueDynamic(this, &ALxProjectileSkillUnitActor::HandleProjectileReachMaxDistance);
 	}
+}
 
-	if (PropagationComponent)
+void ALxProjectileSkillUnitActor::HandleLifeStateChanged(ELxSkillAbilityComponentState OldState, ELxSkillAbilityComponentState NewState)
+{
+	if (NewState == ELxSkillAbilityComponentState::Finished)
 	{
-		PropagationComponent->OnPropagationEvaluated.AddUniqueDynamic(this, &ALxProjectileSkillUnitActor::HandleProjectilePropagationResult);
+		InvalidateProjectile(GetActorTransform());
+		return;
 	}
+
+	Super::HandleLifeStateChanged(OldState, NewState);
 }
 
 void ALxProjectileSkillUnitActor::HandleProjectileDetectionResult(const FLxSkillDetectionResult& DetectionResult)
 {
-	if (DetectionResult.EventType == ELxSkillDetectionEventType::HitTarget || DetectionResult.EventType == ELxSkillDetectionEventType::OverlapBegin)
+	if (bProjectileInvalidated)
 	{
-		OnProjectileHitTarget.Broadcast(this, DetectionResult);
+		return;
 	}
-	else if (DetectionResult.EventType == ELxSkillDetectionEventType::HitWorld)
-	{
-		OnProjectileHitWorld.Broadcast(this, DetectionResult);
-	}
-}
 
-void ALxProjectileSkillUnitActor::HandleProjectilePropagationResult(const FLxSkillPropagationResult& PropagationResult)
-{
-	if (PropagationResult.DecisionType == ELxSkillPropagationDecisionType::Pierce)
+	if (DetectionResult.EventType == ELxSkillDetectionEventType::HitWorld || DetectionResult.bHitWorld)
 	{
-		OnProjectilePierceTarget.Broadcast(this, PropagationResult);
+		InvalidateProjectile(MakeSpawnTransformFromDetectionResult(DetectionResult));
+		return;
 	}
+
+	if (DetectionResult.EventType != ELxSkillDetectionEventType::HitTarget && DetectionResult.EventType != ELxSkillDetectionEventType::OverlapBegin)
+	{
+		return;
+	}
+
+	AActor* HitTarget = DetectionResult.HitActor;
+	if (!HitTarget && DetectionResult.CandidateTargets.Num() > 0)
+	{
+		HitTarget = DetectionResult.CandidateTargets[0];
+	}
+
+	if (!HitTarget || HasTriggeredTarget(HitTarget))
+	{
+		return;
+	}
+
+	TriggeredTargets.Add(HitTarget);
+	OnProjectileTriggered.Broadcast(this, MakeProjectileTriggerContext(DetectionResult));
+
+	if (RemainingPierceCount > 0)
+	{
+		--RemainingPierceCount;
+		return;
+	}
+
+	InvalidateProjectile(MakeSpawnTransformFromDetectionResult(DetectionResult));
 }
 
 void ALxProjectileSkillUnitActor::HandleProjectileReachMaxDistance(float MovementProgress)
 {
-	OnProjectileReachMaxDistance.Broadcast(this, MovementProgress);
+	InvalidateProjectile(GetActorTransform());
+}
+
+void ALxProjectileSkillUnitActor::ResetProjectileRuntimeState()
+{
+	RemainingPierceCount = FMath::Max(ProjectileSpec.MaxPierceCount, 0);
+	bProjectileInvalidated = false;
+	TriggeredTargets.Reset();
+}
+
+FLxProjectileTriggerContext ALxProjectileSkillUnitActor::MakeProjectileTriggerContext(const FLxSkillDetectionResult& DetectionResult) const
+{
+	FLxProjectileTriggerContext TriggerContext;
+	TriggerContext.HitTarget = DetectionResult.HitActor;
+	if (!TriggerContext.HitTarget && DetectionResult.CandidateTargets.Num() > 0)
+	{
+		TriggerContext.HitTarget = DetectionResult.CandidateTargets[0];
+	}
+	TriggerContext.SpawnTransform = MakeSpawnTransformFromDetectionResult(DetectionResult);
+	return TriggerContext;
+}
+
+FLxProjectileInvalidationContext ALxProjectileSkillUnitActor::MakeProjectileInvalidationContext(const FTransform& InvalidationTransform) const
+{
+	FLxProjectileInvalidationContext InvalidationContext;
+	InvalidationContext.SpawnTransform = InvalidationTransform;
+	return InvalidationContext;
+}
+
+void ALxProjectileSkillUnitActor::InvalidateProjectile(const FTransform& InvalidationTransform)
+{
+	if (bProjectileInvalidated)
+	{
+		return;
+	}
+
+	bProjectileInvalidated = true;
+
+	if (MovementComponent)
+	{
+		MovementComponent->StopMovement();
+	}
+
+	if (DetectionComponent)
+	{
+		DetectionComponent->StopDetection();
+	}
+
+	if (LifeComponent)
+	{
+		LifeComponent->StopLife();
+	}
+
+	OnProjectileInvalidated.Broadcast(this, MakeProjectileInvalidationContext(InvalidationTransform));
+	FinishSkillUnit(MakeSkillUnitResult(ELxSkillUnitResultType::Expired, true));
+
+	if (ProjectileSpec.bDestroyAfterInvalidated)
+	{
+		Destroy();
+	}
+}
+
+FTransform ALxProjectileSkillUnitActor::MakeSpawnTransformFromDetectionResult(const FLxSkillDetectionResult& DetectionResult) const
+{
+	FVector SpawnLocation = DetectionResult.HitLocation;
+	if (SpawnLocation.IsNearlyZero())
+	{
+		if (DetectionResult.HitActor)
+		{
+			SpawnLocation = DetectionResult.HitActor->GetActorLocation();
+		}
+		else
+		{
+			SpawnLocation = GetActorLocation();
+		}
+	}
+
+	return FTransform(GetActorRotation(), SpawnLocation);
+}
+
+bool ALxProjectileSkillUnitActor::HasTriggeredTarget(AActor* InTarget) const
+{
+	for (AActor* TriggeredTarget : TriggeredTargets)
+	{
+		if (TriggeredTarget == InTarget)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }

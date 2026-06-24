@@ -17,6 +17,7 @@ class ALxMovingAreaSkillUnitActor;
 class ALxProjectileSkillUnitActor;
 class ALxRaySkillUnitActor;
 class ALxSpawnEntitySkillUnitActor;
+class ALxStraightProjectileSkillUnitActor;
 class ALxSummonCreatureSkillUnitActor;
 class ALxTriggerSkillUnitActor;
 
@@ -31,6 +32,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能单元|创建", DisplayName="创建投射物技能单元", meta=(DeterminesOutputType="SkillUnitClass", AdvancedDisplay="bActivateAfterCreate"))
 	static ALxProjectileSkillUnitActor* CreateProjectileSkillUnit(UObject* WorldContextObject,
 		TSubclassOf<ALxProjectileSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
+		const FLxProjectileSkillUnitCreateParams& CreateParams,
+		bool bActivateAfterCreate = false);
+
+	/** 创建多个投射物技能单元。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|创建", DisplayName="创建多个投射物技能单元", meta=(DeterminesOutputType="SkillUnitClass", AdvancedDisplay="bActivateAfterCreate"))
+	static TArray<ALxProjectileSkillUnitActor*> CreateProjectileSkillUnits(UObject* WorldContextObject,
+		TSubclassOf<ALxProjectileSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
+		const FLxProjectileSkillUnitCreateParams& CreateParams,
+		bool bActivateAfterCreate = false);
+
+	/** 创建直线投射物技能单元。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|创建", DisplayName="创建直线投射物技能单元", meta=(DeterminesOutputType="SkillUnitClass", AdvancedDisplay="bActivateAfterCreate"))
+	static ALxStraightProjectileSkillUnitActor* CreateStraightProjectileSkillUnit(UObject* WorldContextObject,
+		TSubclassOf<ALxStraightProjectileSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
+		const FLxProjectileSkillUnitCreateParams& CreateParams,
+		bool bActivateAfterCreate = false);
+
+	/** 创建多个直线投射物技能单元。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|创建", DisplayName="创建多个直线投射物技能单元", meta=(DeterminesOutputType="SkillUnitClass", AdvancedDisplay="bActivateAfterCreate"))
+	static TArray<ALxStraightProjectileSkillUnitActor*> CreateStraightProjectileSkillUnits(UObject* WorldContextObject,
+		TSubclassOf<ALxStraightProjectileSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
 		const FLxProjectileSkillUnitCreateParams& CreateParams,
 		bool bActivateAfterCreate = false);
 

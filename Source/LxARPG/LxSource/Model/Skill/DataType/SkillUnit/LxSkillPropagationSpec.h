@@ -5,7 +5,7 @@
 #include "LxSkillPropagationSpec.generated.h"
 
 /** 技能传播参数，描述本次释放需要覆盖的传播次数。具体传播能力由技能单元Actor类型自身支持。 */
-USTRUCT(BlueprintType, DisplayName="技能传播参数")
+USTRUCT(BlueprintType, DisplayName="技能传播参数（半径m）")
 struct FLxSkillPropagationSpec
 {
 	GENERATED_BODY()
@@ -26,8 +26,8 @@ struct FLxSkillPropagationSpec
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|传播|连锁", DisplayName="最大连锁次数")
 	int32 MaxChainCount = 0;
 
-	/** 连锁搜索半径。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|传播|连锁", DisplayName="连锁半径")
+	/** 连锁搜索半径，单位 m。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|传播|连锁", DisplayName="连锁半径（m）")
 	float ChainRadius = 0.0f;
 
 	/** 连锁或弹跳时是否允许重复选择同一个目标。 */
@@ -42,7 +42,16 @@ struct FLxSkillPropagationSpec
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|传播|分裂", DisplayName="分裂角度")
 	float SplitAngle = 0.0f;
 
-	/** 扩散感染半径。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|传播|扩散", DisplayName="扩散半径")
+	/** 扩散感染半径，单位 m。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|传播|扩散", DisplayName="扩散半径（m）")
 	float InfectRadius = 0.0f;
+
+	/** 将配置侧米制距离转换为 UE 世界单位厘米。 */
+	static constexpr float MeterToUnrealUnit(float MeterValue) { return MeterValue * 100.0f; }
+
+	/** 获取 UE 内部使用的连锁搜索半径，单位 cm。 */
+	float GetChainRadiusInUnrealUnits() const { return MeterToUnrealUnit(ChainRadius); }
+
+	/** 获取 UE 内部使用的扩散感染半径，单位 cm。 */
+	float GetInfectRadiusInUnrealUnits() const { return MeterToUnrealUnit(InfectRadius); }
 };

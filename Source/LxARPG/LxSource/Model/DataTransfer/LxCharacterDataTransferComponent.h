@@ -15,7 +15,9 @@ class ULxBuff;
 class ULxCharacterAttributeComponent;
 class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
+class ULxCharacterDamageComponent;
 class ULxCharacterEquipmentComponent;
+class ULxCharacterLifecycleComponent;
 class ULxCharacterProfessionComponent;
 class ULxCharacterStateComponent;
 class ULxEquipmentSlotData;
@@ -31,6 +33,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillBackpackSlotListChanged, c
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBuffListChanged, const TArray<ULxBuff*>&, BuffList);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxCharacterProfessionDataChanged);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDataTransferStateTagsChanged, FGameplayTag, StateCategoryTag, const FGameplayTagContainer&, StateTags);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDataTransferLifecycleStateChanged, bool, bIsAlive, FGameplayTag, LifecycleStateTag);
 
 /**
  * 角色数据中转组件。
@@ -122,6 +125,18 @@ public:
 	UFUNCTION(BlueprintPure, Category="角色数据中转|状态", DisplayName="获取角色状态组件")
 	ULxCharacterStateComponent* GetCharacterStateComponent() const;
 
+	/** 获取角色生命周期组件。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|生命周期", DisplayName="获取角色生命周期组件")
+	ULxCharacterLifecycleComponent* GetCharacterLifecycleComponent() const;
+
+	/** 判断角色当前是否存活。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|生命周期", DisplayName="角色是否存活")
+	bool IsCharacterAlive() const;
+
+	/** 设置角色生命周期存活状态。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|生命周期", DisplayName="设置角色生命周期存活状态")
+	void SetCharacterAliveState(bool bInAlive);
+
 	/** 获取指定分类下的角色状态标签。 */
 	UFUNCTION(BlueprintCallable, Category="角色数据中转|状态", DisplayName="获取指定分类角色状态标签", meta=(Categories="CharacterState"))
 	bool GetCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag, FGameplayTagContainer& OutStateTags) const;
@@ -202,6 +217,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="角色数据中转|状态", DisplayName="角色状态标签变化事件")
 	FOnLxCharacterDataTransferStateTagsChanged OnCharacterStateTagsChanged;
 
+	/** 角色生命周期状态变化事件。 */
+	UPROPERTY(BlueprintAssignable, Category="角色数据中转|生命周期", DisplayName="角色生命周期状态变化事件")
+	FOnLxCharacterDataTransferLifecycleStateChanged OnCharacterLifecycleStateChanged;
+
 protected:
 	/** 当前角色属性组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色属性组件")
@@ -231,8 +250,18 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|状态", DisplayName="角色状态组件")
 	TObjectPtr<ULxCharacterStateComponent> StateComponent = nullptr;
 
+	/** 当前角色生命周期组件。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|生命周期", DisplayName="角色生命周期组件")
+	TObjectPtr<ULxCharacterLifecycleComponent> LifecycleComponent = nullptr;
+
+	/** 当前角色伤害计算组件。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|伤害", DisplayName="角色伤害计算组件")
+	TObjectPtr<ULxCharacterDamageComponent> DamageComponent = nullptr;
+
 private:
 	void CacheOwnerComponents();
+	/** 确保数据中转组件已经缓存角色身上的核心组件引用。 */
+	void EnsureOwnerComponentsCached();
 	void BindComponentEvents();
 	void UnbindComponentEvents();
 
@@ -282,6 +311,9 @@ private:
 
 	UFUNCTION()
 	void HandleStateTagsChanged(FGameplayTag StateCategoryTag, const FGameplayTagContainer& StateTags);
+
+	UFUNCTION()
+	void HandleLifecycleStateChanged(bool bIsAlive, FGameplayTag LifecycleStateTag);
 
 	bool bDataTransferInitialized = false;
 

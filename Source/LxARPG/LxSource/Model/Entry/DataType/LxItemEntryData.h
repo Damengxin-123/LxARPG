@@ -204,6 +204,34 @@ struct FLxEntryGrantSkill : public FLxEntryBase
 	FGameplayTag SkillItemIDTag;
 };
 
+/** 造成伤害词条。 */
+USTRUCT(BlueprintType, DisplayName = "造成伤害词条")
+struct FLxEntryDamage : public FLxEntryBase
+{
+	GENERATED_BODY()
+
+	FLxEntryDamage()
+	{
+		EntryType = ELxEntryType::Damage;
+	}
+
+	/** 生成伤害时读取的来源角色属性标签，例如攻击力。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条|伤害", DisplayName = "来源属性标签", meta = (Categories = "属性"))
+	FGameplayTag SourceAttributeIDTag;
+
+	/** 来源属性倍率，1.5 表示 150%，大于 1 为增加，小于 1 为减少。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条|伤害", DisplayName = "来源属性倍率（>1增加，<1减少）", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float SourceAttributeRatio = 1.f;
+
+	/** 生效后的伤害类型标签，例如普通伤害、火焰伤害或破甲伤害。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条|伤害", DisplayName = "生效伤害类型标签", meta = (Categories = "通用效果.伤害效果"))
+	FGameplayTag DamageTypeTag;
+
+	/** 伤害直接结算到的目标属性，留空时当前伤害流程默认按护盾和生命值结算。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条|伤害", DisplayName = "目标属性标签", meta = (Categories = "属性"))
+	FGameplayTag TargetAttributeIDTag;
+};
+
 /**
  * 词条引用。
  *

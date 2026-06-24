@@ -301,3 +301,33 @@ private:
 	UPROPERTY()
 	FLxEntryGrantSkill GrantSkillData;
 };
+
+/**
+ * 造成伤害词条运行时对象。
+ * 用于缓存并访问 FLxEntryDamage 类型的词条数据，并把词条转换为伤害效果包。
+ */
+UCLASS(BlueprintType)
+class LXARPG_API ULxEntryObjectDamage : public ULxEntryObjectBase
+{
+	GENERATED_BODY()
+
+public:
+	/** 获取造成伤害词条的完整配置数据。 */
+	const FLxEntryDamage& GetDamageData() const { return DamageData; }
+
+	/** 获取当前词条的基础数据指针。 */
+	virtual const FLxEntryBase* GetEntryBase() const override { return &DamageData; }
+
+	virtual FText GetDisplayName() const override;
+
+	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
+
+protected:
+	/** 将基础词条数据转换并缓存为造成伤害词条数据。 */
+	virtual void SetEntryData(const FLxEntryBase* InEntryData) override;
+
+private:
+	/** 当前对象缓存的造成伤害词条数据。 */
+	UPROPERTY()
+	FLxEntryDamage DamageData;
+};

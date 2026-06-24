@@ -1,6 +1,7 @@
 #include "LxCharacterMoveComponent.h"
 
 #include "GameFramework/Controller.h"
+#include "LxARPG/LxSource/Model/Lifecycle/Logic/LxCharacterLifecycleComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 ULxCharacterMoveComponent::ULxCharacterMoveComponent()
@@ -25,6 +26,14 @@ void ULxCharacterMoveComponent::HandleMoveInput(const FVector2D& InMoveValue)
 	if (!m_pOwnerCharacter || !m_pOwnerCharacter->Controller)
 	{
 		return;
+	}
+
+	if (const ULxCharacterLifecycleComponent* LifecycleComponent = m_pOwnerCharacter->GetCharacterLifecycleComponent())
+	{
+		if (!LifecycleComponent->IsCharacterAlive())
+		{
+			return;
+		}
 	}
 
 	const FRotator ControlRotation = m_pOwnerCharacter->Controller->GetControlRotation();
@@ -86,6 +95,14 @@ void ULxCharacterMoveComponent::HandleJumpInput(bool bPressed)
 	if (!m_pOwnerCharacter)
 	{
 		return;
+	}
+
+	if (const ULxCharacterLifecycleComponent* LifecycleComponent = m_pOwnerCharacter->GetCharacterLifecycleComponent())
+	{
+		if (!LifecycleComponent->IsCharacterAlive())
+		{
+			return;
+		}
 	}
 
 	if (bPressed)

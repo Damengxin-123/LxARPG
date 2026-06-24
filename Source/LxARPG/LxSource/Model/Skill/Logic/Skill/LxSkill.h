@@ -4,6 +4,8 @@
 #include "UObject/Object.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillCastContext.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEnum.h"
+#include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
+#include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEntryPackage.h"
 #include "LxSkill.generated.h"
 
 class ALxSkillUnitActor;
@@ -34,6 +36,23 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="技能", DisplayName="直接释放技能")
 	void ReleaseSkillDirectly();
 	virtual void ReleaseSkillDirectly_Implementation();
+
+	/** 接收单个技能命中目标和需要应用的效果包数组，默认补充效果来源与目标角色后投递给目标的数据中转组件。 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="技能|效果", DisplayName="接收单目标技能词条")
+	void ReceiveSkillEffectForTarget(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, AActor* HitTarget);
+	virtual void ReceiveSkillEffectForTarget_Implementation(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, AActor* HitTarget);
+
+	/** 接收多个技能命中目标和需要应用的效果包数组，默认对每个目标应用同一组效果包。 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="技能|效果", DisplayName="接收多目标技能词条")
+	void ReceiveSkillEffectForTargets(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets);
+	virtual void ReceiveSkillEffectForTargets_Implementation(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets);
+
+	/** 构建运行时技能效果包，会把技能物品来源上的词条转换为本次技能命中的效果。 */
+	UFUNCTION(BlueprintCallable, Category="技能|效果", DisplayName="构建技能词条效果包")
+	TArray<FLxEffectPackage> BuildRuntimeSkillEffectPackages(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages) const;
+	/** 获取技能类型默认配置的词条包数组。 */
+	UFUNCTION(BlueprintPure, Category="技能|词条", DisplayName="获取技能词条包数组")
+	TArray<FLxSkillEntryPackage> GetSkillEntryPackages() const { return SkillEntryPackages; }
 
 	/** 获取技能释放类型，可用于判断技能是否支持蓄力。 */
 	UFUNCTION(BlueprintPure, Category="技能", DisplayName="获取技能类型")
@@ -109,6 +128,10 @@ protected:
 	/** 技能释放冷却，实际生效值不会低于 0.2 秒。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="释放冷却", meta=(ClampMin="0.2", UIMin="0.2"))
 	float ReleaseCooldown = 0.2f;
+
+	/** 技能默认词条包数组，蓝图中可手动添加，命中时可选择一个或多个词条包传入命中函数。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|词条", DisplayName="技能词条包数组")
+	TArray<FLxSkillEntryPackage> SkillEntryPackages;
 
 	/** 技能单元列表，用于长期保存和组织此技能创建出来的技能单元对象。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|技能单元", DisplayName="技能单元列表")

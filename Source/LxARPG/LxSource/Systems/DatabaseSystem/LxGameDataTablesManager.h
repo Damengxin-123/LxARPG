@@ -64,6 +64,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|词条", DisplayName="授予技能词条表")
 	TObjectPtr<UDataTable> m_pGrantSkillEntryTable = nullptr;
 
+	// 造成伤害词条表，Row Struct 使用 FLxEntryDamage。
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|词条", DisplayName="造成伤害词条表")
+	TObjectPtr<UDataTable> m_pDamageEntryTable = nullptr;
+
 	// 装备物品表，Row Struct 使用 FLxEquipmentInformation。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|物品", DisplayName="装备物品表")
 	TObjectPtr<UDataTable> m_pEquipmentItemTable = nullptr;

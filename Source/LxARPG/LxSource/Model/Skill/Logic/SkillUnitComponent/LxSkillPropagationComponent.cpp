@@ -46,7 +46,7 @@ FLxSkillPropagationResult ULxSkillPropagationComponent::EvaluatePropagation(cons
 		Result.DecisionType = ELxSkillPropagationDecisionType::Split;
 		Result.bCanContinue = true;
 	}
-	else if (PropagationSpec.InfectRadius > 0.0f)
+	else if (PropagationSpec.GetInfectRadiusInUnrealUnits() > 0.0f)
 	{
 		Result.DecisionType = ELxSkillPropagationDecisionType::Infect;
 		Result.bCanContinue = true;

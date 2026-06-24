@@ -11,6 +11,7 @@
 #include "LxARPG/LxSource/Model/Profession/Logic/LxProfessionDefinition.h"
 #include "LxARPG/LxSource/Model/Style/RichText/LxRichTextStyleConfig.h"
 #include "LxARPG/LxSource/Model/Style/TableConfig/LxTextLineStyleDataConfig.h"
+#include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
 #include "InputCoreTypes.h"
 
 namespace
@@ -82,6 +83,23 @@ namespace
 	{
 		EnsureDefaultAimInputActionInfo();
 		EnsureDefaultProfessionInputActionInfo();
+	}
+
+	/** 解析全局角色属性信息表；优先使用游戏设置中的配置，未配置时回退到数据表管理器旧字段。 */
+	const UDataTable* ResolveCharacterAttributeDataTable(const UDataTable* InFallbackDataTable)
+	{
+		const ULxGameSettings* GameSettings = GetDefault<ULxGameSettings>();
+		if (GameSettings == nullptr || GameSettings->CharacterAttributeDataTable.IsNull())
+		{
+			return InFallbackDataTable;
+		}
+
+		if (const UDataTable* SettingsDataTable = GameSettings->CharacterAttributeDataTable.LoadSynchronous())
+		{
+			return SettingsDataTable;
+		}
+
+		return InFallbackDataTable;
 	}
 
 	void LoadCharacterAttributeDataTable(const UDataTable* InDataTable)
@@ -239,7 +257,7 @@ void ULxGameDataTablesManager::LoadDataTables()
 
 	LoadInputActionInfoDataTable(m_pInputActionInfoTableConfig.Get());
 	EnsureDefaultInputActionInfos();
-	LoadCharacterAttributeDataTable(m_pCharacterAttributeDataTable.Get());
+	LoadCharacterAttributeDataTable(ResolveCharacterAttributeDataTable(m_pCharacterAttributeDataTable.Get()));
 	LoadProfessionDefinitionDataTable(m_pProfessionDefinitionTable.Get());
 	LoadRichTextStyleMappingDataTable(m_pRichTextStyleTable.Get());
 
@@ -302,6 +320,14 @@ void ULxGameDataTablesManager::LoadDataTables()
 		[](const FLxEntryGrantSkill& RowData)
 		{
 			LxEntryConfig::SetGrantSkillEntryData(RowData);
+		});
+
+	LoadEntryDataTable<FLxEntryDamage>(
+		m_pDamageEntryTable.Get(),
+		TEXT("ULxGameDataTablesManager::LoadDamageEntryTable"),
+		[](const FLxEntryDamage& RowData)
+		{
+			LxEntryConfig::SetDamageEntryData(RowData);
 		});
 
 	LoadItemDataTable<FLxEquipmentInformation>(

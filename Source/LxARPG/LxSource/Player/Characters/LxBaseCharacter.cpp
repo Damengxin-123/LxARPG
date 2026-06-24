@@ -4,9 +4,11 @@
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Model/Damage/Logic/LxCharacterDamageComponent.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
+#include "LxARPG/LxSource/Model/Lifecycle/Logic/LxCharacterLifecycleComponent.h"
 #include "LxARPG/LxSource/Model/Profession/Logic/LxCharacterProfessionComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
@@ -25,6 +27,8 @@ ALxBaseCharacter::ALxBaseCharacter()
 	m_pCharacterBuffComponent = CreateDefaultSubobject<ULxCharacterBuffComponent>(TEXT("CharacterBuffComponent"));
 	m_pCharacterStateComponent = CreateDefaultSubobject<ULxCharacterStateComponent>(TEXT("CharacterStateComponent"));
 	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
+	m_pCharacterLifecycleComponent = CreateDefaultSubobject<ULxCharacterLifecycleComponent>(TEXT("CharacterLifecycleComponent"));
+	m_pCharacterDamageComponent = CreateDefaultSubobject<ULxCharacterDamageComponent>(TEXT("CharacterDamageComponent"));
 	m_pSkillBackpackComponent = CreateDefaultSubobject<ULxSkillBackpackComponent>(TEXT("SkillBackpackComponent"));
 	m_pCharacterProfessionComponent = CreateDefaultSubobject<ULxCharacterProfessionComponent>(TEXT("CharacterProfessionComponent"));
 	m_pCharacterDataTransferComponent = CreateDefaultSubobject<ULxCharacterDataTransferComponent>(TEXT("CharacterDataTransferComponent"));
@@ -66,6 +70,16 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	if (m_pCharacterAttributeComponent)
 	{
 		m_pCharacterAttributeComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterLifecycleComponent)
+	{
+		m_pCharacterLifecycleComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterDamageComponent)
+	{
+		m_pCharacterDamageComponent->BaseComponentInitialize();
 	}
 
 	if (m_pSkillBackpackComponent)
@@ -143,6 +157,7 @@ void ALxBaseCharacter::OnRep_CharacterState()
 void ALxBaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	InitialCharacterInformation();
 }
 
 void ALxBaseCharacter::Tick(float DeltaTime)

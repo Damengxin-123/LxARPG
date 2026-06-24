@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "LxARPG/LxSource/Model/Damage/DataType/LxDamageTypes.h"
 #include "LxEffectTypes.generated.h"
 
 class AActor;
@@ -160,6 +161,10 @@ struct LXARPG_API FLxDamageEffect
 	/** 伤害元素或其他分类标签。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|伤害", DisplayName = "伤害标签")
 	FGameplayTagContainer DamageTags;
+
+	/** 拆分后的伤害数值列表，可同时表达普通、火焰、破甲等多种伤害。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|伤害", DisplayName = "伤害数值列表")
+	TArray<FLxDamageValue> DamageValues;
 };
 
 /** 状态修改效果，用于向状态组件传递标签变化。 */

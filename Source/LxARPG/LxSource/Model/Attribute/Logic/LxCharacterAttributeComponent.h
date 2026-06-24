@@ -6,7 +6,6 @@
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxCharacterAttributeComponent.generated.h"
 
-class UDataTable;
 
 /** 属性表刷新事件，广播当前完整的角色属性列表。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeTableChanged, const TArray<FLxAttributeData>&, AttributeList);
@@ -28,14 +27,6 @@ public:
 
 	/** 初始化属性表，并广播一次当前完整属性数据。 */
 	virtual void BaseComponentInitialize() override;
-
-	/**
-	 * 设置角色属性数值表，并按需重新初始化角色属性。
-	 *
-	 * 数据表行结构使用 FLxAttributeValueConfig，用于给单个角色单位覆盖基础属性数值。
-	 */
-	UFUNCTION(BlueprintCallable, Category="角色属性", DisplayName="设置角色属性数值表")
-	bool SetCharacterAttributeValueTable(UDataTable* InAttributeValueTable, bool bReinitializeAttribute = true);
 
 	/** 接收一组属性增益减益效果，同来源替换策略会覆盖旧效果缓存。 */
 	void ReceiveAttributeModifierEffects(const FLxEffectSourceContext& InSourceContext, ELxEffectPackageApplyPolicy InApplyPolicy, const TArray<FLxAttributeModifierEffect>& InEffectList);
@@ -67,9 +58,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Character Attribute", DisplayName="角色种族")
 	ELxCharacterRaceType CharacterRaceType = ELxCharacterRaceType::None;
 
-	/** 角色单位专属属性数值表；设置后会优先使用该表覆盖基础属性，未设置时继续使用种族属性配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="角色属性", DisplayName="角色属性数值表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxAttributeValueConfig"))
-	TObjectPtr<UDataTable> CharacterAttributeValueTable = nullptr;
 
 	/** 当前角色属性表；每项属性同时保存基础值和计算后的实时有效值。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Character Attribute", DisplayName="角色属性表")

@@ -40,9 +40,10 @@ void ALxTriggerSkillUnitActor::ApplySkillUnitSpecToComponents()
 {
 	Super::ApplySkillUnitSpecToComponents();
 
-	if (TriggerCollisionComponent && SkillUnitSpec.SpaceSpec.Radius > 0.0f)
+	const float RadiusCm = SkillUnitSpec.SpaceSpec.GetRadiusInUnrealUnits();
+	if (TriggerCollisionComponent && RadiusCm > 0.0f)
 	{
-		TriggerCollisionComponent->SetSphereRadius(SkillUnitSpec.SpaceSpec.Radius);
+		TriggerCollisionComponent->SetSphereRadius(RadiusCm);
 	}
 }
 

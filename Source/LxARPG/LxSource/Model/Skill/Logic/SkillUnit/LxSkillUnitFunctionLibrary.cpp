@@ -14,6 +14,7 @@
 #include "LxProjectileSkillUnitActor.h"
 #include "LxRaySkillUnitActor.h"
 #include "LxSpawnEntitySkillUnitActor.h"
+#include "LxStraightProjectileSkillUnitActor.h"
 #include "LxSummonCreatureSkillUnitActor.h"
 #include "LxTriggerSkillUnitActor.h"
 
@@ -23,14 +24,30 @@ namespace LxSkillUnitCreate
 	{
 		FLxSkillUnitSpec SkillUnitSpec;
 		SkillUnitSpec.SkillUnitType = ELxSkillUnitType::Projectile;
-		SkillUnitSpec.SpaceSpec.Radius = CreateParams.ProjectileSpec.CollisionRadius;
-		SkillUnitSpec.MovementSpec = CreateParams.MovementSpec;
-		SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
-		SkillUnitSpec.TriggerSpec = CreateParams.TriggerSpec;
-		SkillUnitSpec.PropagationSpec = CreateParams.PropagationSpec;
-		SkillUnitSpec.TargetFilterSpec = CreateParams.TargetFilterSpec;
-		SkillUnitSpec.HitLimitSpec = CreateParams.HitLimitSpec;
+		SkillUnitSpec.MovementSpec.Speed = CreateParams.ProjectileSpec.FlightSpeed;
+		SkillUnitSpec.MovementSpec.Acceleration = CreateParams.ProjectileSpec.FlightAcceleration;
+		SkillUnitSpec.MovementSpec.MaxDistance = CreateParams.ProjectileSpec.MaxFlightDistance;
 		return SkillUnitSpec;
+	}
+
+	FTransform MakeProjectileSpawnTransform(const FTransform& SpawnTransform, int32 LaunchCount)
+	{
+		if (LaunchCount <= 1)
+		{
+			return SpawnTransform;
+		}
+
+		constexpr float DefaultProjectileLaunchRandomRadius = 30.0f;
+		const FRotator SpawnRotation = SpawnTransform.Rotator();
+		const FVector RightVector = FRotationMatrix(SpawnRotation).GetScaledAxis(EAxis::Y);
+		const FVector UpVector = FRotationMatrix(SpawnRotation).GetScaledAxis(EAxis::Z);
+		const float RandomAngle = FMath::FRandRange(0.0f, 2.0f * PI);
+		const float RandomRadius = FMath::Sqrt(FMath::FRand()) * DefaultProjectileLaunchRandomRadius;
+		const FVector RandomOffset = RightVector * FMath::Cos(RandomAngle) * RandomRadius + UpVector * FMath::Sin(RandomAngle) * RandomRadius;
+
+		FTransform Result = SpawnTransform;
+		Result.AddToTranslation(RandomOffset);
+		return Result;
 	}
 
 	FLxSkillUnitSpec MakeAreaSkillUnitSpec(ELxSkillUnitType SkillUnitType, const FLxAreaSkillUnitCreateParams& CreateParams)
@@ -165,18 +182,81 @@ ALxProjectileSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateProjectileSkillU
 	const FLxProjectileSkillUnitCreateParams& CreateParams,
 	bool bActivateAfterCreate)
 {
+	const TArray<ALxProjectileSkillUnitActor*> SkillUnits = CreateProjectileSkillUnits(WorldContextObject, SkillUnitClass,
+		SpawnTransform, CreateParams, bActivateAfterCreate);
+	return SkillUnits.Num() > 0 ? SkillUnits[0] : nullptr;
+}
+
+TArray<ALxProjectileSkillUnitActor*> ULxSkillUnitFunctionLibrary::CreateProjectileSkillUnits(UObject* WorldContextObject,
+	TSubclassOf<ALxProjectileSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
+	const FLxProjectileSkillUnitCreateParams& CreateParams,
+	bool bActivateAfterCreate)
+{
+	TArray<ALxProjectileSkillUnitActor*> SkillUnits;
+	const int32 LaunchCount = FMath::Max(CreateParams.ProjectileSpec.LaunchCount, 1);
+	SkillUnits.Reserve(LaunchCount);
+
 	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeProjectileSkillUnitSpec(CreateParams);
-	ALxProjectileSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
-		SpawnTransform, SkillUnitSpec, false);
-	if (SkillUnit)
+	for (int32 LaunchIndex = 0; LaunchIndex < LaunchCount; ++LaunchIndex)
 	{
+		const FTransform ActualSpawnTransform = LxSkillUnitCreate::MakeProjectileSpawnTransform(SpawnTransform, LaunchCount);
+		ALxProjectileSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
+			ActualSpawnTransform, SkillUnitSpec, false);
+		if (!SkillUnit)
+		{
+			continue;
+		}
+
 		SkillUnit->InitializeProjectileParameters(CreateParams.ProjectileSpec);
 		if (bActivateAfterCreate)
 		{
 			SkillUnit->ActivateSkillUnit();
 		}
+		SkillUnits.Add(SkillUnit);
 	}
-	return SkillUnit;
+
+	return SkillUnits;
+}
+
+ALxStraightProjectileSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateStraightProjectileSkillUnit(UObject* WorldContextObject,
+	TSubclassOf<ALxStraightProjectileSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
+	const FLxProjectileSkillUnitCreateParams& CreateParams,
+	bool bActivateAfterCreate)
+{
+	const TArray<ALxStraightProjectileSkillUnitActor*> SkillUnits = CreateStraightProjectileSkillUnits(WorldContextObject, SkillUnitClass,
+		SpawnTransform, CreateParams, bActivateAfterCreate);
+	return SkillUnits.Num() > 0 ? SkillUnits[0] : nullptr;
+}
+
+TArray<ALxStraightProjectileSkillUnitActor*> ULxSkillUnitFunctionLibrary::CreateStraightProjectileSkillUnits(UObject* WorldContextObject,
+	TSubclassOf<ALxStraightProjectileSkillUnitActor> SkillUnitClass, const FTransform& SpawnTransform,
+	const FLxProjectileSkillUnitCreateParams& CreateParams,
+	bool bActivateAfterCreate)
+{
+	TArray<ALxStraightProjectileSkillUnitActor*> SkillUnits;
+	const int32 LaunchCount = FMath::Max(CreateParams.ProjectileSpec.LaunchCount, 1);
+	SkillUnits.Reserve(LaunchCount);
+
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillUnitCreate::MakeProjectileSkillUnitSpec(CreateParams);
+	for (int32 LaunchIndex = 0; LaunchIndex < LaunchCount; ++LaunchIndex)
+	{
+		const FTransform ActualSpawnTransform = LxSkillUnitCreate::MakeProjectileSpawnTransform(SpawnTransform, LaunchCount);
+		ALxStraightProjectileSkillUnitActor* SkillUnit = LxSkillUnitCreate::SpawnAndInitializeSkillUnit(WorldContextObject, SkillUnitClass,
+			ActualSpawnTransform, SkillUnitSpec, false);
+		if (!SkillUnit)
+		{
+			continue;
+		}
+
+		SkillUnit->InitializeProjectileParameters(CreateParams.ProjectileSpec);
+		if (bActivateAfterCreate)
+		{
+			SkillUnit->ActivateSkillUnit();
+		}
+		SkillUnits.Add(SkillUnit);
+	}
+
+	return SkillUnits;
 }
 
 ALxAreaSkillUnitActor* ULxSkillUnitFunctionLibrary::CreateAreaSkillUnit(UObject* WorldContextObject,

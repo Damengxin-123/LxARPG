@@ -17,5 +17,6 @@
 #include "LxSkillUnitActor.h"
 #include "LxSkillUnitFunctionLibrary.h"
 #include "LxSpawnEntitySkillUnitActor.h"
+#include "LxStraightProjectileSkillUnitActor.h"
 #include "LxSummonCreatureSkillUnitActor.h"
 #include "LxTriggerSkillUnitActor.h"

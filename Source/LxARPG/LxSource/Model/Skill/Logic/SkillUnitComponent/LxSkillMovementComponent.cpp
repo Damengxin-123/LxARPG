@@ -25,18 +25,19 @@ void ULxSkillMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 		return;
 	}
 
-	CurrentSpeed += MovementSpec.Acceleration * DeltaTime;
-	const float MoveDistance = FMath::Max(CurrentSpeed, 0.0f) * DeltaTime;
-	if (MoveDistance <= 0.0f)
+	CurrentSpeedCmPerSecond += MovementSpec.GetAccelerationInUnrealUnits() * DeltaTime;
+	const float MoveDistanceCm = FMath::Max(CurrentSpeedCmPerSecond, 0.0f) * DeltaTime;
+	if (MoveDistanceCm <= 0.0f)
 	{
 		return;
 	}
 
-	const FVector MoveDelta = TargetComponent->GetForwardVector() * MoveDistance;
+	const FVector MoveDelta = TargetComponent->GetForwardVector() * MoveDistanceCm;
 	TargetComponent->AddWorldOffset(MoveDelta, true);
-	TraveledDistance += MoveDistance;
+	TraveledDistanceCm += MoveDistanceCm;
 
-	if (MovementSpec.MaxDistance > 0.0f && TraveledDistance >= MovementSpec.MaxDistance)
+	const float MaxDistanceCm = MovementSpec.GetMaxDistanceInUnrealUnits();
+	if (MaxDistanceCm > 0.0f && TraveledDistanceCm >= MaxDistanceCm)
 	{
 		OnReachMaxDistance.Broadcast(GetMovementProgress());
 		SetMovementState(ELxSkillAbilityComponentState::Finished);
@@ -47,7 +48,7 @@ void ULxSkillMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 void ULxSkillMovementComponent::SetMovementSpec(const FLxSkillMovementSpec& InMovementSpec)
 {
 	MovementSpec = InMovementSpec;
-	CurrentSpeed = MovementSpec.Speed;
+	CurrentSpeedCmPerSecond = MovementSpec.GetSpeedInUnrealUnits();
 	OnDataChange.Broadcast();
 }
 
@@ -58,8 +59,8 @@ void ULxSkillMovementComponent::SetMovementTargetComponent(USceneComponent* InMo
 
 void ULxSkillMovementComponent::StartMovement()
 {
-	TraveledDistance = 0.0f;
-	CurrentSpeed = MovementSpec.Speed;
+	TraveledDistanceCm = 0.0f;
+	CurrentSpeedCmPerSecond = MovementSpec.GetSpeedInUnrealUnits();
 	SetMovementState(ELxSkillAbilityComponentState::Running);
 	SetComponentTickEnabled(true);
 }
@@ -83,12 +84,13 @@ void ULxSkillMovementComponent::StopMovement()
 
 float ULxSkillMovementComponent::GetMovementProgress() const
 {
-	if (MovementSpec.MaxDistance <= 0.0f)
+	const float MaxDistanceCm = MovementSpec.GetMaxDistanceInUnrealUnits();
+	if (MaxDistanceCm <= 0.0f)
 	{
 		return 0.0f;
 	}
 
-	return FMath::Clamp(TraveledDistance / MovementSpec.MaxDistance, 0.0f, 1.0f);
+	return FMath::Clamp(TraveledDistanceCm / MaxDistanceCm, 0.0f, 1.0f);
 }
 
 void ULxSkillMovementComponent::SetMovementState(ELxSkillAbilityComponentState NewState)

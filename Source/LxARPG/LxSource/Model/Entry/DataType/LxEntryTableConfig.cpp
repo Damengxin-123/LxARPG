@@ -61,6 +61,11 @@ namespace LxEntryConfig
 		SetEntryData(InEntryData);
 	}
 
+	void SetDamageEntryData(const FLxEntryDamage& InEntryData)
+	{
+		SetEntryData(InEntryData);
+	}
+
 	const FLxEntryBase* GetEntryData(FGameplayTag InEntryID)
 	{
 		if (!InEntryID.IsValid())

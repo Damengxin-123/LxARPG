@@ -20,32 +20,15 @@
 
 class AActor;
 
-/** 投射物技能单元创建参数，只包含投射物实际会用到的参数。 */
+/** 投射物技能单元创建参数，只暴露投射物自身需要的配置。 */
 USTRUCT(BlueprintType, DisplayName="投射物技能单元创建参数")
 struct FLxProjectileSkillUnitCreateParams
 {
 	GENERATED_BODY()
 
+	/** 投射物运行参数。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建", DisplayName="投射物参数")
 	FLxSkillProjectileSpec ProjectileSpec;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建", DisplayName="运动参数")
-	FLxSkillMovementSpec MovementSpec;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建", DisplayName="生命周期参数")
-	FLxSkillLifeSpec LifeSpec;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建", DisplayName="触发参数")
-	FLxSkillTriggerSpec TriggerSpec;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建", DisplayName="传播参数")
-	FLxSkillPropagationSpec PropagationSpec;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建", DisplayName="目标筛选参数")
-	FLxSkillTargetFilterSpec TargetFilterSpec;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建", DisplayName="命中限制参数")
-	FLxSkillHitLimitSpec HitLimitSpec;
 };
 
 /** 范围技能单元创建参数。 */

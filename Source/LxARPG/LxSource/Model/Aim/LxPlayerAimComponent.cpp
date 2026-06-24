@@ -360,7 +360,11 @@ void ULxPlayerAimComponent::RotateCharacterToAimResult(const FLxPlayerAimResult&
 	}
 
 	FVector ToAimLocation = FVector::ZeroVector;
-	if (!InAimResult.SkillDirection.IsNearlyZero())
+	if (!InAimResult.CameraRayDirection.IsNearlyZero())
+	{
+		ToAimLocation = InAimResult.CameraRayDirection;
+	}
+	else if (!InAimResult.SkillDirection.IsNearlyZero())
 	{
 		ToAimLocation = InAimResult.SkillDirection;
 	}
