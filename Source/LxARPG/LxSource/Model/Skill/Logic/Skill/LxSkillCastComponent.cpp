@@ -2,8 +2,11 @@
 
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillItem.h"
 #include "LxSkill.h"
+
 
 void ULxSkillCastComponent::BaseComponentInitialize()
 {
@@ -49,6 +52,8 @@ bool ULxSkillCastComponent::InitializeSkillForCast(ULxSkill* InSkill, const FLxS
 	}
 
 	CurrentCastContext = NormalizeCastContext(InCastContext);
+	InSkill->OnSkillHitEntriesReady.RemoveDynamic(this, &ULxSkillCastComponent::HandleSkillHitEntriesReady);
+	InSkill->OnSkillHitEntriesReady.AddDynamic(this, &ULxSkillCastComponent::HandleSkillHitEntriesReady);
 	InSkill->InitializeSkill(CurrentCastContext);
 	return true;
 }
@@ -232,4 +237,20 @@ FLxSkillCastContext ULxSkillCastComponent::NormalizeCastContext(const FLxSkillCa
 	}
 
 	return Result;
+}
+void ULxSkillCastComponent::HandleSkillHitEntriesReady(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& SkillEntryPackages, const TArray<AActor*>& HitTargets)
+{
+	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
+	if (OwnerCharacter == nullptr)
+	{
+		return;
+	}
+
+	ULxCharacterEffectProcessComponent* EffectProcessComponent = OwnerCharacter->GetCharacterEffectProcessComponent();
+	if (EffectProcessComponent == nullptr)
+	{
+		return;
+	}
+
+	EffectProcessComponent->ProcessSkillHitEffects(SourceSkill, SkillEntryPackages, HitTargets);
 }

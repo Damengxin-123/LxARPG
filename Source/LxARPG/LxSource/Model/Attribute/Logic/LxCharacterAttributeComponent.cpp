@@ -71,7 +71,6 @@ namespace
 			AttributePair.Value.CalculatedAttributeValue.Value = AttributePair.Value.CalculatedAttributeValue.ValueLimit;
 		}
 	}
-
 	void ApplyComponentBaseValueConfigToAttribute(const FLxAttributeValueConfig& InValueConfig, FLxAttributeData& InOutAttributeData)
 	{
 		if (InValueConfig.AttributeIDTag.IsValid())

@@ -15,8 +15,9 @@ class ULxBuff;
 class ULxCharacterAttributeComponent;
 class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
-class ULxCharacterDamageComponent;
 class ULxCharacterEquipmentComponent;
+class ULxCharacterEffectProcessComponent;
+class ULxCharacterEffectTransferComponent;
 class ULxCharacterLifecycleComponent;
 class ULxCharacterProfessionComponent;
 class ULxCharacterStateComponent;
@@ -173,6 +174,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category="角色数据中转|效果", DisplayName="接收模块效果数据包")
 	void ReceiveEffectPackage(const FLxEffectPackage& InEffectPackage);
 
+	/** 应用角色内部效果包，只负责属性、Buff、状态和技能授予等内部数据变化。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|效果", DisplayName="应用内部效果包")
+	void ApplyEffectPackage(const FLxEffectPackage& InEffectPackage);
+
+	/** 将最终效果包转交给对外效果传递组件并发送到单个目标。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|效果", DisplayName="发送效果包到目标")
+	bool SendEffectPackageToTarget(const FLxEffectPackage& InEffectPackage, AActor* TargetActor);
+
+	/** 将最终效果包转交给对外效果传递组件并发送到多个目标。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|效果", DisplayName="发送效果包到多个目标")
+	void SendEffectPackageToTargets(const FLxEffectPackage& InEffectPackage, const TArray<AActor*>& TargetActors);
+
 	/** 通过数据中转组件请求背包排序，排序完成后仍由背包事件回流刷新 UI。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="背包物品排序")
 	void SortBackpackItems();
@@ -254,9 +267,13 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|生命周期", DisplayName="角色生命周期组件")
 	TObjectPtr<ULxCharacterLifecycleComponent> LifecycleComponent = nullptr;
 
-	/** 当前角色伤害计算组件。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|伤害", DisplayName="角色伤害计算组件")
-	TObjectPtr<ULxCharacterDamageComponent> DamageComponent = nullptr;
+	/** 当前角色效果处理组件，用于把输入效果包中的伤害交给结算流程。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|效果", DisplayName="效果处理组件")
+	TObjectPtr<ULxCharacterEffectProcessComponent> EffectProcessComponent = nullptr;
+
+	/** 当前角色效果传递组件，用于向其他角色发送最终效果包。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|效果", DisplayName="效果传递组件")
+	TObjectPtr<ULxCharacterEffectTransferComponent> EffectTransferComponent = nullptr;
 
 private:
 	void CacheOwnerComponents();

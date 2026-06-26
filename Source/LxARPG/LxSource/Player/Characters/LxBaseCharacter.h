@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/DataTable.h"
+#include "GameplayTagContainer.h"
 #include "GameFramework/Character.h"
 #include "LxCharacterStateEnum.h"
 #include "LxBaseCharacter.generated.h"
@@ -10,7 +12,8 @@ class ULxCharacterAttributeComponent;
 class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
 class ULxCharacterDataTransferComponent;
-class ULxCharacterDamageComponent;
+class ULxCharacterEffectProcessComponent;
+class ULxCharacterEffectTransferComponent;
 class ULxCharacterEquipmentComponent;
 class ULxCharacterLifecycleComponent;
 class ULxCharacterProfessionComponent;
@@ -21,13 +24,26 @@ class ULxSkillBackpackComponent;
 class ULxSkillCastComponent;
 
 /** 角色状态变化事件。 */
+/** 角色命名数据表行，用于通过单位命名标签查询角色显示名称。 */
+USTRUCT(BlueprintType, DisplayName="角色命名表行")
+struct LXARPG_API FLxCharacterNamingRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+	/** 命名ID标签，用于匹配角色命名配置。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色命名", DisplayName="命名ID标签", meta=(Categories="单位命名"))
+	FGameplayTag NamingIDTag;
+
+	/** 查询到角色命名后实际用于显示的文本。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色命名", DisplayName="命名文本")
+	FText NamingText;
+};
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterStateChange, const ELxCharacterState, State);
 
 /**
  * 角色基础类。
- *
- * 负责持有角色移动、属性、背包、装备、Buff 和数据中转等核心组件，
- * 并提供初始化、状态切换和组件访问接口。
+ * 负责持有角色移动、属性、背包、装备、Buff、效果处理、效果传递和数据中转等核心组件。
  */
 UCLASS(Blueprintable, DisplayName="基础角色")
 class LXARPG_API ALxBaseCharacter : public ACharacter
@@ -38,27 +54,15 @@ public:
 	/** 创建角色基础对象，并初始化默认组件。 */
 	ALxBaseCharacter();
 
-	/**
-	 * 初始化角色运行时信息。
-	 *
-	 * 会初始化角色身上的核心组件，并同步初始状态数据。
-	 */
+	/** 初始化角色运行时信息。 */
 	virtual void InitialCharacterInformation();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	/**
-	 * 设置角色当前状态。
-	 *
-	 * @param InState 要切换到的新角色状态。
-	 */
+	/** 设置角色当前状态。 */
 	virtual void SetCharacterState(const ELxCharacterState InState);
 
-	/**
-	 * 获取角色当前状态。
-	 *
-	 * @return 当前角色状态枚举值。
-	 */
+	/** 获取角色当前状态。 */
 	virtual const ELxCharacterState GetCurrentState();
 
 	UFUNCTION(Server, Reliable)
@@ -76,81 +80,49 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
-	/**
-	 * 角色每帧更新。
-	 *
-	 * @param DeltaTime 当前帧与上一帧之间的时间差。
-	 */
+	/** 角色每帧更新。 */
 	virtual void Tick(float DeltaTime) override;
 
-	/**
-	 * 绑定角色输入组件。
-	 *
-	 * @param PlayerInputComponent 当前角色可用的输入组件。
-	 */
+	/** 绑定角色输入组件。 */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	/**
-	 * 获取角色移动组件。
-	 *
-	 * @return 角色移动组件指针；未初始化时返回 nullptr。
-	 */
+	/** 获取角色移动组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色移动组件")
 	ULxCharacterMoveComponent* GetCharacterMoveComponent() const { return m_pCharacterMoveComponent; }
 
-	/**
-	 * 获取角色属性组件。
-	 *
-	 * @return 角色属性组件指针；未初始化时返回 nullptr。
-	 */
+	/** 获取角色属性组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色属性组件")
 	ULxCharacterAttributeComponent* GetCharacterAttributeComponent() const { return m_pCharacterAttributeComponent; }
 
-	/**
-	 * 获取角色背包组件。
-	 *
-	 * @return 角色背包组件指针；未初始化时返回 nullptr。
-	 */
+	/** 获取角色背包组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色背包组件")
 	ULxCharacterBackpackComponent* GetCharacterBackpackComponent() const { return m_pCharacterBackpackComponent; }
 
-	/**
-	 * 获取角色 Buff 组件。
-	 *
-	 * @return 角色 Buff 组件指针；未初始化时返回 nullptr。
-	 */
+	/** 获取角色 Buff 组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色Buff组件")
 	ULxCharacterBuffComponent* GetCharacterBuffComponent() const { return m_pCharacterBuffComponent; }
 
-	/**
-	 * 获取角色状态组件。
-	 *
-	 * @return 角色状态组件指针；未初始化时返回 nullptr。
-	 */
+	/** 获取角色状态组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色状态组件")
 	ULxCharacterStateComponent* GetCharacterStateComponent() const { return m_pCharacterStateComponent; }
 
-	/**
-	 * 获取角色数据中转组件。
-	 *
-	 * @return 角色数据中转组件指针；未初始化时返回 nullptr。
-	 */
+	/** 获取角色数据中转组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色数据中转组件")
 	ULxCharacterDataTransferComponent* GetCharacterDataTransferComponent() const { return m_pCharacterDataTransferComponent; }
 
-	/** 获取角色伤害计算组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色伤害计算组件")
-	ULxCharacterDamageComponent* GetCharacterDamageComponent() const { return m_pCharacterDamageComponent; }
+	/** 获取角色效果处理组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色效果处理组件")
+	ULxCharacterEffectProcessComponent* GetCharacterEffectProcessComponent() const { return m_pCharacterEffectProcessComponent; }
+
+	/** 获取角色效果传递组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色效果传递组件")
+	ULxCharacterEffectTransferComponent* GetCharacterEffectTransferComponent() const { return m_pCharacterEffectTransferComponent; }
 
 	/** 获取角色生命周期组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色生命周期组件")
 	ULxCharacterLifecycleComponent* GetCharacterLifecycleComponent() const { return m_pCharacterLifecycleComponent; }
 
-	/**
-	 * 获取角色装备组件。
-	 *
-	 * @return 角色装备组件指针；未初始化时返回 nullptr。
-	 */
+	/** 获取角色装备组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色装备组件")
 	ULxCharacterEquipmentComponent* GetCharacterEquipmentComponent() const { return m_pCharacterEquipmentComponent; }
 
@@ -173,12 +145,25 @@ public:
 	/** 获取当前角色使用的基础属性数值表。 */
 	UFUNCTION(BlueprintPure, Category="角色|属性", DisplayName="获取基础属性数值表")
 	UDataTable* GetCharacterAttributeValueTable() const { return CharacterAttributeValueTable; }
+
+
+	/** 查询角色初始化后缓存的命名文本。 */
+	UFUNCTION(BlueprintPure, Category="角色|命名", DisplayName="查询角色命名文本")
+	FText GetCharacterNamingText() const { return CharacterNamingText; }
 protected:
-	/** 当前角色使用的基础属性数值表，行结构使用 FLxAttributeValueConfig，所有基础角色派生类型都需要手动配置。 */
+	/** 当前角色使用的基础属性数值表，行结构使用 FLxAttributeValueConfig。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性", DisplayName="基础属性数值表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxAttributeValueConfig"))
 	TObjectPtr<UDataTable> CharacterAttributeValueTable = nullptr;
 
-	/** 角色移动组件，用于管理和控制角色移动行为。 */
+	
+	/** 当前角色使用的命名ID标签，初始化时会用它从名称数据表查询显示文本。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|命名", DisplayName="名称ID标签", meta=(Categories="单位命名"))
+	FGameplayTag CharacterNameIDTag;
+
+	/** 当前角色使用的名称数据表，行结构使用 FLxCharacterNamingRow。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|命名", DisplayName="名称数据表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxCharacterNamingRow"))
+	TObjectPtr<UDataTable> CharacterNamingTable = nullptr;
+/** 角色移动组件，用于管理和控制角色移动行为。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色移动组件")
 	TObjectPtr<ULxCharacterMoveComponent> m_pCharacterMoveComponent;
 
@@ -198,13 +183,17 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色状态组件")
 	TObjectPtr<ULxCharacterStateComponent> m_pCharacterStateComponent;
 
-	/** 角色数据中转组件，用于统一对外转发属性、背包、装备和 Buff 数据。 */
+	/** 角色数据中转组件，用于统一转发属性、背包、装备、Buff 和效果数据。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色数据中转组件")
 	TObjectPtr<ULxCharacterDataTransferComponent> m_pCharacterDataTransferComponent;
 
-	/** 角色伤害计算组件，用于处理伤害输出和伤害接收流程。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色伤害计算组件")
-	TObjectPtr<ULxCharacterDamageComponent> m_pCharacterDamageComponent;
+	/** 角色效果处理组件，用于解析词条、计算伤害并生成最终效果包。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色效果处理组件")
+	TObjectPtr<ULxCharacterEffectProcessComponent> m_pCharacterEffectProcessComponent;
+
+	/** 角色效果传递组件，用于处理角色之间的效果包发送和接收。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色效果传递组件")
+	TObjectPtr<ULxCharacterEffectTransferComponent> m_pCharacterEffectTransferComponent;
 
 	/** 角色生命周期组件，用于管理存活、死亡等生命周期状态。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色生命周期组件")
@@ -234,9 +223,14 @@ protected:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, ReplicatedUsing=OnRep_CharacterState, Category="角色|状态", DisplayName="当前角色状态")
 	ELxCharacterState m_nCharacterState = ELxCharacterState::Idle;
 
-	UFUNCTION()
+		/** 初始化并缓存角色命名文本。 */
+	void InitializeCharacterNamingText();
+UFUNCTION()
 	void OnRep_CharacterState();
 
+	/** 初始化后缓存的角色命名文本，查询接口会直接返回该值。 */
+	UPROPERTY(Transient)
+	FText CharacterNamingText;
 	/** 标记角色是否已经完成初始化，避免重复初始化。 */
 	bool IsInitialized = false;
 };

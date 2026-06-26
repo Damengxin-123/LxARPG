@@ -143,7 +143,6 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateIncomingDamage_Im
 FLxDamageCalculationContext ULxDamageCalculationFlow::GenerateDamageFromSourceAttributes(const FLxDamageCalculationContext& InDamageContext)
 {
 	FLxDamageCalculationContext ResultContext = InDamageContext;
-	EnsureOutputPackageMetadata(ResultContext);
 	if (ResultContext.DamageEffects.IsEmpty())
 	{
 		ResultContext.DamageEffects = ResultContext.InputEffectPackage.DamageEffects;
@@ -152,6 +151,8 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::GenerateDamageFromSourceAt
 	bool bGeneratedAnyDamage = false;
 	for (FLxDamageEffect& DamageEffect : ResultContext.DamageEffects)
 	{
+		ResultContext.bCriticalHit |= DamageEffect.bCriticalHit;
+
 		for (FLxDamageValue& DamageValue : DamageEffect.DamageValues)
 		{
 			bGeneratedAnyDamage |= ResolveDamageValueFromSourceAttribute(ResultContext.SourceDataTransferComponent, DamageValue);
@@ -160,14 +161,12 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::GenerateDamageFromSourceAt
 		RefreshDamageEffectTotalValue(DamageEffect);
 	}
 
-	ResultContext.OutputEffectPackage.DamageEffects = ResultContext.DamageEffects;
 	return ResultContext;
 }
 
 FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateAttackPowerDamageOutput(const FLxDamageCalculationContext& InDamageContext)
 {
 	FLxDamageCalculationContext ResultContext = InDamageContext;
-	EnsureOutputPackageMetadata(ResultContext);
 
 	FLxAttributeValue AttackPowerValue;
 	if (!QueryCalculatedAttributeValue(ResultContext.SourceDataTransferComponent, LxTag_Attribute_Numeric_AttackPower, AttackPowerValue))
@@ -190,7 +189,6 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateAttackPowerDamage
 	DamageEffect.DamageValue = RolledDamageValue;
 	DamageEffect.DamageValues.Add(DamageValue);
 	ResultContext.DamageEffects.Add(DamageEffect);
-	ResultContext.OutputEffectPackage.DamageEffects = ResultContext.DamageEffects;
 	return ResultContext;
 }
 
@@ -205,7 +203,6 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateCriticalDamageOut
 	const float CriticalChance = FMath::Clamp(GetAttributeSingleValue(ResultContext.SourceDataTransferComponent, LxTag_Attribute_Judgement_CriticalChance), 0.f, 100.f);
 	if (FMath::FRandRange(0.f, 100.f) > CriticalChance)
 	{
-		ResultContext.OutputEffectPackage.DamageEffects = ResultContext.DamageEffects;
 		return ResultContext;
 	}
 
@@ -221,6 +218,7 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateCriticalDamageOut
 	for (FLxDamageEffect& DamageEffect : ResultContext.DamageEffects)
 	{
 		NormalizeDamageEffect(DamageEffect);
+		DamageEffect.bCriticalHit = true;
 		DamageEffect.DamageValue *= CriticalDamageMultiplier;
 		for (FLxDamageValue& DamageValue : DamageEffect.DamageValues)
 		{
@@ -228,7 +226,6 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateCriticalDamageOut
 		}
 	}
 
-	ResultContext.OutputEffectPackage.DamageEffects = ResultContext.DamageEffects;
 	return ResultContext;
 }
 
@@ -261,9 +258,6 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateDefenseDamageRedu
 FLxDamageCalculationContext ULxDamageCalculationFlow::ApplyShieldHealthDamageSettlement(const FLxDamageCalculationContext& InDamageContext)
 {
 	FLxDamageCalculationContext ResultContext = InDamageContext;
-	EnsureOutputPackageMetadata(ResultContext);
-	ResultContext.OutputEffectPackage.DamageEffects.Reset();
-	ResultContext.OutputEffectPackage.AttributeRecoveryEffects.Reset();
 
 	const float TotalDamageValue = GetTotalDamageValue(ResultContext.DamageEffects);
 	if (FMath::IsNearlyZero(TotalDamageValue))
@@ -274,29 +268,5 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::ApplyShieldHealthDamageSet
 	const float ShieldValue = FMath::Max(0.f, GetAttributeSingleValue(ResultContext.TargetDataTransferComponent, LxTag_Attribute_Resource_Shield));
 	ResultContext.ShieldDamageValue = FMath::Min(ShieldValue, TotalDamageValue);
 	ResultContext.HealthDamageValue = FMath::Max(0.f, TotalDamageValue - ResultContext.ShieldDamageValue);
-
-	if (ResultContext.ShieldDamageValue > 0.f)
-	{
-		FLxAttributeRecoveryEffect ShieldDamageEffect;
-		ShieldDamageEffect.AttributeIDTag = LxTag_Attribute_Resource_Shield;
-		ShieldDamageEffect.RecoveryOperation = ELxAttributeModifierOperation::AddValue;
-		ShieldDamageEffect.RecoveryValue = -ResultContext.ShieldDamageValue;
-		ResultContext.OutputEffectPackage.AttributeRecoveryEffects.Add(ShieldDamageEffect);
-	}
-
-	if (ResultContext.HealthDamageValue > 0.f)
-	{
-		FLxAttributeRecoveryEffect HealthDamageEffect;
-		HealthDamageEffect.AttributeIDTag = LxTag_Attribute_Resource_Health;
-		HealthDamageEffect.RecoveryOperation = ELxAttributeModifierOperation::AddValue;
-		HealthDamageEffect.RecoveryValue = -ResultContext.HealthDamageValue;
-		ResultContext.OutputEffectPackage.AttributeRecoveryEffects.Add(HealthDamageEffect);
-	}
-
-	if (ResultContext.bApplyResultToTarget && ResultContext.TargetDataTransferComponent != nullptr && !ResultContext.OutputEffectPackage.AttributeRecoveryEffects.IsEmpty())
-	{
-		ResultContext.TargetDataTransferComponent->ReceiveEffectPackage(ResultContext.OutputEffectPackage);
-	}
-
 	return ResultContext;
 }

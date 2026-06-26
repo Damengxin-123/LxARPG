@@ -10,6 +10,7 @@
 class ALxBaseCharacter;
 class AActor;
 class ULxInputComponent;
+class ULxPlayerChatComponent;
 class ULxPlayerSystemOperateComponent;
 
 /**
@@ -61,6 +62,10 @@ public:
 
 	UFUNCTION(Server, Reliable)
 	void ServerTriggerMechanism(AActor* MechanismOwner);
+
+	/** 获取玩家聊天组件。 */
+	UFUNCTION(BlueprintPure, Category="聊天", DisplayName="获取玩家聊天组件")
+	ULxPlayerChatComponent* GetPlayerChatComponent() const { return m_pChatComponent; }
 
 	// 显示鼠标光标
 	/**
@@ -141,6 +146,10 @@ private:
 
 	UPROPERTY(Blueprintable, EditAnywhere, Category="组件|系统组件",DisplayName="系统操作组件")
 	TObjectPtr<ULxPlayerSystemOperateComponent> m_pSystemOperateComponent;
+
+	/** 玩家聊天组件，负责玩家聊天同步和本地聊天消息分发。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="组件|聊天组件", DisplayName="玩家聊天组件", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<ULxPlayerChatComponent> m_pChatComponent;
 
 
 	

@@ -5,6 +5,40 @@
 
 #include "LxLogeLevelEnum.h"
 
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "LxARPG/LxSource/Model/Chat/Logic/LxPlayerChatComponent.h"
+#include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
+
+namespace
+{
+	/** 获取聊天调试信息写入的日志文件路径。 */
+	FString GetDebugChatLogFilePath()
+	{
+		return FPaths::Combine(FPaths::ProjectLogDir(), TEXT("LxChatDebug.log"));
+	}
+
+	/** 将聊天调试信息追加写入项目日志目录。 */
+	void AppendDebugChatMessageToLogFile(const FString& InMessage)
+	{
+		if (InMessage.IsEmpty())
+		{
+			return;
+		}
+
+		const FString LogDirectory = FPaths::ProjectLogDir();
+		IFileManager::Get().MakeDirectory(*LogDirectory, true);
+
+		const FString LogLine = FString::Printf(TEXT("[%s] %s%s"),
+			*FDateTime::Now().ToString(TEXT("%Y-%m-%d %H:%M:%S")),
+			*InMessage,
+			LINE_TERMINATOR);
+		FFileHelper::SaveStringToFile(LogLine, *GetDebugChatLogFilePath(), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM, &IFileManager::Get(), FILEWRITE_Append);
+	}
+}
 
 FString FLxString::NameToString(const FName& InName)
 {
@@ -371,6 +405,42 @@ void FLxString::LogeToScreenLog(ELxLogeLevelType Level)
 			);
 			break;
 	};
+}
+
+
+void FLxString::SendDebugMessageToChat(const UObject* WorldContextObject) const
+{
+	AppendDebugChatMessageToLogFile(InternalString);
+
+	if (!GEngine || WorldContextObject == nullptr)
+	{
+		return;
+	}
+
+	UWorld* World = GEngine->GetWorldFromContextObject(const_cast<UObject*>(WorldContextObject), EGetWorldErrorMode::ReturnNull);
+	if (!World)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+	{
+		ALxPlayerController* PlayerController = Cast<ALxPlayerController>(It->Get());
+		if (!PlayerController || !PlayerController->IsLocalController())
+		{
+			continue;
+		}
+
+		if (ULxPlayerChatComponent* ChatComponent = PlayerController->GetPlayerChatComponent())
+		{
+			ChatComponent->AddLocalDebugMessage(ToFText());
+		}
+	}
+}
+
+void FLxString::LogeToChat(const UObject* WorldContextObject) const
+{
+	SendDebugMessageToChat(WorldContextObject);
 }
 
 void FLxString::ReplaceFlag(const FLxString& Value)

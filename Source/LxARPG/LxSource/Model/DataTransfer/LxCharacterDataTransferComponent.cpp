@@ -3,7 +3,8 @@
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
-#include "LxARPG/LxSource/Model/Damage/Logic/LxCharacterDamageComponent.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectTransferComponent.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
@@ -17,6 +18,7 @@
 
 namespace
 {
+
 	/** 将效果包来源转换为现有 Buff 组件可识别的词条来源。 */
 	ELxCharacterEntrySource ConvertToEntrySource(ELxEffectPackageSource InEffectSource)
 	{
@@ -366,7 +368,35 @@ void ULxCharacterDataTransferComponent::ReceiveEntryPackage(const FLxCharacterEn
 void ULxCharacterDataTransferComponent::ReceiveEffectPackage(const FLxEffectPackage& InEffectPackage)
 {
 	EnsureOwnerComponentsCached();
+	ApplyEffectPackage(InEffectPackage);
+}
+
+void ULxCharacterDataTransferComponent::ApplyEffectPackage(const FLxEffectPackage& InEffectPackage)
+{
+	EnsureOwnerComponentsCached();
 	DispatchEffectPackageByType(InEffectPackage);
+}
+
+bool ULxCharacterDataTransferComponent::SendEffectPackageToTarget(const FLxEffectPackage& InEffectPackage, AActor* TargetActor)
+{
+	EnsureOwnerComponentsCached();
+	if (EffectTransferComponent == nullptr)
+	{
+		return false;
+	}
+
+	return EffectTransferComponent->SendEffectPackageToTarget(InEffectPackage, TargetActor);
+}
+
+void ULxCharacterDataTransferComponent::SendEffectPackageToTargets(const FLxEffectPackage& InEffectPackage, const TArray<AActor*>& TargetActors)
+{
+	EnsureOwnerComponentsCached();
+	if (EffectTransferComponent == nullptr)
+	{
+		return;
+	}
+
+	EffectTransferComponent->SendEffectPackageToTargets(InEffectPackage, TargetActors);
 }
 
 void ULxCharacterDataTransferComponent::SortBackpackItems()
@@ -378,7 +408,6 @@ void ULxCharacterDataTransferComponent::SortBackpackItems()
 
 	BackpackComponent->SortingOfItems();
 }
-
 bool ULxCharacterDataTransferComponent::CanAddItemListToBackpack(const TArray<FLxItemQuote>& InItemList) const
 {
 	return BackpackComponent != nullptr && BackpackComponent->CanAddItemList(InItemList);
@@ -415,7 +444,8 @@ void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 	BuffComponent = OwnerCharacter->GetCharacterBuffComponent();
 	StateComponent = OwnerCharacter->GetCharacterStateComponent();
 	LifecycleComponent = OwnerCharacter->GetCharacterLifecycleComponent();
-	DamageComponent = OwnerCharacter->GetCharacterDamageComponent();
+	EffectProcessComponent = OwnerCharacter->GetCharacterEffectProcessComponent();
+	EffectTransferComponent = OwnerCharacter->GetCharacterEffectTransferComponent();
 }
 
 void ULxCharacterDataTransferComponent::EnsureOwnerComponentsCached()
@@ -426,7 +456,7 @@ void ULxCharacterDataTransferComponent::EnsureOwnerComponentsCached()
 		return;
 	}
 
-	if (AttributeComponent == nullptr || StateComponent == nullptr || DamageComponent == nullptr)
+	if (AttributeComponent == nullptr || StateComponent == nullptr || EffectTransferComponent == nullptr || EffectProcessComponent == nullptr)
 	{
 		CacheOwnerComponents();
 	}
@@ -597,30 +627,37 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 		return;
 	}
 
-	if (DamageComponent != nullptr && !InEffectPackage.DamageEffects.IsEmpty())
+	FLxEffectPackage RuntimeEffectPackage = InEffectPackage;
+	if (EffectProcessComponent != nullptr && !RuntimeEffectPackage.DamageEffects.IsEmpty())
 	{
-		FLxEffectPackage AppliedDamagePackage;
-		DamageComponent->ReceiveIncomingDamagePackage(InEffectPackage, AppliedDamagePackage);
+		FLxDamageReceiveResult DamageReceiveResult;
+		EffectProcessComponent->ReceiveIncomingEffectPackage(RuntimeEffectPackage, DamageReceiveResult);
+		RuntimeEffectPackage.DamageEffects.Reset();
+	}
+
+	if (RuntimeEffectPackage.IsEmpty() && RuntimeEffectPackage.ApplyPolicy != ELxEffectPackageApplyPolicy::ReplaceSameSource)
+	{
+		return;
 	}
 
 	if (AttributeComponent != nullptr)
 	{
-		if (!InEffectPackage.AttributeModifierEffects.IsEmpty()
-			|| (InEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource
-				&& ShouldRefreshAttributeModifierEffectCache(InEffectPackage.SourceContext.SourceType)))
+		if (!RuntimeEffectPackage.AttributeModifierEffects.IsEmpty()
+			|| (RuntimeEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource
+				&& ShouldRefreshAttributeModifierEffectCache(RuntimeEffectPackage.SourceContext.SourceType)))
 		{
-			AttributeComponent->ReceiveAttributeModifierEffects(InEffectPackage.SourceContext, InEffectPackage.ApplyPolicy, InEffectPackage.AttributeModifierEffects);
+			AttributeComponent->ReceiveAttributeModifierEffects(RuntimeEffectPackage.SourceContext, RuntimeEffectPackage.ApplyPolicy, RuntimeEffectPackage.AttributeModifierEffects);
 		}
 
-		if (!InEffectPackage.AttributeRecoveryEffects.IsEmpty())
+		if (!RuntimeEffectPackage.AttributeRecoveryEffects.IsEmpty())
 		{
-			AttributeComponent->ReceiveAttributeRecoveryEffects(InEffectPackage.AttributeRecoveryEffects);
+			AttributeComponent->ReceiveAttributeRecoveryEffects(RuntimeEffectPackage.AttributeRecoveryEffects);
 		}
 	}
 
 	if (StateComponent != nullptr)
 	{
-		for (const FLxStateChangeEffect& StateEffect : InEffectPackage.StateChangeEffects)
+		for (const FLxStateChangeEffect& StateEffect : RuntimeEffectPackage.StateChangeEffects)
 		{
 			if (!StateEffect.StateCategoryTag.IsValid() || !StateEffect.StateTag.IsValid())
 			{
@@ -651,26 +688,26 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 
 	if (BuffComponent != nullptr)
 	{
-		const ELxCharacterEntrySource EntrySource = ConvertToEntrySource(InEffectPackage.SourceContext.SourceType);
-		if (InEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Equipment)
+		const ELxCharacterEntrySource EntrySource = ConvertToEntrySource(RuntimeEffectPackage.SourceContext.SourceType);
+		if (RuntimeEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Equipment)
 		{
-			SyncEquipmentBuffGrantEffects(InEffectPackage.BuffGrantEffects);
+			SyncEquipmentBuffGrantEffects(RuntimeEffectPackage.BuffGrantEffects);
 			return;
 		}
 
-		if (InEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Profession
-			&& !InEffectPackage.BuffGrantEffects.IsEmpty())
+		if (RuntimeEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Profession
+			&& !RuntimeEffectPackage.BuffGrantEffects.IsEmpty())
 		{
-			SyncProfessionBuffGrantEffects(InEffectPackage.BuffGrantEffects);
+			SyncProfessionBuffGrantEffects(RuntimeEffectPackage.BuffGrantEffects);
 		}
-		else if (InEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Buff
-			&& InEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource)
+		else if (RuntimeEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Buff
+			&& RuntimeEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource)
 		{
 			return;
 		}
 		else
 		{
-			for (const FLxBuffGrantEffect& BuffEffect : InEffectPackage.BuffGrantEffects)
+			for (const FLxBuffGrantEffect& BuffEffect : RuntimeEffectPackage.BuffGrantEffects)
 			{
 				if (!BuffEffect.BuffIDTag.IsValid())
 				{
@@ -684,7 +721,7 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 
 	if (SkillBackpackComponent != nullptr)
 	{
-		for (const FLxSkillGrantEffect& SkillGrantEffect : InEffectPackage.SkillGrantEffects)
+		for (const FLxSkillGrantEffect& SkillGrantEffect : RuntimeEffectPackage.SkillGrantEffects)
 		{
 			if (!SkillGrantEffect.SkillItemIDTag.IsValid())
 			{

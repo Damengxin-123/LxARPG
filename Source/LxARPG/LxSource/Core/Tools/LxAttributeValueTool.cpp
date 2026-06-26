@@ -32,8 +32,8 @@ int32 FLxAttributeValueTool::GetFloatingValueMax(const FLxAttributeValue& Attrib
 
 FText FLxAttributeValueTool::BuildAttributeValueText(const FLxAttributeData& AttributeData)
 {
-	// 当前属性组件会把词条和衍生规则直接结算到 AttributeValue，这里读取运行时有效值。
-	const FLxAttributeValue& AttributeValue = AttributeData.AttributeValue;
+	// 角色属性组件会把词条、衍生规则和当前运行时消耗结算到 CalculatedAttributeValue。
+	const FLxAttributeValue& AttributeValue = AttributeData.CalculatedAttributeValue;
 	switch (AttributeValue.ValueType)
 	{
 	case ELxCharacterValueType::RangedNumeric:

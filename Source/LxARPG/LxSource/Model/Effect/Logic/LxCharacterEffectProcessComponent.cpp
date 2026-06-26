@@ -1,41 +1,65 @@
-#include "LxCharacterDamageComponent.h"
+#include "LxCharacterEffectProcessComponent.h"
 
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
 #include "LxARPG/LxSource/Model/Damage/Logic/LxDamageCalculationFlow.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 #include "LxARPG/LxSource/Model/Lifecycle/Logic/LxCharacterLifecycleComponent.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkill.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
 
-ULxCharacterDamageComponent::ULxCharacterDamageComponent()
+ULxCharacterEffectProcessComponent::ULxCharacterEffectProcessComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void ULxCharacterDamageComponent::BaseComponentInitialize()
+void ULxCharacterEffectProcessComponent::BaseComponentInitialize()
 {
 	CacheOwnerComponents();
 	EnsureDamageCalculationFlow();
 }
 
-bool ULxCharacterDamageComponent::BuildOutgoingDamagePackage(AActor* TargetActor, FLxEffectPackage& OutDamagePackage)
+void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets)
 {
-	FLxEffectPackage SourceEffectPackage;
-	SourceEffectPackage.SourceContext.SourceType = ELxEffectPackageSource::Skill;
-	SourceEffectPackage.SourceContext.SourceActor = GetOwner();
-	SourceEffectPackage.SourceContext.SourceObject = this;
-	SourceEffectPackage.TargetActor = TargetActor;
-	SourceEffectPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::Instant;
-	return BuildOutgoingDamagePackageFromEffectPackage(SourceEffectPackage, TargetActor, OutDamagePackage);
+	CacheOwnerComponents();
+	if (SourceSkill == nullptr || DataTransferComponent == nullptr || HitTargets.IsEmpty())
+	{
+		return;
+	}
+
+	TArray<FLxEffectPackage> SourceEffectPackages;
+	BuildEffectPackagesFromSkillEntries(SourceSkill, InSkillEntryPackages, SourceEffectPackages);
+	if (SourceEffectPackages.IsEmpty())
+	{
+		return;
+	}
+
+	for (AActor* HitTarget : HitTargets)
+	{
+		if (HitTarget == nullptr)
+		{
+			continue;
+		}
+
+		for (const FLxEffectPackage& SourceEffectPackage : SourceEffectPackages)
+		{
+			FLxEffectPackage OutgoingEffectPackage;
+			if (BuildOutgoingEffectPackage(SourceEffectPackage, HitTarget, OutgoingEffectPackage))
+			{
+				DataTransferComponent->SendEffectPackageToTarget(OutgoingEffectPackage, HitTarget);
+			}
+		}
+	}
 }
 
-bool ULxCharacterDamageComponent::BuildOutgoingDamagePackageFromEffectPackage(const FLxEffectPackage& InSourceEffectPackage, AActor* TargetActor, FLxEffectPackage& OutDamagePackage)
+bool ULxCharacterEffectProcessComponent::BuildOutgoingEffectPackage(const FLxEffectPackage& InSourceEffectPackage, AActor* TargetActor, FLxEffectPackage& OutEffectPackage)
 {
-	OutDamagePackage = FLxEffectPackage();
+	OutEffectPackage = FLxEffectPackage();
 	CacheOwnerComponents();
 	EnsureDamageCalculationFlow();
-	if (DamageCalculationFlow == nullptr || DataTransferComponent == nullptr || TargetActor == nullptr)
+	if (DataTransferComponent == nullptr || TargetActor == nullptr)
 	{
 		return false;
 	}
@@ -58,6 +82,18 @@ bool ULxCharacterDamageComponent::BuildOutgoingDamagePackageFromEffectPackage(co
 
 	RuntimeSourceEffectPackage.TargetActor = TargetActor;
 	RuntimeSourceEffectPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::Instant;
+	OutEffectPackage = RuntimeSourceEffectPackage;
+
+	if (RuntimeSourceEffectPackage.DamageEffects.IsEmpty())
+	{
+		return !OutEffectPackage.IsEmpty() || OutEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource;
+	}
+
+	if (DamageCalculationFlow == nullptr)
+	{
+		OutEffectPackage.DamageEffects.Reset();
+		return !OutEffectPackage.IsEmpty() || OutEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource;
+	}
 
 	FLxDamageCalculationContext DamageContext;
 	DamageContext.SourceActor = RuntimeSourceEffectPackage.SourceContext.SourceActor;
@@ -74,12 +110,12 @@ bool ULxCharacterDamageComponent::BuildOutgoingDamagePackageFromEffectPackage(co
 
 	DamageContext = DamageCalculationFlow->CalculateOutgoingDamage(DamageContext);
 	DamageCalculationFlow->OnDamageCalculationFinished.Broadcast(DamageContext);
-	DamageContext.OutputEffectPackage.DamageEffects = DamageContext.DamageEffects;
-	OutDamagePackage = DamageContext.OutputEffectPackage;
-	return !OutDamagePackage.DamageEffects.IsEmpty();
+	OutEffectPackage = DamageContext.OutputEffectPackage;
+	OutEffectPackage.DamageEffects = DamageContext.DamageEffects;
+	return !OutEffectPackage.IsEmpty() || OutEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource;
 }
 
-bool ULxCharacterDamageComponent::ReceiveIncomingDamagePackage(const FLxEffectPackage& InDamagePackage, FLxDamageReceiveResult& OutDamageReceiveResult, bool bApplyResult)
+bool ULxCharacterEffectProcessComponent::ReceiveIncomingEffectPackage(const FLxEffectPackage& InEffectPackage, FLxDamageReceiveResult& OutDamageReceiveResult, bool bApplyResult)
 {
 	OutDamageReceiveResult = FLxDamageReceiveResult();
 	CacheOwnerComponents();
@@ -90,16 +126,16 @@ bool ULxCharacterDamageComponent::ReceiveIncomingDamagePackage(const FLxEffectPa
 	}
 
 	FLxDamageCalculationContext DamageContext;
-	DamageContext.SourceActor = InDamagePackage.SourceContext.SourceActor;
+	DamageContext.SourceActor = InEffectPackage.SourceContext.SourceActor;
 	DamageContext.TargetActor = GetOwner();
 	DamageContext.SourceDataTransferComponent = nullptr;
-	if (const ALxBaseCharacter* SourceCharacter = Cast<ALxBaseCharacter>(InDamagePackage.SourceContext.SourceActor))
+	if (const ALxBaseCharacter* SourceCharacter = Cast<ALxBaseCharacter>(InEffectPackage.SourceContext.SourceActor))
 	{
 		DamageContext.SourceDataTransferComponent = SourceCharacter->GetCharacterDataTransferComponent();
 	}
 	DamageContext.TargetDataTransferComponent = DataTransferComponent;
-	DamageContext.InputEffectPackage = InDamagePackage;
-	DamageContext.DamageEffects = InDamagePackage.DamageEffects;
+	DamageContext.InputEffectPackage = InEffectPackage;
+	DamageContext.DamageEffects = InEffectPackage.DamageEffects;
 
 	DamageContext = DamageCalculationFlow->CalculateIncomingDamage(DamageContext);
 	DamageCalculationFlow->OnDamageCalculationFinished.Broadcast(DamageContext);
@@ -108,23 +144,24 @@ bool ULxCharacterDamageComponent::ReceiveIncomingDamagePackage(const FLxEffectPa
 	OutDamageReceiveResult.HealthDamageValue = DamageContext.HealthDamageValue;
 	OutDamageReceiveResult.bCriticalHit = DamageContext.bCriticalHit;
 	OutDamageReceiveResult.bIgnoredDamage = DamageContext.bIgnoredDamage;
-	if (!OutDamageReceiveResult.IsEmpty())
+	if (OutDamageReceiveResult.IsEmpty())
 	{
-		if (bApplyResult)
-		{
-			ApplyDamageReceiveResultToTarget(OutDamageReceiveResult);
-			RefreshLifecycleAfterDamage();
-		}
-
-		OnCharacterDamageReceived.Broadcast(OutDamageReceiveResult, DamageContext.SourceActor);
+		return false;
 	}
 
-	return !OutDamageReceiveResult.IsEmpty();
+	if (bApplyResult)
+	{
+		ApplyDamageReceiveResultToTarget(OutDamageReceiveResult);
+		RefreshLifecycleAfterDamage();
+	}
+
+	OnCharacterDamageReceived.Broadcast(OutDamageReceiveResult, DamageContext.SourceActor);
+	return true;
 }
 
-void ULxCharacterDamageComponent::CacheOwnerComponents()
+void ULxCharacterEffectProcessComponent::CacheOwnerComponents()
 {
-	ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
+	const ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
 	if (OwnerCharacter == nullptr)
 	{
 		return;
@@ -134,7 +171,7 @@ void ULxCharacterDamageComponent::CacheOwnerComponents()
 	LifecycleComponent = OwnerCharacter->GetCharacterLifecycleComponent();
 }
 
-void ULxCharacterDamageComponent::EnsureDamageCalculationFlow()
+void ULxCharacterEffectProcessComponent::EnsureDamageCalculationFlow()
 {
 	if (DamageCalculationFlow == nullptr)
 	{
@@ -147,11 +184,55 @@ void ULxCharacterDamageComponent::EnsureDamageCalculationFlow()
 			}
 		}
 
-		DamageCalculationFlow = NewObject<ULxDamageCalculationFlow>(this, FlowClass, TEXT("RuntimeDamageCalculationFlow"));
+		DamageCalculationFlow = NewObject<ULxDamageCalculationFlow>(this, FlowClass, TEXT("RuntimeEffectCalculationFlow"));
 	}
 }
 
-void ULxCharacterDamageComponent::ApplyDamageReceiveResultToTarget(const FLxDamageReceiveResult& InDamageReceiveResult)
+void ULxCharacterEffectProcessComponent::BuildEffectPackagesFromSkillEntries(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, TArray<FLxEffectPackage>& OutEffectPackages) const
+{
+	OutEffectPackages.Reset();
+	if (SourceSkill == nullptr)
+	{
+		return;
+	}
+
+	const TArray<FLxSkillEntryPackage>& SourceEntryPackages = InSkillEntryPackages.IsEmpty()
+		? SourceSkill->GetSkillEntryPackages()
+		: InSkillEntryPackages;
+
+	for (const FLxSkillEntryPackage& SkillEntryPackage : SourceEntryPackages)
+	{
+		if (SkillEntryPackage.IsEmpty())
+		{
+			continue;
+		}
+
+		FLxEffectPackage EntryEffectPackage;
+		EntryEffectPackage.SourceContext.SourceType = ELxEffectPackageSource::Skill;
+		EntryEffectPackage.SourceContext.SourceActor = GetOwner();
+		EntryEffectPackage.SourceContext.SourceObject = SourceSkill;
+		EntryEffectPackage.SourceContext.SourceName = SourceSkill->GetFName();
+		EntryEffectPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::Instant;
+
+		for (const FLxEntryQuote& EntryQuote : SkillEntryPackage.EntryQuotes)
+		{
+			ULxEntryObjectBase* EntryObject = ULxEntryObjectBase::CreateEnterObject(SourceSkill, EntryQuote);
+			if (EntryObject == nullptr || EntryObject->GetEntryBase() == nullptr)
+			{
+				continue;
+			}
+
+			EntryObject->AppendEffectsToPackage(EntryEffectPackage);
+		}
+
+		if (!EntryEffectPackage.IsEmpty())
+		{
+			OutEffectPackages.Add(EntryEffectPackage);
+		}
+	}
+}
+
+void ULxCharacterEffectProcessComponent::ApplyDamageReceiveResultToTarget(const FLxDamageReceiveResult& InDamageReceiveResult)
 {
 	if (DataTransferComponent == nullptr || InDamageReceiveResult.IsEmpty())
 	{
@@ -189,7 +270,7 @@ void ULxCharacterDamageComponent::ApplyDamageReceiveResultToTarget(const FLxDama
 	}
 }
 
-void ULxCharacterDamageComponent::RefreshLifecycleAfterDamage()
+void ULxCharacterEffectProcessComponent::RefreshLifecycleAfterDamage()
 {
 	if (LifecycleComponent == nullptr || DataTransferComponent == nullptr || !LifecycleComponent->IsCharacterAlive())
 	{

@@ -162,6 +162,10 @@ struct LXARPG_API FLxDamageEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|伤害", DisplayName = "伤害标签")
 	FGameplayTagContainer DamageTags;
 
+	/** 本条伤害是否已经触发暴击。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|伤害", DisplayName = "是否暴击")
+	bool bCriticalHit = false;
+
 	/** 拆分后的伤害数值列表，可同时表达普通、火焰、破甲等多种伤害。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|伤害", DisplayName = "伤害数值列表")
 	TArray<FLxDamageValue> DamageValues;

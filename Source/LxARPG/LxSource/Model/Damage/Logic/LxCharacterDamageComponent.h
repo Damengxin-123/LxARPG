@@ -10,7 +10,7 @@ class ULxCharacterLifecycleComponent;
 class ULxDamageCalculationFlow;
 
 /** 角色受到伤害后的实际承受结果事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDamageReceived, const FLxEffectPackage&, AppliedDamagePackage, AActor*, AttackerActor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDamageReceived, const FLxDamageReceiveResult&, DamageReceiveResult, AActor*, AttackerActor);
 
 /** 角色伤害计算组件，负责伤害输出计算和伤害接收计算。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色伤害计算组件")
@@ -28,9 +28,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="角色伤害", DisplayName="构建输出伤害效果包")
 	bool BuildOutgoingDamagePackage(AActor* TargetActor, FLxEffectPackage& OutDamagePackage);
 
+	/** 基于已有的效果包计算当前角色对目标的输出伤害。 */
+	UFUNCTION(BlueprintCallable, Category="角色伤害", DisplayName="基于效果包构建输出伤害")
+	bool BuildOutgoingDamagePackageFromEffectPackage(const FLxEffectPackage& InSourceEffectPackage, AActor* TargetActor, FLxEffectPackage& OutDamagePackage);
+
 	/** 接收伤害效果包，计算最终承受结果并按需应用到属性组件。 */
 	UFUNCTION(BlueprintCallable, Category="角色伤害", DisplayName="接收伤害效果包")
-	bool ReceiveIncomingDamagePackage(const FLxEffectPackage& InDamagePackage, FLxEffectPackage& OutAppliedPackage, bool bApplyResult = true);
+	bool ReceiveIncomingDamagePackage(const FLxEffectPackage& InDamagePackage, FLxDamageReceiveResult& OutDamageReceiveResult, bool bApplyResult = true);
 
 	/** 获取伤害计算流程。 */
 	UFUNCTION(BlueprintPure, Category="角色伤害", DisplayName="获取伤害计算流程")
@@ -49,6 +53,9 @@ private:
 	void CacheOwnerComponents();
 	void EnsureDamageCalculationFlow();
 	void RefreshLifecycleAfterDamage();
+
+	/** 将最终承伤结果应用到当前角色属性。 */
+	void ApplyDamageReceiveResultToTarget(const FLxDamageReceiveResult& InDamageReceiveResult);
 
 	UPROPERTY()
 	TObjectPtr<ULxCharacterDataTransferComponent> DataTransferComponent = nullptr;

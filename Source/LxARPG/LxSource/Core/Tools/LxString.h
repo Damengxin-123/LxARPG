@@ -200,6 +200,12 @@ public:
 	 */
 	void LogeToScreenLog(ELxLogeLevelType Level);
 
+	/** 将当前字符串作为调试信息发送到本地聊天框。 */
+	void SendDebugMessageToChat(const UObject* WorldContextObject) const;
+
+	/** 将当前字符串输出到本地聊天框，等价于发送调试信息。 */
+	void LogeToChat(const UObject* WorldContextObject) const;
+
 
 private:
 

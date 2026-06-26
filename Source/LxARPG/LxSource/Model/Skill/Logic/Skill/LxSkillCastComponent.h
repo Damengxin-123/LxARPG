@@ -7,6 +7,7 @@
 #include "LxSkillCastComponent.generated.h"
 
 class ULxSkill;
+struct FLxSkillEntryPackage;
 class ULxSkillItem;
 
 /** 技能释放组件。挂载在角色身上，统一解释开始、结束、取消等释放输入，并调用对应技能流程。 */
@@ -66,6 +67,10 @@ public:
 
 private:
 	FLxSkillCastContext NormalizeCastContext(const FLxSkillCastContext& InCastContext, UObject* SourceObject = nullptr) const;
+
+	/** 接收技能命中词条事件，并转交给角色效果处理组件。 */
+	UFUNCTION()
+	void HandleSkillHitEntriesReady(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& SkillEntryPackages, const TArray<AActor*>& HitTargets);
 
 	/** 当前正在蓄力的技能。 */
 	UPROPERTY(Transient)

@@ -7,7 +7,7 @@
 
 namespace
 {
-	bool QueryCalculatedAttributeValue(ULxCharacterDataTransferComponent* DataTransferComponent, FGameplayTag AttributeIDTag, FLxAttributeValue& OutAttributeValue)
+	bool DefaultNodeQueryCalculatedAttributeValue(ULxCharacterDataTransferComponent* DataTransferComponent, FGameplayTag AttributeIDTag, FLxAttributeValue& OutAttributeValue)
 	{
 		if (DataTransferComponent == nullptr || !AttributeIDTag.IsValid())
 		{
@@ -24,13 +24,13 @@ namespace
 		return true;
 	}
 
-	float GetAttributeSingleValue(ULxCharacterDataTransferComponent* DataTransferComponent, FGameplayTag AttributeIDTag, float DefaultValue = 0.f)
+	float DefaultNodeGetAttributeSingleValue(ULxCharacterDataTransferComponent* DataTransferComponent, FGameplayTag AttributeIDTag, float DefaultValue = 0.f)
 	{
 		FLxAttributeValue AttributeValue;
-		return QueryCalculatedAttributeValue(DataTransferComponent, AttributeIDTag, AttributeValue) ? AttributeValue.Value : DefaultValue;
+		return DefaultNodeQueryCalculatedAttributeValue(DataTransferComponent, AttributeIDTag, AttributeValue) ? AttributeValue.Value : DefaultValue;
 	}
 
-	float RollRangedAttributeValue(const FLxAttributeValue& AttributeValue)
+	float DefaultNodeRollRangedAttributeValue(const FLxAttributeValue& AttributeValue)
 	{
 		const float LowerValue = FMath::Min(AttributeValue.Value, AttributeValue.ValueLimit);
 		const float UpperValue = FMath::Max(AttributeValue.Value, AttributeValue.ValueLimit);
@@ -42,7 +42,7 @@ namespace
 		return AttributeValue.Value;
 	}
 
-	void NormalizeDamageEffect(FLxDamageEffect& InOutDamageEffect)
+	void DefaultNodeNormalizeDamageEffect(FLxDamageEffect& InOutDamageEffect)
 	{
 		if (InOutDamageEffect.DamageValues.IsEmpty() && InOutDamageEffect.DamageValue > 0.f)
 		{
@@ -53,7 +53,7 @@ namespace
 		}
 	}
 
-	float GetTotalDamageValue(const TArray<FLxDamageEffect>& DamageEffects)
+	float DefaultNodeGetTotalDamageValue(const TArray<FLxDamageEffect>& DamageEffects)
 	{
 		float TotalDamageValue = 0.f;
 		for (const FLxDamageEffect& DamageEffect : DamageEffects)
@@ -76,12 +76,12 @@ ULxDamageAttackPowerOutputNode::ULxDamageAttackPowerOutputNode()
 void ULxDamageAttackPowerOutputNode::ExecuteDamageCalculation_Implementation(FLxDamageCalculationContext& InOutContext)
 {
 	FLxAttributeValue AttackPowerValue;
-	if (!QueryCalculatedAttributeValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Numeric_AttackPower, AttackPowerValue))
+	if (!DefaultNodeQueryCalculatedAttributeValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Numeric_AttackPower, AttackPowerValue))
 	{
 		return;
 	}
 
-	const float RolledDamageValue = FMath::Max(0.f, RollRangedAttributeValue(AttackPowerValue));
+	const float RolledDamageValue = FMath::Max(0.f, DefaultNodeRollRangedAttributeValue(AttackPowerValue));
 	if (FMath::IsNearlyZero(RolledDamageValue))
 	{
 		return;
@@ -105,14 +105,14 @@ void ULxDamageCriticalOutputNode::ExecuteDamageCalculation_Implementation(FLxDam
 		return;
 	}
 
-	const float CriticalChance = FMath::Clamp(GetAttributeSingleValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Judgement_CriticalChance), 0.f, 100.f);
+	const float CriticalChance = FMath::Clamp(DefaultNodeGetAttributeSingleValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Judgement_CriticalChance), 0.f, 100.f);
 	if (FMath::FRandRange(0.f, 100.f) > CriticalChance)
 	{
 		return;
 	}
 
 	float CriticalDamageMultiplier = DefaultCriticalDamageMultiplier;
-	const float CriticalDamagePercent = GetAttributeSingleValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Percentage_CriticalDamage, 0.f);
+	const float CriticalDamagePercent = DefaultNodeGetAttributeSingleValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Percentage_CriticalDamage, 0.f);
 	if (CriticalDamagePercent > 0.f)
 	{
 		CriticalDamageMultiplier = 1.f + CriticalDamagePercent * 0.01f;
@@ -122,7 +122,8 @@ void ULxDamageCriticalOutputNode::ExecuteDamageCalculation_Implementation(FLxDam
 	InOutContext.bCriticalHit = true;
 	for (FLxDamageEffect& DamageEffect : InOutContext.DamageEffects)
 	{
-		NormalizeDamageEffect(DamageEffect);
+		DefaultNodeNormalizeDamageEffect(DamageEffect);
+		DamageEffect.bCriticalHit = true;
 		DamageEffect.DamageValue *= CriticalDamageMultiplier;
 		for (FLxDamageValue& DamageValue : DamageEffect.DamageValues)
 		{
@@ -133,7 +134,7 @@ void ULxDamageCriticalOutputNode::ExecuteDamageCalculation_Implementation(FLxDam
 
 void ULxDamageDefenseReceiveNode::ExecuteDamageCalculation_Implementation(FLxDamageCalculationContext& InOutContext)
 {
-	const float DefenseValue = FMath::Max(0.f, GetAttributeSingleValue(InOutContext.TargetDataTransferComponent, LxTag_Attribute_Numeric_Armor));
+	const float DefenseValue = FMath::Max(0.f, DefaultNodeGetAttributeSingleValue(InOutContext.TargetDataTransferComponent, LxTag_Attribute_Numeric_Armor));
 	InOutContext.DefenseValue = DefenseValue;
 	if (FMath::IsNearlyZero(DefenseValue))
 	{
@@ -142,7 +143,7 @@ void ULxDamageDefenseReceiveNode::ExecuteDamageCalculation_Implementation(FLxDam
 
 	for (FLxDamageEffect& DamageEffect : InOutContext.DamageEffects)
 	{
-		NormalizeDamageEffect(DamageEffect);
+		DefaultNodeNormalizeDamageEffect(DamageEffect);
 		float TotalReducedDamageValue = 0.f;
 		for (FLxDamageValue& DamageValue : DamageEffect.DamageValues)
 		{
@@ -156,31 +157,13 @@ void ULxDamageDefenseReceiveNode::ExecuteDamageCalculation_Implementation(FLxDam
 
 void ULxDamageShieldHealthSettlementNode::ExecuteDamageCalculation_Implementation(FLxDamageCalculationContext& InOutContext)
 {
-	const float TotalDamageValue = GetTotalDamageValue(InOutContext.DamageEffects);
+	const float TotalDamageValue = DefaultNodeGetTotalDamageValue(InOutContext.DamageEffects);
 	if (FMath::IsNearlyZero(TotalDamageValue))
 	{
 		return;
 	}
 
-	const float ShieldValue = FMath::Max(0.f, GetAttributeSingleValue(InOutContext.TargetDataTransferComponent, LxTag_Attribute_Resource_Shield));
+	const float ShieldValue = FMath::Max(0.f, DefaultNodeGetAttributeSingleValue(InOutContext.TargetDataTransferComponent, LxTag_Attribute_Resource_Shield));
 	InOutContext.ShieldDamageValue = FMath::Min(ShieldValue, TotalDamageValue);
 	InOutContext.HealthDamageValue = FMath::Max(0.f, TotalDamageValue - InOutContext.ShieldDamageValue);
-
-	if (InOutContext.ShieldDamageValue > 0.f)
-	{
-		FLxAttributeRecoveryEffect ShieldDamageEffect;
-		ShieldDamageEffect.AttributeIDTag = LxTag_Attribute_Resource_Shield;
-		ShieldDamageEffect.RecoveryOperation = ELxAttributeModifierOperation::AddValue;
-		ShieldDamageEffect.RecoveryValue = -InOutContext.ShieldDamageValue;
-		InOutContext.OutputEffectPackage.AttributeRecoveryEffects.Add(ShieldDamageEffect);
-	}
-
-	if (InOutContext.HealthDamageValue > 0.f)
-	{
-		FLxAttributeRecoveryEffect HealthDamageEffect;
-		HealthDamageEffect.AttributeIDTag = LxTag_Attribute_Resource_Health;
-		HealthDamageEffect.RecoveryOperation = ELxAttributeModifierOperation::AddValue;
-		HealthDamageEffect.RecoveryValue = -InOutContext.HealthDamageValue;
-		InOutContext.OutputEffectPackage.AttributeRecoveryEffects.Add(HealthDamageEffect);
-	}
 }

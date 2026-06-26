@@ -1,7 +1,9 @@
 #include "LxCharacterTestComponent.h"
 
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
-#include "LxARPG/LxSource/Model/Damage/Logic/LxCharacterDamageComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
+#include "LxARPG/LxSource/Model/Damage/DataType/LxDamageTags.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 ULxCharacterTestComponent::ULxCharacterTestComponent()
@@ -13,10 +15,10 @@ void ULxCharacterTestComponent::BaseComponentInitialize()
 {
 	Super::BaseComponentInitialize();
 
-	if (ULxCharacterDamageComponent* DamageComponent = GetDamageComponent())
+	if (ULxCharacterEffectProcessComponent* EffectProcessComponent = GetEffectProcessComponent())
 	{
-		DamageComponent->OnCharacterDamageReceived.RemoveDynamic(this, &ULxCharacterTestComponent::HandleCharacterDamageReceived);
-		DamageComponent->OnCharacterDamageReceived.AddDynamic(this, &ULxCharacterTestComponent::HandleCharacterDamageReceived);
+		EffectProcessComponent->OnCharacterDamageReceived.RemoveDynamic(this, &ULxCharacterTestComponent::HandleCharacterDamageReceived);
+		EffectProcessComponent->OnCharacterDamageReceived.AddDynamic(this, &ULxCharacterTestComponent::HandleCharacterDamageReceived);
 	}
 }
 
@@ -92,27 +94,44 @@ bool ULxCharacterTestComponent::ApplyTestDamageFromAttacker(AActor* InAttackerAc
 		return false;
 	}
 
-	ULxCharacterDamageComponent* AttackerDamageComponent = AttackerCharacter->GetCharacterDamageComponent();
-	ULxCharacterDamageComponent* TargetDamageComponent = GetDamageComponent();
-	if (AttackerDamageComponent == nullptr || TargetDamageComponent == nullptr)
+	ULxCharacterEffectProcessComponent* AttackerEffectProcessComponent = AttackerCharacter->GetCharacterEffectProcessComponent();
+	ULxCharacterEffectProcessComponent* TargetEffectProcessComponent = GetEffectProcessComponent();
+	if (AttackerEffectProcessComponent == nullptr || TargetEffectProcessComponent == nullptr)
 	{
 		return false;
 	}
+
+	FLxDamageValue DamageValue;
+	DamageValue.DamageTypeTag = LxTag_CommonEffect_DamageEffect_Normal;
+	DamageValue.SourceAttributeIDTag = LxTag_Attribute_Numeric_AttackPower;
+	DamageValue.SourceAttributeRatio = 1.f;
+
+	FLxDamageEffect DamageEffect;
+	DamageEffect.TargetAttributeIDTag = LxTag_Attribute_Resource_Health;
+	DamageEffect.DamageValues.Add(DamageValue);
+
+	FLxEffectPackage SourceEffectPackage;
+	SourceEffectPackage.SourceContext.SourceType = ELxEffectPackageSource::Other;
+	SourceEffectPackage.SourceContext.SourceActor = InAttackerActor;
+	SourceEffectPackage.SourceContext.SourceObject = this;
+	SourceEffectPackage.TargetActor = GetOwner();
+	SourceEffectPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::Instant;
+	SourceEffectPackage.DamageEffects.Add(DamageEffect);
 
 	FLxEffectPackage OutgoingDamagePackage;
-	if (!AttackerDamageComponent->BuildOutgoingDamagePackage(GetOwner(), OutgoingDamagePackage))
+	if (!AttackerEffectProcessComponent->BuildOutgoingEffectPackage(SourceEffectPackage, GetOwner(), OutgoingDamagePackage))
 	{
 		return false;
 	}
 
-	FLxEffectPackage AppliedDamagePackage;
-	if (!TargetDamageComponent->ReceiveIncomingDamagePackage(OutgoingDamagePackage, AppliedDamagePackage, bApplyResult))
+	FLxDamageReceiveResult DamageReceiveResult;
+	if (!TargetEffectProcessComponent->ReceiveIncomingEffectPackage(OutgoingDamagePackage, DamageReceiveResult, bApplyResult))
 	{
 		return false;
 	}
 
-	OutFinalDamageValue = CalculateFinalDamageValueFromAppliedPackage(AppliedDamagePackage);
-	OutAttackerActor = AppliedDamagePackage.SourceContext.SourceActor != nullptr ? AppliedDamagePackage.SourceContext.SourceActor.Get() : InAttackerActor;
+	OutFinalDamageValue = CalculateFinalDamageValueFromReceiveResult(DamageReceiveResult);
+	OutAttackerActor = InAttackerActor;
 	return true;
 }
 
@@ -122,29 +141,19 @@ ULxCharacterDataTransferComponent* ULxCharacterTestComponent::GetDataTransferCom
 	return OwnerCharacter != nullptr ? OwnerCharacter->GetCharacterDataTransferComponent() : nullptr;
 }
 
-ULxCharacterDamageComponent* ULxCharacterTestComponent::GetDamageComponent() const
+ULxCharacterEffectProcessComponent* ULxCharacterTestComponent::GetEffectProcessComponent() const
 {
 	const ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
-	return OwnerCharacter != nullptr ? OwnerCharacter->GetCharacterDamageComponent() : nullptr;
+	return OwnerCharacter != nullptr ? OwnerCharacter->GetCharacterEffectProcessComponent() : nullptr;
 }
 
-float ULxCharacterTestComponent::CalculateFinalDamageValueFromAppliedPackage(const FLxEffectPackage& InAppliedPackage)
+float ULxCharacterTestComponent::CalculateFinalDamageValueFromReceiveResult(const FLxDamageReceiveResult& InDamageReceiveResult)
 {
-	float FinalDamageValue = 0.f;
-	for (const FLxAttributeRecoveryEffect& RecoveryEffect : InAppliedPackage.AttributeRecoveryEffects)
-	{
-		if (RecoveryEffect.RecoveryOperation == ELxAttributeModifierOperation::AddValue && RecoveryEffect.RecoveryValue < 0.f)
-		{
-			FinalDamageValue += -RecoveryEffect.RecoveryValue;
-		}
-	}
-
-	return FinalDamageValue;
+	return InDamageReceiveResult.GetTotalDamageValue();
 }
-
-void ULxCharacterTestComponent::HandleCharacterDamageReceived(const FLxEffectPackage& InAppliedDamagePackage, AActor* InAttackerActor)
+void ULxCharacterTestComponent::HandleCharacterDamageReceived(const FLxDamageReceiveResult& InDamageReceiveResult, AActor* InAttackerActor)
 {
-	const float FinalDamageValue = CalculateFinalDamageValueFromAppliedPackage(InAppliedDamagePackage);
+	const float FinalDamageValue = CalculateFinalDamageValueFromReceiveResult(InDamageReceiveResult);
 	OnTestReceivedDamageValueOutput.Broadcast(FinalDamageValue);
 	OnTestReceivedDamageAttackerOutput.Broadcast(InAttackerActor);
 }

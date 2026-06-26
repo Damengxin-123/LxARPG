@@ -6,11 +6,12 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
+#include "LxARPG/LxSource/Model/Damage/DataType/LxDamageCalculationTypes.h"
 #include "LxCharacterTestComponent.generated.h"
 
 class AActor;
 class ULxCharacterDataTransferComponent;
-class ULxCharacterDamageComponent;
+class ULxCharacterEffectProcessComponent;
 
 /** 测试受伤最终伤害数字输出事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTestReceivedDamageValueOutput, float, FinalDamageValue);
@@ -75,13 +76,13 @@ private:
 	/** 获取当前角色的数据中转组件。 */
 	ULxCharacterDataTransferComponent* GetDataTransferComponent() const;
 
-	/** 获取当前角色的伤害计算组件。 */
-	ULxCharacterDamageComponent* GetDamageComponent() const;
+	/** 获取当前角色的效果处理组件。 */
+	ULxCharacterEffectProcessComponent* GetEffectProcessComponent() const;
 
-	/** 从实际应用的效果包中汇总最终造成的伤害数值。 */
-	static float CalculateFinalDamageValueFromAppliedPackage(const FLxEffectPackage& InAppliedPackage);
+	/** 从最终承伤结果中汇总 UI 显示用的伤害数值。 */
+	static float CalculateFinalDamageValueFromReceiveResult(const FLxDamageReceiveResult& InDamageReceiveResult);
 
 	/** 处理角色伤害组件的受伤事件，并转发测试输出事件。 */
 	UFUNCTION()
-	void HandleCharacterDamageReceived(const FLxEffectPackage& InAppliedDamagePackage, AActor* InAttackerActor);
+	void HandleCharacterDamageReceived(const FLxDamageReceiveResult& InDamageReceiveResult, AActor* InAttackerActor);
 };

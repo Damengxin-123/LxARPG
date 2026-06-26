@@ -12,6 +12,7 @@
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTreasureChestInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxWarehouseInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
+#include "LxARPG/LxSource/Model/Chat/Logic/LxPlayerChatComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Model/SystemOperate/LxPlayerSystemOperateComponent.h"
 #include "LxARPG/LxSource/Systems/GameMode/LxARPGGameMode.h"
@@ -22,6 +23,7 @@ ALxPlayerController::ALxPlayerController()
 {
 	m_pInputComponent = CreateDefaultSubobject<ULxInputComponent>(TEXT("外部输入管理组件"));
 	m_pSystemOperateComponent = CreateDefaultSubobject<ULxPlayerSystemOperateComponent>(TEXT("系统操作组件"));
+	m_pChatComponent = CreateDefaultSubobject<ULxPlayerChatComponent>(TEXT("玩家聊天组件"));
 
 }
 

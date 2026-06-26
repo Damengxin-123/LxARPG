@@ -8,6 +8,7 @@
 class ALxBaseCharacter;
 class ALxPlayerController;
 class ULxItemBase;
+class ULxChatWidget;
 class ULxDialogueInteractionWidget;
 class ULxItemTooltipWidget;
 class ULxInteractionEntranceWidget;
@@ -56,6 +57,10 @@ public:
 	/** 注册 HUD、快捷栏、状态条等常驻 UI。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="注册HUD界面")
 	void RegisterHUDWidget(ULxUIBaseObject* InChildUIWidget);
+
+	/** 注册聊天框 UI，固定放入 HUD 层且不跟随角色数据刷新。 */
+	UFUNCTION(BlueprintCallable, Category="UI管理器|HUD", DisplayName="注册聊天框界面")
+	void RegisterChatWidget(ULxChatWidget* InChatWidget);
 
 	/** 注册背包、属性等由输入行为打开/关闭的面板 UI。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="注册按键面板界面")

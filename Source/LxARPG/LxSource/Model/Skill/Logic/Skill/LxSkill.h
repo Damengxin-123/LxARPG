@@ -4,11 +4,14 @@
 #include "UObject/Object.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillCastContext.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEnum.h"
-#include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEntryPackage.h"
 #include "LxSkill.generated.h"
 
 class ALxSkillUnitActor;
+class ULxSkill;
+
+/** 技能命中词条事件，通知技能释放组件把命中词条和有效目标交给效果处理组件。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillHitEntriesReady, ULxSkill*, SourceSkill, const TArray<FLxSkillEntryPackage>&, SkillEntryPackages, const TArray<AActor*>&, HitTargets);
 
 /** 完整技能类型，负责组织技能单元对象，并提供蓄力与释放入口。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="技能类型")
@@ -37,19 +40,20 @@ public:
 	void ReleaseSkillDirectly();
 	virtual void ReleaseSkillDirectly_Implementation();
 
-	/** 接收单个技能命中目标和需要应用的效果包数组，默认补充效果来源与目标角色后投递给目标的数据中转组件。 */
+	/** 接收单个技能命中目标和需要处理的词条包数组，并广播给技能释放组件。 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="技能|效果", DisplayName="接收单目标技能词条")
 	void ReceiveSkillEffectForTarget(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, AActor* HitTarget);
 	virtual void ReceiveSkillEffectForTarget_Implementation(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, AActor* HitTarget);
 
-	/** 接收多个技能命中目标和需要应用的效果包数组，默认对每个目标应用同一组效果包。 */
+	/** 接收多个技能命中目标和需要处理的词条包数组，并广播给技能释放组件。 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="技能|效果", DisplayName="接收多目标技能词条")
 	void ReceiveSkillEffectForTargets(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets);
 	virtual void ReceiveSkillEffectForTargets_Implementation(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets);
 
-	/** 构建运行时技能效果包，会把技能物品来源上的词条转换为本次技能命中的效果。 */
-	UFUNCTION(BlueprintCallable, Category="技能|效果", DisplayName="构建技能词条效果包")
-	TArray<FLxEffectPackage> BuildRuntimeSkillEffectPackages(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages) const;
+	/** 技能命中词条准备完成事件，由技能释放组件监听并继续转交效果处理组件。 */
+	UPROPERTY(BlueprintAssignable, Category="技能|效果", DisplayName="技能命中词条准备完成事件")
+	FOnLxSkillHitEntriesReady OnSkillHitEntriesReady;
+
 	/** 获取技能类型默认配置的词条包数组。 */
 	UFUNCTION(BlueprintPure, Category="技能|词条", DisplayName="获取技能词条包数组")
 	TArray<FLxSkillEntryPackage> GetSkillEntryPackages() const { return SkillEntryPackages; }

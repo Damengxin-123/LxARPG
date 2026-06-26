@@ -1,10 +1,13 @@
 #include "LxBaseCharacter.h"
 
+#include "LxCharacterNameTags.h"
+
 #include "GameFramework/CharacterMovementComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
-#include "LxARPG/LxSource/Model/Damage/Logic/LxCharacterDamageComponent.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectTransferComponent.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
@@ -21,6 +24,7 @@ ALxBaseCharacter::ALxBaseCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
 	SetReplicateMovement(true);
+	CharacterNameIDTag = LxTag_UnitNaming_DefaultNaming;
 	m_pCharacterMoveComponent = CreateDefaultSubobject<ULxCharacterMoveComponent>(TEXT("CharacterMoveComponent"));
 	m_pCharacterBackpackComponent = CreateDefaultSubobject<ULxCharacterBackpackComponent>(TEXT("CharacterBackpackComponent"));
 	m_pCharacterEquipmentComponent = CreateDefaultSubobject<ULxCharacterEquipmentComponent>(TEXT("CharacterEquipmentComponent"));
@@ -28,7 +32,8 @@ ALxBaseCharacter::ALxBaseCharacter()
 	m_pCharacterStateComponent = CreateDefaultSubobject<ULxCharacterStateComponent>(TEXT("CharacterStateComponent"));
 	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
 	m_pCharacterLifecycleComponent = CreateDefaultSubobject<ULxCharacterLifecycleComponent>(TEXT("CharacterLifecycleComponent"));
-	m_pCharacterDamageComponent = CreateDefaultSubobject<ULxCharacterDamageComponent>(TEXT("CharacterDamageComponent"));
+	m_pCharacterEffectProcessComponent = CreateDefaultSubobject<ULxCharacterEffectProcessComponent>(TEXT("CharacterEffectProcessComponent"));
+	m_pCharacterEffectTransferComponent = CreateDefaultSubobject<ULxCharacterEffectTransferComponent>(TEXT("CharacterEffectTransferComponent"));
 	m_pSkillBackpackComponent = CreateDefaultSubobject<ULxSkillBackpackComponent>(TEXT("SkillBackpackComponent"));
 	m_pCharacterProfessionComponent = CreateDefaultSubobject<ULxCharacterProfessionComponent>(TEXT("CharacterProfessionComponent"));
 	m_pCharacterDataTransferComponent = CreateDefaultSubobject<ULxCharacterDataTransferComponent>(TEXT("CharacterDataTransferComponent"));
@@ -42,6 +47,8 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	{
 		return;
 	}
+
+	InitializeCharacterNamingText();
 	if (m_pCharacterMoveComponent)
 	{
 		m_pCharacterMoveComponent->BaseComponentInitialize();
@@ -77,9 +84,14 @@ void ALxBaseCharacter::InitialCharacterInformation()
 		m_pCharacterLifecycleComponent->BaseComponentInitialize();
 	}
 
-	if (m_pCharacterDamageComponent)
+	if (m_pCharacterEffectProcessComponent)
 	{
-		m_pCharacterDamageComponent->BaseComponentInitialize();
+		m_pCharacterEffectProcessComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterEffectTransferComponent)
+	{
+		m_pCharacterEffectTransferComponent->BaseComponentInitialize();
 	}
 
 	if (m_pSkillBackpackComponent)
@@ -109,6 +121,40 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	IsInitialized  = true;
 }
 
+
+void ALxBaseCharacter::InitializeCharacterNamingText()
+{
+	CharacterNamingText = FText::GetEmpty();
+	if (!CharacterNameIDTag.IsValid())
+	{
+		CharacterNameIDTag = LxTag_UnitNaming_DefaultNaming;
+	}
+
+	if (!CharacterNamingTable)
+	{
+		return;
+	}
+
+	const FString ContextString = TEXT("ALxBaseCharacter::InitializeCharacterNamingText");
+	const FLxCharacterNamingRow* NamingRow = CharacterNamingTable->FindRow<FLxCharacterNamingRow>(CharacterNameIDTag.GetTagName(), ContextString, false);
+	if (!NamingRow)
+	{
+		for (const TPair<FName, uint8*>& RowPair : CharacterNamingTable->GetRowMap())
+		{
+			const FLxCharacterNamingRow* CurrentRow = reinterpret_cast<const FLxCharacterNamingRow*>(RowPair.Value);
+			if (CurrentRow && CurrentRow->NamingIDTag == CharacterNameIDTag)
+			{
+				NamingRow = CurrentRow;
+				break;
+			}
+		}
+	}
+
+	if (NamingRow)
+	{
+		CharacterNamingText = NamingRow->NamingText;
+	}
+}
 void ALxBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

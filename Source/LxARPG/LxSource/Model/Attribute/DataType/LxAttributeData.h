@@ -36,6 +36,7 @@ struct FLxAttributeData : public FTableRowBase
 	FLxAttributeShowInfo ShowInfo;
 
 	/** 运行时计算后的最终属性值，由属性组件维护，不应在数据表中手动配置。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色属性", DisplayName="运行时计算属性值")
 	FLxAttributeValue CalculatedAttributeValue;
 
 	/** 创建角色属性信息配置。 */

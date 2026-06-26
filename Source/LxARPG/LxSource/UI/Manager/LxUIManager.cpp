@@ -6,6 +6,7 @@
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 #include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
+#include "LxARPG/LxSource/UI/Chat/LxChatWidget.h"
 #include "LxARPG/LxSource/UI/Interaction/LxDialogueInteractionWidget.h"
 #include "LxARPG/LxSource/UI/Interaction/LxInteractionEntranceWidget.h"
 #include "LxARPG/LxSource/UI/Interaction/LxInteractionUIManager.h"
@@ -113,6 +114,12 @@ void ULxUIManager::RegisterChildUIWidget(ULxUIBaseObject* InChildUIWidget, ELxIn
 		return;
 	}
 
+	if (ULxChatWidget* ChatWidget = Cast<ULxChatWidget>(InChildUIWidget))
+	{
+		RegisterChatWidget(ChatWidget);
+		return;
+	}
+
 	RegisterTogglePanelWidget(InChildUIWidget, InInputActionID, bInShowCursorWhenVisible);
 }
 
@@ -135,6 +142,12 @@ void ULxUIManager::RegisterUIWidget(const FLxUIWidgetRegistration& InRegistratio
 			TooltipUIManager->SetItemTooltipWidget(ItemTooltipWidget, InRegistration.bShowCursorWhenVisible);
 		}
 		UpdateCursorState();
+		return;
+	}
+
+	if (ULxChatWidget* ChatWidget = Cast<ULxChatWidget>(InRegistration.UIWidget))
+	{
+		RegisterChatWidget(ChatWidget);
 		return;
 	}
 
@@ -207,6 +220,22 @@ void ULxUIManager::RegisterHUDWidget(ULxUIBaseObject* InChildUIWidget)
 	Registration.LayerType = ELxUILayerType::HUD;
 	Registration.bShowCursorWhenVisible = false;
 	RegisterUIWidget(Registration);
+}
+
+void ULxUIManager::RegisterChatWidget(ULxChatWidget* InChatWidget)
+{
+	if (!InChatWidget)
+	{
+		return;
+	}
+
+	EnsureDefaultManagementObjects();
+	InitializeRegisteredUIWidget(InChatWidget);
+	if (HUDUIManager)
+	{
+		HUDUIManager->RegisterPersistentWidget(InChatWidget, false);
+	}
+	UpdateCursorState();
 }
 
 void ULxUIManager::RegisterTogglePanelWidget(ULxUIBaseObject* InChildUIWidget, ELxInputActionID InInputActionID,
