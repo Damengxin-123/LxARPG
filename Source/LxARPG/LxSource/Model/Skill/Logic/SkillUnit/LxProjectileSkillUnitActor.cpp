@@ -96,7 +96,7 @@ void ALxProjectileSkillUnitActor::HandleProjectileDetectionResult(const FLxSkill
 
 	if (DetectionResult.EventType == ELxSkillDetectionEventType::HitWorld || DetectionResult.bHitWorld)
 	{
-		InvalidateProjectile(MakeSpawnTransformFromDetectionResult(DetectionResult));
+		HandleProjectileWorldHit(DetectionResult);
 		return;
 	}
 
@@ -119,6 +119,14 @@ void ALxProjectileSkillUnitActor::HandleProjectileDetectionResult(const FLxSkill
 	TriggeredTargets.Add(HitTarget);
 	OnProjectileTriggered.Broadcast(this, MakeProjectileTriggerContext(DetectionResult));
 
+	FLxSkillUnitResult HitResult = MakeSkillUnitResult(ELxSkillUnitResultType::Hit, true);
+	HitResult.HitTargets.Add(HitTarget);
+	HitResult.HitLocations.Add(DetectionResult.HitLocation);
+	HitResult.HitNormals.Add(DetectionResult.HitNormal);
+	HitResult.SourceToTargetDirections.Add((HitTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal());
+	HitResult.TriggeredCount = TriggeredTargets.Num();
+	PublishSkillUnitHitResult(HitResult);
+
 	if (RemainingPierceCount > 0)
 	{
 		--RemainingPierceCount;
@@ -138,6 +146,11 @@ void ALxProjectileSkillUnitActor::ResetProjectileRuntimeState()
 	RemainingPierceCount = FMath::Max(ProjectileSpec.MaxPierceCount, 0);
 	bProjectileInvalidated = false;
 	TriggeredTargets.Reset();
+}
+
+void ALxProjectileSkillUnitActor::HandleProjectileWorldHit(const FLxSkillDetectionResult& DetectionResult)
+{
+	InvalidateProjectile(MakeSpawnTransformFromDetectionResult(DetectionResult));
 }
 
 FLxProjectileTriggerContext ALxProjectileSkillUnitActor::MakeProjectileTriggerContext(const FLxSkillDetectionResult& DetectionResult) const

@@ -9,8 +9,10 @@
 
 class UDataTable;
 class ULxCharacterAttributeComponent;
+class ULxCharacterAnchorPointComponent;
 class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
+class ULxCharacterCloseCombatComponent;
 class ULxCharacterDataTransferComponent;
 class ULxCharacterEffectProcessComponent;
 class ULxCharacterEffectTransferComponent;
@@ -130,6 +132,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取技能释放组件")
 	ULxSkillCastComponent* GetSkillCastComponent() const { return m_pSkillCastComponent; }
 
+	/** 获取角色近身战斗组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色近身战斗组件")
+	ULxCharacterCloseCombatComponent* GetCharacterCloseCombatComponent() const { return m_pCharacterCloseCombatComponent; }
+
+	/** 获取角色蓝图中可调整的技能释放锚点。 */
+	UFUNCTION(BlueprintPure, Category="角色|锚点", DisplayName="获取技能释放锚点")
+	ULxCharacterAnchorPointComponent* GetSkillReleaseAnchorPoint() const { return m_pSkillReleaseAnchorPoint; }
+
+	/** 获取角色蓝图中可调整的光环效果锚点。 */
+	UFUNCTION(BlueprintPure, Category="角色|锚点", DisplayName="获取光环效果锚点")
+	ULxCharacterAnchorPointComponent* GetAuraEffectAnchorPoint() const { return m_pAuraEffectAnchorPoint; }
+
+	/** 获取当前技能释放锚点的世界变换。 */
+	UFUNCTION(BlueprintPure, Category="角色|锚点", DisplayName="获取技能释放锚点变换")
+	FTransform GetSkillReleaseAnchorTransform() const;
+
 	/** 获取角色技能背包组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取技能背包组件")
 	ULxSkillBackpackComponent* GetSkillBackpackComponent() const { return m_pSkillBackpackComponent; }
@@ -206,6 +224,18 @@ protected:
 	/** 技能释放组件，用于统一处理玩家和 AI 的技能释放、蓄力和释放上下文。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="技能释放组件")
 	TObjectPtr<ULxSkillCastComponent> m_pSkillCastComponent;
+
+	/** 角色近身战斗组件，用于执行近战攻击、格挡及武器盾牌碰撞判定。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色近身战斗组件")
+	TObjectPtr<ULxCharacterCloseCombatComponent> m_pCharacterCloseCombatComponent;
+
+	/** 技能单元创建和持续更新时使用的释放点，可在角色蓝图视口中调整。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色锚点", DisplayName="技能释放锚点")
+	TObjectPtr<ULxCharacterAnchorPointComponent> m_pSkillReleaseAnchorPoint;
+
+	/** 光环效果单元固定依附的角色点位，可在角色蓝图视口中调整。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色锚点", DisplayName="光环效果锚点")
+	TObjectPtr<ULxCharacterAnchorPointComponent> m_pAuraEffectAnchorPoint;
 
 	/** 技能背包组件，用于保存角色已拥有的技能物品和技能背包槽位。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="技能背包组件")

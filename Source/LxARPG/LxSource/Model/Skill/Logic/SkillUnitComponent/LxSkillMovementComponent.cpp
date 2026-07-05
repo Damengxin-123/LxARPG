@@ -1,6 +1,7 @@
 #include "LxSkillMovementComponent.h"
 
 #include "Components/SceneComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
 ULxSkillMovementComponent::ULxSkillMovementComponent()
@@ -25,16 +26,47 @@ void ULxSkillMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 		return;
 	}
 
-	CurrentSpeedCmPerSecond += MovementSpec.GetAccelerationInUnrealUnits() * DeltaTime;
-	const float MoveDistanceCm = FMath::Max(CurrentSpeedCmPerSecond, 0.0f) * DeltaTime;
-	if (MoveDistanceCm <= 0.0f)
+	FVector MoveDelta = FVector::ZeroVector;
+	if (bGravityEnabled)
+	{
+		const float PreviousSpeedCmPerSecond = CurrentSpeedCmPerSecond;
+		CurrentSpeedCmPerSecond = FMath::Max(
+			CurrentSpeedCmPerSecond + MovementSpec.GetAccelerationInUnrealUnits() * DeltaTime,
+			0.0f);
+		FVector AccelerationDirection = CurrentVelocityCmPerSecond;
+		AccelerationDirection.Z = 0.0f;
+		if (!AccelerationDirection.Normalize())
+		{
+			AccelerationDirection = TargetComponent->GetForwardVector();
+			AccelerationDirection.Z = 0.0f;
+			AccelerationDirection.Normalize();
+		}
+		CurrentVelocityCmPerSecond += AccelerationDirection
+			* (CurrentSpeedCmPerSecond - PreviousSpeedCmPerSecond);
+
+		if (const UWorld* World = GetWorld())
+		{
+			CurrentVelocityCmPerSecond.Z += World->GetGravityZ()
+				* FMath::Max(MovementSpec.GravityScale, 0.0f)
+				* DeltaTime;
+		}
+		MoveDelta = CurrentVelocityCmPerSecond * DeltaTime;
+	}
+	else
+	{
+		CurrentSpeedCmPerSecond += MovementSpec.GetAccelerationInUnrealUnits() * DeltaTime;
+		const float MoveDistanceCm = FMath::Max(CurrentSpeedCmPerSecond, 0.0f) * DeltaTime;
+		MoveDelta = TargetComponent->GetForwardVector() * MoveDistanceCm;
+		CurrentVelocityCmPerSecond = DeltaTime > UE_SMALL_NUMBER ? MoveDelta / DeltaTime : FVector::ZeroVector;
+	}
+
+	if (MoveDelta.IsNearlyZero())
 	{
 		return;
 	}
 
-	const FVector MoveDelta = TargetComponent->GetForwardVector() * MoveDistanceCm;
 	TargetComponent->AddWorldOffset(MoveDelta, true);
-	TraveledDistanceCm += MoveDistanceCm;
+	TraveledDistanceCm += MoveDelta.Size();
 
 	const float MaxDistanceCm = MovementSpec.GetMaxDistanceInUnrealUnits();
 	if (MaxDistanceCm > 0.0f && TraveledDistanceCm >= MaxDistanceCm)
@@ -61,6 +93,14 @@ void ULxSkillMovementComponent::StartMovement()
 {
 	TraveledDistanceCm = 0.0f;
 	CurrentSpeedCmPerSecond = MovementSpec.GetSpeedInUnrealUnits();
+	if (USceneComponent* TargetComponent = ResolveMovementTargetComponent())
+	{
+		CurrentVelocityCmPerSecond = TargetComponent->GetForwardVector() * CurrentSpeedCmPerSecond;
+	}
+	else
+	{
+		CurrentVelocityCmPerSecond = FVector::ZeroVector;
+	}
 	SetMovementState(ELxSkillAbilityComponentState::Running);
 	SetComponentTickEnabled(true);
 }
@@ -80,6 +120,27 @@ void ULxSkillMovementComponent::StopMovement()
 {
 	SetMovementState(ELxSkillAbilityComponentState::Stopped);
 	SetComponentTickEnabled(false);
+}
+
+void ULxSkillMovementComponent::SetGravityEnabled(bool bInGravityEnabled)
+{
+	bGravityEnabled = bInGravityEnabled;
+}
+
+void ULxSkillMovementComponent::SetCurrentVelocity(const FVector& InVelocity)
+{
+	CurrentVelocityCmPerSecond = InVelocity;
+}
+void ULxSkillMovementComponent::ReflectCurrentVelocity(const FVector& HitNormal, float VelocityRetention)
+{
+	const FVector SafeHitNormal = HitNormal.GetSafeNormal();
+	if (SafeHitNormal.IsNearlyZero() || FVector::DotProduct(CurrentVelocityCmPerSecond, SafeHitNormal) >= 0.0f)
+	{
+		return;
+	}
+
+	CurrentVelocityCmPerSecond = CurrentVelocityCmPerSecond.MirrorByVector(SafeHitNormal)
+		* FMath::Clamp(VelocityRetention, 0.0f, 1.0f);
 }
 
 float ULxSkillMovementComponent::GetMovementProgress() const

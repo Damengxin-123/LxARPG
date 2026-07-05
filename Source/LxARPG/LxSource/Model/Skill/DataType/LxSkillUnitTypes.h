@@ -4,8 +4,8 @@
 // 需要完整技能单元数据定义时包含本文件；只使用某个结构体时可直接包含 SkillUnit 目录下的对应头文件。
 
 #include "SkillUnit/LxSkillAreaSpec.h"
-#include "SkillUnit/LxSkillAttachSpec.h"
-#include "SkillUnit/LxSkillAuraSpec.h"
+#include "SkillUnit/LxSkillAttachEffectSpec.h"
+#include "SkillUnit/LxSkillAuraEffectSpec.h"
 #include "SkillUnit/LxSkillHitLimitSpec.h"
 #include "SkillUnit/LxSkillLifeSpec.h"
 #include "SkillUnit/LxSkillMeleeSpec.h"

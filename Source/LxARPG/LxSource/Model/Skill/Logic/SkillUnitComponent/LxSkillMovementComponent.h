@@ -42,6 +42,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能单元|运动", DisplayName="停止运动")
 	void StopMovement();
 
+	/** 设置本次运动是否应用运动参数中的重力系数。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|运动", DisplayName="设置是否应用重力")
+	void SetGravityEnabled(bool bInGravityEnabled);
+
+	/** 覆盖当前世界空间速度，单位为厘米每秒。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|运动", DisplayName="设置当前世界速度")
+	void SetCurrentVelocity(const FVector& InVelocity);
+	/** 使用命中法线反射当前速度，仅供拥有特殊碰撞响应的技能单元调用。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|运动", DisplayName="按命中法线反射速度")
+	void ReflectCurrentVelocity(const FVector& HitNormal, float VelocityRetention = 1.0f);
+
+	/** 获取当前世界空间速度，单位为厘米每秒。 */
+	UFUNCTION(BlueprintPure, Category="技能单元|运动", DisplayName="获取当前世界速度")
+	FVector GetCurrentVelocity() const { return CurrentVelocityCmPerSecond; }
+
 	/** 获取运动阶段，0 表示刚开始，1 表示达到最大距离。 */
 	UFUNCTION(BlueprintPure, Category="技能单元|运动", DisplayName="获取运动阶段")
 	float GetMovementProgress() const;
@@ -73,4 +88,6 @@ private:
 	ELxSkillAbilityComponentState MovementState = ELxSkillAbilityComponentState::Ready;
 	float TraveledDistanceCm = 0.0f;
 	float CurrentSpeedCmPerSecond = 0.0f;
+	FVector CurrentVelocityCmPerSecond = FVector::ZeroVector;
+	bool bGravityEnabled = false;
 };

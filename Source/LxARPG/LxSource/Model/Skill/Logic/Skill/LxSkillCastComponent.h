@@ -6,7 +6,9 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEnum.h"
 #include "LxSkillCastComponent.generated.h"
 
+class ULxPlayerAimComponent;
 class ULxSkill;
+struct FLxPlayerAimResult;
 struct FLxSkillEntryPackage;
 class ULxSkillItem;
 
@@ -17,6 +19,9 @@ class LXARPG_API ULxSkillCastComponent : public ULxComponentBase
 	GENERATED_BODY()
 
 public:
+	/** 创建可复制的技能释放组件。 */
+	ULxSkillCastComponent();
+
 	virtual void BaseComponentInitialize() override;
 
 	/** 构建技能释放上下文。没有传入释放者时默认使用组件拥有者。 */
@@ -41,6 +46,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能|释放组件", DisplayName="结束技能蓄力")
 	bool EndSkillCharge(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext);
 
+	/** 开始持续释放指定技能，并独占当前持续释放槽位。 */
+	UFUNCTION(BlueprintCallable, Category="技能|释放组件", DisplayName="开始持续释放技能")
+	bool StartSustainedRelease(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext);
+
+	/** 正常停止当前持续释放技能。 */
+	UFUNCTION(BlueprintCallable, Category="技能|释放组件", DisplayName="停止持续释放技能")
+	bool StopSustainedRelease(ULxSkill* InSkill);
+
+	/** 异常取消当前持续释放技能。 */
+	UFUNCTION(BlueprintCallable, Category="技能|释放组件", DisplayName="取消持续释放技能")
+	bool CancelSustainedRelease(ULxSkill* InSkill);
+
+	/** 取消当前占用释放组件的技能流程，用于死亡、换装、打断等意外终止。 */
+	UFUNCTION(BlueprintCallable, Category="技能|释放组件", DisplayName="取消当前技能释放")
+	bool CancelCurrentSkillRelease();
+
+	/** 由异步技能流程显式通知释放组件解除当前技能占用。 */
+	UFUNCTION(BlueprintCallable, Category="技能|释放组件", DisplayName="完成当前技能释放")
+	bool FinishCurrentSkillRelease(ULxSkill* InSkill);
+
 	/** 处理一次技能释放输入。外部模块只需要传入技能对象、开始/结束/取消状态和释放上下文。 */
 	UFUNCTION(BlueprintCallable, Category="技能|释放组件", DisplayName="处理技能释放输入")
 	bool HandleSkillReleaseInput(ULxSkill* InSkill, ELxSkillReleaseInputState InInputState, const FLxSkillCastContext& InCastContext);
@@ -61,16 +86,75 @@ public:
 	UFUNCTION(BlueprintPure, Category="技能|释放组件", DisplayName="获取当前蓄力技能")
 	ULxSkill* GetChargingSkill() const { return ChargingSkill; }
 
+	/** 获取当前正在持续释放的技能。 */
+	UFUNCTION(BlueprintPure, Category="技能|释放组件", DisplayName="获取当前持续释放技能")
+	ULxSkill* GetSustainedSkill() const { return SustainedSkill; }
+
+	/** 获取当前技能释放占用状态。 */
+	UFUNCTION(BlueprintPure, Category="技能|释放组件|状态", DisplayName="获取技能释放状态")
+	ELxSkillCastState GetSkillCastState() const { return SkillCastState; }
+
+	/** 获取当前占用释放组件的技能。 */
+	UFUNCTION(BlueprintPure, Category="技能|释放组件|状态", DisplayName="获取当前释放技能")
+	ULxSkill* GetCurrentCastingSkill() const { return CurrentCastingSkill; }
+
+	/** 判断技能释放组件当前是否允许开始新的技能。 */
+	UFUNCTION(BlueprintPure, Category="技能|释放组件|状态", DisplayName="技能释放组件是否空闲")
+	bool IsSkillCastIdle() const { return SkillCastState == ELxSkillCastState::Idle; }
+
 	/** 获取最近一次释放上下文。 */
 	UFUNCTION(BlueprintPure, Category="技能|释放组件", DisplayName="获取当前释放上下文")
 	FLxSkillCastContext GetCurrentCastContext() const { return CurrentCastContext; }
 
+protected:
+	/** 组件结束运行时取消尚未结束的持续技能并解除瞄准事件。 */
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 private:
+	/** 将客户端技能物品输入提交到服务端，由服务端校验技能所有权并执行释放。 */
+	UFUNCTION(Server, Reliable, Category="技能|释放组件|网络", DisplayName="服务端处理技能释放输入")
+	void ServerHandleSkillItemReleaseInput(FGameplayTag InSkillItemIDTag, ELxSkillReleaseInputState InInputState,
+		AActor* InTargetActor, FVector_NetQuantize InAimLocation, bool bInHasAimLocation,
+		FVector_NetQuantizeNormal InAimDirection, bool bInHasAimDirection);
+
+	/** 根据技能对象反查所属技能物品标签，避免通过网络传递不可复制的 UObject。 */
+	FGameplayTag ResolveSkillItemIDTag(const ULxSkill* InSkill) const;
+
+	/** 在权威端执行已经通过网络入口校验的技能输入。 */
+	bool HandleSkillReleaseInputAuthority(ULxSkill* InSkill, ELxSkillReleaseInputState InInputState,
+		const FLxSkillCastContext& InCastContext);
+
 	FLxSkillCastContext NormalizeCastContext(const FLxSkillCastContext& InCastContext, UObject* SourceObject = nullptr) const;
+	void BeginSustainedAimTracking();
+	void EndSustainedAimTracking();
+
+	/** 清理当前技能、技能物品和占用状态。 */
+	void ResetSkillCastState();
+
+	/** 接收持续计算出的玩家技能起点和方向，并更新当前持久技能单元。 */
+	UFUNCTION()
+	void HandleAimResultChanged(const FLxPlayerAimResult& AimResult);
 
 	/** 接收技能命中词条事件，并转交给角色效果处理组件。 */
 	UFUNCTION()
 	void HandleSkillHitEntriesReady(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& SkillEntryPackages, const TArray<AActor*>& HitTargets);
+
+	/** 将持续技能命中词条按可替换来源传递给效果处理组件。 */
+	UFUNCTION()
+	void HandlePersistentSkillHitEntriesReady(ULxSkill* SourceSkill,
+		const TArray<FLxSkillEntryPackage>& SkillEntryPackages, const TArray<AActor*>& HitTargets);
+
+	/** 将持续技能效果解除目标传递给效果处理组件。 */
+	UFUNCTION()
+	void HandleSkillEffectsRemoved(ULxSkill* SourceSkill, const TArray<AActor*>& EffectTargets);
+
+	/** 当前技能释放组件的互斥占用状态。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放组件|状态", DisplayName="技能释放状态", meta=(AllowPrivateAccess="true"))
+	ELxSkillCastState SkillCastState = ELxSkillCastState::Idle;
+
+	/** 当前占用技能释放组件的技能。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放组件|状态", DisplayName="当前释放技能", meta=(AllowPrivateAccess="true"))
+	TObjectPtr<ULxSkill> CurrentCastingSkill = nullptr;
 
 	/** 当前正在蓄力的技能。 */
 	UPROPERTY(Transient)
@@ -79,6 +163,18 @@ private:
 	/** 当前正在蓄力的技能物品。 */
 	UPROPERTY(Transient)
 	TObjectPtr<ULxSkillItem> ChargingSkillItem = nullptr;
+
+	/** 当前正在持续释放的技能。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxSkill> SustainedSkill = nullptr;
+
+	/** 当前正在持续释放的技能物品。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxSkillItem> SustainedSkillItem = nullptr;
+
+	/** 当前提供持续技能起点和方向变化的玩家瞄准组件。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxPlayerAimComponent> SustainedAimComponent = nullptr;
 
 	/** 最近一次释放上下文。 */
 	UPROPERTY(Transient)

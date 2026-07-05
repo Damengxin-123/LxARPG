@@ -4,27 +4,59 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillUnitEnum.h"
 #include "LxSkillRaySpec.generated.h"
 
-/** 射线与持续射线独有运行时参数，最大长度、持续时间和周期判定由通用结构体提供。 */
-USTRUCT(BlueprintType, DisplayName="射线技能形态参数（宽度m）")
+/** 射线公共命中规则，不包含由蓝图碰撞体决定的检测范围和半径。 */
+USTRUCT(BlueprintType, DisplayName="射线公共参数")
 struct FLxSkillRaySpec
 {
 	GENERATED_BODY()
 
-	/** 射线宽度，单位 m，等于 0 时可按普通线检测处理。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|形态|射线", DisplayName="射线宽度（m）")
-	float RayWidth = 0.0f;
+	/** 明确指定的射线方向；零向量表示改用释放者指向目标的方向。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线", DisplayName="射线方向")
+	FVector RayDirection = FVector::ZeroVector;
 
-	/** 射线距离衰减方式。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|形态|射线", DisplayName="衰减方式")
-	ELxSkillRayFalloffType FalloffType = ELxSkillRayFalloffType::None;
+	/** 使用前置命中结果创建单次射线时的方向选择；保持来源朝向时沿用射线自身方向规则。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线", DisplayName="前置结果方向选择")
+	ELxSkillResultDirectionType ResultDirectionType = ELxSkillResultDirectionType::KeepSourceRotation;
 
-	/** 到达最大距离时保留的强度倍率。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|形态|射线", DisplayName="最大距离强度倍率")
-	float MaxRangeFalloffMultiplier = 1.0f;
+	/** 是否允许射线命中多个目标；关闭时只保留距离射线起点最近的有效目标。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线", DisplayName="是否穿过目标")
+	bool bPassThroughTargets = true;
 
-	/** 将配置侧米制距离转换为 UE 世界单位厘米。 */
-	static constexpr float MeterToUnrealUnit(float MeterValue) { return MeterValue * 100.0f; }
+	/** 是否忽略目标与射线起点之间阻挡可见性通道的场景障碍物。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线", DisplayName="是否穿过障碍物")
+	bool bPassThroughObstacles = true;
+};
 
-	/** 获取 UE 内部使用的射线宽度，单位 cm。 */
-	float GetRayWidthInUnrealUnits() const { return MeterToUnrealUnit(RayWidth); }
+/** 单次射线效果参数，控制同批射线的数量和横向间距。 */
+USTRUCT(BlueprintType, DisplayName="单次射线效果参数")
+struct FLxSingleRayEffectSpec
+{
+	GENERATED_BODY()
+
+	/** 同一次释放创建的射线技能单元数量。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线|单次", DisplayName="发射数量", meta=(ClampMin="1", UIMin="1"))
+	int32 LaunchCount = 1;
+
+	/** 多条平行射线沿局部右方向居中排列时的相邻间距，单位 m。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线|单次", DisplayName="射线间距（m）", meta=(ClampMin="0.0", UIMin="0.0"))
+	float RaySpacing = 0.0f;
+
+	/** 完成单次命中判定后继续保留射线表现的时间，单位秒。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线|单次", DisplayName="射线表现保留时间（秒）",
+		meta=(ClampMin="0.01", UIMin="0.01"))
+	float VisualRetentionDuration = 0.2f;
+
+	/** 获取 UE 内部使用的射线间距，单位 cm。 */
+	float GetRaySpacingInUnrealUnits() const { return FMath::Max(RaySpacing, 0.0f) * 100.0f; }
+};
+
+/** 持续射线效果参数，控制运行期间重新执行命中检测的周期。 */
+USTRUCT(BlueprintType, DisplayName="持续射线效果参数")
+struct FLxContinuousRayEffectSpec
+{
+	GENERATED_BODY()
+
+	/** 启用期间重新进行一次射线命中判定的时间间隔，单位秒。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线|持续", DisplayName="触发周期（秒）", meta=(ClampMin="0.01", UIMin="0.01"))
+	float TriggerInterval = 0.2f;
 };

@@ -6,6 +6,8 @@
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Model/CloseCombat/Logic/LxCharacterCloseCombatComponent.h"
+#include "LxARPG/LxSource/Model/CharacterPoint/Logic/LxCharacterAnchorPointComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectTransferComponent.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
@@ -39,6 +41,19 @@ ALxBaseCharacter::ALxBaseCharacter()
 	m_pCharacterDataTransferComponent = CreateDefaultSubobject<ULxCharacterDataTransferComponent>(TEXT("CharacterDataTransferComponent"));
 	m_pCharacterTestComponent = CreateDefaultSubobject<ULxCharacterTestComponent>(TEXT("CharacterTestComponent"));
 	m_pSkillCastComponent = CreateDefaultSubobject<ULxSkillCastComponent>(TEXT("SkillCastComponent"));
+	m_pCharacterCloseCombatComponent = CreateDefaultSubobject<ULxCharacterCloseCombatComponent>(TEXT("CharacterCloseCombatComponent"));
+	m_pSkillReleaseAnchorPoint = CreateDefaultSubobject<ULxCharacterAnchorPointComponent>(TEXT("SkillReleaseAnchorPoint"));
+	m_pSkillReleaseAnchorPoint->SetupAttachment(GetRootComponent());
+	m_pSkillReleaseAnchorPoint->SetRelativeLocation(FVector(80.f, 0.f, 60.f));
+	m_pSkillReleaseAnchorPoint->SetAnchorPointType(ELxCharacterAnchorPointType::SkillRelease);
+	m_pAuraEffectAnchorPoint = CreateDefaultSubobject<ULxCharacterAnchorPointComponent>(TEXT("AuraEffectAnchorPoint"));
+	m_pAuraEffectAnchorPoint->SetupAttachment(GetRootComponent());
+	m_pAuraEffectAnchorPoint->SetAnchorPointType(ELxCharacterAnchorPointType::AuraEffect);
+}
+
+FTransform ALxBaseCharacter::GetSkillReleaseAnchorTransform() const
+{
+	return m_pSkillReleaseAnchorPoint->GetComponentTransform();
 }
 
 void ALxBaseCharacter::InitialCharacterInformation()
@@ -117,6 +132,11 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	if (m_pSkillCastComponent)
 	{
 		m_pSkillCastComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterCloseCombatComponent)
+	{
+		m_pCharacterCloseCombatComponent->BaseComponentInitialize();
 	}
 	IsInitialized  = true;
 }

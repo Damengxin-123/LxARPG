@@ -5,10 +5,21 @@
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillMovementComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillPropagationComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillTriggerComponent.h"
+#include "Net/UnrealNetwork.h"
 
 ALxSkillUnitActor::ALxSkillUnitActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
+	SetReplicateMovement(true);
+	bNetLoadOnClient = true;
+}
+
+void ALxSkillUnitActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ALxSkillUnitActor, SkillUnitSpec);
+	DOREPLIFETIME(ALxSkillUnitActor, bSkillUnitActive);
 }
 
 void ALxSkillUnitActor::BeginPlay()
@@ -34,6 +45,11 @@ void ALxSkillUnitActor::InitializeSkillUnit(const FLxSkillUnitSpec& InSkillUnitS
 
 void ALxSkillUnitActor::ActivateSkillUnit_Implementation()
 {
+	if (bSkillUnitActive)
+	{
+		return;
+	}
+
 	if (!bSkillUnitInitialized)
 	{
 		ApplySkillUnitSpecToComponents();
@@ -42,6 +58,13 @@ void ALxSkillUnitActor::ActivateSkillUnit_Implementation()
 	}
 
 	bSkillUnitActive = true;
+
+	// 客户端只复现蓝图表现和激活事件，所有权威组件逻辑仅由服务端启动。
+	if (!HasAuthority())
+	{
+		OnSkillUnitActivated.Broadcast(this, MakeSkillUnitResult(ELxSkillUnitResultType::Started, true));
+		return;
+	}
 
 	if (ULxSkillLifeComponent* LifeComponent = GetSkillLifeComponent())
 	{
@@ -66,10 +89,40 @@ void ALxSkillUnitActor::ActivateSkillUnit_Implementation()
 	OnSkillUnitActivated.Broadcast(this, MakeSkillUnitResult(ELxSkillUnitResultType::Started, true));
 }
 
+void ALxSkillUnitActor::StopSkillUnit_Implementation()
+{
+	if (!bSkillUnitActive)
+	{
+		return;
+	}
+
+	bSkillUnitActive = false;
+	StopSkillUnitComponents();
+	OnSkillUnitFinished.Broadcast(this, MakeSkillUnitResult(ELxSkillUnitResultType::Completed, true));
+}
+
 void ALxSkillUnitActor::CancelSkillUnit_Implementation()
 {
-	bSkillUnitActive = false;
+	if (!bSkillUnitActive)
+	{
+		return;
+	}
 
+	bSkillUnitActive = false;
+	StopSkillUnitComponents();
+
+	const FLxSkillUnitResult Result = MakeSkillUnitResult(ELxSkillUnitResultType::Cancelled, false);
+	OnSkillUnitCancelled.Broadcast(this, Result);
+	OnSkillUnitFinished.Broadcast(this, Result);
+}
+
+void ALxSkillUnitActor::UpdateSkillUnitTransform_Implementation(const FTransform& InTransform)
+{
+	SetActorTransform(InTransform);
+}
+
+void ALxSkillUnitActor::StopSkillUnitComponents()
+{
 	if (ULxSkillMovementComponent* MovementComponent = GetSkillMovementComponent())
 	{
 		MovementComponent->StopMovement();
@@ -89,10 +142,6 @@ void ALxSkillUnitActor::CancelSkillUnit_Implementation()
 	{
 		LifeComponent->StopLife();
 	}
-
-	const FLxSkillUnitResult Result = MakeSkillUnitResult(ELxSkillUnitResultType::Cancelled, false);
-	OnSkillUnitCancelled.Broadcast(this, Result);
-	OnSkillUnitFinished.Broadcast(this, Result);
 }
 
 void ALxSkillUnitActor::SetSkillUnitSpawnSpec(const FLxSkillUnitSpawnSpec& InSpawnSpec)
@@ -202,6 +251,13 @@ FLxSkillUnitResult ALxSkillUnitActor::MakeSkillUnitResult(ELxSkillUnitResultType
 	Result.SourceUnit = const_cast<ALxSkillUnitActor*>(this);
 	return Result;
 }
+void ALxSkillUnitActor::PublishSkillUnitHitResult(const FLxSkillUnitResult& HitResult)
+{
+	if (HasAuthority() && HitResult.bSuccess && HitResult.ResultType == ELxSkillUnitResultType::Hit && !HitResult.HitTargets.IsEmpty())
+	{
+		OnSkillUnitHit.Broadcast(this, HitResult);
+	}
+}
 
 void ALxSkillUnitActor::HandleLifeStateChanged(ELxSkillAbilityComponentState OldState, ELxSkillAbilityComponentState NewState)
 {
@@ -213,7 +269,31 @@ void ALxSkillUnitActor::HandleLifeStateChanged(ELxSkillAbilityComponentState Old
 
 void ALxSkillUnitActor::HandleSkillTriggered(const FLxSkillTriggerResult& TriggerResult)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	OnSkillUnitTriggered.Broadcast(this, TriggerResult);
+
+	if (TriggerResult.bTriggered && !TriggerResult.TriggeredTargets.IsEmpty())
+	{
+		FLxSkillUnitResult HitResult = MakeSkillUnitResult(ELxSkillUnitResultType::Hit, true);
+		for (AActor* TriggeredTarget : TriggerResult.TriggeredTargets)
+		{
+			if (!IsValid(TriggeredTarget))
+			{
+				continue;
+			}
+			const FVector TargetLocation = TriggeredTarget->GetActorLocation();
+			HitResult.HitTargets.Add(TriggeredTarget);
+			HitResult.HitLocations.Add(TargetLocation);
+			HitResult.HitNormals.Add(TriggerResult.DetectionResult.HitNormal);
+			HitResult.SourceToTargetDirections.Add((TargetLocation - GetActorLocation()).GetSafeNormal());
+		}
+		HitResult.TriggeredCount = TriggerResult.TriggeredCount;
+		PublishSkillUnitHitResult(HitResult);
+	}
 
 	if (ULxSkillPropagationComponent* PropagationComponent = GetSkillPropagationComponent())
 	{
@@ -223,5 +303,35 @@ void ALxSkillUnitActor::HandleSkillTriggered(const FLxSkillTriggerResult& Trigge
 
 void ALxSkillUnitActor::HandlePropagationEvaluated(const FLxSkillPropagationResult& PropagationResult)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
 	OnSkillUnitPropagationEvaluated.Broadcast(this, PropagationResult);
+}
+
+void ALxSkillUnitActor::OnRep_SkillUnitSpec()
+{
+	ApplySkillUnitSpecToComponents();
+	BindSkillUnitComponentEvents();
+	bSkillUnitInitialized = true;
+}
+
+void ALxSkillUnitActor::OnRep_SkillUnitActive(bool bOldSkillUnitActive)
+{
+	if (bSkillUnitActive == bOldSkillUnitActive)
+	{
+		return;
+	}
+
+	// 先恢复复制前的旧状态，使激活和停止函数的状态保护能够正常进入。
+	bSkillUnitActive = bOldSkillUnitActive;
+	if (!bOldSkillUnitActive)
+	{
+		ActivateSkillUnit();
+	}
+	else
+	{
+		StopSkillUnit();
+	}
 }

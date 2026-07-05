@@ -47,6 +47,9 @@ struct FLxPlayerAimResult
 	bool bBlockingHit = false;
 };
 
+/** 玩家技能释放点或技能方向发生变化时广播最新瞄准结果。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxPlayerAimResultChanged, const FLxPlayerAimResult&, AimResult);
+
 /** 玩家瞄准组件，负责准星检测、瞄准相机收近和瞄准时角色朝向控制。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="玩家瞄准组件")
 class LXARPG_API ULxPlayerAimComponent : public ULxComponentBase
@@ -86,6 +89,18 @@ public:
 	UFUNCTION(BlueprintPure, Category="玩家|瞄准", DisplayName="获取技能释放点")
 	FVector GetSkillReleasePoint() const;
 
+	/** 请求持续计算并广播技能瞄准结果，支持多个系统同时申请。 */
+	UFUNCTION(BlueprintCallable, Category="玩家|瞄准|持续更新", DisplayName="请求持续更新技能瞄准")
+	void AddAimResultUpdateRequest();
+
+	/** 释放一次持续计算请求，所有请求释放后仅在瞄准状态下继续更新。 */
+	UFUNCTION(BlueprintCallable, Category="玩家|瞄准|持续更新", DisplayName="释放持续更新技能瞄准")
+	void RemoveAimResultUpdateRequest();
+
+	/** 技能释放点或技能方向变化事件。 */
+	UPROPERTY(BlueprintAssignable, Category="玩家|瞄准|事件", DisplayName="技能瞄准结果变化事件")
+	FOnLxPlayerAimResultChanged OnAimResultChanged;
+
 	/** 瞄准状态变化事件，可用于驱动蓄力准星或瞄准 UI。 */
 	UPROPERTY(BlueprintAssignable, Category="玩家|瞄准", DisplayName="瞄准状态变化事件")
 	FOnLxPlayerAimingStateChanged OnAimingStateChanged;
@@ -118,17 +133,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准", DisplayName="瞄准检测通道")
 	TEnumAsByte<ECollisionChannel> AimTraceChannel = ECC_Visibility;
 
-	/** 技能释放 Socket 名称；为空或不存在时使用角色前方偏移点。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准|释放点", DisplayName="技能释放Socket")
-	FName SkillReleaseSocketName = NAME_None;
-
-	/** 无 Socket 时，释放点相对角色前方的偏移距离。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准|释放点", DisplayName="释放点前方偏移")
-	float SkillReleaseForwardOffset = 80.f;
-
-	/** 无 Socket 时，释放点相对角色位置的高度偏移。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准|释放点", DisplayName="释放点高度偏移")
-	float SkillReleaseHeightOffset = 60.f;
 
 	/** 瞄准时是否调整相机弹簧臂。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准|相机", DisplayName="瞄准时调整相机")
@@ -173,6 +177,10 @@ protected:
 	/** 最近一次计算出的瞄准结果。 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category="玩家|瞄准", DisplayName="当前瞄准结果")
 	FLxPlayerAimResult CurrentAimResult;
+
+	/** 持续计算技能瞄准结果的申请数量。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="玩家|瞄准|持续更新", DisplayName="持续更新请求数量")
+	int32 AimResultUpdateRequestCount = 0;
 
 	/** 当前组件所属的玩家角色。 */
 	UPROPERTY(Transient)

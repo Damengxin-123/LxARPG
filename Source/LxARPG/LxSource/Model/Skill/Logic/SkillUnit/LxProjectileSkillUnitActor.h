@@ -51,7 +51,10 @@ protected:
 	void HandleProjectileReachMaxDistance(float MovementProgress);
 
 	/** 重置投射物运行期命中状态。 */
-	void ResetProjectileRuntimeState();
+	virtual void ResetProjectileRuntimeState();
+
+	/** 处理投射物命中场景；派生投射物可重写以实现自己的场景碰撞行为。 */
+	virtual void HandleProjectileWorldHit(const FLxSkillDetectionResult& DetectionResult);
 
 	/** 构造投射物触发行为上下文。 */
 	FLxProjectileTriggerContext MakeProjectileTriggerContext(const FLxSkillDetectionResult& DetectionResult) const;

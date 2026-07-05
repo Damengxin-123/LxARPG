@@ -1,7 +1,6 @@
 #include "LxPlayerAimComponent.h"
 
 #include "Camera/CameraComponent.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -37,9 +36,23 @@ void ULxPlayerAimComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 
 	UpdateAimCamera(DeltaTime);
 
-	if (bIsAiming && CalculateAimResult(CurrentAimResult))
+	if (bIsAiming || AimResultUpdateRequestCount > 0)
 	{
-		UpdateAimRotation(DeltaTime);
+		FLxPlayerAimResult NewAimResult;
+		if (CalculateAimResult(NewAimResult))
+		{
+			const bool bTransformChanged = !CurrentAimResult.ReleaseLocation.Equals(NewAimResult.ReleaseLocation, 0.1f)
+				|| !CurrentAimResult.SkillDirection.Equals(NewAimResult.SkillDirection, 0.0001f);
+			CurrentAimResult = NewAimResult;
+			if (bTransformChanged)
+			{
+				OnAimResultChanged.Broadcast(CurrentAimResult);
+			}
+			if (bIsAiming)
+			{
+				UpdateAimRotation(DeltaTime);
+			}
+		}
 	}
 }
 
@@ -202,6 +215,16 @@ FLxSkillCastContext ULxPlayerAimComponent::MakeAimSkillCastContext(UObject* Sour
 	return CastContext;
 }
 
+void ULxPlayerAimComponent::AddAimResultUpdateRequest()
+{
+	AimResultUpdateRequestCount = FMath::Max(0, AimResultUpdateRequestCount) + 1;
+}
+
+void ULxPlayerAimComponent::RemoveAimResultUpdateRequest()
+{
+	AimResultUpdateRequestCount = FMath::Max(0, AimResultUpdateRequestCount - 1);
+}
+
 FVector ULxPlayerAimComponent::GetSkillReleasePoint() const
 {
 	const ALxPlayerCharacter* PlayerCharacter = OwnerPlayerCharacter.Get();
@@ -215,20 +238,8 @@ FVector ULxPlayerAimComponent::GetSkillReleasePoint() const
 		return FVector::ZeroVector;
 	}
 
-	if (!SkillReleaseSocketName.IsNone())
-	{
-		if (const USkeletalMeshComponent* MeshComponent = PlayerCharacter->GetMesh())
-		{
-			if (MeshComponent->DoesSocketExist(SkillReleaseSocketName))
-			{
-				return MeshComponent->GetSocketLocation(SkillReleaseSocketName);
-			}
-		}
-	}
+	return PlayerCharacter->GetSkillReleaseAnchorTransform().GetLocation();
 
-	return PlayerCharacter->GetActorLocation()
-		+ PlayerCharacter->GetActorForwardVector() * SkillReleaseForwardOffset
-		+ FVector::UpVector * SkillReleaseHeightOffset;
 }
 
 void ULxPlayerAimComponent::CacheOwnerReferences()

@@ -29,6 +29,7 @@ public:
 	ALxSkillUnitActor();
 
 	virtual void BeginPlay() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** 初始化技能单元参数；只分发运行时参数，不自动激活技能单元。 */
 	UFUNCTION(BlueprintCallable, Category="技能单元", DisplayName="初始化技能单元")
@@ -39,10 +40,24 @@ public:
 	void ActivateSkillUnit();
 	virtual void ActivateSkillUnit_Implementation();
 
-	/** 终止技能单元。 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="技能单元", DisplayName="终止技能单元")
+	/** 正常停止技能单元运行，保留 Actor 以便持久技能单元再次激活。 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="技能单元", DisplayName="停止技能单元")
+	void StopSkillUnit();
+	virtual void StopSkillUnit_Implementation();
+
+	/** 异常取消技能单元运行。 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="技能单元", DisplayName="取消技能单元")
 	void CancelSkillUnit();
 	virtual void CancelSkillUnit_Implementation();
+
+	/** 更新正在运行的技能单元位置和方向，特殊单元可重写以同步额外表现。 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="技能单元|运行", DisplayName="更新技能单元变换")
+	void UpdateSkillUnitTransform(const FTransform& InTransform);
+	virtual void UpdateSkillUnitTransform_Implementation(const FTransform& InTransform);
+
+	/** 判断技能单元当前是否正在运行。 */
+	UFUNCTION(BlueprintPure, Category="技能单元|运行", DisplayName="技能单元是否正在运行")
+	bool IsSkillUnitActive() const { return bSkillUnitActive; }
 
 	/** 设置技能单元创建规则。 */
 	UFUNCTION(BlueprintCallable, Category="技能单元", DisplayName="设置技能单元创建规则")
@@ -90,6 +105,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="技能单元|事件", DisplayName="技能单元激活事件")
 	FOnLxSkillUnitResultEvent OnSkillUnitActivated;
 
+	/** 技能单元确认命中事件，统一为后续技能单元提供可串接的命中结果。 */
+	UPROPERTY(BlueprintAssignable, Category="技能单元|事件", DisplayName="技能单元命中事件")
+	FOnLxSkillUnitResultEvent OnSkillUnitHit;
+
 	/** 技能单元结束事件。 */
 	UPROPERTY(BlueprintAssignable, Category="技能单元|事件", DisplayName="技能单元结束事件")
 	FOnLxSkillUnitResultEvent OnSkillUnitFinished;
@@ -107,6 +126,17 @@ public:
 	FOnLxSkillUnitPropagationEvent OnSkillUnitPropagationEvaluated;
 
 protected:
+	/** 技能单元参数完成网络同步后刷新客户端表现配置。 */
+	UFUNCTION(Category="技能|技能单元|网络", DisplayName="技能单元参数同步")
+	void OnRep_SkillUnitSpec();
+
+	/** 技能单元运行状态完成网络同步后驱动客户端表现，不在客户端执行命中逻辑。 */
+	UFUNCTION(Category="技能|技能单元|网络", DisplayName="技能单元状态同步")
+	void OnRep_SkillUnitActive(bool bOldSkillUnitActive);
+
+	/** 停止技能单元上所有已启动的能力组件。 */
+	void StopSkillUnitComponents();
+
 	/** 将当前技能单元参数分发给已装配的能力组件。 */
 	virtual void ApplySkillUnitSpecToComponents();
 
@@ -120,6 +150,9 @@ protected:
 	/** 构造一个基础运行结果。 */
 	FLxSkillUnitResult MakeSkillUnitResult(ELxSkillUnitResultType InResultType, bool bSuccess) const;
 
+	/** 广播由具体技能单元确认过的通用命中结果。 */
+	void PublishSkillUnitHitResult(const FLxSkillUnitResult& HitResult);
+
 	UFUNCTION()
 	virtual void HandleLifeStateChanged(ELxSkillAbilityComponentState OldState, ELxSkillAbilityComponentState NewState);
 
@@ -130,7 +163,7 @@ protected:
 	virtual void HandlePropagationEvaluated(const FLxSkillPropagationResult& PropagationResult);
 
 	/** 技能单元运行时参数。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元", DisplayName="技能单元参数")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing=OnRep_SkillUnitSpec, Category="技能单元", DisplayName="技能单元参数")
 	FLxSkillUnitSpec SkillUnitSpec;
 
 	/** 技能单元携带的词条包，命中目标后可转换为技能效果。 */
@@ -142,5 +175,7 @@ protected:
 	bool bAutoActivateSkillUnit = false;
 
 	bool bSkillUnitInitialized = false;
+	/** 由服务端维护并复制的技能单元运行状态。 */
+	UPROPERTY(ReplicatedUsing=OnRep_SkillUnitActive, VisibleAnywhere, BlueprintReadOnly, Category="技能|技能单元|网络", DisplayName="技能单元运行状态")
 	bool bSkillUnitActive = false;
 };

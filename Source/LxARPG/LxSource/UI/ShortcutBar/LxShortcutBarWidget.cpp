@@ -154,15 +154,16 @@ bool ULxShortcutBarWidget::BeginUseSelectedShortcut()
 
 	bUsingSelectedShortcut = true;
 	SetMoveRotationLockedByShortcut(true);
-	if (Skill->CanSkillCharge())
+	if (Skill->CanSkillCharge() || Skill->IsSustainedReleaseSkill())
 	{
-		bChargingSelectedShortcut = SelectedShortcutGrid->StartUseItem();
-		bUsingSelectedShortcut = bChargingSelectedShortcut;
+		bUsingSelectedShortcut = SelectedShortcutGrid->StartUseItem();
+		bChargingSelectedShortcut = bUsingSelectedShortcut && Skill->CanSkillCharge();
+		bSustainingSelectedShortcut = bUsingSelectedShortcut && Skill->IsSustainedReleaseSkill();
 		if (!bUsingSelectedShortcut)
 		{
 			SetMoveRotationLockedByShortcut(false);
 		}
-		return bChargingSelectedShortcut;
+		return bUsingSelectedShortcut;
 	}
 
 	UseSelectedShortcutRepeatedly();
@@ -181,7 +182,7 @@ bool ULxShortcutBarWidget::BeginUseSelectedShortcut()
 bool ULxShortcutBarWidget::EndUseSelectedShortcut()
 {
 	StopRepeatedUseTimer();
-	if (bChargingSelectedShortcut && SelectedShortcutGrid)
+	if ((bChargingSelectedShortcut || bSustainingSelectedShortcut) && SelectedShortcutGrid)
 	{
 		SelectedShortcutGrid->EndUseItem();
 	}
@@ -189,6 +190,7 @@ bool ULxShortcutBarWidget::EndUseSelectedShortcut()
 	SetMoveRotationLockedByShortcut(false);
 	bUsingSelectedShortcut = false;
 	bChargingSelectedShortcut = false;
+	bSustainingSelectedShortcut = false;
 	return true;
 }
 

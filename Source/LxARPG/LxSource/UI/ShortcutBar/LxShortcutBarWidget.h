@@ -87,6 +87,10 @@ private:
 	UPROPERTY(Transient)
 	bool bChargingSelectedShortcut = false;
 
+	/** 当前是否正在持续使用选中的技能。 */
+	UPROPERTY(Transient)
+	bool bSustainingSelectedShortcut = false;
+
 	/** 当前快捷栏技能使用是否锁定了移动转向。 */
 	UPROPERTY(Transient)
 	bool bMoveRotationLockedByShortcut = false;

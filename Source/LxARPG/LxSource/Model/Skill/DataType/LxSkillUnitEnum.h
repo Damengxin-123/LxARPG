@@ -8,16 +8,19 @@ UENUM(BlueprintType, DisplayName="技能单元类型")
 enum class ELxSkillUnitType : uint8
 {
 	None			UMETA(DisplayName="无"),
-	Area			UMETA(DisplayName="范围"),
-	DurationArea	UMETA(DisplayName="持续区域"),
+	DirectHitAreaEffect	UMETA(DisplayName="直接命中型范围效果"),
+	DurationAreaEffect	UMETA(DisplayName="持续型范围效果"),
+	ScalingAreaEffect	UMETA(DisplayName="缩放型范围效果"),
 	Melee			UMETA(DisplayName="近战"),
 	Projectile		UMETA(DisplayName="投射物"),
-	Ray				UMETA(DisplayName="射线"),
-	Beam			UMETA(DisplayName="持续射线"),
+	SingleRayEffect		UMETA(DisplayName="单次射线效果"),
+	ContinuousRayEffect	UMETA(DisplayName="持续射线效果"),
 	SpawnEntity		UMETA(DisplayName="召唤实体"),
 	Trigger			UMETA(DisplayName="触发器"),
-	Attach			UMETA(DisplayName="附着"),
-	Aura			UMETA(DisplayName="光环"),
+	ContinuousAttachEffect	UMETA(DisplayName="持续生效依附效果"),
+	PeriodicAttachEffect	UMETA(DisplayName="周期触发依附效果"),
+	ContinuousAuraEffect	UMETA(DisplayName="持续型光环效果"),
+	PeriodicAuraEffect	UMETA(DisplayName="周期触发型光环效果"),
 	Barrier			UMETA(DisplayName="屏障"),
 	Marker			UMETA(DisplayName="标记")
 };
@@ -45,6 +48,15 @@ enum class ELxSkillUnitSpawnRotationType : uint8
 	HitNormal			UMETA(DisplayName="命中法线"),
 	PreviousUnitOutput	UMETA(DisplayName="上一个单元输出"),
 	Custom				UMETA(DisplayName="自定义朝向")
+};
+
+/** 后续技能单元从前置命中结果中选择生成方向的方式。 */
+UENUM(BlueprintType, DisplayName="技能结果方向选择")
+enum class ELxSkillResultDirectionType : uint8
+{
+	KeepSourceRotation	UMETA(DisplayName="保持来源单元朝向"),
+	SourceToTarget		UMETA(DisplayName="来源位置朝向目标位置"),
+	TargetToSource		UMETA(DisplayName="目标位置朝向来源位置")
 };
 
 /** 技能单元创建后是否依附到某个对象。 */
@@ -188,24 +200,6 @@ enum class ELxSkillUnitResultType : uint8
 	Completed	UMETA(DisplayName="已完成")
 };
 
-/** 近战判定来源。 */
-UENUM(BlueprintType, DisplayName="近战判定来源")
-enum class ELxSkillMeleeSourceType : uint8
-{
-	CasterForward		UMETA(DisplayName="释放者朝向"),
-	WeaponSocket		UMETA(DisplayName="武器插槽"),
-	WeaponTrace			UMETA(DisplayName="武器轨迹"),
-	AnimationNotify		UMETA(DisplayName="动画通知")
-};
-
-/** 射线衰减方式。 */
-UENUM(BlueprintType, DisplayName="射线衰减方式")
-enum class ELxSkillRayFalloffType : uint8
-{
-	None	UMETA(DisplayName="不衰减"),
-	Linear	UMETA(DisplayName="线性衰减"),
-	Curve	UMETA(DisplayName="曲线衰减")
-};
 
 /** 召唤实体所属阵营。 */
 UENUM(BlueprintType, DisplayName="召唤实体阵营")
@@ -240,23 +234,4 @@ enum class ELxSkillTriggerConditionType : uint8
 	TargetDamaged	UMETA(DisplayName="目标受击"),
 	TimeEnd			UMETA(DisplayName="时间结束"),
 	ManualDetonate	UMETA(DisplayName="手动引爆")
-};
-
-/** 附着单元选择依附对象的方式。 */
-UENUM(BlueprintType, DisplayName="附着对象类型")
-enum class ELxSkillAttachUnitTargetType : uint8
-{
-	Caster			UMETA(DisplayName="释放者"),
-	HitTarget		UMETA(DisplayName="命中目标"),
-	SelectedTarget	UMETA(DisplayName="选中目标"),
-	SpawnedEntity	UMETA(DisplayName="生成实体")
-};
-
-/** 光环中心对象类型。 */
-UENUM(BlueprintType, DisplayName="光环拥有者类型")
-enum class ELxSkillAuraOwnerType : uint8
-{
-	Caster			UMETA(DisplayName="释放者"),
-	Target			UMETA(DisplayName="目标"),
-	SpawnedEntity	UMETA(DisplayName="生成实体")
 };
