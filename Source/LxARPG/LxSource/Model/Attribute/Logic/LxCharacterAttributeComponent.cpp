@@ -1,4 +1,5 @@
 #include "LxCharacterAttributeComponent.h"
+#include "Net/UnrealNetwork.h"
 
 #include "Engine/DataTable.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
@@ -116,6 +117,13 @@ namespace
 ULxCharacterAttributeComponent::ULxCharacterAttributeComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(true);
+}
+
+void ULxCharacterAttributeComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ULxCharacterAttributeComponent, ReplicatedAttributeList);
 }
 
 void ULxCharacterAttributeComponent::BaseComponentInitialize()
@@ -352,7 +360,26 @@ void ULxCharacterAttributeComponent::BroadcastAttributeTableChanged()
 {
 	TArray<FLxAttributeData> AttributeList;
 	GetCharacterAttributeList(AttributeList);
+	if (const AActor* OwnerActor = GetOwner(); OwnerActor && OwnerActor->HasAuthority())
+	{
+		ReplicatedAttributeList = AttributeList;
+	}
 	OnAttributeTableChanged.Broadcast(AttributeList);
+	OnDataChange.Broadcast();
+}
+
+void ULxCharacterAttributeComponent::OnRep_ReplicatedAttributeList()
+{
+	CharacterAttributeTable.Reset();
+	for (const FLxAttributeData& AttributeData : ReplicatedAttributeList)
+	{
+		if (AttributeData.AttributeIDTag.IsValid())
+		{
+			CharacterAttributeTable.Add(AttributeData.AttributeIDTag, AttributeData);
+		}
+	}
+
+	OnAttributeTableChanged.Broadcast(ReplicatedAttributeList);
 	OnDataChange.Broadcast();
 }
 

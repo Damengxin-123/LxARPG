@@ -36,6 +36,10 @@ struct FLxSkillCastContext
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放上下文", DisplayName="默认生成变换")
 	FTransform SpawnTransform = FTransform::Identity;
 
+	/** 是否使用上下文中的固定生成变换；关闭时在释放瞬间重新读取角色技能释放锚点。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放上下文", DisplayName="覆盖技能释放锚点")
+	bool bOverrideSpawnTransform = false;
+
 	/** 瞄准位置。只有“具有瞄准位置”为 true 时才表示本次释放明确指定了位置。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放上下文", DisplayName="瞄准位置")
 	FVector AimLocation = FVector::ZeroVector;

@@ -32,6 +32,10 @@ struct FLxSkillUnitResult
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|结果", DisplayName="命中法线列表")
 	TArray<FVector> HitNormals;
 
+	/** 从技能单元所在位置朝向对应命中目标位置的规范化方向，与命中目标列表下标一致。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|结果", DisplayName="来源朝向目标方向列表")
+	TArray<FVector> SourceToTargetDirections;
+
 	/** 技能单元结束位置。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|结果", DisplayName="结束位置")
 	FVector EndLocation = FVector::ZeroVector;

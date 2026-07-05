@@ -57,6 +57,13 @@ struct FLxSkillProjectileSpec
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|投射物|创建", DisplayName="发射数量")
 	int32 LaunchCount = 1;
 
+	/** 同批投射物沿释放朝向的横向平面居中排列时，相邻单元之间的距离，单位为米。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|投射物|创建", DisplayName="创建间隔（m）", meta=(ClampMin="0.0", UIMin="0.0"))
+	float LaunchSpacing = 0.1f;
+
+	/** 获取供 UE 世界坐标使用的创建间隔，单位为厘米。 */
+	float GetLaunchSpacingInUnrealUnits() const { return FMath::Max(LaunchSpacing, 0.0f) * 100.0f; }
+
 	/** 投射物失效后是否自动销毁。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|投射物|生命周期", DisplayName="失效后销毁")
 	bool bDestroyAfterInvalidated = true;

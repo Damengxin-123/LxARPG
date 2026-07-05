@@ -21,7 +21,9 @@ void ULxCharacterEffectProcessComponent::BaseComponentInitialize()
 	EnsureDamageCalculationFlow();
 }
 
-void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets)
+void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* SourceSkill,
+	const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets,
+	bool bPersistentEffect)
 {
 	CacheOwnerComponents();
 	if (SourceSkill == nullptr || DataTransferComponent == nullptr || HitTargets.IsEmpty())
@@ -30,7 +32,7 @@ void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* Source
 	}
 
 	TArray<FLxEffectPackage> SourceEffectPackages;
-	BuildEffectPackagesFromSkillEntries(SourceSkill, InSkillEntryPackages, SourceEffectPackages);
+	BuildEffectPackagesFromSkillEntries(SourceSkill, InSkillEntryPackages, SourceEffectPackages, bPersistentEffect);
 	if (SourceEffectPackages.IsEmpty())
 	{
 		return;
@@ -38,7 +40,7 @@ void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* Source
 
 	for (AActor* HitTarget : HitTargets)
 	{
-		if (HitTarget == nullptr)
+		if (!IsValid(HitTarget))
 		{
 			continue;
 		}
@@ -51,6 +53,32 @@ void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* Source
 				DataTransferComponent->SendEffectPackageToTarget(OutgoingEffectPackage, HitTarget);
 			}
 		}
+	}
+}
+
+void ULxCharacterEffectProcessComponent::RemovePersistentSkillEffects(ULxSkill* SourceSkill,
+	const TArray<AActor*>& EffectTargets)
+{
+	CacheOwnerComponents();
+	if (!IsValid(SourceSkill) || !DataTransferComponent)
+	{
+		return;
+	}
+	for (AActor* EffectTarget : EffectTargets)
+	{
+		if (!IsValid(EffectTarget))
+		{
+			continue;
+		}
+		FLxEffectPackage RemovalPackage;
+		RemovalPackage.SourceContext.SourceType = ELxEffectPackageSource::Skill;
+		RemovalPackage.SourceContext.SourceActor = GetOwner();
+		RemovalPackage.SourceContext.SourceObject = SourceSkill;
+		RemovalPackage.SourceContext.SourceIDTag = SourceSkill->GetSkillIDTag();
+		RemovalPackage.SourceContext.SourceName = SourceSkill->GetFName();
+		RemovalPackage.TargetActor = EffectTarget;
+		RemovalPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::ReplaceSameSource;
+		DataTransferComponent->SendEffectPackageToTarget(RemovalPackage, EffectTarget);
 	}
 }
 
@@ -81,7 +109,6 @@ bool ULxCharacterEffectProcessComponent::BuildOutgoingEffectPackage(const FLxEff
 	}
 
 	RuntimeSourceEffectPackage.TargetActor = TargetActor;
-	RuntimeSourceEffectPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::Instant;
 	OutEffectPackage = RuntimeSourceEffectPackage;
 
 	if (RuntimeSourceEffectPackage.DamageEffects.IsEmpty())
@@ -188,7 +215,9 @@ void ULxCharacterEffectProcessComponent::EnsureDamageCalculationFlow()
 	}
 }
 
-void ULxCharacterEffectProcessComponent::BuildEffectPackagesFromSkillEntries(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, TArray<FLxEffectPackage>& OutEffectPackages) const
+void ULxCharacterEffectProcessComponent::BuildEffectPackagesFromSkillEntries(ULxSkill* SourceSkill,
+	const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, TArray<FLxEffectPackage>& OutEffectPackages,
+	bool bPersistentEffect) const
 {
 	OutEffectPackages.Reset();
 	if (SourceSkill == nullptr)
@@ -211,8 +240,11 @@ void ULxCharacterEffectProcessComponent::BuildEffectPackagesFromSkillEntries(ULx
 		EntryEffectPackage.SourceContext.SourceType = ELxEffectPackageSource::Skill;
 		EntryEffectPackage.SourceContext.SourceActor = GetOwner();
 		EntryEffectPackage.SourceContext.SourceObject = SourceSkill;
+		EntryEffectPackage.SourceContext.SourceIDTag = SourceSkill->GetSkillIDTag();
 		EntryEffectPackage.SourceContext.SourceName = SourceSkill->GetFName();
-		EntryEffectPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::Instant;
+		EntryEffectPackage.ApplyPolicy = bPersistentEffect
+			? ELxEffectPackageApplyPolicy::ReplaceSameSource
+			: ELxEffectPackageApplyPolicy::Instant;
 
 		for (const FLxEntryQuote& EntryQuote : SkillEntryPackage.EntryQuotes)
 		{
@@ -229,6 +261,23 @@ void ULxCharacterEffectProcessComponent::BuildEffectPackagesFromSkillEntries(ULx
 		{
 			OutEffectPackages.Add(EntryEffectPackage);
 		}
+	}
+
+	if (bPersistentEffect && OutEffectPackages.Num() > 1)
+	{
+		FLxEffectPackage CombinedPackage = OutEffectPackages[0];
+		for (int32 PackageIndex = 1; PackageIndex < OutEffectPackages.Num(); ++PackageIndex)
+		{
+			const FLxEffectPackage& Package = OutEffectPackages[PackageIndex];
+			CombinedPackage.AttributeModifierEffects.Append(Package.AttributeModifierEffects);
+			CombinedPackage.AttributeRecoveryEffects.Append(Package.AttributeRecoveryEffects);
+			CombinedPackage.DamageEffects.Append(Package.DamageEffects);
+			CombinedPackage.StateChangeEffects.Append(Package.StateChangeEffects);
+			CombinedPackage.BuffGrantEffects.Append(Package.BuffGrantEffects);
+			CombinedPackage.SkillGrantEffects.Append(Package.SkillGrantEffects);
+		}
+		OutEffectPackages.Reset();
+		OutEffectPackages.Add(MoveTemp(CombinedPackage));
 	}
 }
 

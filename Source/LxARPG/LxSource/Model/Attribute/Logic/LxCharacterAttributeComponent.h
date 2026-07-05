@@ -24,6 +24,7 @@ class LXARPG_API ULxCharacterAttributeComponent : public ULxCharacterComponentBa
 public:
 	/** 创建属性组件并关闭 Tick。 */
 	ULxCharacterAttributeComponent();
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** 初始化属性表，并广播一次当前完整属性数据。 */
 	virtual void BaseComponentInitialize() override;
@@ -73,6 +74,10 @@ protected:
 	TArray<FLxAttributeValueConfig> CharacterAttributeValueConfigs;
 
 private:
+	/** 服务端属性快照同步到客户端后重建本地属性表并刷新界面。 */
+	UFUNCTION(Category="角色属性|网络", DisplayName="角色属性同步")
+	void OnRep_ReplicatedAttributeList();
+
 	/** 初始化属性组件内部数据。 */
 	void InitializeAttributeTable();
 
@@ -114,4 +119,8 @@ private:
 
 	/** 判断属性是否满足属性恢复效果的目标条件。 */
 	static bool AttributeMatchesRecoveryEffect(const FLxAttributeData& InAttributeData, const FLxAttributeRecoveryEffect& InEffect);
+
+	/** 由服务端复制的完整角色属性快照，客户端据此重建属性表。 */
+	UPROPERTY(ReplicatedUsing=OnRep_ReplicatedAttributeList, VisibleAnywhere, Category="角色属性|网络", DisplayName="网络同步属性列表")
+	TArray<FLxAttributeData> ReplicatedAttributeList;
 };

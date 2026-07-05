@@ -28,7 +28,12 @@ public:
 
 	/** 处理技能命中结果，将技能词条和有效目标转换为最终效果包并交给数据中转组件发送。 */
 	UFUNCTION(BlueprintCallable, Category="角色效果处理", DisplayName="处理技能命中效果")
-	void ProcessSkillHitEffects(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets);
+	void ProcessSkillHitEffects(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& InSkillEntryPackages,
+		const TArray<AActor*>& HitTargets, bool bPersistentEffect = false);
+
+	/** 向目标发送同技能来源的空替换效果包，解除此前由持续依附或光环施加的缓存效果。 */
+	UFUNCTION(BlueprintCallable, Category="角色效果处理", DisplayName="解除持续技能效果")
+	void RemovePersistentSkillEffects(ULxSkill* SourceSkill, const TArray<AActor*>& EffectTargets);
 
 	/** 基于已有效果包计算当前角色对目标的最终输出效果包。 */
 	UFUNCTION(BlueprintCallable, Category="角色效果处理", DisplayName="构建输出效果包")
@@ -59,7 +64,8 @@ private:
 	void EnsureDamageCalculationFlow();
 
 	/** 从技能词条构建待处理的基础效果包。 */
-	void BuildEffectPackagesFromSkillEntries(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, TArray<FLxEffectPackage>& OutEffectPackages) const;
+	void BuildEffectPackagesFromSkillEntries(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& InSkillEntryPackages,
+		TArray<FLxEffectPackage>& OutEffectPackages, bool bPersistentEffect) const;
 
 	/** 将最终承伤结果应用到当前角色属性。 */
 	void ApplyDamageReceiveResultToTarget(const FLxDamageReceiveResult& InDamageReceiveResult);

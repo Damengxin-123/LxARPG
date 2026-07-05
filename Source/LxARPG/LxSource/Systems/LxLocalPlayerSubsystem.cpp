@@ -74,6 +74,23 @@ ULxInteractionUIManager* ULxLocalPlayerSubsystem::GetInteractionUIManager() cons
 	return m_pUIManager ? m_pUIManager->GetInteractionUIManager() : nullptr;
 }
 
+void ULxLocalPlayerSubsystem::SetGameState(const ELxGameState InGameState)
+{
+	if (m_GameState == InGameState)
+	{
+		return;
+	}
+
+	const ELxGameState PreviousState = m_GameState;
+	m_GameState = InGameState;
+	OnGameStateChanged.Broadcast(PreviousState, m_GameState);
+}
+
+bool ULxLocalPlayerSubsystem::IsCharacterFeatureAvailable() const
+{
+	return m_GameState == ELxGameState::InGame || m_GameState == ELxGameState::InOnlineGame;
+}
+
 void ULxLocalPlayerSubsystem::SetInputComponentQuote(ULxInputComponent* InUInputComponentQuote)
 {
 	if (!InUInputComponentQuote)

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputReceiveInterface.h"
+#include "LxGameStateTypes.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "LxLocalPlayerSubsystem.generated.h"
 
@@ -43,7 +44,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category="本地玩家子系统", DisplayName="获取交互UI管理器")
 	ULxInteractionUIManager* GetInteractionUIManager() const;
 
+	/** 获取本地玩家当前所处的游戏流程状态。 */
+	UFUNCTION(BlueprintPure, Category="本地玩家子系统|游戏状态", DisplayName="获取游戏状态")
+	ELxGameState GetGameState() const { return m_GameState; }
+
+	/** 设置本地玩家当前所处的游戏流程状态；状态未变化时不会重复广播事件。 */
+	UFUNCTION(BlueprintCallable, Category="本地玩家子系统|游戏状态", DisplayName="设置游戏状态")
+	void SetGameState(ELxGameState InGameState);
+
+	/** 查询当前状态是否允许使用角色相关功能与 UI。 */
+	UFUNCTION(BlueprintPure, Category="本地玩家子系统|游戏状态", DisplayName="是否允许使用角色相关功能")
+	bool IsCharacterFeatureAvailable() const;
+
+	/** 游戏流程状态变化事件，依次提供变化前与变化后的状态。 */
+	UPROPERTY(BlueprintAssignable, Category="本地玩家子系统|游戏状态", DisplayName="游戏状态变化事件")
+	FOnLxGameStateChanged OnGameStateChanged;
+
 private:
+	/** 本地玩家当前所处的游戏流程状态。 */
+	UPROPERTY(VisibleInstanceOnly, BlueprintGetter=GetGameState, Category="本地玩家子系统|游戏状态",
+		DisplayName="当前游戏状态")
+	ELxGameState m_GameState = ELxGameState::OpeningGame;
+
 	UPROPERTY()
 	TObjectPtr<ULxInputComponent> m_pInputComponentQuote = nullptr;
 

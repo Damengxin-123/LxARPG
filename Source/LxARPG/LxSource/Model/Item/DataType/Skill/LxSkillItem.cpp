@@ -26,7 +26,11 @@ ELxItemUseState ULxSkillItem::ItemUse()
 		return ELxItemUseState::Failed;
 	}
 
-	SkillObject->ReleaseSkillDirectly();
+	if (!SkillObject->TryReleaseSkillDirectly())
+	{
+		return ELxItemUseState::Failed;
+	}
+
 	return ELxItemUseState::CastSkill;
 }
 
@@ -49,11 +53,19 @@ ELxItemUseState ULxSkillItem::ItemUseStart()
 
 	if (SkillObject->CanSkillCharge())
 	{
-		SkillObject->StartSkillCharge();
+		if (!SkillObject->TryStartSkillCharge())
+		{
+			return ELxItemUseState::Failed;
+		}
+
 		return ELxItemUseState::CastSkill;
 	}
 
-	SkillObject->ReleaseSkillDirectly();
+	if (!SkillObject->TryReleaseSkillDirectly())
+	{
+		return ELxItemUseState::Failed;
+	}
+
 	return ELxItemUseState::CastSkill;
 }
 
@@ -69,7 +81,11 @@ ELxItemUseState ULxSkillItem::ItemUseEnd()
 		return ELxItemUseState::Failed;
 	}
 
-	SkillObject->EndSkillCharge();
+	if (!SkillObject->TryEndSkillCharge())
+	{
+		return ELxItemUseState::Failed;
+	}
+
 	return ELxItemUseState::CastSkill;
 }
 

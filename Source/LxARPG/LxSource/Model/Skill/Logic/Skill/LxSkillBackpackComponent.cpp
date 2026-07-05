@@ -4,15 +4,24 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillItem.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
+#include "Net/UnrealNetwork.h"
 
 ULxSkillBackpackComponent::ULxSkillBackpackComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(true);
+}
+
+void ULxSkillBackpackComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ULxSkillBackpackComponent, ReplicatedSkillItemIDTags);
 }
 
 void ULxSkillBackpackComponent::BaseComponentInitialize()
 {
 	RebuildSkillItemSlots();
+	SyncReplicatedSkillItemIDTags();
 }
 
 bool ULxSkillBackpackComponent::AddSkillItemByTagID(FGameplayTag InSkillItemIDTag)
@@ -46,6 +55,7 @@ bool ULxSkillBackpackComponent::AddSkillItemObject(ULxSkillItem* InSkillItem)
 	SkillItemList.Add(InSkillItem);
 	RebuildSkillItemSlots();
 	OnDataChange.Broadcast();
+	SyncReplicatedSkillItemIDTags();
 	return true;
 }
 
@@ -93,6 +103,23 @@ void ULxSkillBackpackComponent::GetAllSkillItems(TArray<ULxSkillItem*>& OutSkill
 ULxItemSlotData* ULxSkillBackpackComponent::GetSkillItemSlotAt(int32 SlotIndex) const
 {
 	return SkillItemSlotList.IsValidIndex(SlotIndex) ? SkillItemSlotList[SlotIndex] : nullptr;
+}
+
+ULxSkillItem* ULxSkillBackpackComponent::FindSkillItemByTagID(FGameplayTag InSkillItemIDTag) const
+{
+	if (!InSkillItemIDTag.IsValid())
+	{
+		return nullptr;
+	}
+
+	for (ULxSkillItem* SkillItem : SkillItemList)
+	{
+		if (SkillItem && SkillItem->ItemIsValid() && SkillItem->ItemIDTag() == InSkillItemIDTag)
+		{
+			return SkillItem;
+		}
+	}
+	return nullptr;
 }
 
 void ULxSkillBackpackComponent::RebuildSkillItemSlots()
@@ -144,5 +171,40 @@ bool ULxSkillBackpackComponent::ContainsSkillItem(FGameplayTag InSkillItemIDTag)
 
 void ULxSkillBackpackComponent::HandleSkillSlotChanged(ULxItemBase* InItemData)
 {
+	OnDataChange.Broadcast();
+	SyncReplicatedSkillItemIDTags();
+}
+
+void ULxSkillBackpackComponent::SyncReplicatedSkillItemIDTags()
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	ReplicatedSkillItemIDTags.Reset();
+	for (ULxSkillItem* SkillItem : SkillItemList)
+	{
+		if (SkillItem && SkillItem->ItemIsValid())
+		{
+			ReplicatedSkillItemIDTags.AddUnique(SkillItem->ItemIDTag());
+		}
+	}
+}
+
+void ULxSkillBackpackComponent::OnRep_ReplicatedSkillItemIDTags()
+{
+	SkillItemList.Reset();
+	for (const FGameplayTag SkillItemIDTag : ReplicatedSkillItemIDTags)
+	{
+		ULxSkillItem* SkillItem = Cast<ULxSkillItem>(
+			ULxItemBase::CreateItemObject(this, FLxItemQuote(SkillItemIDTag, 1)));
+		if (SkillItem && SkillItem->ItemIsValid())
+		{
+			SkillItemList.Add(SkillItem);
+		}
+	}
+
+	RebuildSkillItemSlots();
 	OnDataChange.Broadcast();
 }

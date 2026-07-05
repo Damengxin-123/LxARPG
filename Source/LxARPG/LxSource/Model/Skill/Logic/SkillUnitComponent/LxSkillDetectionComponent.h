@@ -27,6 +27,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能单元|检测", DisplayName="传入技能单元触发碰撞体")
 	void SetTriggerCollisionComponent(UPrimitiveComponent* InTriggerCollisionComponent);
 
+	/** 传入当前技能单元对象树上的全部触发碰撞体。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|检测", DisplayName="传入技能单元触发碰撞体数组")
+	void SetTriggerCollisionComponents(const TArray<UPrimitiveComponent*>& InTriggerCollisionComponents);
+
 	/** 设置是否发布场景命中结果，投射物通常开启，范围和触发器默认关闭。 */
 	UFUNCTION(BlueprintCallable, Category="技能单元|检测", DisplayName="设置是否发布场景命中")
 	void SetPublishWorldHit(bool bInPublishWorldHit);
@@ -64,7 +68,8 @@ private:
 	bool IsBasicActorValid(AActor* InActor) const;
 	bool IsTargetCandidateValid(AActor* InActor) const;
 	bool ShouldIgnoreActor(AActor* InActor) const;
-	void PublishSingleActorResult(ELxSkillDetectionEventType EventType, AActor* InActor, const FVector& HitLocation, const FVector& HitNormal, bool bHitWorld);
+	void PublishSingleActorResult(ELxSkillDetectionEventType EventType, AActor* InActor,
+		UPrimitiveComponent* InTriggerCollision, const FVector& HitLocation, const FVector& HitNormal, bool bHitWorld);
 
 	/** 检测参数，只做候选目标的基础筛选，深度命中限制交给触发组件。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|检测", DisplayName="目标筛选参数", meta=(AllowPrivateAccess="true"))
@@ -74,8 +79,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|检测", DisplayName="发布场景命中", meta=(AllowPrivateAccess="true"))
 	bool bPublishWorldHit = false;
 
+	/** 当前技能单元对象树中用于检测的全部碰撞体。 */
 	UPROPERTY(Transient)
-	TObjectPtr<UPrimitiveComponent> TriggerCollisionComponent = nullptr;
+	TArray<TObjectPtr<UPrimitiveComponent>> TriggerCollisionComponents;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AActor>> CurrentCandidateTargets;
