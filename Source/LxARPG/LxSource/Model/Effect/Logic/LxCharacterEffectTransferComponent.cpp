@@ -1,6 +1,7 @@
 #include "LxCharacterEffectTransferComponent.h"
 
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 ULxCharacterEffectTransferComponent::ULxCharacterEffectTransferComponent()
@@ -68,12 +69,25 @@ bool ULxCharacterEffectTransferComponent::ReceiveEffectPackage(const FLxEffectPa
 	}
 
 	DataTransferComponent = OwnerCharacter->GetCharacterDataTransferComponent();
-	if (DataTransferComponent == nullptr)
+	EffectProcessComponent = OwnerCharacter->GetCharacterEffectProcessComponent();
+	if (DataTransferComponent == nullptr || EffectProcessComponent == nullptr)
 	{
 		return false;
 	}
 
-	DataTransferComponent->ReceiveEffectPackage(IncomingEffectPackage);
+	if (!IncomingEffectPackage.DamageEffects.IsEmpty())
+	{
+		FLxDamageReceiveResult DamageReceiveResult;
+		EffectProcessComponent->ReceiveIncomingEffectPackage(IncomingEffectPackage, DamageReceiveResult);
+		IncomingEffectPackage.DamageEffects.Reset();
+	}
+
+	if (!IncomingEffectPackage.IsEmpty()
+		|| IncomingEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource)
+	{
+		DataTransferComponent->ApplyEffectPackage(IncomingEffectPackage);
+	}
+
 	return true;
 }
 
@@ -86,4 +100,5 @@ void ULxCharacterEffectTransferComponent::CacheOwnerComponents()
 	}
 
 	DataTransferComponent = OwnerCharacter->GetCharacterDataTransferComponent();
+	EffectProcessComponent = OwnerCharacter->GetCharacterEffectProcessComponent();
 }

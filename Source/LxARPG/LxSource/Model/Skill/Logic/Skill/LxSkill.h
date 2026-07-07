@@ -30,9 +30,14 @@ class ALxPeriodicAuraEffectSkillUnitActor;
 /** 技能命中词条事件，通知技能释放组件把命中词条和有效目标交给效果处理组件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillHitEntriesReady, ULxSkill*, SourceSkill, const TArray<FLxSkillEntryPackage>&, SkillEntryPackages, const TArray<AActor*>&, HitTargets);
 
+/** 持续技能命中词条事件，携带实际产生持续效果的技能单元作为唯一来源。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnLxPersistentSkillHitEntriesReady, ULxSkill*, SourceSkill,
+	ALxSkillUnitActor*, SourceSkillUnit, const TArray<FLxSkillEntryPackage>&, SkillEntryPackages,
+	const TArray<AActor*>&, HitTargets);
+
 /** 技能持续效果解除事件，通知释放组件向目标发送同来源空替换效果包。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillEffectsRemoved, ULxSkill*, SourceSkill,
-	const TArray<AActor*>&, EffectTargets);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillEffectsRemoved, ULxSkill*, SourceSkill,
+	ALxSkillUnitActor*, SourceSkillUnit, const TArray<AActor*>&, EffectTargets);
 
 /** 完整技能类型，负责组织技能单元对象，并提供蓄力与释放入口。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="技能类型")
@@ -140,7 +145,7 @@ public:
 
 	/** 持续依附或持续光环命中时触发，要求效果层按技能来源缓存并支持后续解除。 */
 	UPROPERTY(BlueprintAssignable, Category="技能|效果", DisplayName="持续技能效果准备完成事件")
-	FOnLxSkillHitEntriesReady OnPersistentSkillHitEntriesReady;
+	FOnLxPersistentSkillHitEntriesReady OnPersistentSkillHitEntriesReady;
 
 	/** 持续依附或光环效果结束时需要解除效果的目标事件。 */
 	UPROPERTY(BlueprintAssignable, Category="技能|效果", DisplayName="技能效果解除事件")
@@ -161,6 +166,10 @@ public:
 	/** 判断释放组件是否需要等待技能显式通知释放结束。 */
 	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="是否等待显式结束释放")
 	bool ShouldHoldReleaseStateUntilExplicitFinish() const { return bHoldReleaseStateUntilExplicitFinish; }
+
+	/** 判断再次释放技能时是否关闭正在运行的持久技能单元组。 */
+	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="再次释放是否关闭持久技能")
+	bool ShouldStopPersistentSkillOnRepeatedRelease() const { return bStopPersistentSkillOnRepeatedRelease; }
 
 	/** 判断技能是否可以蓄力。 */
 	UFUNCTION(BlueprintPure, Category="技能", DisplayName="是否可以蓄力")
@@ -281,6 +290,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="技能|持久技能单元", DisplayName="持久技能单元是否正在运行")
 	bool IsPersistentSkillUnitGroupActive() const;
 
+	/** 停止当前正在运行的持久技能单元组，用于再次释放关闭光环等可切换技能。 */
+	UFUNCTION(BlueprintCallable, Category="技能|持久技能单元", DisplayName="停止持久技能单元组")
+	bool TryStopPersistentSkillUnitGroup();
+
 	/** 创建并缓存一个运行时技能单元组，用于统一接收一次创建出的多个技能单元事件。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元组", DisplayName="创建技能单元组")
 	ULxSkillUnitGroup* CreateSkillUnitGroup(const TArray<ALxSkillUnitActor*>& InSkillUnits);
@@ -328,9 +341,6 @@ protected:
 	FVector ResolveResultDirection(const FLxSkillUnitResult& InSourceResult, int32 TargetIndex,
 		ELxSkillResultDirectionType DirectionType) const;
 
-	/** 解析射线创建方向：显式方向优先，否则使用释放者指向目标的方向，最后回退到默认生成朝向。 */
-	FVector ResolveRaySpawnDirection(const FVector& ExplicitDirection, AActor* PreferredTarget) const;
-
 	UFUNCTION()
 	void HandleCachedSkillUnitGroupFinished(ULxSkillUnitGroup* InSkillUnitGroup,
 		const TArray<FVector>& InDestroyedLocations);
@@ -341,7 +351,8 @@ protected:
 
 	/** 接收中间层的持续效果解除目标，并转发到技能释放组件。 */
 	UFUNCTION()
-	void HandleSkillUnitGroupEffectsRemoved(ULxSkillUnitGroup* InSkillUnitGroup, const TArray<AActor*>& InEffectTargets);
+	void HandleSkillUnitGroupEffectsRemoved(ULxSkillUnitGroup* InSkillUnitGroup, ALxSkillUnitActor* SourceSkillUnit,
+		const TArray<AActor*>& InEffectTargets);
 
 	/** 技能唯一标签，用于标识技能所属分类和具体类型。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|基础信息", DisplayName="技能ID", meta=(Categories="技能"))
@@ -362,6 +373,10 @@ protected:
 	/** 直接释放或结束蓄力后，是否保持释放组件占用，直到技能显式通知结束。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="等待显式结束释放")
 	bool bHoldReleaseStateUntilExplicitFinish = false;
+
+	/** 再次释放技能时是否关闭正在运行的持久技能单元组，常用于光环开关类技能。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="再次释放关闭持久技能")
+	bool bStopPersistentSkillOnRepeatedRelease = false;
 
 	/** 技能默认词条包数组，蓝图中可手动添加，命中时可选择一个或多个词条包传入命中函数。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|词条", DisplayName="技能词条包数组")

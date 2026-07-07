@@ -141,12 +141,13 @@ private:
 
 	/** 将持续技能命中词条按可替换来源传递给效果处理组件。 */
 	UFUNCTION()
-	void HandlePersistentSkillHitEntriesReady(ULxSkill* SourceSkill,
+	void HandlePersistentSkillHitEntriesReady(ULxSkill* SourceSkill, ALxSkillUnitActor* SourceSkillUnit,
 		const TArray<FLxSkillEntryPackage>& SkillEntryPackages, const TArray<AActor*>& HitTargets);
 
 	/** 将持续技能效果解除目标传递给效果处理组件。 */
 	UFUNCTION()
-	void HandleSkillEffectsRemoved(ULxSkill* SourceSkill, const TArray<AActor*>& EffectTargets);
+	void HandleSkillEffectsRemoved(ULxSkill* SourceSkill, ALxSkillUnitActor* SourceSkillUnit,
+		const TArray<AActor*>& EffectTargets);
 
 	/** 当前技能释放组件的互斥占用状态。 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放组件|状态", DisplayName="技能释放状态", meta=(AllowPrivateAccess="true"))

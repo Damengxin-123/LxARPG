@@ -1,5 +1,6 @@
 #include "LxContinuousAuraEffectSkillUnitActor.h"
 
+#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillTriggerComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 TArray<AActor*> ALxContinuousAuraEffectSkillUnitActor::GetActiveAuraTargets() const
@@ -86,6 +87,10 @@ void ALxContinuousAuraEffectSkillUnitActor::RemoveActiveAuraTarget(AActor* Targe
 	ActiveAuraTargets.Remove(TargetActor);
 	TargetActor->OnDestroyed.RemoveDynamic(this,
 		&ALxContinuousAuraEffectSkillUnitActor::HandleActiveAuraTargetDestroyed);
+	if (TriggerComponent)
+	{
+		TriggerComponent->ResetTargetTriggerRecord(TargetActor);
+	}
 
 	FLxAuraTargetEffectRemoveResult RemoveResult;
 	RemoveResult.EffectTarget = TargetActor;

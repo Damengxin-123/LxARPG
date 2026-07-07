@@ -25,14 +25,6 @@ struct FLxSkillAttachEffectSpec
 	/** 依附效果最多持续的秒数；小于等于零表示持续到目标失效或外部终止。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|依附效果", DisplayName="持续时间")
 	float Duration = 0.0f;
-
-	/** 依附到目标时优先使用的组件插槽；为空时依附到目标根组件。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|依附效果", DisplayName="依附插槽")
-	FName AttachSocketName = NAME_None;
-
-	/** 完成吸附后应用到技能单元的相对变换。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|依附效果", DisplayName="依附相对变换")
-	FTransform RelativeTransform = FTransform::Identity;
 };
 
 /** 周期依附效果独有参数。 */

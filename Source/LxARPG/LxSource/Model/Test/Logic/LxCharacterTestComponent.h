@@ -44,6 +44,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="角色测试|物品", DisplayName="添加测试物品列表到背包")
 	bool AddTestItemListToBackpack(const TArray<FLxItemQuote>& InItemList);
 
+	/** 添加一组不限类型的测试物品，会按物品类型自动分发到普通背包或技能背包。 */
+	UFUNCTION(BlueprintCallable, Category="角色测试|物品", DisplayName="添加测试物品列表", meta=(AutoCreateRefTerm="InItemList"))
+	bool AddTestItemList(const TArray<FLxItemQuote>& InItemList);
+
 	/** 添加一个测试技能物品到角色技能背包。 */
 	UFUNCTION(BlueprintCallable, Category="角色测试|技能", DisplayName="添加测试技能到技能背包", meta=(Categories="物品"))
 	bool AddTestSkillItemToSkillBackpack(FGameplayTag InSkillItemIDTag);

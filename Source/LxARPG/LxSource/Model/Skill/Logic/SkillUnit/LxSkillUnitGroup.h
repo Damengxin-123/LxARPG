@@ -23,8 +23,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitGroupLifecycle, ULxSk
 	const TArray<FVector>&, DestroyedLocations);
 
 /** 技能单元组持续效果解除事件，将依附或光环单元需要解除效果的目标统一为目标列表。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitGroupEffectsRemoved, ULxSkillUnitGroup*, SkillUnitGroup,
-	const TArray<AActor*>&, EffectTargets);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillUnitGroupEffectsRemoved, ULxSkillUnitGroup*, SkillUnitGroup,
+	ALxSkillUnitActor*, SourceSkillUnit, const TArray<AActor*>&, EffectTargets);
 
 /** 技能单元组运行时对象，集中管理一次创建出的多个技能单元事件与生命周期。 */
 UCLASS(BlueprintType, DisplayName="技能单元组")

@@ -75,6 +75,19 @@ void ULxSkillTriggerComponent::RequestTrigger(const FLxSkillDetectionResult& Det
 	}
 }
 
+void ULxSkillTriggerComponent::ResetTargetTriggerRecord(AActor* InTarget)
+{
+	if (!InTarget)
+	{
+		return;
+	}
+
+	const TWeakObjectPtr<AActor> TargetKey(InTarget);
+	TargetHitCounts.Remove(TargetKey);
+	TargetLastTriggerTimes.Remove(TargetKey);
+	OnDataChange.Broadcast();
+}
+
 bool ULxSkillTriggerComponent::CanTriggerTarget(AActor* InTarget) const
 {
 	if (!InTarget || InTarget == GetOwner())

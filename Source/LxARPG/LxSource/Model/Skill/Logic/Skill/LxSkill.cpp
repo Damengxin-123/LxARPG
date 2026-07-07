@@ -23,6 +23,7 @@
 #include "LxARPG/LxSource/Model/CharacterPoint/Logic/LxCharacterAnchorPointComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
+#include "TimerManager.h"
 
 namespace LxSkillCreateInternal
 {
@@ -144,6 +145,8 @@ namespace LxSkillCreateInternal
 		{
 			return nullptr;
 		}
+		// 延迟生成后的类型专有参数尚未写入，必须由单元组在初始化完成后统一激活。
+		Result->SetAutoActivateSkillUnit(false);
 		Result->InitializeSkillUnit(SkillUnitSpec);
 		Result->FinishSpawning(SpawnTransform);
 		Result->SetActorTransform(SpawnTransform, false, nullptr, ETeleportType::TeleportPhysics);
@@ -174,7 +177,17 @@ namespace LxSkillCreateInternal
 		}
 		if (bActivateAfterCreate)
 		{
-			Result->ActivateSkillUnits();
+			// 所有创建函数必须先返回单元组，确保蓝图有机会绑定命中、完成等事件后再开始运行。
+			if (UWorld* World = OwningSkill->GetWorld())
+			{
+				World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(Result, [Result]()
+				{
+					if (IsValid(Result))
+					{
+						Result->ActivateSkillUnits();
+					}
+				}));
+			}
 		}
 		return Result;
 	}
@@ -511,27 +524,6 @@ FVector ULxSkill::ResolveResultDirection(const FLxSkillUnitResult& InSourceResul
 		? -SourceToTargetDirection : SourceToTargetDirection;
 }
 
-FVector ULxSkill::ResolveRaySpawnDirection(const FVector& ExplicitDirection, AActor* PreferredTarget) const
-{
-	if (!ExplicitDirection.IsNearlyZero())
-	{
-		return ExplicitDirection.GetSafeNormal();
-	}
-
-	AActor* TargetActor = IsValid(PreferredTarget) ? PreferredTarget : CurrentCastContext.TargetActor.Get();
-	AActor* CasterActor = GetSkillCasterActor();
-	if (IsValid(CasterActor) && IsValid(TargetActor))
-	{
-		const FVector CasterToTarget = (TargetActor->GetActorLocation() - CasterActor->GetActorLocation()).GetSafeNormal();
-		if (!CasterToTarget.IsNearlyZero())
-		{
-			return CasterToTarget;
-		}
-	}
-
-	return GetSkillSpawnTransform().GetRotation().GetForwardVector().GetSafeNormal();
-}
-
 ULxSkillUnitGroup* ULxSkill::CreateStraightProjectileUnits(const FLxSkillUnitResult& InSourceResult,
 	TSubclassOf<ALxStraightProjectileSkillUnitActor> SkillUnitClass,
 	const FLxProjectileSkillUnitCreateParams& CreateParams, bool bActivateAfterCreate)
@@ -705,56 +697,33 @@ ULxSkillUnitGroup* ULxSkill::CreateSingleRayEffectUnits(const FLxSkillUnitResult
 	TSubclassOf<ALxSingleRaySkillUnitActor> SkillUnitClass,
 	const FLxSingleRayEffectCreateParams& CreateParams, bool bActivateAfterCreate)
 {
+	(void)InSourceResult;
 	TArray<ALxSingleRaySkillUnitActor*> SkillUnits;
 	const int32 LaunchCount = FMath::Max(CreateParams.SingleRaySpec.LaunchCount, 1);
 	const FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeRaySpec(ELxSkillUnitType::SingleRayEffect);
-	const TArray<FTransform> BaseTransforms = BuildSpawnTransforms(InSourceResult,
-		CreateParams.RaySpec.ResultDirectionType);
-	for (int32 BaseIndex = 0; BaseIndex < BaseTransforms.Num(); ++BaseIndex)
+	// 瞄准组件已按释放点到射线检测命中位置计算朝向，直接沿用即可与投射物表现一致。
+	FTransform BaseTransform = GetSkillSpawnTransform();
+	for (int32 LaunchIndex = 0; LaunchIndex < LaunchCount; ++LaunchIndex)
 	{
-		FTransform BaseTransform = BaseTransforms[BaseIndex];
-		AActor* PreferredTarget = InSourceResult.HitTargets.IsValidIndex(BaseIndex)
-			? InSourceResult.HitTargets[BaseIndex].Get() : nullptr;
-		FVector RayDirection = CreateParams.RaySpec.RayDirection.GetSafeNormal();
-		if (RayDirection.IsNearlyZero()
-			&& CreateParams.RaySpec.ResultDirectionType == ELxSkillResultDirectionType::KeepSourceRotation)
+		const FTransform SpawnTransform = LxSkillCreateInternal::MakeProjectileTransform(BaseTransform,
+			LaunchIndex, LaunchCount, CreateParams.SingleRaySpec.GetRaySpacingInUnrealUnits());
+		ALxSingleRaySkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
+			this, SkillUnitClass, SpawnTransform, SkillUnitSpec);
+		if (SkillUnit)
 		{
-			RayDirection = ResolveRaySpawnDirection(FVector::ZeroVector, PreferredTarget);
-		}
-		else if (RayDirection.IsNearlyZero())
-		{
-			RayDirection = BaseTransform.GetRotation().GetForwardVector();
-		}
-		if (!RayDirection.IsNearlyZero())
-		{
-			BaseTransform.SetRotation(RayDirection.Rotation().Quaternion());
-		}
-		for (int32 LaunchIndex = 0; LaunchIndex < LaunchCount; ++LaunchIndex)
-		{
-			const FTransform SpawnTransform = LxSkillCreateInternal::MakeProjectileTransform(BaseTransform,
-				LaunchIndex, LaunchCount, CreateParams.SingleRaySpec.GetRaySpacingInUnrealUnits());
-			ALxSingleRaySkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
-				this, SkillUnitClass, SpawnTransform, SkillUnitSpec);
-			if (SkillUnit)
-			{
-				SkillUnit->SetOwner(GetSkillCasterActor());
-				SkillUnit->SetInstigator(Cast<APawn>(GetSkillCasterActor()));
-				SkillUnit->InitializeRayParameters(CreateParams.RaySpec);
-				SkillUnit->InitializeRayDetectionCollisionComponents();
-				SkillUnit->InitializeSingleRayParameters(CreateParams.SingleRaySpec);
-				SkillUnits.Add(SkillUnit);
-			}
+			SkillUnit->SetOwner(GetSkillCasterActor());
+			SkillUnit->SetInstigator(Cast<APawn>(GetSkillCasterActor()));
+			SkillUnit->InitializeRayParameters(CreateParams.RaySpec);
+			SkillUnit->InitializeRayDetectionCollisionComponents();
+			SkillUnit->InitializeSingleRayParameters(CreateParams.SingleRaySpec);
+			SkillUnits.Add(SkillUnit);
 		}
 	}
 	// 单次射线的逻辑会立即完成，但表现需要按照创建参数继续保留，不能由单元组在完成回调中立即销毁。
-	ULxSkillUnitGroup* Result = LxSkillCreateInternal::MakeGroup(this, SkillUnits, false);
+	ULxSkillUnitGroup* Result = LxSkillCreateInternal::MakeGroup(this, SkillUnits, bActivateAfterCreate);
 	if (Result)
 	{
 		Result->SetDestroyUnitsWhenFinished(false);
-		if (bActivateAfterCreate)
-		{
-			Result->ActivateSkillUnits();
-		}
 	}
 	return Result;
 }
@@ -772,13 +741,8 @@ ULxSkillUnitGroup* ULxSkill::CreateContinuousRayEffectUnit(TSubclassOf<ALxContin
 	SkillUnitSpec.HitLimitSpec.bCanHitSameTargetAgain = true;
 	SkillUnitSpec.HitLimitSpec.bIgnoreAlreadyHitTargets = false;
 	SkillUnitSpec.HitLimitSpec.HitIntervalPerTarget = FMath::Max(CreateParams.ContinuousRaySpec.TriggerInterval, 0.01f);
+	// 持续射线同样沿用瞄准检测命中位置生成的朝向，避免使用地形 Actor 原点覆盖方向。
 	FTransform SpawnTransform = GetSkillSpawnTransform();
-	const FVector RayDirection = ResolveRaySpawnDirection(CreateParams.RaySpec.RayDirection,
-		CurrentCastContext.TargetActor.Get());
-	if (!RayDirection.IsNearlyZero())
-	{
-		SpawnTransform.SetRotation(RayDirection.Rotation().Quaternion());
-	}
 	ALxContinuousRaySkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
 		this, SkillUnitClass, SpawnTransform, SkillUnitSpec);
 	if (SkillUnit)
@@ -934,6 +898,17 @@ bool ULxSkill::IsPersistentSkillUnitGroupActive() const
 	return IsValid(PersistentSkillUnitGroup) && PersistentSkillUnitGroup->HasActiveSkillUnits();
 }
 
+bool ULxSkill::TryStopPersistentSkillUnitGroup()
+{
+	if (!IsPersistentSkillUnitGroupActive())
+	{
+		return false;
+	}
+
+	PersistentSkillUnitGroup->StopSkillUnits();
+	return true;
+}
+
 ULxSkillUnitGroup* ULxSkill::CreateSkillUnitGroup(const TArray<ALxSkillUnitActor*>& InSkillUnits)
 {
 	if (InSkillUnits.IsEmpty())
@@ -1034,7 +1009,8 @@ void ULxSkill::HandleSkillUnitGroupHit(ULxSkillUnitGroup* InSkillUnitGroup,
 	}
 	if (bPersistentEffect)
 	{
-		OnPersistentSkillHitEntriesReady.Broadcast(this, SkillEntryPackages, ValidTargets);
+		OnPersistentSkillHitEntriesReady.Broadcast(this, Cast<ALxSkillUnitActor>(InSkillUnitResult.SourceUnit),
+			SkillEntryPackages, ValidTargets);
 	}
 	else
 	{
@@ -1043,9 +1019,9 @@ void ULxSkill::HandleSkillUnitGroupHit(ULxSkillUnitGroup* InSkillUnitGroup,
 }
 
 void ULxSkill::HandleSkillUnitGroupEffectsRemoved(ULxSkillUnitGroup* InSkillUnitGroup,
-	const TArray<AActor*>& InEffectTargets)
+	ALxSkillUnitActor* SourceSkillUnit, const TArray<AActor*>& InEffectTargets)
 {
-	if (!IsValid(InSkillUnitGroup))
+	if (!IsValid(InSkillUnitGroup) || !IsValid(SourceSkillUnit))
 	{
 		return;
 	}
@@ -1059,7 +1035,7 @@ void ULxSkill::HandleSkillUnitGroupEffectsRemoved(ULxSkillUnitGroup* InSkillUnit
 	}
 	if (!ValidTargets.IsEmpty())
 	{
-		OnSkillEffectsRemoved.Broadcast(this, ValidTargets);
+		OnSkillEffectsRemoved.Broadcast(this, SourceSkillUnit, ValidTargets);
 	}
 }
 

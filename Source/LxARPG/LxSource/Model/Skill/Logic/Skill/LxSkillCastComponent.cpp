@@ -269,6 +269,10 @@ bool ULxSkillCastComponent::HandleSkillReleaseInputAuthority(ULxSkill* InSkill,
 	case ELxSkillReleaseType::DirectRelease:
 		if (InInputState == InSkill->GetDirectReleaseInputState())
 		{
+			if (InSkill->ShouldStopPersistentSkillOnRepeatedRelease() && InSkill->IsPersistentSkillUnitGroupActive())
+			{
+				return InSkill->TryStopPersistentSkillUnitGroup();
+			}
 			return ReleaseSkillDirectly(InSkill, SkillContext);
 		}
 		break;
@@ -511,7 +515,8 @@ void ULxSkillCastComponent::HandleSkillHitEntriesReady(ULxSkill* SourceSkill, co
 }
 
 void ULxSkillCastComponent::HandlePersistentSkillHitEntriesReady(ULxSkill* SourceSkill,
-	const TArray<FLxSkillEntryPackage>& SkillEntryPackages, const TArray<AActor*>& HitTargets)
+	ALxSkillUnitActor* SourceSkillUnit, const TArray<FLxSkillEntryPackage>& SkillEntryPackages,
+	const TArray<AActor*>& HitTargets)
 {
 	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
 	if (!OwnerCharacter || !OwnerCharacter->GetCharacterEffectProcessComponent())
@@ -519,16 +524,16 @@ void ULxSkillCastComponent::HandlePersistentSkillHitEntriesReady(ULxSkill* Sourc
 		return;
 	}
 	OwnerCharacter->GetCharacterEffectProcessComponent()->ProcessSkillHitEffects(SourceSkill,
-		SkillEntryPackages, HitTargets, true);
+		SkillEntryPackages, HitTargets, true, SourceSkillUnit);
 }
 
 void ULxSkillCastComponent::HandleSkillEffectsRemoved(ULxSkill* SourceSkill,
-	const TArray<AActor*>& EffectTargets)
+	ALxSkillUnitActor* SourceSkillUnit, const TArray<AActor*>& EffectTargets)
 {
 	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
 	if (!OwnerCharacter || !OwnerCharacter->GetCharacterEffectProcessComponent())
 	{
 		return;
 	}
-	OwnerCharacter->GetCharacterEffectProcessComponent()->RemovePersistentSkillEffects(SourceSkill, EffectTargets);
+	OwnerCharacter->GetCharacterEffectProcessComponent()->RemovePersistentSkillEffects(SourceSkillUnit, EffectTargets);
 }

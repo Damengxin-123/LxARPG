@@ -8,6 +8,7 @@
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
 #include "LxARPG/LxSource/Model/CloseCombat/Logic/LxCharacterCloseCombatComponent.h"
 #include "LxARPG/LxSource/Model/CharacterPoint/Logic/LxCharacterAnchorPointComponent.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectTransferComponent.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
@@ -35,6 +36,7 @@ ALxBaseCharacter::ALxBaseCharacter()
 	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
 	m_pCharacterLifecycleComponent = CreateDefaultSubobject<ULxCharacterLifecycleComponent>(TEXT("CharacterLifecycleComponent"));
 	m_pCharacterEffectProcessComponent = CreateDefaultSubobject<ULxCharacterEffectProcessComponent>(TEXT("CharacterEffectProcessComponent"));
+	m_pCharacterEffectCacheComponent = CreateDefaultSubobject<ULxCharacterEffectCacheComponent>(TEXT("CharacterEffectCacheComponent"));
 	m_pCharacterEffectTransferComponent = CreateDefaultSubobject<ULxCharacterEffectTransferComponent>(TEXT("CharacterEffectTransferComponent"));
 	m_pSkillBackpackComponent = CreateDefaultSubobject<ULxSkillBackpackComponent>(TEXT("SkillBackpackComponent"));
 	m_pCharacterProfessionComponent = CreateDefaultSubobject<ULxCharacterProfessionComponent>(TEXT("CharacterProfessionComponent"));
@@ -102,6 +104,11 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	if (m_pCharacterEffectProcessComponent)
 	{
 		m_pCharacterEffectProcessComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterEffectCacheComponent)
+	{
+		m_pCharacterEffectCacheComponent->BaseComponentInitialize();
 	}
 
 	if (m_pCharacterEffectTransferComponent)

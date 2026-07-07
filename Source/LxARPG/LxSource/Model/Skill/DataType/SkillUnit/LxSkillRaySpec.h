@@ -10,14 +10,6 @@ struct FLxSkillRaySpec
 {
 	GENERATED_BODY()
 
-	/** 明确指定的射线方向；零向量表示改用释放者指向目标的方向。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线", DisplayName="射线方向")
-	FVector RayDirection = FVector::ZeroVector;
-
-	/** 使用前置命中结果创建单次射线时的方向选择；保持来源朝向时沿用射线自身方向规则。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线", DisplayName="前置结果方向选择")
-	ELxSkillResultDirectionType ResultDirectionType = ELxSkillResultDirectionType::KeepSourceRotation;
-
 	/** 是否允许射线命中多个目标；关闭时只保留距离射线起点最近的有效目标。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线", DisplayName="是否穿过目标")
 	bool bPassThroughTargets = true;

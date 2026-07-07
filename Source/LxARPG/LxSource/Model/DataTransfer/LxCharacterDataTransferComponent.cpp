@@ -3,8 +3,8 @@
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectTransferComponent.h"
-#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
@@ -61,6 +61,14 @@ namespace
 
 	/** 判断该来源的属性效果是否需要按来源刷新，空列表也会清空旧缓存。 */
 	bool ShouldRefreshAttributeModifierEffectCache(ELxEffectPackageSource InEffectSource)
+	{
+		return InEffectSource == ELxEffectPackageSource::Equipment
+			|| InEffectSource == ELxEffectPackageSource::Buff
+			|| InEffectSource == ELxEffectPackageSource::Profession;
+	}
+
+	/** 判断该来源的属性修饰是否交由角色效果缓存组件统一接入。 */
+	bool ShouldRouteAttributeModifierEffectsToEffectCache(ELxEffectPackageSource InEffectSource)
 	{
 		return InEffectSource == ELxEffectPackageSource::Equipment
 			|| InEffectSource == ELxEffectPackageSource::Buff
@@ -365,12 +373,6 @@ void ULxCharacterDataTransferComponent::ReceiveEntryPackage(const FLxCharacterEn
 	DispatchEntryPackageByType(InEntryPackage);
 }
 
-void ULxCharacterDataTransferComponent::ReceiveEffectPackage(const FLxEffectPackage& InEffectPackage)
-{
-	EnsureOwnerComponentsCached();
-	ApplyEffectPackage(InEffectPackage);
-}
-
 void ULxCharacterDataTransferComponent::ApplyEffectPackage(const FLxEffectPackage& InEffectPackage)
 {
 	EnsureOwnerComponentsCached();
@@ -444,7 +446,7 @@ void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 	BuffComponent = OwnerCharacter->GetCharacterBuffComponent();
 	StateComponent = OwnerCharacter->GetCharacterStateComponent();
 	LifecycleComponent = OwnerCharacter->GetCharacterLifecycleComponent();
-	EffectProcessComponent = OwnerCharacter->GetCharacterEffectProcessComponent();
+	EffectCacheComponent = OwnerCharacter->GetCharacterEffectCacheComponent();
 	EffectTransferComponent = OwnerCharacter->GetCharacterEffectTransferComponent();
 }
 
@@ -456,7 +458,8 @@ void ULxCharacterDataTransferComponent::EnsureOwnerComponentsCached()
 		return;
 	}
 
-	if (AttributeComponent == nullptr || StateComponent == nullptr || EffectTransferComponent == nullptr || EffectProcessComponent == nullptr)
+	if (AttributeComponent == nullptr || StateComponent == nullptr || EffectCacheComponent == nullptr
+		|| EffectTransferComponent == nullptr)
 	{
 		CacheOwnerComponents();
 	}
@@ -628,23 +631,37 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 	}
 
 	FLxEffectPackage RuntimeEffectPackage = InEffectPackage;
-	if (EffectProcessComponent != nullptr && !RuntimeEffectPackage.DamageEffects.IsEmpty())
-	{
-		FLxDamageReceiveResult DamageReceiveResult;
-		EffectProcessComponent->ReceiveIncomingEffectPackage(RuntimeEffectPackage, DamageReceiveResult);
-		RuntimeEffectPackage.DamageEffects.Reset();
-	}
+	RuntimeEffectPackage.DamageEffects.Reset();
 
 	if (RuntimeEffectPackage.IsEmpty() && RuntimeEffectPackage.ApplyPolicy != ELxEffectPackageApplyPolicy::ReplaceSameSource)
 	{
 		return;
 	}
 
+	bool bAttributeModifierEffectsHandledByEffectCache = false;
+	if (EffectCacheComponent != nullptr
+		&& ShouldRouteAttributeModifierEffectsToEffectCache(RuntimeEffectPackage.SourceContext.SourceType)
+		&& RuntimeEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource)
+	{
+		const FName EffectCacheHandle = ULxCharacterEffectCacheComponent::MakeEffectCacheHandle(RuntimeEffectPackage.SourceContext);
+		if (RuntimeEffectPackage.AttributeModifierEffects.IsEmpty())
+		{
+			EffectCacheComponent->RemoveCachedEffectPackage(EffectCacheHandle);
+		}
+		else
+		{
+			EffectCacheComponent->ApplyOrUpdateCachedEffectPackage(EffectCacheHandle, RuntimeEffectPackage);
+		}
+		RuntimeEffectPackage.AttributeModifierEffects.Reset();
+		bAttributeModifierEffectsHandledByEffectCache = true;
+	}
+
 	if (AttributeComponent != nullptr)
 	{
-		if (!RuntimeEffectPackage.AttributeModifierEffects.IsEmpty()
+		if (!bAttributeModifierEffectsHandledByEffectCache
+			&& (!RuntimeEffectPackage.AttributeModifierEffects.IsEmpty()
 			|| (RuntimeEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource
-				&& ShouldRefreshAttributeModifierEffectCache(RuntimeEffectPackage.SourceContext.SourceType)))
+				&& ShouldRefreshAttributeModifierEffectCache(RuntimeEffectPackage.SourceContext.SourceType))))
 		{
 			AttributeComponent->ReceiveAttributeModifierEffects(RuntimeEffectPackage.SourceContext, RuntimeEffectPackage.ApplyPolicy, RuntimeEffectPackage.AttributeModifierEffects);
 		}
@@ -688,7 +705,13 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 
 	if (BuffComponent != nullptr)
 	{
-		const ELxCharacterEntrySource EntrySource = ConvertToEntrySource(RuntimeEffectPackage.SourceContext.SourceType);
+		if (RuntimeEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Skill
+			&& RuntimeEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource
+			&& RuntimeEffectPackage.BuffGrantEffects.IsEmpty())
+		{
+			BuffComponent->RemoveBuffSourceReferencesBySourceContext(RuntimeEffectPackage.SourceContext);
+		}
+
 		if (RuntimeEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Equipment)
 		{
 			SyncEquipmentBuffGrantEffects(RuntimeEffectPackage.BuffGrantEffects);
@@ -714,7 +737,8 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 					continue;
 				}
 
-				BuffComponent->AddBuff(BuffEffect.BuffIDTag, BuffEffect.EffectProportion, BuffEffect.Duration, EntrySource);
+				BuffComponent->AddBuffFromSourceContext(BuffEffect.BuffIDTag, BuffEffect.EffectProportion,
+					BuffEffect.Duration, RuntimeEffectPackage.SourceContext);
 			}
 		}
 	}
@@ -849,6 +873,14 @@ void ULxCharacterDataTransferComponent::RefreshProfessionEffectPackages()
 {
 	if (ProfessionComponent == nullptr)
 	{
+		if (EffectCacheComponent != nullptr)
+		{
+			for (const FName CachedProfessionEffectHandle : CachedProfessionEffectHandles)
+			{
+				EffectCacheComponent->RemoveCachedEffectPackage(CachedProfessionEffectHandle);
+			}
+		}
+		CachedProfessionEffectHandles.Reset();
 		SyncProfessionBuffGrantEffects(TArray<FLxBuffGrantEffect>());
 		return;
 	}
@@ -856,14 +888,30 @@ void ULxCharacterDataTransferComponent::RefreshProfessionEffectPackages()
 	TArray<FLxEffectPackage> ProfessionEffectPackages;
 	ProfessionComponent->BuildAllProfessionEffectPackages(ProfessionEffectPackages);
 
+	TSet<FName> NewCachedProfessionEffectHandles;
 	TArray<FLxBuffGrantEffect> ProfessionBuffGrantEffects;
 	for (FLxEffectPackage& EffectPackage : ProfessionEffectPackages)
 	{
+		if (!EffectPackage.AttributeModifierEffects.IsEmpty())
+		{
+			NewCachedProfessionEffectHandles.Add(ULxCharacterEffectCacheComponent::MakeEffectCacheHandle(EffectPackage.SourceContext));
+		}
 		ProfessionBuffGrantEffects.Append(EffectPackage.BuffGrantEffects);
 		EffectPackage.BuffGrantEffects.Reset();
 		DispatchEffectPackageByType(EffectPackage);
 	}
 
+	if (EffectCacheComponent != nullptr)
+	{
+		for (const FName CachedProfessionEffectHandle : CachedProfessionEffectHandles)
+		{
+			if (!NewCachedProfessionEffectHandles.Contains(CachedProfessionEffectHandle))
+			{
+				EffectCacheComponent->RemoveCachedEffectPackage(CachedProfessionEffectHandle);
+			}
+		}
+	}
+	CachedProfessionEffectHandles = MoveTemp(NewCachedProfessionEffectHandles);
 	SyncProfessionBuffGrantEffects(ProfessionBuffGrantEffects);
 }
 

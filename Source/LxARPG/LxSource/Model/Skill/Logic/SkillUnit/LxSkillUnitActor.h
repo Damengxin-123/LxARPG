@@ -59,6 +59,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="技能单元|运行", DisplayName="技能单元是否正在运行")
 	bool IsSkillUnitActive() const { return bSkillUnitActive; }
 
+	/** 设置技能单元是否在 BeginPlay 时自动激活；工厂创建流程会关闭自动激活并交由技能单元组统一控制。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|运行", DisplayName="设置技能单元自动激活")
+	void SetAutoActivateSkillUnit(bool bInAutoActivate) { bAutoActivateSkillUnit = bInAutoActivate; }
+
 	/** 设置技能单元创建规则。 */
 	UFUNCTION(BlueprintCallable, Category="技能单元", DisplayName="设置技能单元创建规则")
 	void SetSkillUnitSpawnSpec(const FLxSkillUnitSpawnSpec& InSpawnSpec);

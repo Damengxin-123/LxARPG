@@ -26,6 +26,9 @@ public:
 	/** 创建依附效果技能单元基类。 */
 	ALxAttachEffectSkillUnitActor();
 
+	/** 注册依附目标等需要同步到客户端的运行时数据。 */
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	/** 从前置技能单元命中结果的指定目标初始化依附关系。 */
 	UFUNCTION(BlueprintCallable, Category="技能单元|依附效果", DisplayName="使用前置命中结果初始化依附效果")
 	bool InitializeFromPreviousSkillUnitResult(const FLxSkillUnitResult& PreviousResult, int32 HitTargetIndex,
@@ -71,8 +74,15 @@ protected:
 	/** 结束依附、广播结束数据并销毁技能单元。 */
 	void EndAttachEffect(ELxAttachEffectEndReason EndReason, ELxSkillUnitResultType ResultType, bool bSuccess);
 
-	/** 根据目标和插槽配置解析实际依附组件。 */
+	/** 根据目标类型解析光环锚点或根组件。 */
 	USceneComponent* ResolveAttachComponent() const;
+
+	/** 将技能单元表现挂载到当前目标的光环锚点或根组件。 */
+	bool AttachToResolvedTarget();
+
+	/** 依附目标同步到客户端后补建视觉挂载关系。 */
+	UFUNCTION(Category="技能单元|依附效果|网络", DisplayName="依附目标同步")
+	void OnRep_AttachTarget();
 
 	/** 目标Actor被销毁时终止依附效果。 */
 	UFUNCTION()
@@ -91,7 +101,8 @@ protected:
 	FLxSkillAttachEffectSpec AttachEffectSpec;
 
 	/** 从前置技能单元命中结果中解析出的唯一依附目标。 */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="技能单元|依附效果|运行状态", DisplayName="依附目标")
+	UPROPERTY(ReplicatedUsing=OnRep_AttachTarget, VisibleInstanceOnly, BlueprintReadOnly,
+		Category="技能单元|依附效果|运行状态", DisplayName="依附目标")
 	TObjectPtr<AActor> AttachTarget = nullptr;
 
 	/** 提供当前依附目标的前置技能单元。 */

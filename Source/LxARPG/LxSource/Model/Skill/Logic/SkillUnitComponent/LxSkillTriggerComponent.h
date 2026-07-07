@@ -49,6 +49,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能单元|触发", DisplayName="手动请求触发")
 	void RequestTrigger(const FLxSkillDetectionResult& DetectionResult);
 
+	/** 清理指定目标的触发记录，使光环等持续效果在目标重新进入时可以再次触发。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|触发", DisplayName="清理目标触发记录")
+	void ResetTargetTriggerRecord(AActor* InTarget);
+
 	/** 最终触发事件。 */
 	UPROPERTY(BlueprintAssignable, Category="技能单元|触发", DisplayName="触发事件")
 	FOnLxSkillTriggered OnTriggered;

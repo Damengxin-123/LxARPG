@@ -6,6 +6,7 @@
 #include "LxCharacterEffectTransferComponent.generated.h"
 
 class ULxCharacterDataTransferComponent;
+class ULxCharacterEffectProcessComponent;
 
 /**
  * 角色效果传递组件。
@@ -38,6 +39,10 @@ protected:
 	/** 当前角色的数据中转组件，用于把外部效果包交回角色内部流程。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色效果传递", DisplayName="数据中转组件")
 	TObjectPtr<ULxCharacterDataTransferComponent> DataTransferComponent = nullptr;
+
+	/** 当前角色的效果处理组件，用于统一结算外部传入效果包里的伤害。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色效果传递", DisplayName="效果处理组件")
+	TObjectPtr<ULxCharacterEffectProcessComponent> EffectProcessComponent = nullptr;
 
 private:
 	/** 缓存当前角色身上的效果传递依赖组件。 */

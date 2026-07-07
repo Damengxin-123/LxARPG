@@ -4,6 +4,7 @@
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
 #include "LxARPG/LxSource/Model/Damage/DataType/LxDamageTags.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 ULxCharacterTestComponent::ULxCharacterTestComponent()
@@ -38,6 +39,59 @@ bool ULxCharacterTestComponent::AddTestItemListToBackpack(const TArray<FLxItemQu
 {
 	ULxCharacterDataTransferComponent* DataTransferComponent = GetDataTransferComponent();
 	return DataTransferComponent != nullptr && DataTransferComponent->AddItemListToBackpack(InItemList);
+}
+
+bool ULxCharacterTestComponent::AddTestItemList(const TArray<FLxItemQuote>& InItemList)
+{
+	if (InItemList.IsEmpty())
+	{
+		return false;
+	}
+
+	ULxCharacterDataTransferComponent* DataTransferComponent = GetDataTransferComponent();
+	if (DataTransferComponent == nullptr)
+	{
+		return false;
+	}
+
+	TArray<FLxItemQuote> BackpackItemList;
+	TArray<FGameplayTag> SkillItemIDTags;
+	for (const FLxItemQuote& ItemQuote : InItemList)
+	{
+		if (!ItemQuote.ItemIDTag.IsValid() || ItemQuote.ItemCount <= 0)
+		{
+			return false;
+		}
+
+		const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(ItemQuote.ItemIDTag);
+		if (ItemConfig == nullptr)
+		{
+			return false;
+		}
+
+		if (ItemConfig->ItemType == ELxItemType::Skill)
+		{
+			SkillItemIDTags.AddUnique(ItemQuote.ItemIDTag);
+			continue;
+		}
+
+		BackpackItemList.Add(ItemQuote);
+	}
+
+	if (!BackpackItemList.IsEmpty() && !DataTransferComponent->CanAddItemListToBackpack(BackpackItemList))
+	{
+		return false;
+	}
+
+	for (const FGameplayTag SkillItemIDTag : SkillItemIDTags)
+	{
+		if (!DataTransferComponent->AddSkillItemToSkillBackpack(SkillItemIDTag))
+		{
+			return false;
+		}
+	}
+
+	return BackpackItemList.IsEmpty() || DataTransferComponent->AddItemListToBackpack(BackpackItemList);
 }
 
 bool ULxCharacterTestComponent::AddTestSkillItemToSkillBackpack(FGameplayTag InSkillItemIDTag)

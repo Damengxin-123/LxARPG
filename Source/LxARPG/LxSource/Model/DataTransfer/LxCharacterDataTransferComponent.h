@@ -16,7 +16,7 @@ class ULxCharacterAttributeComponent;
 class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
 class ULxCharacterEquipmentComponent;
-class ULxCharacterEffectProcessComponent;
+class ULxCharacterEffectCacheComponent;
 class ULxCharacterEffectTransferComponent;
 class ULxCharacterLifecycleComponent;
 class ULxCharacterProfessionComponent;
@@ -170,10 +170,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="接收角色词条包")
 	void ReceiveEntryPackage(const FLxCharacterEntryPackage& InEntryPackage);
 
-	/** 接收外部传入的模块效果数据包，并按子效果类型分发到对应模块。 */
-	UFUNCTION(BlueprintCallable, Category="角色数据中转|效果", DisplayName="接收模块效果数据包")
-	void ReceiveEffectPackage(const FLxEffectPackage& InEffectPackage);
-
 	/** 应用角色内部效果包，只负责属性、Buff、状态和技能授予等内部数据变化。 */
 	UFUNCTION(BlueprintCallable, Category="角色数据中转|效果", DisplayName="应用内部效果包")
 	void ApplyEffectPackage(const FLxEffectPackage& InEffectPackage);
@@ -247,6 +243,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色装备组件")
 	TObjectPtr<ULxCharacterEquipmentComponent> EquipmentComponent = nullptr;
 
+	/** 当前角色效果缓存组件，用于接入可按来源撤回和重算的持续增益。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|效果", DisplayName="角色效果缓存组件")
+	TObjectPtr<ULxCharacterEffectCacheComponent> EffectCacheComponent = nullptr;
+
 	/** 当前角色技能背包组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色技能背包组件")
 	TObjectPtr<ULxSkillBackpackComponent> SkillBackpackComponent = nullptr;
@@ -266,10 +266,6 @@ protected:
 	/** 当前角色生命周期组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|生命周期", DisplayName="角色生命周期组件")
 	TObjectPtr<ULxCharacterLifecycleComponent> LifecycleComponent = nullptr;
-
-	/** 当前角色效果处理组件，用于把输入效果包中的伤害交给结算流程。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|效果", DisplayName="效果处理组件")
-	TObjectPtr<ULxCharacterEffectProcessComponent> EffectProcessComponent = nullptr;
 
 	/** 当前角色效果传递组件，用于向其他角色发送最终效果包。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|效果", DisplayName="效果传递组件")
@@ -336,4 +332,6 @@ private:
 
 	TMap<FGameplayTag, int32> EquipmentBuffSourceCounts;
 	TMap<FGameplayTag, int32> ProfessionBuffSourceCounts;
+	/** 当前已写入效果缓存的职业来源句柄，用于职业刷新时清理失效职业属性。 */
+	TSet<FName> CachedProfessionEffectHandles;
 };

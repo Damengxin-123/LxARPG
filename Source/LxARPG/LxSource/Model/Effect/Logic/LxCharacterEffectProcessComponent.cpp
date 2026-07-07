@@ -5,10 +5,29 @@
 #include "LxARPG/LxSource/Model/Damage/Logic/LxDamageCalculationFlow.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
 #include "LxARPG/LxSource/Model/Lifecycle/Logic/LxCharacterLifecycleComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkill.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitActor.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
+
+namespace
+{
+	/** 根据效果包来源生成持续效果缓存句柄。 */
+	FName MakePersistentEffectCacheHandle(const FLxEffectPackage& EffectPackage)
+	{
+		return ULxCharacterEffectCacheComponent::MakeEffectCacheHandle(EffectPackage.SourceContext);
+	}
+
+	/** 构建持续效果中的即时结算部分，属性修饰交给效果缓存组件统一刷新。 */
+	FLxEffectPackage MakePersistentEffectImmediatePackage(const FLxEffectPackage& EffectPackage)
+	{
+		FLxEffectPackage ImmediatePackage = EffectPackage;
+		ImmediatePackage.AttributeModifierEffects.Reset();
+		return ImmediatePackage;
+	}
+}
 
 ULxCharacterEffectProcessComponent::ULxCharacterEffectProcessComponent()
 {
@@ -23,7 +42,7 @@ void ULxCharacterEffectProcessComponent::BaseComponentInitialize()
 
 void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* SourceSkill,
 	const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets,
-	bool bPersistentEffect)
+	bool bPersistentEffect, ALxSkillUnitActor* PersistentSourceSkillUnit)
 {
 	CacheOwnerComponents();
 	if (SourceSkill == nullptr || DataTransferComponent == nullptr || HitTargets.IsEmpty())
@@ -32,7 +51,8 @@ void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* Source
 	}
 
 	TArray<FLxEffectPackage> SourceEffectPackages;
-	BuildEffectPackagesFromSkillEntries(SourceSkill, InSkillEntryPackages, SourceEffectPackages, bPersistentEffect);
+	BuildEffectPackagesFromSkillEntries(SourceSkill, InSkillEntryPackages, SourceEffectPackages, bPersistentEffect,
+		PersistentSourceSkillUnit);
 	if (SourceEffectPackages.IsEmpty())
 	{
 		return;
@@ -50,17 +70,34 @@ void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* Source
 			FLxEffectPackage OutgoingEffectPackage;
 			if (BuildOutgoingEffectPackage(SourceEffectPackage, HitTarget, OutgoingEffectPackage))
 			{
+				if (bPersistentEffect)
+				{
+					if (ULxCharacterEffectCacheComponent* TargetEffectCacheComponent =
+						HitTarget->FindComponentByClass<ULxCharacterEffectCacheComponent>())
+					{
+						const FName EffectCacheHandle = MakePersistentEffectCacheHandle(OutgoingEffectPackage);
+						TargetEffectCacheComponent->ApplyOrUpdateCachedEffectPackage(EffectCacheHandle, OutgoingEffectPackage);
+
+						const FLxEffectPackage ImmediatePackage = MakePersistentEffectImmediatePackage(OutgoingEffectPackage);
+						if (!ImmediatePackage.IsEmpty())
+						{
+							DataTransferComponent->SendEffectPackageToTarget(ImmediatePackage, HitTarget);
+						}
+						continue;
+					}
+				}
+
 				DataTransferComponent->SendEffectPackageToTarget(OutgoingEffectPackage, HitTarget);
 			}
 		}
 	}
 }
 
-void ULxCharacterEffectProcessComponent::RemovePersistentSkillEffects(ULxSkill* SourceSkill,
+void ULxCharacterEffectProcessComponent::RemovePersistentSkillEffects(ALxSkillUnitActor* SourceSkillUnit,
 	const TArray<AActor*>& EffectTargets)
 {
 	CacheOwnerComponents();
-	if (!IsValid(SourceSkill) || !DataTransferComponent)
+	if (!IsValid(SourceSkillUnit) || !DataTransferComponent)
 	{
 		return;
 	}
@@ -73,11 +110,15 @@ void ULxCharacterEffectProcessComponent::RemovePersistentSkillEffects(ULxSkill* 
 		FLxEffectPackage RemovalPackage;
 		RemovalPackage.SourceContext.SourceType = ELxEffectPackageSource::Skill;
 		RemovalPackage.SourceContext.SourceActor = GetOwner();
-		RemovalPackage.SourceContext.SourceObject = SourceSkill;
-		RemovalPackage.SourceContext.SourceIDTag = SourceSkill->GetSkillIDTag();
-		RemovalPackage.SourceContext.SourceName = SourceSkill->GetFName();
+		RemovalPackage.SourceContext.SourceObject = SourceSkillUnit;
 		RemovalPackage.TargetActor = EffectTarget;
 		RemovalPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::ReplaceSameSource;
+		if (ULxCharacterEffectCacheComponent* TargetEffectCacheComponent =
+			EffectTarget->FindComponentByClass<ULxCharacterEffectCacheComponent>())
+		{
+			TargetEffectCacheComponent->RemoveCachedEffectPackage(MakePersistentEffectCacheHandle(RemovalPackage));
+		}
+
 		DataTransferComponent->SendEffectPackageToTarget(RemovalPackage, EffectTarget);
 	}
 }
@@ -217,7 +258,7 @@ void ULxCharacterEffectProcessComponent::EnsureDamageCalculationFlow()
 
 void ULxCharacterEffectProcessComponent::BuildEffectPackagesFromSkillEntries(ULxSkill* SourceSkill,
 	const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, TArray<FLxEffectPackage>& OutEffectPackages,
-	bool bPersistentEffect) const
+	bool bPersistentEffect, ALxSkillUnitActor* PersistentSourceSkillUnit) const
 {
 	OutEffectPackages.Reset();
 	if (SourceSkill == nullptr)
@@ -242,6 +283,13 @@ void ULxCharacterEffectProcessComponent::BuildEffectPackagesFromSkillEntries(ULx
 		EntryEffectPackage.SourceContext.SourceObject = SourceSkill;
 		EntryEffectPackage.SourceContext.SourceIDTag = SourceSkill->GetSkillIDTag();
 		EntryEffectPackage.SourceContext.SourceName = SourceSkill->GetFName();
+		if (bPersistentEffect && IsValid(PersistentSourceSkillUnit))
+		{
+			// 持续效果以技能单元实例作为来源，避免同一技能的多个持续单元互相覆盖或误撤回。
+			EntryEffectPackage.SourceContext.SourceObject = PersistentSourceSkillUnit;
+			EntryEffectPackage.SourceContext.SourceIDTag = FGameplayTag();
+			EntryEffectPackage.SourceContext.SourceName = NAME_None;
+		}
 		EntryEffectPackage.ApplyPolicy = bPersistentEffect
 			? ELxEffectPackageApplyPolicy::ReplaceSameSource
 			: ELxEffectPackageApplyPolicy::Instant;

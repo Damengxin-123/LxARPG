@@ -15,6 +15,7 @@ class ULxCharacterBuffComponent;
 class ULxCharacterCloseCombatComponent;
 class ULxCharacterDataTransferComponent;
 class ULxCharacterEffectProcessComponent;
+class ULxCharacterEffectCacheComponent;
 class ULxCharacterEffectTransferComponent;
 class ULxCharacterEquipmentComponent;
 class ULxCharacterLifecycleComponent;
@@ -116,6 +117,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色效果处理组件")
 	ULxCharacterEffectProcessComponent* GetCharacterEffectProcessComponent() const { return m_pCharacterEffectProcessComponent; }
 
+	/** 获取角色效果缓存组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色效果缓存组件")
+	ULxCharacterEffectCacheComponent* GetCharacterEffectCacheComponent() const { return m_pCharacterEffectCacheComponent; }
+
 	/** 获取角色效果传递组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色效果传递组件")
 	ULxCharacterEffectTransferComponent* GetCharacterEffectTransferComponent() const { return m_pCharacterEffectTransferComponent; }
@@ -208,6 +213,10 @@ protected:
 	/** 角色效果处理组件，用于解析词条、计算伤害并生成最终效果包。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色效果处理组件")
 	TObjectPtr<ULxCharacterEffectProcessComponent> m_pCharacterEffectProcessComponent;
+
+	/** 角色效果缓存组件，用于缓存可撤回的持续效果包并刷新已接入的角色增益模块。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色效果缓存组件")
+	TObjectPtr<ULxCharacterEffectCacheComponent> m_pCharacterEffectCacheComponent;
 
 	/** 角色效果传递组件，用于处理角色之间的效果包发送和接收。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色效果传递组件")

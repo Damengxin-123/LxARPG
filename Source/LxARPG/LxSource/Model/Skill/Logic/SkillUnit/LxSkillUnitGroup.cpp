@@ -320,7 +320,7 @@ void ULxSkillUnitGroup::HandleAttachEffectEnded(ALxAttachEffectSkillUnitActor* S
 	}
 	TArray<AActor*> Targets;
 	Targets.Add(EndResult.AttachTarget);
-	OnSkillUnitGroupEffectsRemoved.Broadcast(this, Targets);
+	OnSkillUnitGroupEffectsRemoved.Broadcast(this, SkillUnit, Targets);
 }
 
 void ULxSkillUnitGroup::HandleAuraTargetEffectRemoved(ALxContinuousAuraEffectSkillUnitActor* SkillUnit,
@@ -332,5 +332,5 @@ void ULxSkillUnitGroup::HandleAuraTargetEffectRemoved(ALxContinuousAuraEffectSki
 	}
 	TArray<AActor*> Targets;
 	Targets.Add(RemoveResult.EffectTarget);
-	OnSkillUnitGroupEffectsRemoved.Broadcast(this, Targets);
+	OnSkillUnitGroupEffectsRemoved.Broadcast(this, SkillUnit, Targets);
 }
