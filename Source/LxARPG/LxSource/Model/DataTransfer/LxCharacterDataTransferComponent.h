@@ -20,6 +20,7 @@ class ULxCharacterEffectCacheComponent;
 class ULxCharacterEffectTransferComponent;
 class ULxCharacterLifecycleComponent;
 class ULxCharacterProfessionComponent;
+class ULxCharacterSpecialAttributeComponent;
 class ULxCharacterStateComponent;
 class ULxEquipmentSlotData;
 class ULxItemBase;
@@ -129,6 +130,10 @@ public:
 	/** 获取角色生命周期组件。 */
 	UFUNCTION(BlueprintPure, Category="角色数据中转|生命周期", DisplayName="获取角色生命周期组件")
 	ULxCharacterLifecycleComponent* GetCharacterLifecycleComponent() const;
+
+	/** 获取角色特殊属性组件。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|特殊属性", DisplayName="获取角色特殊属性组件")
+	ULxCharacterSpecialAttributeComponent* GetCharacterSpecialAttributeComponent() const { return SpecialAttributeComponent; }
 
 	/** 判断角色当前是否存活。 */
 	UFUNCTION(BlueprintPure, Category="角色数据中转|生命周期", DisplayName="角色是否存活")
@@ -266,6 +271,10 @@ protected:
 	/** 当前角色生命周期组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|生命周期", DisplayName="角色生命周期组件")
 	TObjectPtr<ULxCharacterLifecycleComponent> LifecycleComponent = nullptr;
+
+	/** 当前角色特殊属性组件，作为状态与生命周期业务的新统一入口。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|特殊属性", DisplayName="角色特殊属性组件")
+	TObjectPtr<ULxCharacterSpecialAttributeComponent> SpecialAttributeComponent = nullptr;
 
 	/** 当前角色效果传递组件，用于向其他角色发送最终效果包。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|效果", DisplayName="效果传递组件")

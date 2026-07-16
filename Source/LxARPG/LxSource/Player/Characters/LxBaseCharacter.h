@@ -11,6 +11,7 @@ class UDataTable;
 class ULxCharacterAnimationMotionAnalysisComponent;
 class ULxCharacterAnimationProcessComponent;
 class ULxCharacterAttributeComponent;
+class ULxCharacterBaseAttributeSet;
 class ULxCharacterAnchorPointComponent;
 class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
@@ -25,6 +26,7 @@ class ULxCharacterProfessionComponent;
 class ULxCharacterTestComponent;
 class ULxCharacterMoveComponent;
 class ULxCharacterStateComponent;
+class ULxCharacterSpecialAttributeComponent;
 class ULxSkillBackpackComponent;
 class ULxSkillCastComponent;
 
@@ -107,6 +109,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色属性组件")
 	ULxCharacterAttributeComponent* GetCharacterAttributeComponent() const { return m_pCharacterAttributeComponent; }
 
+	/** 获取集中管理状态和轻量业务对象的角色特殊属性组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色特殊属性组件")
+	ULxCharacterSpecialAttributeComponent* GetCharacterSpecialAttributeComponent() const { return m_pCharacterSpecialAttributeComponent; }
+
 	/** 获取角色背包组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色背包组件")
 	ULxCharacterBackpackComponent* GetCharacterBackpackComponent() const { return m_pCharacterBackpackComponent; }
@@ -116,7 +122,7 @@ public:
 	ULxCharacterBuffComponent* GetCharacterBuffComponent() const { return m_pCharacterBuffComponent; }
 
 	/** 获取角色状态组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色状态组件")
+	UFUNCTION(BlueprintCallable, Category="组件|旧版兼容", DisplayName="获取旧版角色状态组件", meta=(DeprecatedFunction, DeprecationMessage="请改用获取角色特殊属性组件"))
 	ULxCharacterStateComponent* GetCharacterStateComponent() const { return m_pCharacterStateComponent; }
 
 	/** 获取角色数据中转组件。 */
@@ -136,7 +142,7 @@ public:
 	ULxCharacterEffectTransferComponent* GetCharacterEffectTransferComponent() const { return m_pCharacterEffectTransferComponent; }
 
 	/** 获取角色生命周期组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色生命周期组件")
+	UFUNCTION(BlueprintCallable, Category="组件|旧版兼容", DisplayName="获取旧版角色生命周期组件", meta=(DeprecatedFunction, DeprecationMessage="请改用获取角色特殊属性组件"))
 	ULxCharacterLifecycleComponent* GetCharacterLifecycleComponent() const { return m_pCharacterLifecycleComponent; }
 
 	/** 获取角色装备组件。 */
@@ -179,13 +185,24 @@ public:
 	UFUNCTION(BlueprintPure, Category="角色|属性", DisplayName="获取基础属性数值表")
 	UDataTable* GetCharacterAttributeValueTable() const { return CharacterAttributeValueTable; }
 
+	/** 获取创建角色运行时基础属性对象所使用的配置类型。 */
+	UFUNCTION(BlueprintPure, Category="角色|基础属性", DisplayName="获取基础属性配置类型")
+	TSubclassOf<ULxCharacterBaseAttributeSet> GetCharacterBaseAttributeSetClass() const { return CharacterBaseAttributeSetClass; }
+
 
 	/** 查询角色初始化后缓存的命名文本。 */
 	UFUNCTION(BlueprintPure, Category="角色|命名", DisplayName="查询角色命名文本")
 	FText GetCharacterNamingText() const { return CharacterNamingText; }
 protected:
+	/**
+	 * 角色基础属性配置类型；具体角色通过继承配置类型覆盖默认值。
+	 * 未配置时继续使用旧基础属性数值表，便于现有角色逐步迁移。
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="基础属性配置类型")
+	TSubclassOf<ULxCharacterBaseAttributeSet> CharacterBaseAttributeSetClass;
+
 	/** 当前角色使用的基础属性数值表，行结构使用 FLxAttributeValueConfig。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性", DisplayName="基础属性数值表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxAttributeValueConfig"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|旧版兼容", DisplayName="旧版基础属性数值表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxAttributeValueConfig"))
 	TObjectPtr<UDataTable> CharacterAttributeValueTable = nullptr;
 
 	
@@ -212,6 +229,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色属性组件")
 	TObjectPtr<ULxCharacterAttributeComponent> m_pCharacterAttributeComponent;
 
+	/** 角色特殊属性组件，用于集中管理状态、生命周期和轻量业务对象。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色特殊属性组件")
+	TObjectPtr<ULxCharacterSpecialAttributeComponent> m_pCharacterSpecialAttributeComponent;
+
 	/** 角色背包组件，用于管理背包槽位和背包物品。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|物品模块", DisplayName="角色背包组件")
 	TObjectPtr<ULxCharacterBackpackComponent> m_pCharacterBackpackComponent;
@@ -225,7 +246,7 @@ protected:
 	TObjectPtr<ULxCharacterBuffComponent> m_pCharacterBuffComponent;
 
 	/** 角色状态组件，用于按分类保存角色当前拥有的状态标签。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色状态组件")
+	UPROPERTY(Transient, BlueprintReadOnly, Category="组件|旧版兼容", DisplayName="旧版角色状态组件")
 	TObjectPtr<ULxCharacterStateComponent> m_pCharacterStateComponent;
 
 	/** 角色数据中转组件，用于统一转发属性、背包、装备、Buff 和效果数据。 */
@@ -245,7 +266,7 @@ protected:
 	TObjectPtr<ULxCharacterEffectTransferComponent> m_pCharacterEffectTransferComponent;
 
 	/** 角色生命周期组件，用于管理存活、死亡等生命周期状态。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色生命周期组件")
+	UPROPERTY(Transient, BlueprintReadOnly, Category="组件|旧版兼容", DisplayName="旧版角色生命周期组件")
 	TObjectPtr<ULxCharacterLifecycleComponent> m_pCharacterLifecycleComponent;
 
 

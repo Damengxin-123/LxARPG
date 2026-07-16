@@ -6,6 +6,7 @@
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxCharacterAttributeComponent.generated.h"
 
+class ULxCharacterBaseAttributeSet;
 
 /** 属性表刷新事件，广播当前完整的角色属性列表。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeTableChanged, const TArray<FLxAttributeData>&, AttributeList);
@@ -50,11 +51,19 @@ public:
 	 */
 	const FLxAttributeData* GetCharacterAttributeByIDTag(FGameplayTag InAttributeIDTag) const;
 
+	/** 获取与配置对象分离的角色运行时基础属性对象。 */
+	UFUNCTION(BlueprintPure, Category="角色|基础属性", DisplayName="获取运行时基础属性对象")
+	ULxCharacterBaseAttributeSet* GetRuntimeAttributeSet() const { return RuntimeAttributeSet; }
+
 	/** 属性更新事件，广播当前完整属性表。 */
 	UPROPERTY(BlueprintAssignable, Category="Character Attribute", DisplayName="属性更新事件")
 	FOnLxCharacterAttributeTableChanged OnAttributeTableChanged;
 
 protected:
+	/** 由角色基础属性配置类型复制生成的独立运行时对象。 */
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性", DisplayName="运行时基础属性对象")
+	TObjectPtr<ULxCharacterBaseAttributeSet> RuntimeAttributeSet;
+
 	/** 角色种族，用于初始化当前角色对应的基础属性值。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Character Attribute", DisplayName="角色种族")
 	ELxCharacterRaceType CharacterRaceType = ELxCharacterRaceType::None;
@@ -74,6 +83,12 @@ protected:
 	TArray<FLxAttributeValueConfig> CharacterAttributeValueConfigs;
 
 private:
+	/** 根据角色配置类型创建独立运行时基础属性对象。 */
+	void InitializeRuntimeAttributeSet();
+
+	/** 将兼容属性表中的计算结果同步回运行时基础属性对象。 */
+	void SynchronizeRuntimeAttributeSet();
+
 	/** 服务端属性快照同步到客户端后重建本地属性表并刷新界面。 */
 	UFUNCTION(Category="角色属性|网络", DisplayName="角色属性同步")
 	void OnRep_ReplicatedAttributeList();
@@ -81,7 +96,7 @@ private:
 	/** 初始化属性组件内部数据。 */
 	void InitializeAttributeTable();
 
-	/** 按当前角色种族重新加载基础属性表。 */
+	/** 从新基础属性对象或旧种族配置重新构建兼容属性表。 */
 	void RebuildAttributeTableFromRaceConfig();
 
 	/** 根据已缓存的增益词条重新计算最终属性表。 */

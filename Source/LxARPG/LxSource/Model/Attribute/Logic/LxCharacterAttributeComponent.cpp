@@ -4,6 +4,7 @@
 #include "Engine/DataTable.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 namespace
@@ -131,11 +132,42 @@ void ULxCharacterAttributeComponent::BaseComponentInitialize()
 	CharacterAttributeValueConfigs.Reset();
 	if (const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner()))
 	{
-		LoadAttributeValueConfigsFromTable(OwnerCharacter->GetCharacterAttributeValueTable(), CharacterAttributeValueConfigs);
+		InitializeRuntimeAttributeSet();
+		if (RuntimeAttributeSet == nullptr)
+		{
+			LoadAttributeValueConfigsFromTable(OwnerCharacter->GetCharacterAttributeValueTable(), CharacterAttributeValueConfigs);
+		}
 	}
 
 	InitializeAttributeTable();
 	BroadcastAttributeTableChanged();
+}
+
+void ULxCharacterAttributeComponent::InitializeRuntimeAttributeSet()
+{
+	RuntimeAttributeSet = nullptr;
+	const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
+	if (OwnerCharacter == nullptr)
+	{
+		return;
+	}
+
+	const TSubclassOf<ULxCharacterBaseAttributeSet> AttributeSetClass = OwnerCharacter->GetCharacterBaseAttributeSetClass();
+	if (!AttributeSetClass)
+	{
+		return;
+	}
+
+	const ULxCharacterBaseAttributeSet* ConfigurationObject = AttributeSetClass->GetDefaultObject<ULxCharacterBaseAttributeSet>();
+	RuntimeAttributeSet = DuplicateObject<ULxCharacterBaseAttributeSet>(ConfigurationObject, this);
+}
+
+void ULxCharacterAttributeComponent::SynchronizeRuntimeAttributeSet()
+{
+	if (RuntimeAttributeSet != nullptr)
+	{
+		RuntimeAttributeSet->ApplyAttributeDataMap(CharacterAttributeTable);
+	}
 }
 
 void ULxCharacterAttributeComponent::ReceiveAttributeModifierEffects(const FLxEffectSourceContext& InSourceContext, ELxEffectPackageApplyPolicy InApplyPolicy, const TArray<FLxAttributeModifierEffect>& InEffectList)
@@ -239,6 +271,11 @@ void ULxCharacterAttributeComponent::InitializeAttributeTable()
 void ULxCharacterAttributeComponent::RebuildAttributeTableFromRaceConfig()
 {
 	CharacterAttributeTable.Empty();
+	if (RuntimeAttributeSet != nullptr)
+	{
+		RuntimeAttributeSet->BuildAttributeDataMap(CharacterAttributeTable);
+		return;
+	}
 
 	TMap<FGameplayTag, FLxAttributeData> AttributeDataMap = CharacterAttributeValueConfigs.IsEmpty()
 		? LxAttributeConfig::GetCharacterAttributeDataByRaceType(CharacterRaceType)
@@ -358,6 +395,7 @@ void ULxCharacterAttributeComponent::RefreshDerivedAttributes()
 
 void ULxCharacterAttributeComponent::BroadcastAttributeTableChanged()
 {
+	SynchronizeRuntimeAttributeSet();
 	TArray<FLxAttributeData> AttributeList;
 	GetCharacterAttributeList(AttributeList);
 	if (const AActor* OwnerActor = GetOwner(); OwnerActor && OwnerActor->HasAuthority())
@@ -378,6 +416,7 @@ void ULxCharacterAttributeComponent::OnRep_ReplicatedAttributeList()
 			CharacterAttributeTable.Add(AttributeData.AttributeIDTag, AttributeData);
 		}
 	}
+	SynchronizeRuntimeAttributeSet();
 
 	OnAttributeTableChanged.Broadcast(ReplicatedAttributeList);
 	OnDataChange.Broadcast();

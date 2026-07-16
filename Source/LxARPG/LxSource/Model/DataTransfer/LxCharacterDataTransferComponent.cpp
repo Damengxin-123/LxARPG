@@ -1,6 +1,7 @@
 #include "LxCharacterDataTransferComponent.h"
 
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
@@ -314,57 +315,57 @@ ULxCharacterLifecycleComponent* ULxCharacterDataTransferComponent::GetCharacterL
 
 bool ULxCharacterDataTransferComponent::IsCharacterAlive() const
 {
-	return LifecycleComponent == nullptr || LifecycleComponent->IsCharacterAlive();
+	return SpecialAttributeComponent == nullptr || SpecialAttributeComponent->IsCharacterAlive();
 }
 
 void ULxCharacterDataTransferComponent::SetCharacterAliveState(bool bInAlive)
 {
-	if (LifecycleComponent != nullptr)
+	if (SpecialAttributeComponent != nullptr)
 	{
-		LifecycleComponent->SetCharacterAliveState(bInAlive);
+		SpecialAttributeComponent->SetCharacterAliveState(bInAlive);
 	}
 }
 
 bool ULxCharacterDataTransferComponent::GetCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag, FGameplayTagContainer& OutStateTags) const
 {
 	OutStateTags.Reset();
-	return StateComponent != nullptr && StateComponent->GetStateTagsByCategory(InStateCategoryTag, OutStateTags);
+	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->GetStateTagsByCategory(InStateCategoryTag, OutStateTags);
 }
 
 bool ULxCharacterDataTransferComponent::SetCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag, const FGameplayTagContainer& InStateTags)
 {
-	return StateComponent != nullptr && StateComponent->SetStateTagsByCategory(InStateCategoryTag, InStateTags);
+	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->SetStateTagsByCategory(InStateCategoryTag, InStateTags);
 }
 
 bool ULxCharacterDataTransferComponent::AddCharacterStateTag(FGameplayTag InStateCategoryTag, FGameplayTag InStateTag)
 {
-	return StateComponent != nullptr && StateComponent->AddStateTag(InStateCategoryTag, InStateTag);
+	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->AddStateTag(InStateCategoryTag, InStateTag);
 }
 
 bool ULxCharacterDataTransferComponent::RemoveCharacterStateTag(FGameplayTag InStateCategoryTag, FGameplayTag InStateTag)
 {
-	return StateComponent != nullptr && StateComponent->RemoveStateTag(InStateCategoryTag, InStateTag);
+	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->RemoveStateTag(InStateCategoryTag, InStateTag);
 }
 
 bool ULxCharacterDataTransferComponent::HasCharacterStateTag(FGameplayTag InStateTag) const
 {
-	return StateComponent != nullptr && StateComponent->HasStateTag(InStateTag);
+	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->HasStateTag(InStateTag);
 }
 
 void ULxCharacterDataTransferComponent::GetAllCharacterStateTags(FGameplayTagContainer& OutStateTags) const
 {
 	OutStateTags.Reset();
-	if (StateComponent == nullptr)
+	if (SpecialAttributeComponent == nullptr)
 	{
 		return;
 	}
 
-	StateComponent->GetAllStateTags(OutStateTags);
+	SpecialAttributeComponent->GetAllStateTags(OutStateTags);
 }
 
 bool ULxCharacterDataTransferComponent::ClearCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag)
 {
-	return StateComponent != nullptr && StateComponent->ClearStateTagsByCategory(InStateCategoryTag);
+	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->ClearStateTagsByCategory(InStateCategoryTag);
 }
 
 void ULxCharacterDataTransferComponent::ReceiveEntryPackage(const FLxCharacterEntryPackage& InEntryPackage)
@@ -446,6 +447,7 @@ void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 	BuffComponent = OwnerCharacter->GetCharacterBuffComponent();
 	StateComponent = OwnerCharacter->GetCharacterStateComponent();
 	LifecycleComponent = OwnerCharacter->GetCharacterLifecycleComponent();
+	SpecialAttributeComponent = OwnerCharacter->GetCharacterSpecialAttributeComponent();
 	EffectCacheComponent = OwnerCharacter->GetCharacterEffectCacheComponent();
 	EffectTransferComponent = OwnerCharacter->GetCharacterEffectTransferComponent();
 }

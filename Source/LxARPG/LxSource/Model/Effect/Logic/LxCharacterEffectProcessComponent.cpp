@@ -6,7 +6,7 @@
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
-#include "LxARPG/LxSource/Model/Lifecycle/Logic/LxCharacterLifecycleComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkill.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitActor.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -236,7 +236,7 @@ void ULxCharacterEffectProcessComponent::CacheOwnerComponents()
 	}
 
 	DataTransferComponent = OwnerCharacter->GetCharacterDataTransferComponent();
-	LifecycleComponent = OwnerCharacter->GetCharacterLifecycleComponent();
+	SpecialAttributeComponent = OwnerCharacter->GetCharacterSpecialAttributeComponent();
 }
 
 void ULxCharacterEffectProcessComponent::EnsureDamageCalculationFlow()
@@ -369,7 +369,7 @@ void ULxCharacterEffectProcessComponent::ApplyDamageReceiveResultToTarget(const 
 
 void ULxCharacterEffectProcessComponent::RefreshLifecycleAfterDamage()
 {
-	if (LifecycleComponent == nullptr || DataTransferComponent == nullptr || !LifecycleComponent->IsCharacterAlive())
+	if (SpecialAttributeComponent == nullptr || DataTransferComponent == nullptr || !SpecialAttributeComponent->IsCharacterAlive())
 	{
 		return;
 	}
@@ -382,6 +382,6 @@ void ULxCharacterEffectProcessComponent::RefreshLifecycleAfterDamage()
 
 	if (HealthAttributeData.CalculatedAttributeValue.Value <= 0.f)
 	{
-		LifecycleComponent->SetCharacterDead();
+		SpecialAttributeComponent->SetCharacterDead();
 	}
 }

@@ -3,7 +3,7 @@
 #include "GameFramework/Controller.h"
 #include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
 #include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationMotionAnalysisComponent.h"
-#include "LxARPG/LxSource/Model/Lifecycle/Logic/LxCharacterLifecycleComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 ULxCharacterMoveComponent::ULxCharacterMoveComponent()
@@ -30,9 +30,9 @@ void ULxCharacterMoveComponent::HandleMoveInput(const FVector2D& InMoveValue)
 		return;
 	}
 
-	if (const ULxCharacterLifecycleComponent* LifecycleComponent = m_pOwnerCharacter->GetCharacterLifecycleComponent())
+	if (const ULxCharacterSpecialAttributeComponent* SpecialAttributeComponent = m_pOwnerCharacter->GetCharacterSpecialAttributeComponent())
 	{
-		if (!LifecycleComponent->IsCharacterAlive())
+		if (!SpecialAttributeComponent->IsCharacterAlive())
 		{
 			return;
 		}
@@ -106,9 +106,9 @@ void ULxCharacterMoveComponent::HandleJumpInput(bool bPressed)
 		return;
 	}
 
-	if (const ULxCharacterLifecycleComponent* LifecycleComponent = m_pOwnerCharacter->GetCharacterLifecycleComponent())
+	if (const ULxCharacterSpecialAttributeComponent* SpecialAttributeComponent = m_pOwnerCharacter->GetCharacterSpecialAttributeComponent())
 	{
-		if (!LifecycleComponent->IsCharacterAlive())
+		if (!SpecialAttributeComponent->IsCharacterAlive())
 		{
 			return;
 		}

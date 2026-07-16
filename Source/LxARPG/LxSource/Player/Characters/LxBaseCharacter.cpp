@@ -6,6 +6,7 @@
 #include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationMotionAnalysisComponent.h"
 #include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationProcessComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
 #include "LxARPG/LxSource/Model/CloseCombat/Logic/LxCharacterCloseCombatComponent.h"
@@ -36,9 +37,8 @@ ALxBaseCharacter::ALxBaseCharacter()
 	m_pCharacterBackpackComponent = CreateDefaultSubobject<ULxCharacterBackpackComponent>(TEXT("CharacterBackpackComponent"));
 	m_pCharacterEquipmentComponent = CreateDefaultSubobject<ULxCharacterEquipmentComponent>(TEXT("CharacterEquipmentComponent"));
 	m_pCharacterBuffComponent = CreateDefaultSubobject<ULxCharacterBuffComponent>(TEXT("CharacterBuffComponent"));
-	m_pCharacterStateComponent = CreateDefaultSubobject<ULxCharacterStateComponent>(TEXT("CharacterStateComponent"));
 	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
-	m_pCharacterLifecycleComponent = CreateDefaultSubobject<ULxCharacterLifecycleComponent>(TEXT("CharacterLifecycleComponent"));
+	m_pCharacterSpecialAttributeComponent = CreateDefaultSubobject<ULxCharacterSpecialAttributeComponent>(TEXT("CharacterSpecialAttributeComponent"));
 	m_pCharacterEffectProcessComponent = CreateDefaultSubobject<ULxCharacterEffectProcessComponent>(TEXT("CharacterEffectProcessComponent"));
 	m_pCharacterEffectCacheComponent = CreateDefaultSubobject<ULxCharacterEffectCacheComponent>(TEXT("CharacterEffectCacheComponent"));
 	m_pCharacterEffectTransferComponent = CreateDefaultSubobject<ULxCharacterEffectTransferComponent>(TEXT("CharacterEffectTransferComponent"));
@@ -100,19 +100,14 @@ void ALxBaseCharacter::InitialCharacterInformation()
 		m_pCharacterBuffComponent->BaseComponentInitialize();
 	}
 
-	if (m_pCharacterStateComponent)
-	{
-		m_pCharacterStateComponent->BaseComponentInitialize();
-	}
-
 	if (m_pCharacterAttributeComponent)
 	{
 		m_pCharacterAttributeComponent->BaseComponentInitialize();
 	}
 
-	if (m_pCharacterLifecycleComponent)
+	if (m_pCharacterSpecialAttributeComponent)
 	{
-		m_pCharacterLifecycleComponent->BaseComponentInitialize();
+		m_pCharacterSpecialAttributeComponent->BaseComponentInitialize();
 	}
 
 	if (m_pCharacterEffectProcessComponent)
