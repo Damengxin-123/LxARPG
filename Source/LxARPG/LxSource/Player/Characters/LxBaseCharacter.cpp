@@ -3,6 +3,8 @@
 #include "LxCharacterNameTags.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
+#include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationMotionAnalysisComponent.h"
+#include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationProcessComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
 #include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
@@ -29,6 +31,8 @@ ALxBaseCharacter::ALxBaseCharacter()
 	SetReplicateMovement(true);
 	CharacterNameIDTag = LxTag_UnitNaming_DefaultNaming;
 	m_pCharacterMoveComponent = CreateDefaultSubobject<ULxCharacterMoveComponent>(TEXT("CharacterMoveComponent"));
+	m_pCharacterAnimationMotionAnalysisComponent = CreateDefaultSubobject<ULxCharacterAnimationMotionAnalysisComponent>(TEXT("CharacterAnimationMotionAnalysisComponent"));
+	m_pCharacterAnimationProcessComponent = CreateDefaultSubobject<ULxCharacterAnimationProcessComponent>(TEXT("CharacterAnimationProcessComponent"));
 	m_pCharacterBackpackComponent = CreateDefaultSubobject<ULxCharacterBackpackComponent>(TEXT("CharacterBackpackComponent"));
 	m_pCharacterEquipmentComponent = CreateDefaultSubobject<ULxCharacterEquipmentComponent>(TEXT("CharacterEquipmentComponent"));
 	m_pCharacterBuffComponent = CreateDefaultSubobject<ULxCharacterBuffComponent>(TEXT("CharacterBuffComponent"));
@@ -69,6 +73,16 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	if (m_pCharacterMoveComponent)
 	{
 		m_pCharacterMoveComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterAnimationMotionAnalysisComponent)
+	{
+		m_pCharacterAnimationMotionAnalysisComponent->BaseComponentInitialize();
+	}
+
+	if (m_pCharacterAnimationProcessComponent)
+	{
+		m_pCharacterAnimationProcessComponent->BaseComponentInitialize();
 	}
 
 	if (m_pCharacterBackpackComponent)
@@ -247,6 +261,15 @@ void ALxBaseCharacter::Tick(float DeltaTime)
 			m_nCharacterState == ELxCharacterState::JumpEnd)
 		{
 			SetCharacterState(ELxCharacterState::Idle);
+			if (m_pCharacterAnimationMotionAnalysisComponent)
+			{
+				FLxCharacterMotionSignal MotionSignal;
+				MotionSignal.MotionType = ELxCharacterMotionType::Idle;
+				MotionSignal.MotionDirection = FVector::ZeroVector;
+				MotionSignal.MotionSpeed = 0.0f;
+				MotionSignal.bLoop = true;
+				m_pCharacterAnimationMotionAnalysisComponent->ReceiveBaseMotionEvent(MotionSignal);
+			}
 		}
 	}
 }

@@ -183,17 +183,45 @@ public:
 	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="获取实际释放冷却")
 	float GetEffectiveReleaseCooldown() const;
 
+	/** 获取技能一次完整释放占用的时长，单位为秒。 */
+	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="获取技能释放时间")
+	float GetSkillReleaseDuration() const { return FMath::Max(SkillReleaseDuration, 0.1f); }
+
 	/** 判断技能释放冷却是否已经结束。 */
 	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="释放冷却是否结束")
 	bool IsReleaseCooldownReady() const;
 
-	/** 尝试开始一次技能释放；仅在冷却结束时记录释放时间并返回成功。 */
+	/** 尝试开始一次技能释放；仅在冷却结束且没有其他释放计时时建立互斥占用。 */
 	UFUNCTION(BlueprintCallable, Category="技能|释放", DisplayName="尝试开始技能释放")
 	bool TryBeginSkillRelease();
 
 	/** 记录本次技能释放时间，用于后续释放冷却判断。 */
 	UFUNCTION(BlueprintCallable, Category="技能|释放", DisplayName="记录技能释放时间")
 	void MarkSkillReleased();
+
+	/** 为释放组件开启直接释放计时，仅完成校验和互斥占用，不立即执行蓝图释放事件。 */
+	bool TryBeginDirectSkillReleaseTiming();
+
+	/** 为释放组件开启蓄力结束后的释放计时，仅完成校验和互斥占用。 */
+	bool TryBeginChargeSkillReleaseTiming();
+
+	/** 为释放组件开启持续技能的释放计时，仅完成校验和互斥占用。 */
+	bool TryBeginSustainedSkillReleaseTiming();
+
+	/** 在释放时间达到百分之五十时执行直接释放蓝图事件。 */
+	void ExecuteDirectSkillRelease();
+
+	/** 在释放时间达到百分之五十时执行蓄力结束蓝图事件。 */
+	void ExecuteChargeSkillRelease();
+
+	/** 在释放时间达到百分之五十时执行持续释放蓝图事件。 */
+	void ExecuteSustainedSkillRelease();
+
+	/** 在完整释放时间结束时记录冷却起点并解除技能内部释放占用。 */
+	void CompleteSkillReleaseTiming();
+
+	/** 取消尚未完成的释放计时，不进入技能冷却。 */
+	void CancelSkillReleaseTiming();
 
 	/** 根据通用技能单元结果中的目标和位置创建直线投射物；输入为空时使用技能释放锚点。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|投射物", DisplayName="创建直线投射物",
@@ -370,6 +398,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="释放冷却", meta=(ClampMin="0.1", UIMin="0.1"))
 	float ReleaseCooldown = 1.0f;
 
+	/** 技能释放一次占用的总时长，技能单元在计时百分之五十时开始创建，计时结束后才进入冷却。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="技能释放时间（秒）", meta=(ClampMin="0.1", UIMin="0.1", Units="s"))
+	float SkillReleaseDuration = 1.0f;
+
 	/** 直接释放或结束蓄力后，是否保持释放组件占用，直到技能显式通知结束。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="等待显式结束释放")
 	bool bHoldReleaseStateUntilExplicitFinish = false;
@@ -417,4 +449,8 @@ protected:
 	/** 上一次成功释放技能的世界时间。 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放", DisplayName="上次释放时间")
 	float LastReleaseTime = -100000000.0f;
+
+	/** 当前是否处于释放时间计时中，用于在冷却开始前阻止重复释放。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放", DisplayName="正在进行技能释放计时")
+	bool bSkillReleaseTiming = false;
 };

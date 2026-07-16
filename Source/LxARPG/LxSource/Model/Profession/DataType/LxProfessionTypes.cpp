@@ -142,9 +142,9 @@ namespace LxProfessionDisplayTools
 
 	FString MakeRichTextWithDefaultStyle(const FLxRichStyledText& InStyledText, const FString& InSuffix)
 	{
-		FName TextStyleTag = NAME_None;
-		InStyledText.ResolveTextStyleTag(TextStyleTag);
-		return MakeRichTextWithDefaultStyle(InStyledText.Text.ToString() + InSuffix, TextStyleTag);
+		FLxRichStyledText DisplayText = InStyledText;
+		DisplayText.Text = FText::FromString(DisplayText.Text.ToString() + InSuffix);
+		return DisplayText.GetStyledText().ToString();
 	}
 
 	FLxProfessionRichDisplayTextResult BuildRequirementDisplayText(const ULxProfessionDefinition* InProfessionDefinition, const ULxCharacterDataTransferComponent* InDataTransferComponent)

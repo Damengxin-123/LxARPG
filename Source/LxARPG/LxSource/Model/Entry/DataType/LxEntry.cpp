@@ -74,7 +74,7 @@ namespace
 	/** 将词条显示名称中的数值占位符替换后，再转换为 UI 可识别的富文本字符串。 */
 	FText MakeStyledEntryDisplayName(const FLxRichStyledText& InDisplayName)
 	{
-		return FText::FromString(InDisplayName.ToRichTextString());
+		return InDisplayName.GetStyledText();
 	}
 
 	/** 将词条显示名称中的数值占位符替换后，再转换为 UI 可识别的富文本字符串。 */
@@ -84,7 +84,7 @@ namespace
 		FLxString DisplayText(DisplayName.Text);
 		DisplayText.Arg(InDisplayValue);
 		DisplayName.Text = DisplayText.ToFText();
-		return FText::FromString(DisplayName.ToRichTextString());
+		return DisplayName.GetStyledText();
 	}
 }
 

@@ -1,6 +1,8 @@
 #include "LxCharacterMoveComponent.h"
 
 #include "GameFramework/Controller.h"
+#include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
+#include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationMotionAnalysisComponent.h"
 #include "LxARPG/LxSource/Model/Lifecycle/Logic/LxCharacterLifecycleComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
@@ -42,10 +44,17 @@ void ULxCharacterMoveComponent::HandleMoveInput(const FVector2D& InMoveValue)
 	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
+	if (InMoveValue.IsNearlyZero())
+	{
+		BuildAndSendBaseAnimationMotionSignal(ELxCharacterMotionType::Idle, FVector::ZeroVector, true);
+		return;
+	}
+
 	m_pOwnerCharacter->SetCharacterState(ELxCharacterState::Moving);
 	
 	m_pOwnerCharacter->AddMovementInput(ForwardDirection, InMoveValue.Y);
 	m_pOwnerCharacter->AddMovementInput(RightDirection, InMoveValue.X);
+	BuildAndSendBaseAnimationMotionSignal(ELxCharacterMotionType::Move, ForwardDirection * InMoveValue.Y + RightDirection * InMoveValue.X, true);
 
 	// 角色转向
 	// 2️⃣ 没输入就不转向
@@ -109,11 +118,13 @@ void ULxCharacterMoveComponent::HandleJumpInput(bool bPressed)
 	{
 		m_pOwnerCharacter->Jump();
 		m_pOwnerCharacter->SetCharacterState(ELxCharacterState::JumpStart);
+		BuildAndSendBaseAnimationMotionSignal(ELxCharacterMotionType::JumpStart, FVector::UpVector, false);
 	}
 	else
 	{
 		m_pOwnerCharacter->StopJumping();
 		m_pOwnerCharacter->SetCharacterState(ELxCharacterState::JumpEnd);
+		BuildAndSendBaseAnimationMotionSignal(ELxCharacterMotionType::JumpEnd, FVector::DownVector, false);
 	}
 }
 
@@ -139,4 +150,54 @@ void ULxCharacterMoveComponent::AddMoveRotationLock()
 void ULxCharacterMoveComponent::RemoveMoveRotationLock()
 {
 	MoveRotationLockCount = FMath::Max(0, MoveRotationLockCount - 1);
+}
+
+void ULxCharacterMoveComponent::SendBaseAnimationMotionSignal(const FLxCharacterMotionSignal& InMotionSignal) const
+{
+	if (!m_pOwnerCharacter)
+	{
+		return;
+	}
+
+	ULxCharacterAnimationMotionAnalysisComponent* MotionAnalysisComponent = m_pOwnerCharacter->GetCharacterAnimationMotionAnalysisComponent();
+	if (!MotionAnalysisComponent)
+	{
+		return;
+	}
+
+	MotionAnalysisComponent->ReceiveBaseMotionEvent(InMotionSignal);
+}
+
+void ULxCharacterMoveComponent::SendActionAnimationMotionSignal(const FLxCharacterMotionSignal& InMotionSignal) const
+{
+	if (!m_pOwnerCharacter)
+	{
+		return;
+	}
+
+	ULxCharacterAnimationMotionAnalysisComponent* MotionAnalysisComponent = m_pOwnerCharacter->GetCharacterAnimationMotionAnalysisComponent();
+	if (!MotionAnalysisComponent)
+	{
+		return;
+	}
+
+	MotionAnalysisComponent->ReceiveActionMotionEvent(InMotionSignal);
+}
+
+void ULxCharacterMoveComponent::BuildAndSendBaseAnimationMotionSignal(
+	ELxCharacterMotionType InMotionType,
+	const FVector& InMotionDirection,
+	bool bInLoop) const
+{
+	if (!m_pOwnerCharacter)
+	{
+		return;
+	}
+
+	FLxCharacterMotionSignal MotionSignal;
+	MotionSignal.MotionType = InMotionType;
+	MotionSignal.MotionDirection = InMotionDirection;
+	MotionSignal.MotionSpeed = m_pOwnerCharacter->GetVelocity().Size();
+	MotionSignal.bLoop = bInLoop;
+	SendBaseAnimationMotionSignal(MotionSignal);
 }

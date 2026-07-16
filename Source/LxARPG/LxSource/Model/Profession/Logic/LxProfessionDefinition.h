@@ -60,7 +60,7 @@ public:
 
 	/** 获取职业显示名称。 */
 	UFUNCTION(BlueprintPure, Category="职业|基础", DisplayName="获取职业显示名称")
-	FText GetProfessionDisplayName() const { return FText::FromString(LxProfessionDisplayTools::MakeRichTextWithDefaultStyle(ProfessionBaseInfo.ProfessionName)); }
+	FText GetProfessionDisplayName() const { return ProfessionBaseInfo.ProfessionName.GetStyledText(); }
 
 	/** 获取职业基础信息。 */
 	UFUNCTION(BlueprintPure, Category="职业|基础", DisplayName="获取职业基础信息")

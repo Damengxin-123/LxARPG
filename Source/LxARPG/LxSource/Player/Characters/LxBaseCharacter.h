@@ -8,6 +8,8 @@
 #include "LxBaseCharacter.generated.h"
 
 class UDataTable;
+class ULxCharacterAnimationMotionAnalysisComponent;
+class ULxCharacterAnimationProcessComponent;
 class ULxCharacterAttributeComponent;
 class ULxCharacterAnchorPointComponent;
 class ULxCharacterBackpackComponent;
@@ -92,6 +94,14 @@ public:
 	/** 获取角色移动组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色移动组件")
 	ULxCharacterMoveComponent* GetCharacterMoveComponent() const { return m_pCharacterMoveComponent; }
+
+	/** 获取角色动画运动分析组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色动画", DisplayName="获取角色动画运动分析组件")
+	ULxCharacterAnimationMotionAnalysisComponent* GetCharacterAnimationMotionAnalysisComponent() const { return m_pCharacterAnimationMotionAnalysisComponent; }
+
+	/** 获取角色动画处理组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色动画", DisplayName="获取角色动画处理组件")
+	ULxCharacterAnimationProcessComponent* GetCharacterAnimationProcessComponent() const { return m_pCharacterAnimationProcessComponent; }
 
 	/** 获取角色属性组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色属性组件")
@@ -190,14 +200,26 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色移动组件")
 	TObjectPtr<ULxCharacterMoveComponent> m_pCharacterMoveComponent;
 
+	/** 角色动画运动分析组件，用于接收外部行为并输出运动信号。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色动画", DisplayName="角色动画运动分析组件")
+	TObjectPtr<ULxCharacterAnimationMotionAnalysisComponent> m_pCharacterAnimationMotionAnalysisComponent;
+
+	/** 角色动画处理组件，用于将运动信号转换为动画播放信号。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色动画", DisplayName="角色动画处理组件")
+	TObjectPtr<ULxCharacterAnimationProcessComponent> m_pCharacterAnimationProcessComponent;
+
 	/** 角色属性组件，用于维护角色属性表和属性词条缓存。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色属性组件")
 	TObjectPtr<ULxCharacterAttributeComponent> m_pCharacterAttributeComponent;
 
 	/** 角色背包组件，用于管理背包槽位和背包物品。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色背包组件")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|物品模块", DisplayName="角色背包组件")
 	TObjectPtr<ULxCharacterBackpackComponent> m_pCharacterBackpackComponent;
-
+	
+	/** 角色装备组件，用于管理装备槽位和已装备物品。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|物品模块", DisplayName="角色装备组件")
+	TObjectPtr<ULxCharacterEquipmentComponent> m_pCharacterEquipmentComponent;
+	
 	/** 角色 Buff 组件，用于管理运行时 Buff。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色Buff组件")
 	TObjectPtr<ULxCharacterBuffComponent> m_pCharacterBuffComponent;
@@ -226,9 +248,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色生命周期组件")
 	TObjectPtr<ULxCharacterLifecycleComponent> m_pCharacterLifecycleComponent;
 
-	/** 角色装备组件，用于管理装备槽位和已装备物品。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色装备组件")
-	TObjectPtr<ULxCharacterEquipmentComponent> m_pCharacterEquipmentComponent;
+
 
 	/** 技能释放组件，用于统一处理玩家和 AI 的技能释放、蓄力和释放上下文。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="技能释放组件")

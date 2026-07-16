@@ -1,8 +1,12 @@
 #include "LxSkillCastComponent.h"
 
+#include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "TimerManager.h"
 #include "LxARPG/LxSource/Model/Aim/LxPlayerAimComponent.h"
+#include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
+#include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
@@ -91,16 +95,13 @@ bool ULxSkillCastComponent::ReleaseSkillDirectly(ULxSkill* InSkill, const FLxSki
 
 	SkillCastState = ELxSkillCastState::DirectReleasing;
 	CurrentCastingSkill = InSkill;
-	if (!InSkill->TryReleaseSkillDirectly())
+	if (!InSkill->TryBeginDirectSkillReleaseTiming())
 	{
 		ResetSkillCastState();
 		return false;
 	}
 
-	if (!InSkill->ShouldHoldReleaseStateUntilExplicitFinish())
-	{
-		ResetSkillCastState();
-	}
+	BeginTimedSkillRelease(InSkill, ELxPendingSkillReleaseExecution::Direct);
 	return true;
 }
 
@@ -129,21 +130,15 @@ bool ULxSkillCastComponent::EndSkillCharge(ULxSkill* InSkill, const FLxSkillCast
 	ULxSkill* SkillToEnd = InSkill ? InSkill : ChargingSkill.Get();
 	if (SkillCastState != ELxSkillCastState::Charging || SkillToEnd == nullptr
 		|| SkillToEnd != CurrentCastingSkill || !InitializeSkillForCast(SkillToEnd, InCastContext)
-		|| !SkillToEnd->TryEndSkillCharge())
+		|| !SkillToEnd->TryBeginChargeSkillReleaseTiming())
 	{
 		return false;
 	}
 
 	ChargingSkill = nullptr;
 	ChargingSkillItem = nullptr;
-	if (SkillToEnd->ShouldHoldReleaseStateUntilExplicitFinish())
-	{
-		SkillCastState = ELxSkillCastState::DirectReleasing;
-	}
-	else
-	{
-		ResetSkillCastState();
-	}
+	SkillCastState = ELxSkillCastState::DirectReleasing;
+	BeginTimedSkillRelease(SkillToEnd, ELxPendingSkillReleaseExecution::Charge);
 	return true;
 }
 
@@ -157,12 +152,13 @@ bool ULxSkillCastComponent::StartSustainedRelease(ULxSkill* InSkill, const FLxSk
 	SkillCastState = ELxSkillCastState::SustainedReleasing;
 	CurrentCastingSkill = InSkill;
 	SustainedSkill = InSkill;
-	if (!InSkill->TryStartSustainedRelease())
+	if (!InSkill->TryBeginSustainedSkillReleaseTiming())
 	{
 		ResetSkillCastState();
 		return false;
 	}
 
+	BeginTimedSkillRelease(InSkill, ELxPendingSkillReleaseExecution::Sustained);
 	BeginSustainedAimTracking();
 	return true;
 }
@@ -176,7 +172,9 @@ bool ULxSkillCastComponent::StopSustainedRelease(ULxSkill* InSkill)
 		return false;
 	}
 
+	ClearTimedSkillRelease(true);
 	const bool bStopped = SkillToStop->TryStopSustainedRelease();
+	MulticastStopSkillActionAnimation();
 	EndSustainedAimTracking();
 	ResetSkillCastState();
 	return bStopped;
@@ -191,7 +189,9 @@ bool ULxSkillCastComponent::CancelSustainedRelease(ULxSkill* InSkill)
 		return false;
 	}
 
+	ClearTimedSkillRelease(true);
 	const bool bCancelled = SkillToCancel->TryCancelSustainedRelease();
+	MulticastStopSkillActionAnimation();
 	EndSustainedAimTracking();
 	ResetSkillCastState();
 	return bCancelled;
@@ -208,9 +208,11 @@ bool ULxSkillCastComponent::CancelCurrentSkillRelease()
 	bool bCancelled = false;
 	if (SkillToCancel)
 	{
+		ClearTimedSkillRelease(true);
 		bCancelled = SkillCastState == ELxSkillCastState::SustainedReleasing
 			? SkillToCancel->TryCancelSustainedRelease()
 			: SkillToCancel->TryCancelSkillRelease();
+		MulticastStopSkillActionAnimation();
 	}
 
 	EndSustainedAimTracking();
@@ -220,7 +222,8 @@ bool ULxSkillCastComponent::CancelCurrentSkillRelease()
 
 bool ULxSkillCastComponent::FinishCurrentSkillRelease(ULxSkill* InSkill)
 {
-	if (IsSkillCastIdle() || InSkill == nullptr || InSkill != CurrentCastingSkill)
+	if (IsSkillCastIdle() || InSkill == nullptr || InSkill != CurrentCastingSkill
+		|| PendingSkillReleaseExecution != ELxPendingSkillReleaseExecution::None)
 	{
 		return false;
 	}
@@ -327,6 +330,128 @@ void ULxSkillCastComponent::ServerHandleSkillItemReleaseInput_Implementation(FGa
 	FLxSkillCastContext ServerContext = MakeSkillCastContext(SkillItem, InTargetActor,
 		InAimLocation, bInHasAimLocation, InAimDirection, bInHasAimDirection);
 	HandleSkillReleaseInputAuthority(Skill, InInputState, ServerContext);
+}
+
+void ULxSkillCastComponent::MulticastPlaySkillActionAnimation_Implementation(float InSkillReleaseDuration)
+{
+	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
+	ULxCharacterMoveComponent* CharacterMoveComponent = OwnerCharacter
+		? OwnerCharacter->GetCharacterMoveComponent()
+		: nullptr;
+	if (!CharacterMoveComponent)
+	{
+		return;
+	}
+
+	FLxCharacterMotionSignal ActionMotionSignal;
+	ActionMotionSignal.MotionType = ELxCharacterMotionType::Skill;
+	// 技能动作资产统一按一秒制作，通过播放速率把实际时长拉伸或压缩到技能释放时间。
+	ActionMotionSignal.MotionSpeed = 1.0f / FMath::Max(InSkillReleaseDuration, 0.1f);
+	ActionMotionSignal.bLoop = false;
+	CharacterMoveComponent->SendActionAnimationMotionSignal(ActionMotionSignal);
+}
+
+void ULxSkillCastComponent::MulticastStopSkillActionAnimation_Implementation()
+{
+	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
+	ULxCharacterMoveComponent* CharacterMoveComponent = OwnerCharacter
+		? OwnerCharacter->GetCharacterMoveComponent()
+		: nullptr;
+	if (!CharacterMoveComponent)
+	{
+		return;
+	}
+
+	FLxCharacterMotionSignal ActionMotionSignal;
+	ActionMotionSignal.MotionType = ELxCharacterMotionType::None;
+	ActionMotionSignal.MotionSpeed = 0.0f;
+	ActionMotionSignal.bLoop = false;
+	CharacterMoveComponent->SendActionAnimationMotionSignal(ActionMotionSignal);
+}
+
+void ULxSkillCastComponent::BeginTimedSkillRelease(ULxSkill* InSkill,
+	ELxPendingSkillReleaseExecution InExecutionType)
+{
+	if (!InSkill || !GetWorld())
+	{
+		if (InSkill)
+		{
+			InSkill->CancelSkillReleaseTiming();
+		}
+		ResetSkillCastState();
+		return;
+	}
+
+	ClearTimedSkillRelease(false);
+	PendingSkillReleaseExecution = InExecutionType;
+	const float ReleaseDuration = InSkill->GetSkillReleaseDuration();
+	MulticastPlaySkillActionAnimation(ReleaseDuration);
+
+	GetWorld()->GetTimerManager().SetTimer(SkillReleaseExecutionTimerHandle, this,
+		&ULxSkillCastComponent::ExecuteTimedSkillRelease, ReleaseDuration * 0.5f, false);
+	GetWorld()->GetTimerManager().SetTimer(SkillReleaseCompletionTimerHandle, this,
+		&ULxSkillCastComponent::CompleteTimedSkillRelease, ReleaseDuration, false);
+}
+
+void ULxSkillCastComponent::ExecuteTimedSkillRelease()
+{
+	ULxSkill* Skill = CurrentCastingSkill.Get();
+	if (!Skill)
+	{
+		ClearTimedSkillRelease(false);
+		ResetSkillCastState();
+		return;
+	}
+
+	switch (PendingSkillReleaseExecution)
+	{
+	case ELxPendingSkillReleaseExecution::Direct:
+		Skill->ExecuteDirectSkillRelease();
+		break;
+	case ELxPendingSkillReleaseExecution::Charge:
+		Skill->ExecuteChargeSkillRelease();
+		break;
+	case ELxPendingSkillReleaseExecution::Sustained:
+		Skill->ExecuteSustainedSkillRelease();
+		break;
+	default:
+		break;
+	}
+}
+
+void ULxSkillCastComponent::CompleteTimedSkillRelease()
+{
+	ULxSkill* Skill = CurrentCastingSkill.Get();
+	const ELxPendingSkillReleaseExecution CompletedExecution = PendingSkillReleaseExecution;
+	PendingSkillReleaseExecution = ELxPendingSkillReleaseExecution::None;
+	if (!Skill)
+	{
+		ResetSkillCastState();
+		return;
+	}
+
+	Skill->CompleteSkillReleaseTiming();
+	MulticastStopSkillActionAnimation();
+	if (CompletedExecution != ELxPendingSkillReleaseExecution::Sustained
+		&& !Skill->ShouldHoldReleaseStateUntilExplicitFinish())
+	{
+		ResetSkillCastState();
+	}
+}
+
+void ULxSkillCastComponent::ClearTimedSkillRelease(bool bCancelSkillTiming)
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(SkillReleaseExecutionTimerHandle);
+		World->GetTimerManager().ClearTimer(SkillReleaseCompletionTimerHandle);
+	}
+
+	if (bCancelSkillTiming && CurrentCastingSkill)
+	{
+		CurrentCastingSkill->CancelSkillReleaseTiming();
+	}
+	PendingSkillReleaseExecution = ELxPendingSkillReleaseExecution::None;
 }
 
 FGameplayTag ULxSkillCastComponent::ResolveSkillItemIDTag(const ULxSkill* InSkill) const
@@ -448,6 +573,7 @@ FLxSkillCastContext ULxSkillCastComponent::NormalizeCastContext(const FLxSkillCa
 }
 void ULxSkillCastComponent::ResetSkillCastState()
 {
+	ClearTimedSkillRelease(false);
 	SkillCastState = ELxSkillCastState::Idle;
 	CurrentCastingSkill = nullptr;
 	ChargingSkill = nullptr;

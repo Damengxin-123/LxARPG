@@ -19,7 +19,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBackpackItemUsed, ULxItemBase*, U
  * 当前背包组件只使用新的 ULxItemBase 物品体系：物品通过 FLxItemQuote 创建，
  * 槽位保存 ULxItemBase 指针，词条通过物品对象自身的 GetItemEntryList 访问。
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色背包组件")
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Category = "物品模块", Blueprintable, DisplayName="角色背包组件")
 class LXARPG_API ULxCharacterBackpackComponent : public ULxCharacterComponentBase
 {
 	GENERATED_BODY()

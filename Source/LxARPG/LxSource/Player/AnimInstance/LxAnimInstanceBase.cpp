@@ -13,15 +13,23 @@ void ULxAnimInstanceBase::NativeInitializeAnimation()
 	{
 		m_pCharacter = Cast<ALxBaseCharacter>(Pawn);
 	}
-	// 构建映射
-	m_mapStateAnimMap.Empty();
-	for (const auto& Config : m_vStateAnimConfigs)
+	// 构建动画类型与动画资产的运行时映射。
+	AnimationAssetMap.Empty();
+	for (const FLxCharacterAnimationAssetConfig& Config : AnimationAssetConfigs)
 	{
-		if (Config.AnimSequence)
+		if (Config.AnimationAsset)
 		{
-			m_mapStateAnimMap.Add(Config.State, Config.AnimSequence);
+			AnimationAssetMap.Add(Config.AnimationType, Config.AnimationAsset);
 		}
 	}
+
+	CurrentBaseAnimationAsset = GetConfiguredAnimationAsset(CurrentBaseAnimationType);
+	if (!CurrentBaseAnimationAsset)
+	{
+		CurrentBaseAnimationAsset = DefaultAnimationAsset;
+	}
+	CurrentActionAnimationAsset = nullptr;
+	bShouldBlendActionAnimation = false;
 }
 
 void ULxAnimInstanceBase::NativeUpdateAnimation(float DeltaSeconds)
@@ -35,21 +43,61 @@ void ULxAnimInstanceBase::NativeUpdateAnimation(float DeltaSeconds)
 			m_pCharacter = Cast<ALxBaseCharacter>(Pawn);
 		}
 	}
-	if (m_pCharacter)
-	{
-		m_nCharacterState = m_pCharacter->GetCurrentState();
-	}
-	
 }
 
-UAnimSequence* ULxAnimInstanceBase::GetAnimSequence(ELxCharacterState InState) const
+void ULxAnimInstanceBase::ApplyBaseAnimationSignal(const FLxCharacterAnimationSignal& InAnimationSignal)
 {
-	if (m_mapStateAnimMap.Contains(InState))
+	UpdateBaseAnimationPlayback(InAnimationSignal);
+}
+
+void ULxAnimInstanceBase::ApplyActionAnimationSignal(const FLxCharacterAnimationSignal& InAnimationSignal)
+{
+	UpdateActionAnimationPlayback(InAnimationSignal);
+}
+
+void ULxAnimInstanceBase::UpdateBaseAnimationPlayback(const FLxCharacterAnimationSignal& InAnimationSignal)
+{
+	CurrentBaseAnimationSignal = InAnimationSignal;
+	CurrentBaseAnimationType = InAnimationSignal.AnimationType;
+	CurrentBaseAnimationPlayRate = InAnimationSignal.PlayRate;
+	bCurrentBaseAnimationLoop = InAnimationSignal.bLoop;
+	CurrentBaseAnimationAsset = GetConfiguredAnimationAsset(CurrentBaseAnimationType);
+	if (!CurrentBaseAnimationAsset)
 	{
-		return m_mapStateAnimMap[InState];
+		CurrentBaseAnimationAsset = DefaultAnimationAsset;
 	}
-	else
+}
+
+void ULxAnimInstanceBase::UpdateActionAnimationPlayback(const FLxCharacterAnimationSignal& InAnimationSignal)
+{
+	ActionAnimationPlayRequestId = ActionAnimationPlayRequestId == MAX_int32
+		? 1
+		: ActionAnimationPlayRequestId + 1;
+	CurrentActionAnimationSignal = InAnimationSignal;
+	CurrentActionAnimationType = InAnimationSignal.AnimationType;
+	CurrentActionAnimationPlayRate = InAnimationSignal.PlayRate;
+	bCurrentActionAnimationLoop = InAnimationSignal.bLoop;
+	CurrentActionAnimationAsset = CurrentActionAnimationType == ELxCharacterMotionType::None
+		? nullptr
+		: GetConfiguredAnimationAsset(CurrentActionAnimationType);
+	bShouldBlendActionAnimation = CurrentActionAnimationAsset != nullptr;
+}
+
+UAnimationAsset* ULxAnimInstanceBase::GetConfiguredAnimationAsset(ELxCharacterMotionType InAnimationType) const
+{
+	if (const TObjectPtr<UAnimationAsset>* AnimationAsset = AnimationAssetMap.Find(InAnimationType))
 	{
-		return nullptr;
+		return AnimationAsset->Get();
 	}
+
+	// 初始化前也允许蓝图查询配置，避免缓存尚未建立时错误返回空。
+	for (const FLxCharacterAnimationAssetConfig& Config : AnimationAssetConfigs)
+	{
+		if (Config.AnimationType == InAnimationType && Config.AnimationAsset)
+		{
+			return Config.AnimationAsset.Get();
+		}
+	}
+
+	return nullptr;
 }

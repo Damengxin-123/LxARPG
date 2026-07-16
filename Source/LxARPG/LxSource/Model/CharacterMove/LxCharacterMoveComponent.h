@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxComponentBase.h"
+#include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
 #include "LxCharacterMoveComponent.generated.h"
 
 class ALxBaseCharacter;
@@ -60,8 +61,18 @@ public:
 	UFUNCTION(BlueprintPure, Category="角色|移动", DisplayName="是否允许移动转向")
 	bool CanRotateByMoveInput() const { return MoveRotationLockCount <= 0; }
 
-	
+	/** 将基础运动信号发送到角色动画运动分析组件。 */
+	UFUNCTION(BlueprintCallable, Category="角色|动画信号", DisplayName="发送基础动画运动信号")
+	void SendBaseAnimationMotionSignal(const FLxCharacterMotionSignal& InMotionSignal) const;
+
+	/** 将动作运动信号发送到角色动画运动分析组件，类型为无时清空动作通道。 */
+	UFUNCTION(BlueprintCallable, Category="角色|动画信号", DisplayName="发送动作动画运动信号")
+	void SendActionAnimationMotionSignal(const FLxCharacterMotionSignal& InMotionSignal) const;
+
 private:
+	/** 根据当前移动数据构建并发送基础运动信号。 */
+	void BuildAndSendBaseAnimationMotionSignal(ELxCharacterMotionType InMotionType, const FVector& InMotionDirection, bool bInLoop) const;
+
 	UPROPERTY()
 	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter;
 

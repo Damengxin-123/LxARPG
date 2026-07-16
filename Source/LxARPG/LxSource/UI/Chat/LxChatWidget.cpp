@@ -165,7 +165,7 @@ FText ULxChatWidget::BuildChatDisplayText(const FLxChatMessageData& InMessageDat
 	FLxRichStyledText StyledText;
 	StyledText.TextStyleIDTag = GetMessageStyleIDTag(InMessageData.SourceType);
 	StyledText.Text = FText::FromString(DisplayString);
-	return FText::FromString(StyledText.ToRichTextString());
+	return StyledText.GetStyledText();
 }
 
 FGameplayTag ULxChatWidget::GetMessageStyleIDTag(ELxChatMessageSourceType InSourceType) const

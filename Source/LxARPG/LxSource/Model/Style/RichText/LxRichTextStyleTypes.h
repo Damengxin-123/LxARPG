@@ -40,6 +40,12 @@ public:
 	/** 将当前数据转换为 RichTextBlock 可识别的富文本字符串。 */
 	FString ToRichTextString() const;
 
+	/**
+	 * 获取包含样式的文本。
+	 * 直接使用文本样式标签 ID 的最后一段作为 RichTextBlock 样式标签。
+	 */
+	FText GetStyledText() const;
+
 	/** 解析当前样式标签 ID 对应的富文本样式行名。 */
 	bool ResolveTextStyleTag(FName& OutTextStyleTag) const;
 };
@@ -54,6 +60,10 @@ public:
 	/** 根据带样式文本数据生成 RichTextBlock 可识别的富文本字符串。 */
 	UFUNCTION(BlueprintPure, Category="富文本样式", DisplayName="生成带样式富文本字符串")
 	static FString MakeRichTextString(const FLxRichStyledText& InStyledText);
+
+	/** 直接使用样式标签 ID 的最后一段包装文本。 */
+	UFUNCTION(BlueprintPure, Category="富文本样式", DisplayName="获取包含样式的文本")
+	static FText GetStyledText(const FLxRichStyledText& InStyledText);
 
 	/** 根据样式标签 ID 查询富文本样式行名。 */
 	UFUNCTION(BlueprintPure, Category="富文本样式", DisplayName="解析富文本样式标签")

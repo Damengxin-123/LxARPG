@@ -12,6 +12,15 @@ struct FLxPlayerAimResult;
 struct FLxSkillEntryPackage;
 class ULxSkillItem;
 
+/** 释放时间轴到达中点时需要执行的技能事件类型。 */
+enum class ELxPendingSkillReleaseExecution : uint8
+{
+	None,
+	Direct,
+	Charge,
+	Sustained
+};
+
 /** 技能释放组件。挂载在角色身上，统一解释开始、结束、取消等释放输入，并调用对应技能流程。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="技能释放组件")
 class LXARPG_API ULxSkillCastComponent : public ULxComponentBase
@@ -117,12 +126,32 @@ private:
 		AActor* InTargetActor, FVector_NetQuantize InAimLocation, bool bInHasAimLocation,
 		FVector_NetQuantizeNormal InAimDirection, bool bInHasAimDirection);
 
+	/** 向服务器和所有客户端广播一次技能动作动画播放请求，并按照技能释放时间计算播放速率。 */
+	UFUNCTION(NetMulticast, Reliable, Category="技能|释放组件|网络", DisplayName="广播技能动作动画")
+	void MulticastPlaySkillActionAnimation(float InSkillReleaseDuration);
+
+	/** 向服务器和所有客户端广播技能动作动画结束信号，用空动作资产重置动画融合堆栈。 */
+	UFUNCTION(NetMulticast, Reliable, Category="技能|释放组件|网络", DisplayName="广播技能动作动画结束")
+	void MulticastStopSkillActionAnimation();
+
 	/** 根据技能对象反查所属技能物品标签，避免通过网络传递不可复制的 UObject。 */
 	FGameplayTag ResolveSkillItemIDTag(const ULxSkill* InSkill) const;
 
 	/** 在权威端执行已经通过网络入口校验的技能输入。 */
 	bool HandleSkillReleaseInputAuthority(ULxSkill* InSkill, ELxSkillReleaseInputState InInputState,
 		const FLxSkillCastContext& InCastContext);
+
+	/** 启动技能释放时间轴，在百分之五十执行技能事件，在百分之百记录冷却起点。 */
+	void BeginTimedSkillRelease(ULxSkill* InSkill, ELxPendingSkillReleaseExecution InExecutionType);
+
+	/** 释放时间轴到达百分之五十时执行对应技能蓝图事件。 */
+	void ExecuteTimedSkillRelease();
+
+	/** 释放时间轴结束时记录技能冷却起点并解除一次性技能占用。 */
+	void CompleteTimedSkillRelease();
+
+	/** 清理释放时间轴定时器，可选择同时取消技能内部释放占用。 */
+	void ClearTimedSkillRelease(bool bCancelSkillTiming);
 
 	FLxSkillCastContext NormalizeCastContext(const FLxSkillCastContext& InCastContext, UObject* SourceObject = nullptr) const;
 	void BeginSustainedAimTracking();
@@ -180,4 +209,13 @@ private:
 	/** 最近一次释放上下文。 */
 	UPROPERTY(Transient)
 	FLxSkillCastContext CurrentCastContext;
+
+	/** 当前释放时间轴中点需要执行的技能事件类型。 */
+	ELxPendingSkillReleaseExecution PendingSkillReleaseExecution = ELxPendingSkillReleaseExecution::None;
+
+	/** 技能释放时间轴百分之五十执行点定时器。 */
+	FTimerHandle SkillReleaseExecutionTimerHandle;
+
+	/** 技能释放时间轴结束点定时器。 */
+	FTimerHandle SkillReleaseCompletionTimerHandle;
 };

@@ -266,29 +266,31 @@ bool ULxSkill::TryStartSkillCharge()
 
 bool ULxSkill::TryEndSkillCharge()
 {
-	if (!bCharging || !TryBeginSkillRelease())
+	if (!TryBeginChargeSkillReleaseTiming())
 	{
 		return false;
 	}
 
-	bCharging = false;
-	EndSkillCharge();
+	ExecuteChargeSkillRelease();
+	CompleteSkillReleaseTiming();
 	return true;
 }
 
 bool ULxSkill::TryReleaseSkillDirectly()
 {
-	if (!TryBeginSkillRelease())
+	if (!TryBeginDirectSkillReleaseTiming())
 	{
 		return false;
 	}
 
-	ReleaseSkillDirectly();
+	ExecuteDirectSkillRelease();
+	CompleteSkillReleaseTiming();
 	return true;
 }
 
 bool ULxSkill::TryCancelSkillRelease()
 {
+	CancelSkillReleaseTiming();
 	bCharging = false;
 	if (IsValid(PersistentSkillUnitGroup) && PersistentSkillUnitGroup->HasActiveSkillUnits())
 	{
@@ -300,13 +302,13 @@ bool ULxSkill::TryCancelSkillRelease()
 
 bool ULxSkill::TryStartSustainedRelease()
 {
-	if (!IsSustainedReleaseSkill() || bSustainedReleasing || !TryBeginSkillRelease())
+	if (!TryBeginSustainedSkillReleaseTiming())
 	{
 		return false;
 	}
 
-	bSustainedReleasing = true;
-	StartSustainedRelease();
+	ExecuteSustainedSkillRelease();
+	CompleteSkillReleaseTiming();
 	return true;
 }
 
@@ -324,6 +326,7 @@ bool ULxSkill::TryStopSustainedRelease()
 
 bool ULxSkill::TryCancelSustainedRelease()
 {
+	CancelSkillReleaseTiming();
 	if (!bSustainedReleasing)
 	{
 		return false;
@@ -391,6 +394,11 @@ float ULxSkill::GetEffectiveReleaseCooldown() const
 }
 bool ULxSkill::IsReleaseCooldownReady() const
 {
+	if (bSkillReleaseTiming)
+	{
+		return false;
+	}
+
 	const UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -407,7 +415,7 @@ bool ULxSkill::TryBeginSkillRelease()
 		return false;
 	}
 
-	MarkSkillReleased();
+	bSkillReleaseTiming = true;
 	return true;
 }
 
@@ -417,6 +425,73 @@ void ULxSkill::MarkSkillReleased()
 	{
 		LastReleaseTime = World->GetTimeSeconds();
 	}
+}
+
+bool ULxSkill::TryBeginDirectSkillReleaseTiming()
+{
+	return SkillReleaseType == ELxSkillReleaseType::DirectRelease && TryBeginSkillRelease();
+}
+
+bool ULxSkill::TryBeginChargeSkillReleaseTiming()
+{
+	if (!bCharging || !TryBeginSkillRelease())
+	{
+		return false;
+	}
+
+	bCharging = false;
+	return true;
+}
+
+bool ULxSkill::TryBeginSustainedSkillReleaseTiming()
+{
+	if (!IsSustainedReleaseSkill() || bSustainedReleasing || !TryBeginSkillRelease())
+	{
+		return false;
+	}
+
+	bSustainedReleasing = true;
+	return true;
+}
+
+void ULxSkill::ExecuteDirectSkillRelease()
+{
+	if (bSkillReleaseTiming)
+	{
+		ReleaseSkillDirectly();
+	}
+}
+
+void ULxSkill::ExecuteChargeSkillRelease()
+{
+	if (bSkillReleaseTiming)
+	{
+		EndSkillCharge();
+	}
+}
+
+void ULxSkill::ExecuteSustainedSkillRelease()
+{
+	if (bSkillReleaseTiming)
+	{
+		StartSustainedRelease();
+	}
+}
+
+void ULxSkill::CompleteSkillReleaseTiming()
+{
+	if (!bSkillReleaseTiming)
+	{
+		return;
+	}
+
+	bSkillReleaseTiming = false;
+	MarkSkillReleased();
+}
+
+void ULxSkill::CancelSkillReleaseTiming()
+{
+	bSkillReleaseTiming = false;
 }
 
 FTransform ULxSkill::GetSkillSpawnTransform() const
