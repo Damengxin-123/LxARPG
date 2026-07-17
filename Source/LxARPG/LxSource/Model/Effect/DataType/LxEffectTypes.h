@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
 #include "LxARPG/LxSource/Model/Damage/DataType/LxDamageTypes.h"
 #include "LxEffectTypes.generated.h"
 
@@ -113,9 +114,9 @@ struct LXARPG_API FLxAttributeModifierEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|属性", DisplayName = "属性修改数值")
 	float ModifierValue = 0.f;
 
-	/** 目标属性需要满足的标签条件。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|属性", DisplayName = "目标标签")
-	FGameplayTagContainer TargetTags;
+	/** 未指定属性ID时需要匹配的属性分类。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="效果|属性", DisplayName="目标属性分类")
+	TArray<ELxCharacterAttributeCategoryType> TargetAttributeCategories;
 
 	/** 判断两个属性效果是否可以汇总到同一条效果。 */
 	bool HasSameAggregationKey(const FLxAttributeModifierEffect& Other) const;
@@ -139,9 +140,9 @@ struct LXARPG_API FLxAttributeRecoveryEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|属性恢复", DisplayName = "恢复数值")
 	float RecoveryValue = 0.f;
 
-	/** 目标属性需要满足的标签条件。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|属性恢复", DisplayName = "目标标签")
-	FGameplayTagContainer TargetTags;
+	/** 未指定属性ID时需要匹配的属性分类，恢复效果通常只选择资源属性。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="效果|属性恢复", DisplayName="目标属性分类")
+	TArray<ELxCharacterAttributeCategoryType> TargetAttributeCategories;
 };
 
 /** 伤害效果预留数据，后续由伤害核算组件解释。 */

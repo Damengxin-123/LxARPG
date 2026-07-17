@@ -65,7 +65,6 @@ namespace
 	void CopyCommonDataToLegacy(const FLxCharacterAttributeCommonData& InSource, FLxAttributeData& OutLegacyData)
 	{
 		OutLegacyData.AttributeIDTag = InSource.AttributeIDTag;
-		OutLegacyData.TargetTags = InSource.TargetTags;
 		OutLegacyData.ShowInfo = InSource.ShowInfo;
 	}
 }
@@ -193,27 +192,27 @@ void ULxCharacterBaseAttributeSet::ImportLegacyAttributeDataMap(const TMap<FGame
 		const FLxAttributeValue& LegacyValue = LegacyData.AttributeValue;
 		if (FLxResourceAttributeData* Target = FindMutableResourceAttribute(AttributePair.Key))
 		{
-			Target->TargetTags = LegacyData.TargetTags; Target->ShowInfo = LegacyData.ShowInfo; Target->ValueLimit = LegacyValue.ValueLimit; Target->Value = LegacyValue.Value; continue;
+			Target->ShowInfo = LegacyData.ShowInfo; Target->ValueLimit = LegacyValue.ValueLimit; Target->Value = LegacyValue.Value; continue;
 		}
 		if (FLxBasicAttributeData* Target = FindMutableBasicAttribute(AttributePair.Key))
 		{
-			Target->TargetTags = LegacyData.TargetTags; Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; Target->DerivedRules = LegacyData.DerivedRulesArray; continue;
+			Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; Target->DerivedRules = LegacyData.DerivedRulesArray; continue;
 		}
 		if (FLxProbabilityAttributeData* Target = FindMutableProbabilityAttribute(AttributePair.Key))
 		{
-			Target->TargetTags = LegacyData.TargetTags; Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; continue;
+			Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; continue;
 		}
 		if (FLxPercentageAttributeData* Target = FindMutablePercentageAttribute(AttributePair.Key))
 		{
-			Target->TargetTags = LegacyData.TargetTags; Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; continue;
+			Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; continue;
 		}
 		if (FLxNumericAttributeData* Target = FindMutableNumericAttribute(AttributePair.Key))
 		{
-			Target->TargetTags = LegacyData.TargetTags; Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; continue;
+			Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; continue;
 		}
 		if (FLxRangeAttributeData* Target = FindMutableRangeAttribute(AttributePair.Key))
 		{
-			Target->TargetTags = LegacyData.TargetTags; Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; Target->UpwardFloatingRatio = LegacyValue.UpwardFloatingRatio; Target->DownwardFloatingRatio = LegacyValue.DownwardFloatingRatio;
+			Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; Target->UpwardFloatingRatio = LegacyValue.UpwardFloatingRatio; Target->DownwardFloatingRatio = LegacyValue.DownwardFloatingRatio;
 		}
 	}
 }
@@ -239,9 +238,9 @@ void ULxCharacterBaseAttributeSet::BuildLegacyAttributeDataMap(TMap<FGameplayTag
 	for (const TPair<FGameplayTag, FLxRangeAttributeData*>& Pair : RangeAttributeIndex) if (Pair.Value) { FLxAttributeValue V; V.ValueType = ELxCharacterValueType::FloatingNumeric; V.Value = Pair.Value->Value; V.UpwardFloatingRatio = Pair.Value->UpwardFloatingRatio; V.DownwardFloatingRatio = Pair.Value->DownwardFloatingRatio; AddLegacy(*Pair.Value, V, nullptr); }
 }
 
-void ULxCharacterBaseAttributeSet::RegisterBasicAttribute(const FGameplayTag InAttributeIDTag, FLxBasicAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.StorageType = ELxCharacterAttributeStorageType::Basic; BasicAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }
-void ULxCharacterBaseAttributeSet::RegisterResourceAttribute(const FGameplayTag InAttributeIDTag, FLxResourceAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.StorageType = ELxCharacterAttributeStorageType::Resource; ResourceAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }
-void ULxCharacterBaseAttributeSet::RegisterProbabilityAttribute(const FGameplayTag InAttributeIDTag, FLxProbabilityAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.StorageType = ELxCharacterAttributeStorageType::Probability; ProbabilityAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }
-void ULxCharacterBaseAttributeSet::RegisterPercentageAttribute(const FGameplayTag InAttributeIDTag, FLxPercentageAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.StorageType = ELxCharacterAttributeStorageType::Percentage; PercentageAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }
-void ULxCharacterBaseAttributeSet::RegisterNumericAttribute(const FGameplayTag InAttributeIDTag, FLxNumericAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.StorageType = ELxCharacterAttributeStorageType::Numeric; NumericAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }
-void ULxCharacterBaseAttributeSet::RegisterRangeAttribute(const FGameplayTag InAttributeIDTag, FLxRangeAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.StorageType = ELxCharacterAttributeStorageType::Range; RangeAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }
+void ULxCharacterBaseAttributeSet::RegisterBasicAttribute(const FGameplayTag InAttributeIDTag, FLxBasicAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.AttributeCategory = ELxCharacterAttributeCategoryType::Basic; BasicAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }
+void ULxCharacterBaseAttributeSet::RegisterResourceAttribute(const FGameplayTag InAttributeIDTag, FLxResourceAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.AttributeCategory = ELxCharacterAttributeCategoryType::Resource; ResourceAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }
+void ULxCharacterBaseAttributeSet::RegisterProbabilityAttribute(const FGameplayTag InAttributeIDTag, FLxProbabilityAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.AttributeCategory = ELxCharacterAttributeCategoryType::Probability; ProbabilityAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }
+void ULxCharacterBaseAttributeSet::RegisterPercentageAttribute(const FGameplayTag InAttributeIDTag, FLxPercentageAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.AttributeCategory = ELxCharacterAttributeCategoryType::Percentage; PercentageAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }
+void ULxCharacterBaseAttributeSet::RegisterNumericAttribute(const FGameplayTag InAttributeIDTag, FLxNumericAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.AttributeCategory = ELxCharacterAttributeCategoryType::Numeric; NumericAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }
+void ULxCharacterBaseAttributeSet::RegisterRangeAttribute(const FGameplayTag InAttributeIDTag, FLxRangeAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.AttributeCategory = ELxCharacterAttributeCategoryType::Range; RangeAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }

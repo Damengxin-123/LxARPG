@@ -6,18 +6,6 @@
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxTypedAttributeData.generated.h"
 
-/** 角色属性存储类型，用于快速选择对应的独立属性结构。 */
-UENUM(BlueprintType, DisplayName="角色属性存储类型")
-enum class ELxCharacterAttributeStorageType : uint8
-{
-	Basic UMETA(DisplayName="基础属性"),
-	Resource UMETA(DisplayName="资源属性"),
-	Probability UMETA(DisplayName="几率属性"),
-	Percentage UMETA(DisplayName="百分比属性"),
-	Numeric UMETA(DisplayName="数值属性"),
-	Range UMETA(DisplayName="区间属性")
-};
-
 /** 各类角色属性共享的标识和显示信息，不包含任何具体数值字段。 */
 USTRUCT(BlueprintType, DisplayName="角色属性公共信息")
 struct LXARPG_API FLxCharacterAttributeCommonData
@@ -28,13 +16,9 @@ struct LXARPG_API FLxCharacterAttributeCommonData
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="属性ID标签", meta=(Categories="属性"))
 	FGameplayTag AttributeIDTag;
 
-	/** 属性附带的分类标签，用于词条目标筛选。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="属性分类标签")
-	FGameplayTagContainer TargetTags;
-
-	/** 属性实际使用的独立存储类型。 */
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="属性存储类型")
-	ELxCharacterAttributeStorageType StorageType = ELxCharacterAttributeStorageType::Numeric;
+	/** 属性分类，由 C++ 注册函数写入，蓝图配置中不可修改。 */
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="属性分类类型")
+	ELxCharacterAttributeCategoryType AttributeCategory = ELxCharacterAttributeCategoryType::Numeric;
 
 	/** 属性在界面中使用的名称、描述和可见性。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="属性可视化信息")

@@ -191,7 +191,7 @@ void ULxEntryObjectAttributeGain::SetEntryData(const FLxEntryBase* InEntryData)
 
 void ULxEntryObjectAttributeGain::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale) const
 {
-	if (!AttributeGainData.AttributeIDTag.IsValid())
+	if (!AttributeGainData.AttributeIDTag.IsValid() && AttributeGainData.TargetAttributeCategories.IsEmpty())
 	{
 		return;
 	}
@@ -201,7 +201,7 @@ void ULxEntryObjectAttributeGain::AppendEffectsToPackage(FLxEffectPackage& InOut
 	ModifierEffect.ModifierTarget = ConvertToModifierTarget(AttributeGainData.EntryTarget);
 	ModifierEffect.ModifierOperation = ConvertToModifierOperation(AttributeGainData.EffectiveType);
 	ModifierEffect.ModifierValue = AttributeGainData.EntryValue * MakeEntryEffectScale(GetEntryQuote(), InEffectScale);
-	ModifierEffect.TargetTags = AttributeGainData.TargetTags;
+	ModifierEffect.TargetAttributeCategories = AttributeGainData.TargetAttributeCategories;
 	ULxEffectFunctionLibrary::AddAggregatedAttributeModifierEffect(InOutEffectPackage.AttributeModifierEffects, ModifierEffect);
 }
 
@@ -240,7 +240,7 @@ void ULxEntryObjectAttributeRecovery::SetEntryData(const FLxEntryBase* InEntryDa
 
 void ULxEntryObjectAttributeRecovery::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale) const
 {
-	if (!AttributeRecoveryData.AttributeIDTag.IsValid())
+	if (!AttributeRecoveryData.AttributeIDTag.IsValid() && AttributeRecoveryData.TargetAttributeCategories.IsEmpty())
 	{
 		return;
 	}
@@ -254,7 +254,7 @@ void ULxEntryObjectAttributeRecovery::AppendEffectsToPackage(FLxEffectPackage& I
 	{
 		RecoveryEffect.RecoveryValue *= 100.f;
 	}
-	RecoveryEffect.TargetTags = AttributeRecoveryData.TargetTags;
+	RecoveryEffect.TargetAttributeCategories = AttributeRecoveryData.TargetAttributeCategories;
 	InOutEffectPackage.AttributeRecoveryEffects.Add(RecoveryEffect);
 }
 /////////////////////////////////////////////////////

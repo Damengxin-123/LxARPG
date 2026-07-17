@@ -101,7 +101,7 @@ private:
 	void NormalizeTypedAttributeValues();
 
 	/** 判断属性公共信息是否满足词条目标。 */
-	static bool AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, FGameplayTag InAttributeIDTag, const FGameplayTagContainer& InTargetTags);
+	static bool AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, FGameplayTag InAttributeIDTag, const TArray<ELxCharacterAttributeCategoryType>& InTargetCategories);
 
 	/** 重建仅供旧接口使用的统一属性临时视图。 */
 	void RebuildLegacyAttributeView() const;

@@ -192,7 +192,7 @@ void ULxCharacterAttributeComponent::ApplyModifierEffect(const FLxAttributeModif
 	TArray<FGameplayTag> TargetAttributeIDs;
 	auto CollectTarget = [&InEffect, &TargetAttributeIDs](const auto& Attribute)
 	{
-		if (AttributeMatchesEffect(Attribute, InEffect.AttributeIDTag, InEffect.TargetTags)) TargetAttributeIDs.AddUnique(Attribute.AttributeIDTag);
+		if (AttributeMatchesEffect(Attribute, InEffect.AttributeIDTag, InEffect.TargetAttributeCategories)) TargetAttributeIDs.AddUnique(Attribute.AttributeIDTag);
 	};
 	TArray<FLxBasicAttributeData> Basic; RuntimeAttributeSet->GetAllBasicAttributes(Basic); for (const auto& A : Basic) CollectTarget(A);
 	TArray<FLxResourceAttributeData> Resource; RuntimeAttributeSet->GetAllResourceAttributes(Resource); for (const auto& A : Resource) CollectTarget(A);
@@ -224,7 +224,7 @@ void ULxCharacterAttributeComponent::ApplyRecoveryEffect(const FLxAttributeRecov
 	RuntimeAttributeSet->GetAllResourceAttributes(Resources);
 	for (const FLxResourceAttributeData& Resource : Resources)
 	{
-		if (!AttributeMatchesEffect(Resource, InEffect.AttributeIDTag, InEffect.TargetTags)) continue;
+		if (!AttributeMatchesEffect(Resource, InEffect.AttributeIDTag, InEffect.TargetAttributeCategories)) continue;
 		FLxResourceAttributeData* MutableResource = RuntimeAttributeSet->FindMutableResourceAttribute(Resource.AttributeIDTag);
 		if (MutableResource == nullptr) continue;
 		if (InEffect.RecoveryOperation == ELxAttributeModifierOperation::AddBasePercent || InEffect.RecoveryOperation == ELxAttributeModifierOperation::AddTotalPercent)
@@ -290,13 +290,13 @@ void ULxCharacterAttributeComponent::NormalizeTypedAttributeValues()
 	TArray<FLxProbabilityAttributeData> Probability; RuntimeAttributeSet->GetAllProbabilityAttributes(Probability); for (const auto& Data : Probability) if (auto* A = RuntimeAttributeSet->FindMutableProbabilityAttribute(Data.AttributeIDTag)) A->Value = FMath::Clamp(A->Value, 0.f, 1.f);
 }
 
-bool ULxCharacterAttributeComponent::AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, const FGameplayTag InAttributeIDTag, const FGameplayTagContainer& InTargetTags)
+bool ULxCharacterAttributeComponent::AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, const FGameplayTag InAttributeIDTag, const TArray<ELxCharacterAttributeCategoryType>& InTargetCategories)
 {
 	const bool bHasID = InAttributeIDTag.IsValid();
-	const bool bHasTags = !InTargetTags.IsEmpty();
-	if (!bHasID && !bHasTags) return false;
+	const bool bHasCategories = !InTargetCategories.IsEmpty();
+	if (!bHasID && !bHasCategories) return false;
 	if (bHasID && InAttributeData.AttributeIDTag != InAttributeIDTag) return false;
-	return !bHasTags || InAttributeData.TargetTags.HasAll(InTargetTags);
+	return !bHasCategories || InTargetCategories.Contains(InAttributeData.AttributeCategory);
 }
 
 void ULxCharacterAttributeComponent::RebuildLegacyAttributeView() const

@@ -6,6 +6,7 @@
 #include "Engine/DataTable.h"
 #include "GameplayTagContainer.h"
 #include "LxEntryEnum.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ShowInfoConfig/LxItemShowInfoConfigID.h"
 #include "LxARPG/LxSource/Model/Style/RichText/LxRichTextStyleTypes.h"
 #include "LxItemEntryData.generated.h"
@@ -79,9 +80,9 @@ struct FLxEntryAttributeGain : public FLxEntryBase
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条", DisplayName = "词条数值")
 	float EntryValue = 0.f;
 
-	/** 目标标签。 */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条", DisplayName = "目标标签")
-	FGameplayTagContainer TargetTags;
+	/** 未指定属性ID时需要匹配的属性分类。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="目标属性分类")
+	TArray<ELxCharacterAttributeCategoryType> TargetAttributeCategories;
 };
 
 /** 属性恢复词条。 */
@@ -107,9 +108,9 @@ struct FLxEntryAttributeRecovery : public FLxEntryBase
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条", DisplayName = "恢复数值")
 	float EntryValue = 0.f;
 
-	/** 目标标签。 */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条", DisplayName = "目标标签")
-	FGameplayTagContainer TargetTags;
+	/** 未指定属性ID时需要匹配的属性分类，恢复词条通常选择资源属性。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="目标属性分类")
+	TArray<ELxCharacterAttributeCategoryType> TargetAttributeCategories;
 };
 
 /** 状态改变词条。 */

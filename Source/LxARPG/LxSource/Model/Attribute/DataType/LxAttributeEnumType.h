@@ -60,3 +60,15 @@ enum class ELxCharacterValueType : uint8
 	Switch UMETA(DisplayName = "开关"),
 	Setting UMETA(DisplayName = "设置")
 };
+
+/** 角色属性分类类型，由 C++ 注册逻辑固定设置，蓝图只能读取。 */
+UENUM(BlueprintType, DisplayName="角色属性分类类型")
+enum class ELxCharacterAttributeCategoryType : uint8
+{
+	Basic UMETA(DisplayName="基础属性"),
+	Resource UMETA(DisplayName="资源属性"),
+	Probability UMETA(DisplayName="几率属性"),
+	Percentage UMETA(DisplayName="百分比属性"),
+	Numeric UMETA(DisplayName="数值属性"),
+	Range UMETA(DisplayName="区间属性")
+};

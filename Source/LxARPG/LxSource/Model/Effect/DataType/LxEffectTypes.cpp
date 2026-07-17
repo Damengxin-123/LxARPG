@@ -33,9 +33,7 @@ bool FLxAttributeModifierEffect::HasSameAggregationKey(const FLxAttributeModifie
 	return AttributeIDTag == Other.AttributeIDTag
 		&& ModifierTarget == Other.ModifierTarget
 		&& ModifierOperation == Other.ModifierOperation
-		&& TargetTags.Num() == Other.TargetTags.Num()
-		&& TargetTags.HasAll(Other.TargetTags)
-		&& Other.TargetTags.HasAll(TargetTags);
+		&& TargetAttributeCategories == Other.TargetAttributeCategories;
 }
 
 bool FLxEffectPackage::IsEmpty() const
