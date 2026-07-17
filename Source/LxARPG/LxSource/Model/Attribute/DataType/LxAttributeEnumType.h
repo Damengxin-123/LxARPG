@@ -49,18 +49,6 @@ enum class ELxCharacterCampType : uint8
 /**
  * 角色属性值类型
  */
-UENUM(BlueprintType, DisplayName = "角色属性值类型")
-enum class ELxCharacterValueType : uint8
-{
-	FixedNumeric UMETA(DisplayName = "固定数值"),
-	RangedNumeric UMETA(DisplayName = "区间数值"),
-	FloatingNumeric UMETA(DisplayName = "浮动数值"),
-	Probabilistic UMETA(DisplayName = "概率数值"),
-	Percentage UMETA(DisplayName = "百分比数值"),
-	Switch UMETA(DisplayName = "开关"),
-	Setting UMETA(DisplayName = "设置")
-};
-
 /** 角色属性分类类型，由 C++ 注册逻辑固定设置，蓝图只能读取。 */
 UENUM(BlueprintType, DisplayName="角色属性分类类型")
 enum class ELxCharacterAttributeCategoryType : uint8

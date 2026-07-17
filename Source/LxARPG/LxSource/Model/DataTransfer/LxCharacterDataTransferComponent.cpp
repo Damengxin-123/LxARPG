@@ -1,6 +1,7 @@
 #include "LxCharacterDataTransferComponent.h"
 
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
@@ -107,21 +108,23 @@ void ULxCharacterDataTransferComponent::EndPlay(const EEndPlayReason::Type EndPl
 	Super::EndPlay(EndPlayReason);
 }
 
-bool ULxCharacterDataTransferComponent::QueryCharacterAttributeByIDTag(FGameplayTag InAttributeIDTag, FLxAttributeData& OutAttributeData) const
+bool ULxCharacterDataTransferComponent::QueryBasicAttribute(const FGameplayTag InAttributeIDTag, FLxBasicAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetBasicAttribute(InAttributeIDTag, OutAttributeData); }
+bool ULxCharacterDataTransferComponent::QueryResourceAttribute(const FGameplayTag InAttributeIDTag, FLxResourceAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetResourceAttribute(InAttributeIDTag, OutAttributeData); }
+bool ULxCharacterDataTransferComponent::QueryProbabilityAttribute(const FGameplayTag InAttributeIDTag, FLxProbabilityAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetProbabilityAttribute(InAttributeIDTag, OutAttributeData); }
+bool ULxCharacterDataTransferComponent::QueryPercentageAttribute(const FGameplayTag InAttributeIDTag, FLxPercentageAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetPercentageAttribute(InAttributeIDTag, OutAttributeData); }
+bool ULxCharacterDataTransferComponent::QueryNumericAttribute(const FGameplayTag InAttributeIDTag, FLxNumericAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetNumericAttribute(InAttributeIDTag, OutAttributeData); }
+bool ULxCharacterDataTransferComponent::QueryRangeAttribute(const FGameplayTag InAttributeIDTag, FLxRangeAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetRangeAttribute(InAttributeIDTag, OutAttributeData); }
+
+bool ULxCharacterDataTransferComponent::QueryCharacterAttributeValue(const FGameplayTag InAttributeIDTag, float& OutAttributeValue) const
 {
-	if (AttributeComponent == nullptr)
-	{
-		return false;
-	}
-
-	const FLxAttributeData* AttributeData = AttributeComponent->GetCharacterAttributeByIDTag(InAttributeIDTag);
-	if (AttributeData == nullptr)
-	{
-		return false;
-	}
-
-	OutAttributeData = *AttributeData;
-	return true;
+	OutAttributeValue = 0.f;
+	FLxBasicAttributeData Basic; if (QueryBasicAttribute(InAttributeIDTag, Basic)) { OutAttributeValue = Basic.Value; return true; }
+	FLxResourceAttributeData Resource; if (QueryResourceAttribute(InAttributeIDTag, Resource)) { OutAttributeValue = Resource.Value; return true; }
+	FLxProbabilityAttributeData Probability; if (QueryProbabilityAttribute(InAttributeIDTag, Probability)) { OutAttributeValue = Probability.Value; return true; }
+	FLxPercentageAttributeData Percentage; if (QueryPercentageAttribute(InAttributeIDTag, Percentage)) { OutAttributeValue = Percentage.Value; return true; }
+	FLxNumericAttributeData Numeric; if (QueryNumericAttribute(InAttributeIDTag, Numeric)) { OutAttributeValue = Numeric.Value; return true; }
+	FLxRangeAttributeData Range; if (QueryRangeAttribute(InAttributeIDTag, Range)) { OutAttributeValue = Range.Value; return true; }
+	return false;
 }
 
 void ULxCharacterDataTransferComponent::QueryBackpackItemsByFilter(ELxItemType InItemType, ELxItemRarityType InRarityType, TArray<ULxItemSlotData*>& OutItemSlots) const
@@ -156,15 +159,15 @@ void ULxCharacterDataTransferComponent::QueryBackpackItemsByFilter(ELxItemType I
 	}
 }
 
-void ULxCharacterDataTransferComponent::GetAllCharacterAttributes(TArray<FLxAttributeData>& OutAttributeList) const
+void ULxCharacterDataTransferComponent::GetAllCharacterAttributes(FLxTypedAttributeSnapshot& OutAttributeSnapshot) const
 {
-	OutAttributeList.Reset();
+	OutAttributeSnapshot = FLxTypedAttributeSnapshot();
 	if (AttributeComponent == nullptr)
 	{
 		return;
 	}
 
-	AttributeComponent->GetCharacterAttributeList(OutAttributeList);
+	AttributeComponent->GetTypedAttributeSnapshot(OutAttributeSnapshot);
 }
 
 void ULxCharacterDataTransferComponent::GetAllBackpackItems(TArray<ULxItemSlotData*>& OutItemSlots) const
@@ -473,7 +476,7 @@ void ULxCharacterDataTransferComponent::BindComponentEvents()
 
 	if (AttributeComponent)
 	{
-		AttributeComponent->OnAttributeTableChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleAttributeTableChanged);
+		AttributeComponent->OnTypedAttributeSnapshotChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleAttributeSnapshotChanged);
 	}
 
 	if (BackpackComponent)
@@ -519,7 +522,7 @@ void ULxCharacterDataTransferComponent::UnbindComponentEvents()
 {
 	if (AttributeComponent)
 	{
-		AttributeComponent->OnAttributeTableChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleAttributeTableChanged);
+		AttributeComponent->OnTypedAttributeSnapshotChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleAttributeSnapshotChanged);
 	}
 
 	if (BackpackComponent)
@@ -563,9 +566,9 @@ void ULxCharacterDataTransferComponent::UnbindComponentEvents()
 
 void ULxCharacterDataTransferComponent::BroadcastAttributeData()
 {
-	TArray<FLxAttributeData> AttributeList;
-	GetAllCharacterAttributes(AttributeList);
-	OnCharacterAttributeChanged.Broadcast(AttributeList);
+	FLxTypedAttributeSnapshot AttributeSnapshot;
+	GetAllCharacterAttributes(AttributeSnapshot);
+	OnCharacterAttributeChanged.Broadcast(AttributeSnapshot);
 }
 
 void ULxCharacterDataTransferComponent::BroadcastBackpackData()
@@ -1010,9 +1013,9 @@ void ULxCharacterDataTransferComponent::CollectBuffEntries(TArray<TObjectPtr<ULx
 	}
 }
 
-void ULxCharacterDataTransferComponent::HandleAttributeTableChanged(const TArray<FLxAttributeData>& AttributeList)
+void ULxCharacterDataTransferComponent::HandleAttributeSnapshotChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot)
 {
-	OnCharacterAttributeChanged.Broadcast(AttributeList);
+	OnCharacterAttributeChanged.Broadcast(AttributeSnapshot);
 }
 
 void ULxCharacterDataTransferComponent::HandleBackpackDataChanged()

@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxCharacterBaseAttributeSet.generated.h"
 
@@ -100,12 +99,6 @@ public:
 		const TArray<FLxPercentageAttributeData>& InPercentageAttributes,
 		const TArray<FLxNumericAttributeData>& InNumericAttributes,
 		const TArray<FLxRangeAttributeData>& InRangeAttributes);
-
-	/** 将旧统一属性表转换并导入六类独立存储，仅供旧配置迁移。 */
-	void ImportLegacyAttributeDataMap(const TMap<FGameplayTag, FLxAttributeData>& InAttributeDataMap);
-
-	/** 构建旧统一属性视图，仅供尚未迁移的查询和界面接口使用。 */
-	void BuildLegacyAttributeDataMap(TMap<FGameplayTag, FLxAttributeData>& OutAttributeDataMap) const;
 
 protected:
 	/** 注册一个基础属性成员。 */

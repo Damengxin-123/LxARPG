@@ -1,7 +1,5 @@
 #include "LxCharacterAttributeComponent.h"
 
-#include "Engine/DataTable.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "Net/UnrealNetwork.h"
@@ -33,30 +31,6 @@ namespace
 		case ELxEntryEffectiveType::Mechanism: InOutValue = FMath::Max(InOutValue, DerivedValue); break;
 		}
 	}
-
-	/** 从角色专属旧数据表读取属性覆盖值。 */
-	void ApplyLegacyValueTable(const UDataTable* InValueTable, TMap<FGameplayTag, FLxAttributeData>& InOutAttributeDataMap)
-	{
-		if (InValueTable == nullptr || InValueTable->GetRowStruct() != FLxAttributeValueConfig::StaticStruct())
-		{
-			return;
-		}
-
-		TArray<FLxAttributeValueConfig*> Rows;
-		InValueTable->GetAllRows<FLxAttributeValueConfig>(TEXT("ULxCharacterAttributeComponent::ApplyLegacyValueTable"), Rows);
-		for (const FLxAttributeValueConfig* Row : Rows)
-		{
-			if (Row == nullptr) continue;
-			const FGameplayTag AttributeIDTag = LxAttributeTools::ResolveAttributeIDTag(*Row);
-			FLxAttributeData* AttributeData = InOutAttributeDataMap.Find(AttributeIDTag);
-			if (AttributeData == nullptr) continue;
-			AttributeData->AttributeValue.ValueLimit = Row->ValueLimit;
-			AttributeData->AttributeValue.Value = Row->Value;
-			AttributeData->AttributeValue.UpwardFloatingRatio = Row->UpwardFloatingRatio;
-			AttributeData->AttributeValue.DownwardFloatingRatio = Row->DownwardFloatingRatio;
-			AttributeData->CalculatedAttributeValue = AttributeData->AttributeValue;
-		}
-	}
 }
 
 ULxCharacterAttributeComponent::ULxCharacterAttributeComponent()
@@ -82,36 +56,16 @@ void ULxCharacterAttributeComponent::InitializeRuntimeAttributeSet()
 {
 	AttributeConfigurationTemplate = nullptr;
 	RuntimeAttributeSet = nullptr;
-	bUsingLegacyConfiguration = true;
-
 	const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
 	const TSubclassOf<ULxCharacterBaseAttributeSet> ConfigurationClass = OwnerCharacter != nullptr
 		? OwnerCharacter->GetCharacterBaseAttributeSetClass()
 		: nullptr;
 
-	if (ConfigurationClass)
-	{
-		bUsingLegacyConfiguration = false;
-		AttributeConfigurationTemplate = DuplicateObject<ULxCharacterBaseAttributeSet>(ConfigurationClass->GetDefaultObject<ULxCharacterBaseAttributeSet>(), this);
-	}
-	else
-	{
-		AttributeConfigurationTemplate = NewObject<ULxCharacterBaseAttributeSet>(this);
-		TMap<FGameplayTag, FLxAttributeData> LegacyConfigurationMap;
-		BuildLegacyConfigurationMap(LegacyConfigurationMap);
-		AttributeConfigurationTemplate->ImportLegacyAttributeDataMap(LegacyConfigurationMap);
-	}
+	const TSubclassOf<ULxCharacterBaseAttributeSet> EffectiveConfigurationClass(
+		ConfigurationClass != nullptr ? ConfigurationClass.Get() : ULxCharacterBaseAttributeSet::StaticClass());
+	AttributeConfigurationTemplate = DuplicateObject<ULxCharacterBaseAttributeSet>(EffectiveConfigurationClass->GetDefaultObject<ULxCharacterBaseAttributeSet>(), this);
 
 	ResetRuntimeAttributeSetFromConfiguration();
-}
-
-void ULxCharacterAttributeComponent::BuildLegacyConfigurationMap(TMap<FGameplayTag, FLxAttributeData>& OutAttributeDataMap) const
-{
-	OutAttributeDataMap = LxAttributeConfig::GetAttributeDataMap();
-	if (const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner()))
-	{
-		ApplyLegacyValueTable(OwnerCharacter->GetCharacterAttributeValueTable(), OutAttributeDataMap);
-	}
 }
 
 void ULxCharacterAttributeComponent::InitializeAttributeTable()
@@ -119,18 +73,6 @@ void ULxCharacterAttributeComponent::InitializeAttributeTable()
 	AttributeModifierEffectCache.Reset();
 	RuntimeResourceValues.Reset();
 	ResetRuntimeAttributeSetFromConfiguration();
-	if (bUsingLegacyConfiguration && RuntimeAttributeSet != nullptr)
-	{
-		TArray<FLxResourceAttributeData> ResourceAttributes;
-		RuntimeAttributeSet->GetAllResourceAttributes(ResourceAttributes);
-		for (const FLxResourceAttributeData& ResourceAttribute : ResourceAttributes)
-		{
-			if (FLxResourceAttributeData* MutableAttribute = RuntimeAttributeSet->FindMutableResourceAttribute(ResourceAttribute.AttributeIDTag))
-			{
-				MutableAttribute->Value = MutableAttribute->ValueLimit;
-			}
-		}
-	}
 	RefreshDerivedAttributes();
 	NormalizeTypedAttributeValues();
 	CacheRuntimeResourceValues();
@@ -242,7 +184,7 @@ void ULxCharacterAttributeComponent::RefreshDerivedAttributes()
 	{
 		for (const FLxAttributeDerivedRule& DerivedRule : SourceAttribute.DerivedRules)
 		{
-			const FGameplayTag TargetID = LxAttributeTools::ResolveAttributeIDTag(DerivedRule);
+			const FGameplayTag TargetID = DerivedRule.AttributeIDTag;
 			if (TargetID.IsValid() && TargetID != SourceAttribute.AttributeIDTag) ApplyDerivedValue(TargetID, DerivedRule, SourceAttribute.Value);
 		}
 	}
@@ -299,29 +241,20 @@ bool ULxCharacterAttributeComponent::AttributeMatchesEffect(const FLxCharacterAt
 	return !bHasCategories || InTargetCategories.Contains(InAttributeData.AttributeCategory);
 }
 
-void ULxCharacterAttributeComponent::RebuildLegacyAttributeView() const
+void ULxCharacterAttributeComponent::GetTypedAttributeSnapshot(FLxTypedAttributeSnapshot& OutAttributeSnapshot) const
 {
-	LegacyAttributeView.Reset();
-	if (RuntimeAttributeSet != nullptr) RuntimeAttributeSet->BuildLegacyAttributeDataMap(LegacyAttributeView);
-}
-
-void ULxCharacterAttributeComponent::GetCharacterAttributeList(TArray<FLxAttributeData>& OutAttributeList) const
-{
-	RebuildLegacyAttributeView();
-	LegacyAttributeView.GenerateValueArray(OutAttributeList);
-}
-
-const FLxAttributeData* ULxCharacterAttributeComponent::GetCharacterAttributeByIDTag(const FGameplayTag InAttributeIDTag) const
-{
-	RebuildLegacyAttributeView();
-	return LegacyAttributeView.Find(InAttributeIDTag);
+	OutAttributeSnapshot = FLxTypedAttributeSnapshot();
+	if (RuntimeAttributeSet == nullptr) return;
+	RuntimeAttributeSet->GetAllBasicAttributes(OutAttributeSnapshot.BasicAttributes);
+	RuntimeAttributeSet->GetAllResourceAttributes(OutAttributeSnapshot.ResourceAttributes);
+	RuntimeAttributeSet->GetAllProbabilityAttributes(OutAttributeSnapshot.ProbabilityAttributes);
+	RuntimeAttributeSet->GetAllPercentageAttributes(OutAttributeSnapshot.PercentageAttributes);
+	RuntimeAttributeSet->GetAllNumericAttributes(OutAttributeSnapshot.NumericAttributes);
+	RuntimeAttributeSet->GetAllRangeAttributes(OutAttributeSnapshot.RangeAttributes);
 }
 
 void ULxCharacterAttributeComponent::BroadcastAttributeTableChanged()
 {
-	RebuildLegacyAttributeView();
-	TArray<FLxAttributeData> LegacyAttributeList;
-	LegacyAttributeView.GenerateValueArray(LegacyAttributeList);
 	if (const AActor* OwnerActor = GetOwner(); OwnerActor != nullptr && OwnerActor->HasAuthority() && RuntimeAttributeSet != nullptr)
 	{
 		RuntimeAttributeSet->GetAllBasicAttributes(ReplicatedTypedAttributeSnapshot.BasicAttributes);
@@ -331,7 +264,9 @@ void ULxCharacterAttributeComponent::BroadcastAttributeTableChanged()
 		RuntimeAttributeSet->GetAllNumericAttributes(ReplicatedTypedAttributeSnapshot.NumericAttributes);
 		RuntimeAttributeSet->GetAllRangeAttributes(ReplicatedTypedAttributeSnapshot.RangeAttributes);
 	}
-	OnAttributeTableChanged.Broadcast(LegacyAttributeList);
+	FLxTypedAttributeSnapshot CurrentSnapshot;
+	GetTypedAttributeSnapshot(CurrentSnapshot);
+	OnTypedAttributeSnapshotChanged.Broadcast(CurrentSnapshot);
 	OnDataChange.Broadcast();
 }
 
@@ -344,8 +279,6 @@ void ULxCharacterAttributeComponent::OnRep_TypedAttributeSnapshot()
 		ReplicatedTypedAttributeSnapshot.PercentageAttributes,
 		ReplicatedTypedAttributeSnapshot.NumericAttributes,
 		ReplicatedTypedAttributeSnapshot.RangeAttributes);
-	RebuildLegacyAttributeView();
-	TArray<FLxAttributeData> LegacyAttributeList; LegacyAttributeView.GenerateValueArray(LegacyAttributeList);
-	OnAttributeTableChanged.Broadcast(LegacyAttributeList);
+	OnTypedAttributeSnapshotChanged.Broadcast(ReplicatedTypedAttributeSnapshot);
 	OnDataChange.Broadcast();
 }

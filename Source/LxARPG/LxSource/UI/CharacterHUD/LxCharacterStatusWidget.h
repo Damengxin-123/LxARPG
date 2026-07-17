@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxCharacterStatusWidget.generated.h"
 
 class ULxCharacterDataTransferComponent;
@@ -28,7 +28,7 @@ public:
 protected:
 	/** 接收角色属性列表变化，并提取状态栏需要的数值。 */
 	UFUNCTION()
-	void HandleCharacterAttributesChanged(const TArray<FLxAttributeData>& AttributeList);
+	void HandleCharacterAttributesChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot);
 
 private:
 	/** 绑定角色数据传递组件，用于监听属性变化。 */
@@ -41,11 +41,11 @@ private:
 	void RefreshAttributeTextFromDataTransfer();
 
 	/** 根据属性列表更新血量和魔力的百分比与文本。 */
-	void UpdateAttributeTextFromList(const TArray<FLxAttributeData>& AttributeList);
+	void UpdateAttributeTextFromSnapshot(const FLxTypedAttributeSnapshot& AttributeSnapshot);
 
 	/** 构造当前值/上限形式的属性文本。 */
-	static FText BuildRangedAttributeText(const FLxAttributeData* AttributeData);
+	static FText BuildResourceAttributeText(const FLxResourceAttributeData* AttributeData);
 
 	/** 构造属性进度条需要的 0 到 1 百分比。 */
-	static float BuildProgressPercent(const FLxAttributeData* AttributeData);
+	static float BuildProgressPercent(const FLxResourceAttributeData* AttributeData);
 };

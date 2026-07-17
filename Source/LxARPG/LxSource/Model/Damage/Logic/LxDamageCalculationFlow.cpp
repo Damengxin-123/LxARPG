@@ -1,45 +1,27 @@
 #include "LxDamageCalculationFlow.h"
 
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
 #include "LxARPG/LxSource/Model/Damage/DataType/LxDamageTags.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 
 namespace
 {
-	bool QueryCalculatedAttributeValue(ULxCharacterDataTransferComponent* DataTransferComponent, FGameplayTag AttributeIDTag, FLxAttributeValue& OutAttributeValue)
-	{
-		if (DataTransferComponent == nullptr || !AttributeIDTag.IsValid())
-		{
-			return false;
-		}
-
-		FLxAttributeData AttributeData;
-		if (!DataTransferComponent->QueryCharacterAttributeByIDTag(AttributeIDTag, AttributeData))
-		{
-			return false;
-		}
-
-		OutAttributeValue = AttributeData.CalculatedAttributeValue;
-		return true;
-	}
-
 	float GetAttributeSingleValue(ULxCharacterDataTransferComponent* DataTransferComponent, FGameplayTag AttributeIDTag, float DefaultValue = 0.f)
 	{
-		FLxAttributeValue AttributeValue;
-		return QueryCalculatedAttributeValue(DataTransferComponent, AttributeIDTag, AttributeValue) ? AttributeValue.Value : DefaultValue;
+		float AttributeValue = DefaultValue;
+		return DataTransferComponent != nullptr && DataTransferComponent->QueryCharacterAttributeValue(AttributeIDTag, AttributeValue) ? AttributeValue : DefaultValue;
 	}
 
-	float RollRangedAttributeValue(const FLxAttributeValue& AttributeValue)
+	float GetDamageSourceValue(ULxCharacterDataTransferComponent* DataTransferComponent, FGameplayTag AttributeIDTag)
 	{
-		const float LowerValue = FMath::Min(AttributeValue.Value, AttributeValue.ValueLimit);
-		const float UpperValue = FMath::Max(AttributeValue.Value, AttributeValue.ValueLimit);
-		if (UpperValue > LowerValue)
+		FLxRangeAttributeData RangeAttribute;
+		if (DataTransferComponent != nullptr && DataTransferComponent->QueryRangeAttribute(AttributeIDTag, RangeAttribute))
 		{
-			return FMath::FRandRange(LowerValue, UpperValue);
+			const float LowerValue = RangeAttribute.Value - RangeAttribute.Value * RangeAttribute.DownwardFloatingRatio;
+			const float UpperValue = RangeAttribute.Value + RangeAttribute.Value * RangeAttribute.UpwardFloatingRatio;
+			return FMath::FRandRange(FMath::Min(LowerValue, UpperValue), FMath::Max(LowerValue, UpperValue));
 		}
-
-		return AttributeValue.Value;
+		return GetAttributeSingleValue(DataTransferComponent, AttributeIDTag);
 	}
 
 	void NormalizeDamageEffect(FLxDamageEffect& InOutDamageEffect)
@@ -60,14 +42,14 @@ namespace
 			return false;
 		}
 
-		FLxAttributeValue SourceAttributeValue;
-		if (!QueryCalculatedAttributeValue(SourceDataTransferComponent, InOutDamageValue.SourceAttributeIDTag, SourceAttributeValue))
+		float SourceAttributeValue = 0.f;
+		if (SourceDataTransferComponent == nullptr || !SourceDataTransferComponent->QueryCharacterAttributeValue(InOutDamageValue.SourceAttributeIDTag, SourceAttributeValue))
 		{
 			InOutDamageValue.DamageValue = 0.f;
 			return true;
 		}
 
-		const float SourceValue = FMath::Max(0.f, RollRangedAttributeValue(SourceAttributeValue));
+		const float SourceValue = FMath::Max(0.f, GetDamageSourceValue(SourceDataTransferComponent, InOutDamageValue.SourceAttributeIDTag));
 		InOutDamageValue.DamageValue = SourceValue * FMath::Max(0.f, InOutDamageValue.SourceAttributeRatio);
 		return true;
 	}
@@ -168,13 +150,7 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateAttackPowerDamage
 {
 	FLxDamageCalculationContext ResultContext = InDamageContext;
 
-	FLxAttributeValue AttackPowerValue;
-	if (!QueryCalculatedAttributeValue(ResultContext.SourceDataTransferComponent, LxTag_Attribute_Numeric_AttackPower, AttackPowerValue))
-	{
-		return ResultContext;
-	}
-
-	const float RolledDamageValue = FMath::Max(0.f, RollRangedAttributeValue(AttackPowerValue));
+	const float RolledDamageValue = FMath::Max(0.f, GetDamageSourceValue(ResultContext.SourceDataTransferComponent, LxTag_Attribute_Numeric_AttackPower));
 	if (FMath::IsNearlyZero(RolledDamageValue))
 	{
 		return ResultContext;
@@ -200,8 +176,8 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateCriticalDamageOut
 		return ResultContext;
 	}
 
-	const float CriticalChance = FMath::Clamp(GetAttributeSingleValue(ResultContext.SourceDataTransferComponent, LxTag_Attribute_Judgement_CriticalChance), 0.f, 100.f);
-	if (FMath::FRandRange(0.f, 100.f) > CriticalChance)
+	const float CriticalChance = FMath::Clamp(GetAttributeSingleValue(ResultContext.SourceDataTransferComponent, LxTag_Attribute_Judgement_CriticalChance), 0.f, 1.f);
+	if (FMath::FRand() > CriticalChance)
 	{
 		return ResultContext;
 	}
@@ -210,7 +186,7 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateCriticalDamageOut
 	const float CriticalDamagePercent = GetAttributeSingleValue(ResultContext.SourceDataTransferComponent, LxTag_Attribute_Percentage_CriticalDamage, 0.f);
 	if (CriticalDamagePercent > 0.f)
 	{
-		CriticalDamageMultiplier = 1.f + CriticalDamagePercent * 0.01f;
+		CriticalDamageMultiplier = 1.f + CriticalDamagePercent;
 	}
 
 	CriticalDamageMultiplier = FMath::Max(1.f, CriticalDamageMultiplier);

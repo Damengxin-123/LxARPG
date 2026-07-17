@@ -16,9 +16,9 @@ void ULxCharacterStatusWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void ULxCharacterStatusWidget::HandleCharacterAttributesChanged(const TArray<FLxAttributeData>& AttributeList)
+void ULxCharacterStatusWidget::HandleCharacterAttributesChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot)
 {
-	UpdateAttributeTextFromList(AttributeList);
+	UpdateAttributeTextFromSnapshot(AttributeSnapshot);
 }
 
 void ULxCharacterStatusWidget::BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent)
@@ -60,17 +60,17 @@ void ULxCharacterStatusWidget::RefreshAttributeTextFromDataTransfer()
 		return;
 	}
 
-	TArray<FLxAttributeData> AttributeList;
-	m_pCharacterDataTransferComponent->GetAllCharacterAttributes(AttributeList);
-	UpdateAttributeTextFromList(AttributeList);
+	FLxTypedAttributeSnapshot AttributeSnapshot;
+	m_pCharacterDataTransferComponent->GetAllCharacterAttributes(AttributeSnapshot);
+	UpdateAttributeTextFromSnapshot(AttributeSnapshot);
 }
 
-void ULxCharacterStatusWidget::UpdateAttributeTextFromList(const TArray<FLxAttributeData>& AttributeList)
+void ULxCharacterStatusWidget::UpdateAttributeTextFromSnapshot(const FLxTypedAttributeSnapshot& AttributeSnapshot)
 {
-	const FLxAttributeData* HPAttribute = nullptr;
-	const FLxAttributeData* MPAttribute = nullptr;
+	const FLxResourceAttributeData* HPAttribute = nullptr;
+	const FLxResourceAttributeData* MPAttribute = nullptr;
 
-	for (const FLxAttributeData& AttributeData : AttributeList)
+	for (const FLxResourceAttributeData& AttributeData : AttributeSnapshot.ResourceAttributes)
 	{
 		if (AttributeData.AttributeIDTag == LxTag_Attribute_Resource_Health)
 		{
@@ -82,10 +82,10 @@ void ULxCharacterStatusWidget::UpdateAttributeTextFromList(const TArray<FLxAttri
 		}
 	}
 	OnHUDAttributeValueUpdated(BuildProgressPercent(HPAttribute), BuildProgressPercent(MPAttribute));
-	OnHUDAttributeTextUpdated(BuildRangedAttributeText(HPAttribute), BuildRangedAttributeText(MPAttribute));
+	OnHUDAttributeTextUpdated(BuildResourceAttributeText(HPAttribute), BuildResourceAttributeText(MPAttribute));
 }
 
-FText ULxCharacterStatusWidget::BuildRangedAttributeText(const FLxAttributeData* AttributeData)
+FText ULxCharacterStatusWidget::BuildResourceAttributeText(const FLxResourceAttributeData* AttributeData)
 {
 	if (AttributeData == nullptr)
 	{
@@ -93,17 +93,17 @@ FText ULxCharacterStatusWidget::BuildRangedAttributeText(const FLxAttributeData*
 	}
 
 	FLxString AttributeText;
-	AttributeText << FLxString::DoubleToIntStr(AttributeData->CalculatedAttributeValue.Value)
-		<< "/" << FLxString::DoubleToIntStr(AttributeData->CalculatedAttributeValue.ValueLimit);
+	AttributeText << FLxString::DoubleToIntStr(AttributeData->Value)
+		<< "/" << FLxString::DoubleToIntStr(AttributeData->ValueLimit);
 	return AttributeText.ToFText();
 }
 
-float ULxCharacterStatusWidget::BuildProgressPercent(const FLxAttributeData* AttributeData)
+float ULxCharacterStatusWidget::BuildProgressPercent(const FLxResourceAttributeData* AttributeData)
 {
-	if (AttributeData == nullptr || FMath::IsNearlyZero(AttributeData->CalculatedAttributeValue.ValueLimit))
+	if (AttributeData == nullptr || FMath::IsNearlyZero(AttributeData->ValueLimit))
 	{
 		return 0.0f;
 	}
 
-	return FMath::Clamp(AttributeData->CalculatedAttributeValue.Value / AttributeData->CalculatedAttributeValue.ValueLimit, 0.0f, 1.0f);
+	return FMath::Clamp(AttributeData->Value / AttributeData->ValueLimit, 0.0f, 1.0f);
 }

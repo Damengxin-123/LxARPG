@@ -2,7 +2,7 @@
 
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTableConfig.h"
 #include "LxProfessionDefinition.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
@@ -418,9 +418,9 @@ bool ULxCharacterProfessionComponent::CheckAttributeRequirements(ULxProfessionDe
 
 	for (const FLxProfessionAttributeRequirement& AttributeRequirement : ProfessionDefinition->GetAttributeRequirements())
 	{
-		FLxAttributeData AttributeData;
-		if (!DataTransferComponent->QueryCharacterAttributeByIDTag(AttributeRequirement.AttributeIDTag, AttributeData)
-			|| AttributeData.CalculatedAttributeValue.Value < AttributeRequirement.MinValue)
+		float AttributeValue = 0.f;
+		if (!DataTransferComponent->QueryCharacterAttributeValue(AttributeRequirement.AttributeIDTag, AttributeValue)
+			|| AttributeValue < AttributeRequirement.MinValue)
 		{
 			OutCheckResult.FailureReason = ELxProfessionLearnFailureReason::AttributeNotSatisfied;
 			OutCheckResult.FailedRequirementTag = AttributeRequirement.AttributeIDTag;

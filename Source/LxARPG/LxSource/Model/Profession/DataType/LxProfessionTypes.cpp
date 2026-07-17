@@ -1,6 +1,5 @@
 #include "LxProfessionTypes.h"
 
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Profession/Logic/LxProfessionDefinition.h"
 
@@ -59,15 +58,6 @@ namespace
 
 	FString MakeAttributeRequirementText(const FLxProfessionAttributeRequirement& InRequirement)
 	{
-		if (const FLxAttributeData* AttributeConfig = LxAttributeConfig::GetAttributeDataConfig(InRequirement.AttributeIDTag))
-		{
-			FLxAttributeData DisplayAttributeData = *AttributeConfig;
-			DisplayAttributeData.CalculatedAttributeValue = DisplayAttributeData.AttributeValue;
-			DisplayAttributeData.CalculatedAttributeValue.Value = InRequirement.MinValue;
-			DisplayAttributeData.CalculatedAttributeValue.ValueLimit = InRequirement.MinValue;
-			return LxProfessionDisplayTools::MakeRichTextWithDefaultStyle(LxAttributeTools::GetAttributeDisplayText(DisplayAttributeData).ToString());
-		}
-
 		const FString FallbackText = FString::Printf(TEXT("%s >= %s"), *GetTagLeafText(InRequirement.AttributeIDTag), *MakeNumberText(InRequirement.MinValue));
 		return LxProfessionDisplayTools::MakeRichTextWithDefaultStyle(FallbackText);
 	}

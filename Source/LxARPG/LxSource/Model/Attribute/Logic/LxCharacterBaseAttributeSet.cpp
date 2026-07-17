@@ -60,13 +60,6 @@ namespace
 			}
 		}
 	}
-
-	/** 将独立属性结构的公共字段写入旧属性视图。 */
-	void CopyCommonDataToLegacy(const FLxCharacterAttributeCommonData& InSource, FLxAttributeData& OutLegacyData)
-	{
-		OutLegacyData.AttributeIDTag = InSource.AttributeIDTag;
-		OutLegacyData.ShowInfo = InSource.ShowInfo;
-	}
 }
 
 ULxCharacterBaseAttributeSet::ULxCharacterBaseAttributeSet()
@@ -182,60 +175,6 @@ void ULxCharacterBaseAttributeSet::ApplyTypedSnapshots(const TArray<FLxBasicAttr
 	ApplyArrayToIndex(InPercentageAttributes, PercentageAttributeIndex);
 	ApplyArrayToIndex(InNumericAttributes, NumericAttributeIndex);
 	ApplyArrayToIndex(InRangeAttributes, RangeAttributeIndex);
-}
-
-void ULxCharacterBaseAttributeSet::ImportLegacyAttributeDataMap(const TMap<FGameplayTag, FLxAttributeData>& InAttributeDataMap)
-{
-	for (const TPair<FGameplayTag, FLxAttributeData>& AttributePair : InAttributeDataMap)
-	{
-		const FLxAttributeData& LegacyData = AttributePair.Value;
-		const FLxAttributeValue& LegacyValue = LegacyData.AttributeValue;
-		if (FLxResourceAttributeData* Target = FindMutableResourceAttribute(AttributePair.Key))
-		{
-			Target->ShowInfo = LegacyData.ShowInfo; Target->ValueLimit = LegacyValue.ValueLimit; Target->Value = LegacyValue.Value; continue;
-		}
-		if (FLxBasicAttributeData* Target = FindMutableBasicAttribute(AttributePair.Key))
-		{
-			Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; Target->DerivedRules = LegacyData.DerivedRulesArray; continue;
-		}
-		if (FLxProbabilityAttributeData* Target = FindMutableProbabilityAttribute(AttributePair.Key))
-		{
-			Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; continue;
-		}
-		if (FLxPercentageAttributeData* Target = FindMutablePercentageAttribute(AttributePair.Key))
-		{
-			Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; continue;
-		}
-		if (FLxNumericAttributeData* Target = FindMutableNumericAttribute(AttributePair.Key))
-		{
-			Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; continue;
-		}
-		if (FLxRangeAttributeData* Target = FindMutableRangeAttribute(AttributePair.Key))
-		{
-			Target->ShowInfo = LegacyData.ShowInfo; Target->Value = LegacyValue.Value; Target->UpwardFloatingRatio = LegacyValue.UpwardFloatingRatio; Target->DownwardFloatingRatio = LegacyValue.DownwardFloatingRatio;
-		}
-	}
-}
-
-void ULxCharacterBaseAttributeSet::BuildLegacyAttributeDataMap(TMap<FGameplayTag, FLxAttributeData>& OutAttributeDataMap) const
-{
-	OutAttributeDataMap.Reset();
-	auto AddLegacy = [&OutAttributeDataMap](const FLxCharacterAttributeCommonData& CommonData, const FLxAttributeValue& ValueData, const TArray<FLxAttributeDerivedRule>* DerivedRules)
-	{
-		FLxAttributeData LegacyData;
-		CopyCommonDataToLegacy(CommonData, LegacyData);
-		LegacyData.AttributeValue = ValueData;
-		LegacyData.CalculatedAttributeValue = ValueData;
-		if (DerivedRules != nullptr) LegacyData.DerivedRulesArray = *DerivedRules;
-		OutAttributeDataMap.Add(CommonData.AttributeIDTag, MoveTemp(LegacyData));
-	};
-
-	for (const TPair<FGameplayTag, FLxBasicAttributeData*>& Pair : BasicAttributeIndex) if (Pair.Value) { FLxAttributeValue V; V.ValueType = ELxCharacterValueType::FixedNumeric; V.Value = Pair.Value->Value; AddLegacy(*Pair.Value, V, &Pair.Value->DerivedRules); }
-	for (const TPair<FGameplayTag, FLxResourceAttributeData*>& Pair : ResourceAttributeIndex) if (Pair.Value) { FLxAttributeValue V; V.ValueType = ELxCharacterValueType::RangedNumeric; V.ValueLimit = Pair.Value->ValueLimit; V.Value = Pair.Value->Value; AddLegacy(*Pair.Value, V, nullptr); }
-	for (const TPair<FGameplayTag, FLxProbabilityAttributeData*>& Pair : ProbabilityAttributeIndex) if (Pair.Value) { FLxAttributeValue V; V.ValueType = ELxCharacterValueType::Probabilistic; V.Value = Pair.Value->Value; AddLegacy(*Pair.Value, V, nullptr); }
-	for (const TPair<FGameplayTag, FLxPercentageAttributeData*>& Pair : PercentageAttributeIndex) if (Pair.Value) { FLxAttributeValue V; V.ValueType = ELxCharacterValueType::Percentage; V.Value = Pair.Value->Value; AddLegacy(*Pair.Value, V, nullptr); }
-	for (const TPair<FGameplayTag, FLxNumericAttributeData*>& Pair : NumericAttributeIndex) if (Pair.Value) { FLxAttributeValue V; V.ValueType = ELxCharacterValueType::FixedNumeric; V.Value = Pair.Value->Value; AddLegacy(*Pair.Value, V, nullptr); }
-	for (const TPair<FGameplayTag, FLxRangeAttributeData*>& Pair : RangeAttributeIndex) if (Pair.Value) { FLxAttributeValue V; V.ValueType = ELxCharacterValueType::FloatingNumeric; V.Value = Pair.Value->Value; V.UpwardFloatingRatio = Pair.Value->UpwardFloatingRatio; V.DownwardFloatingRatio = Pair.Value->DownwardFloatingRatio; AddLegacy(*Pair.Value, V, nullptr); }
 }
 
 void ULxCharacterBaseAttributeSet::RegisterBasicAttribute(const FGameplayTag InAttributeIDTag, FLxBasicAttributeData& InAttributeData) { InAttributeData.AttributeIDTag = InAttributeIDTag; InAttributeData.AttributeCategory = ELxCharacterAttributeCategoryType::Basic; BasicAttributeIndex.Add(InAttributeIDTag, &InAttributeData); }

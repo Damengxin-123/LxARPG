@@ -2,8 +2,6 @@
 
 #include "Algo/Sort.h"
 #include "LxARPG/LxSource/Core/Tools/LxAttributeValueTool.h"
-#include "LxARPG/LxSource/Core/Tools/LxString.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/UI/UICore/LxUITextData.h"
 
@@ -20,35 +18,36 @@ void ULxAttributeWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void ULxAttributeWidget::HandleCharacterAttributesChanged(const TArray<FLxAttributeData>& AttributeList)
+void ULxAttributeWidget::HandleCharacterAttributesChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot)
 {
-	OnAttributeListUpdated(BuildAttributesUIDataList(AttributeList));
+	OnAttributeListUpdated(BuildAttributesUIDataList(AttributeSnapshot));
 }
 
 FText ULxAttributeWidget::GetAttributeValueStringByIDTag(FGameplayTag InAttributeIDTag) const
 {
 	if (!m_pCharacterDataTransferComponent)
 	{
-		return FLxString().ToFText();
+		return FText::GetEmpty();
 	}
 
-	FLxAttributeData AttributeData;
-	if (!m_pCharacterDataTransferComponent->QueryCharacterAttributeByIDTag(InAttributeIDTag, AttributeData))
+	FLxAttributeDisplayData AttributeData;
+	if (!GetAttributeDisplayDataByIDTag(InAttributeIDTag, AttributeData))
 	{
-		return FLxString().ToFText();
+		return FText::GetEmpty();
 	}
-	return LxAttributeTools::GetAttributeDisplayText(AttributeData);
+	return AttributeData.ValueText;
 }
 
-
-bool ULxAttributeWidget::GetAttributeDataByIDTag(FGameplayTag InAttributeIDTag, FLxAttributeData& OutAttributeData)
+bool ULxAttributeWidget::GetAttributeDisplayDataByIDTag(const FGameplayTag InAttributeIDTag, FLxAttributeDisplayData& OutAttributeData) const
 {
 	if (!m_pCharacterDataTransferComponent)
 	{
 		return false;
 	}
 
-	return m_pCharacterDataTransferComponent->QueryCharacterAttributeByIDTag(InAttributeIDTag, OutAttributeData);
+	FLxTypedAttributeSnapshot AttributeSnapshot;
+	m_pCharacterDataTransferComponent->GetAllCharacterAttributes(AttributeSnapshot);
+	return FLxAttributeValueTool::FindDisplayDataByIDTag(AttributeSnapshot, InAttributeIDTag, OutAttributeData);
 }
 
 void ULxAttributeWidget::BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent)
@@ -89,35 +88,29 @@ void ULxAttributeWidget::RefreshAttributeListFromDataTransfer()
 		return;
 	}
 
-	TArray<FLxAttributeData> AttributeList;
-	m_pCharacterDataTransferComponent->GetAllCharacterAttributes(AttributeList);
-	HandleCharacterAttributesChanged(AttributeList);
+	FLxTypedAttributeSnapshot AttributeSnapshot;
+	m_pCharacterDataTransferComponent->GetAllCharacterAttributes(AttributeSnapshot);
+	HandleCharacterAttributesChanged(AttributeSnapshot);
 }
 
-TArray<ULxUITextData*> ULxAttributeWidget::BuildAttributesUIDataList(const TArray<FLxAttributeData>& AttributeList)
+TArray<ULxUITextData*> ULxAttributeWidget::BuildAttributesUIDataList(const FLxTypedAttributeSnapshot& AttributeSnapshot)
 {
 	TArray<ULxUITextData*> UIDataList;
-
-	TArray<const FLxAttributeData*> VisibleAttributeList;
-	VisibleAttributeList.Reserve(AttributeList.Num());
-	for (const FLxAttributeData& AttributeData : AttributeList)
+	TArray<FLxAttributeDisplayData> DisplayDataList;
+	FLxAttributeValueTool::BuildDisplayDataList(AttributeSnapshot, DisplayDataList);
+	DisplayDataList.RemoveAll([](const FLxAttributeDisplayData& AttributeData)
 	{
-		if (!AttributeData.ShowInfo.IsVisible)
-		{
-			continue;
-		}
-
-		VisibleAttributeList.Add(&AttributeData);
-	}
-
-	Algo::Sort(VisibleAttributeList, [](const FLxAttributeData* Left, const FLxAttributeData* Right)
-	{
-		return Left->AttributeIDTag.ToString() < Right->AttributeIDTag.ToString();
+		return !AttributeData.ShowInfo.IsVisible;
 	});
 
-	UIDataList.Reserve(VisibleAttributeList.Num());
+	Algo::Sort(DisplayDataList, [](const FLxAttributeDisplayData& Left, const FLxAttributeDisplayData& Right)
+	{
+		return Left.AttributeIDTag.ToString() < Right.AttributeIDTag.ToString();
+	});
+
+	UIDataList.Reserve(DisplayDataList.Num());
 	bool IsDarkColor = true;
-	for (const FLxAttributeData* AttributeData : VisibleAttributeList)
+	for (const FLxAttributeDisplayData& AttributeData : DisplayDataList)
 	{
 		ULxUITextData* AttributeUIData = NewObject<ULxUITextData>(this);
 		if (!AttributeUIData)
@@ -125,8 +118,7 @@ TArray<ULxUITextData*> ULxAttributeWidget::BuildAttributesUIDataList(const TArra
 			continue;
 		}
 
-		// 属性列表显示文本统一由属性工具生成，UI 只负责接收文本数据并显示。
-		AttributeUIData->DisplayText = LxAttributeTools::GetAttributeDisplayText(*AttributeData);
+		AttributeUIData->DisplayText = AttributeData.DisplayText;
 		AttributeUIData->IsDarkColor = IsDarkColor;
 		UIDataList.Add(AttributeUIData);
 		IsDarkColor = !IsDarkColor;

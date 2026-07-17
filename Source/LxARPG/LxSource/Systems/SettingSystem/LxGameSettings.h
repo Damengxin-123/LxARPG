@@ -4,7 +4,6 @@
 #include "Engine/DeveloperSettings.h"
 #include "LxGameSettings.generated.h"
 
-class UDataTable;
 class ULxGameDataTablesManager;
 class ULxDamageCalculationFlow;
 class ULxInteractionUIManager;
@@ -19,10 +18,6 @@ class LXARPG_API ULxGameSettings : public UDeveloperSettings
 public:
 	/** 创建游戏全局设置，并初始化默认的核心类型配置。 */
 	ULxGameSettings();
-
-	/** 角色属性信息表，行结构使用 FLxAttributeData，用于配置全局角色属性定义、显示信息和衍生规则。 */
-	UPROPERTY(EditDefaultsOnly, config, Category="数据|角色属性", DisplayName="角色属性信息表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxAttributeData"))
-	TSoftObjectPtr<UDataTable> CharacterAttributeDataTable;
 
 	/** 游戏数据表管理器类型，用于加载物品、词条、属性等数据表。 */
 	UPROPERTY(EditDefaultsOnly, config, Category="数据|管理器类型", DisplayName="游戏数据表管理器类型")

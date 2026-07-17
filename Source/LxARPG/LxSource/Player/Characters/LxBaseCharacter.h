@@ -181,10 +181,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色测试组件")
 	ULxCharacterTestComponent* GetCharacterTestComponent() const { return m_pCharacterTestComponent; }
 
-	/** 获取当前角色使用的基础属性数值表。 */
-	UFUNCTION(BlueprintPure, Category="角色|属性", DisplayName="获取基础属性数值表")
-	UDataTable* GetCharacterAttributeValueTable() const { return CharacterAttributeValueTable; }
-
 	/** 获取创建角色运行时基础属性对象所使用的配置类型。 */
 	UFUNCTION(BlueprintPure, Category="角色|基础属性", DisplayName="获取基础属性配置类型")
 	TSubclassOf<ULxCharacterBaseAttributeSet> GetCharacterBaseAttributeSetClass() const { return CharacterBaseAttributeSetClass; }
@@ -196,16 +192,11 @@ public:
 protected:
 	/**
 	 * 角色基础属性配置类型；具体角色通过继承配置类型覆盖默认值。
-	 * 未配置时继续使用旧基础属性数值表，便于现有角色逐步迁移。
+	 * 未配置时使用原生基础属性配置类型。
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="基础属性配置类型")
 	TSubclassOf<ULxCharacterBaseAttributeSet> CharacterBaseAttributeSetClass;
 
-	/** 当前角色使用的基础属性数值表，行结构使用 FLxAttributeValueConfig。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|旧版兼容", DisplayName="旧版基础属性数值表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxAttributeValueConfig"))
-	TObjectPtr<UDataTable> CharacterAttributeValueTable = nullptr;
-
-	
 	/** 当前角色使用的命名ID标签，初始化时会用它从名称数据表查询显示文本。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|命名", DisplayName="名称ID标签", meta=(Categories="单位命名"))
 	FGameplayTag CharacterNameIDTag;

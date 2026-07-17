@@ -3,7 +3,6 @@
 #include "LxGameDataTablesManager.h"
 
 #include "LxARPG/LxSource/Core/Database/LxDataTableConfigBase.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTableConfig.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntryTableConfig.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputActionConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
@@ -11,7 +10,6 @@
 #include "LxARPG/LxSource/Model/Profession/Logic/LxProfessionDefinition.h"
 #include "LxARPG/LxSource/Model/Style/RichText/LxRichTextStyleConfig.h"
 #include "LxARPG/LxSource/Model/Style/TableConfig/LxTextLineStyleDataConfig.h"
-#include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
 #include "InputCoreTypes.h"
 
 namespace
@@ -83,72 +81,6 @@ namespace
 	{
 		EnsureDefaultAimInputActionInfo();
 		EnsureDefaultProfessionInputActionInfo();
-	}
-
-	/** 解析全局角色属性信息表；优先使用游戏设置中的配置，未配置时回退到数据表管理器旧字段。 */
-	const UDataTable* ResolveCharacterAttributeDataTable(const UDataTable* InFallbackDataTable)
-	{
-		const ULxGameSettings* GameSettings = GetDefault<ULxGameSettings>();
-		if (GameSettings == nullptr || GameSettings->CharacterAttributeDataTable.IsNull())
-		{
-			return InFallbackDataTable;
-		}
-
-		if (const UDataTable* SettingsDataTable = GameSettings->CharacterAttributeDataTable.LoadSynchronous())
-		{
-			return SettingsDataTable;
-		}
-
-		return InFallbackDataTable;
-	}
-
-	void LoadCharacterAttributeDataTable(const UDataTable* InDataTable)
-	{
-		if (InDataTable == nullptr)
-		{
-			return;
-		}
-
-		TArray<FLxAttributeData*> Rows;
-		InDataTable->GetAllRows<FLxAttributeData>(TEXT("ULxGameDataTablesManager::LoadCharacterAttributeDataTable"), Rows);
-
-		for (const FLxAttributeData* RowData : Rows)
-		{
-			if (RowData == nullptr)
-			{
-				continue;
-			}
-
-			FLxAttributeData AttributeData = *RowData;
-			if (LxAttributeTools::NormalizeAttributeIDTag(AttributeData))
-			{
-				LxAttributeConfig::SetAttributeDataConfig(AttributeData);
-			}
-		}
-	}
-
-	void LoadRaceAttributeValueConfigTable(ELxCharacterRaceType InRaceType, const UDataTable* InDataTable)
-	{
-		if (InDataTable == nullptr)
-		{
-			return;
-		}
-
-		TArray<FLxAttributeValueConfig*> Rows;
-		InDataTable->GetAllRows<FLxAttributeValueConfig>(TEXT("ULxGameDataTablesManager::LoadRaceAttributeValueConfigTable"), Rows);
-
-		TArray<FLxAttributeValueConfig> ValueConfigList;
-		for (const FLxAttributeValueConfig* RowData : Rows)
-		{
-			if (RowData == nullptr || !LxAttributeTools::ResolveAttributeIDTag(*RowData).IsValid())
-			{
-				continue;
-			}
-
-			ValueConfigList.Add(*RowData);
-		}
-
-		LxAttributeConfig::SetCharacterRaceBaseAttributeValues(InRaceType, ValueConfigList);
 	}
 
 	void LoadInputActionInfoDataTable(const UDataTable* InDataTable)
@@ -248,7 +180,6 @@ namespace
 void ULxGameDataTablesManager::LoadDataTables()
 {
 
-	LxAttributeConfig::ClearAttributeConfig();
 	LxEntryConfig::ClearEntryConfig();
 	LxInputActionConfig::ClearInputActionConfig();
 	LxItemConfig::ClearItemConfig();
@@ -257,14 +188,8 @@ void ULxGameDataTablesManager::LoadDataTables()
 
 	LoadInputActionInfoDataTable(m_pInputActionInfoTableConfig.Get());
 	EnsureDefaultInputActionInfos();
-	LoadCharacterAttributeDataTable(ResolveCharacterAttributeDataTable(m_pCharacterAttributeDataTable.Get()));
 	LoadProfessionDefinitionDataTable(m_pProfessionDefinitionTable.Get());
 	LoadRichTextStyleMappingDataTable(m_pRichTextStyleTable.Get());
-
-	for (const TPair<ELxCharacterRaceType, TObjectPtr<UDataTable>>& RaceTablePair : m_mapRaceAttributeValueConfigTables)
-	{
-		LoadRaceAttributeValueConfigTable(RaceTablePair.Key, RaceTablePair.Value.Get());
-	}
 
 	LoadEntryDataTable<FLxEntryAttributeGain>(
 		m_pAttributeGainEntryTable.Get(),

@@ -1,6 +1,6 @@
 #include "LxCharacterEffectProcessComponent.h"
 
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
 #include "LxARPG/LxSource/Model/Damage/Logic/LxDamageCalculationFlow.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
@@ -374,13 +374,13 @@ void ULxCharacterEffectProcessComponent::RefreshLifecycleAfterDamage()
 		return;
 	}
 
-	FLxAttributeData HealthAttributeData;
-	if (!DataTransferComponent->QueryCharacterAttributeByIDTag(LxTag_Attribute_Resource_Health, HealthAttributeData))
+	FLxResourceAttributeData HealthAttributeData;
+	if (!DataTransferComponent->QueryResourceAttribute(LxTag_Attribute_Resource_Health, HealthAttributeData))
 	{
 		return;
 	}
 
-	if (HealthAttributeData.CalculatedAttributeValue.Value <= 0.f)
+	if (HealthAttributeData.Value <= 0.f)
 	{
 		SpecialAttributeComponent->SetCharacterDead();
 	}

@@ -29,36 +29,6 @@ struct FLxAttributeShowInfo
 	bool IsVisible = false;
 };
 
-/** 角色属性数值信息，保存属性当前值、上限、浮动范围和数值类型。 */
-USTRUCT(BlueprintType, DisplayName="角色属性值信息")
-struct FLxAttributeValue
-{
-	GENERATED_BODY()
-
-	/** 属性允许达到的最大值。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性", DisplayName="数值上限")
-	float ValueLimit = 0.f;
-
-	/** 属性当前生效值。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性", DisplayName="当前有效值")
-	float Value = 0.f;
-
-	/** 属性向上随机浮动或成长浮动的比例。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性", DisplayName="向上浮动比例")
-	float UpwardFloatingRatio = 1.f;
-
-	/** 属性向下随机浮动或成长浮动的比例。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性", DisplayName="向下浮动比例")
-	float DownwardFloatingRatio = 1.f;
-
-	/** 属性值的解释方式，例如固定值、区间值或百分比。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色属性", DisplayName="角色属性值类型")
-	ELxCharacterValueType ValueType = ELxCharacterValueType::FixedNumeric;
-
-	/** 创建角色属性值信息。 */
-	FLxAttributeValue() {}
-};
-
 /** 属性衍生规则，描述当前属性如何按比例影响另一个属性。 */
 USTRUCT(BlueprintType, DisplayName="属性衍生规则")
 struct FLxAttributeDerivedRule

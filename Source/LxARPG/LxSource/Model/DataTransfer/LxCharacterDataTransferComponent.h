@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ShowInfoConfig/LxItemRarityType.h"
@@ -28,7 +28,7 @@ class ULxItemSlotData;
 class ULxProfessionDefinition;
 class ULxSkillBackpackComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeListChanged, const TArray<FLxAttributeData>&, AttributeList);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeSnapshotChanged, const FLxTypedAttributeSnapshot&, AttributeSnapshot);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBackpackItemListChanged, const TArray<ULxItemSlotData*>&, BackpackItems);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxEquipmentSlotListChanged, const TArray<ULxItemSlotData*>&, EquipmentSlots);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillBackpackSlotListChanged, const TArray<ULxItemSlotData*>&, SkillSlots);
@@ -55,17 +55,35 @@ public:
 	virtual void BaseComponentInitialize() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/** 使用属性标签 ID 查询当前角色属性。 */
-	UFUNCTION(BlueprintCallable, Category="角色数据中转|属性", DisplayName="使用属性标签ID查询角色属性", meta=(Categories="属性"))
-	bool QueryCharacterAttributeByIDTag(FGameplayTag InAttributeIDTag, FLxAttributeData& OutAttributeData) const;
+	/** 使用属性标签ID查询基础属性。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色基础属性", meta=(Categories="属性"))
+	bool QueryBasicAttribute(FGameplayTag InAttributeIDTag, FLxBasicAttributeData& OutAttributeData) const;
+	/** 使用属性标签ID查询资源属性。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色资源属性", meta=(Categories="属性"))
+	bool QueryResourceAttribute(FGameplayTag InAttributeIDTag, FLxResourceAttributeData& OutAttributeData) const;
+	/** 使用属性标签ID查询几率属性。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色几率属性", meta=(Categories="属性"))
+	bool QueryProbabilityAttribute(FGameplayTag InAttributeIDTag, FLxProbabilityAttributeData& OutAttributeData) const;
+	/** 使用属性标签ID查询百分比属性。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色百分比属性", meta=(Categories="属性"))
+	bool QueryPercentageAttribute(FGameplayTag InAttributeIDTag, FLxPercentageAttributeData& OutAttributeData) const;
+	/** 使用属性标签ID查询数值属性。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色数值属性", meta=(Categories="属性"))
+	bool QueryNumericAttribute(FGameplayTag InAttributeIDTag, FLxNumericAttributeData& OutAttributeData) const;
+	/** 使用属性标签ID查询区间属性。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色区间属性", meta=(Categories="属性"))
+	bool QueryRangeAttribute(FGameplayTag InAttributeIDTag, FLxRangeAttributeData& OutAttributeData) const;
+	/** 按属性ID查询任意分类属性的主要有效值。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|基础属性", DisplayName="查询角色属性有效值", meta=(Categories="属性"))
+	bool QueryCharacterAttributeValue(FGameplayTag InAttributeIDTag, float& OutAttributeValue) const;
 
 	/** 按物品类型和稀有度过滤背包物品；传入 None 时表示不按该条件过滤。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="使用物品过滤查询物品")
 	void QueryBackpackItemsByFilter(ELxItemType InItemType, ELxItemRarityType InRarityType, TArray<ULxItemSlotData*>& OutItemSlots) const;
 
-	/** 获取所有角色属性。 */
-	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有角色属性")
-	void GetAllCharacterAttributes(TArray<FLxAttributeData>& OutAttributeList) const;
+	/** 获取六类角色属性的完整快照。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="获取角色分类属性快照")
+	void GetAllCharacterAttributes(FLxTypedAttributeSnapshot& OutAttributeSnapshot) const;
 
 	/** 获取所有背包槽位物品。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有背包物品")
@@ -203,9 +221,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="从背包移除物品清单")
 	bool RemoveItemListFromBackpack(const TArray<FLxItemQuote>& InItemList);
 
-	/** 角色属性更新事件，广播当前角色属性列表。 */
-	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色属性更新事件")
-	FOnLxCharacterAttributeListChanged OnCharacterAttributeChanged;
+	/** 角色属性更新事件，广播六类属性完整快照。 */
+	UPROPERTY(BlueprintAssignable, Category="角色数据中转|基础属性", DisplayName="角色分类属性更新事件")
+	FOnLxCharacterAttributeSnapshotChanged OnCharacterAttributeChanged;
 
 	/** 角色背包更新事件，广播当前背包槽位列表。 */
 	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色背包更新事件")
@@ -308,7 +326,7 @@ private:
 	void CollectBuffEntries(TArray<TObjectPtr<ULxEntryObjectBase>>& OutEntryList) const;
 
 	UFUNCTION()
-	void HandleAttributeTableChanged(const TArray<FLxAttributeData>& AttributeList);
+	void HandleAttributeSnapshotChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot);
 
 	UFUNCTION()
 	void HandleBackpackItemUsed(ULxItemBase* UsedItem);

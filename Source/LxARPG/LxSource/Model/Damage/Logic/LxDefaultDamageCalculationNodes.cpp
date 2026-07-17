@@ -1,45 +1,27 @@
 #include "LxDefaultDamageCalculationNodes.h"
 
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
 #include "LxARPG/LxSource/Model/Damage/DataType/LxDamageTags.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 
 namespace
 {
-	bool DefaultNodeQueryCalculatedAttributeValue(ULxCharacterDataTransferComponent* DataTransferComponent, FGameplayTag AttributeIDTag, FLxAttributeValue& OutAttributeValue)
-	{
-		if (DataTransferComponent == nullptr || !AttributeIDTag.IsValid())
-		{
-			return false;
-		}
-
-		FLxAttributeData AttributeData;
-		if (!DataTransferComponent->QueryCharacterAttributeByIDTag(AttributeIDTag, AttributeData))
-		{
-			return false;
-		}
-
-		OutAttributeValue = AttributeData.CalculatedAttributeValue;
-		return true;
-	}
-
 	float DefaultNodeGetAttributeSingleValue(ULxCharacterDataTransferComponent* DataTransferComponent, FGameplayTag AttributeIDTag, float DefaultValue = 0.f)
 	{
-		FLxAttributeValue AttributeValue;
-		return DefaultNodeQueryCalculatedAttributeValue(DataTransferComponent, AttributeIDTag, AttributeValue) ? AttributeValue.Value : DefaultValue;
+		float AttributeValue = DefaultValue;
+		return DataTransferComponent != nullptr && DataTransferComponent->QueryCharacterAttributeValue(AttributeIDTag, AttributeValue) ? AttributeValue : DefaultValue;
 	}
 
-	float DefaultNodeRollRangedAttributeValue(const FLxAttributeValue& AttributeValue)
+	float DefaultNodeGetDamageSourceValue(ULxCharacterDataTransferComponent* DataTransferComponent, FGameplayTag AttributeIDTag)
 	{
-		const float LowerValue = FMath::Min(AttributeValue.Value, AttributeValue.ValueLimit);
-		const float UpperValue = FMath::Max(AttributeValue.Value, AttributeValue.ValueLimit);
-		if (UpperValue > LowerValue)
+		FLxRangeAttributeData RangeAttribute;
+		if (DataTransferComponent != nullptr && DataTransferComponent->QueryRangeAttribute(AttributeIDTag, RangeAttribute))
 		{
-			return FMath::FRandRange(LowerValue, UpperValue);
+			const float LowerValue = RangeAttribute.Value - RangeAttribute.Value * RangeAttribute.DownwardFloatingRatio;
+			const float UpperValue = RangeAttribute.Value + RangeAttribute.Value * RangeAttribute.UpwardFloatingRatio;
+			return FMath::FRandRange(FMath::Min(LowerValue, UpperValue), FMath::Max(LowerValue, UpperValue));
 		}
-
-		return AttributeValue.Value;
+		return DefaultNodeGetAttributeSingleValue(DataTransferComponent, AttributeIDTag);
 	}
 
 	void DefaultNodeNormalizeDamageEffect(FLxDamageEffect& InOutDamageEffect)
@@ -75,13 +57,7 @@ ULxDamageAttackPowerOutputNode::ULxDamageAttackPowerOutputNode()
 
 void ULxDamageAttackPowerOutputNode::ExecuteDamageCalculation_Implementation(FLxDamageCalculationContext& InOutContext)
 {
-	FLxAttributeValue AttackPowerValue;
-	if (!DefaultNodeQueryCalculatedAttributeValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Numeric_AttackPower, AttackPowerValue))
-	{
-		return;
-	}
-
-	const float RolledDamageValue = FMath::Max(0.f, DefaultNodeRollRangedAttributeValue(AttackPowerValue));
+	const float RolledDamageValue = FMath::Max(0.f, DefaultNodeGetDamageSourceValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Numeric_AttackPower));
 	if (FMath::IsNearlyZero(RolledDamageValue))
 	{
 		return;
@@ -105,8 +81,8 @@ void ULxDamageCriticalOutputNode::ExecuteDamageCalculation_Implementation(FLxDam
 		return;
 	}
 
-	const float CriticalChance = FMath::Clamp(DefaultNodeGetAttributeSingleValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Judgement_CriticalChance), 0.f, 100.f);
-	if (FMath::FRandRange(0.f, 100.f) > CriticalChance)
+	const float CriticalChance = FMath::Clamp(DefaultNodeGetAttributeSingleValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Judgement_CriticalChance), 0.f, 1.f);
+	if (FMath::FRand() > CriticalChance)
 	{
 		return;
 	}
@@ -115,7 +91,7 @@ void ULxDamageCriticalOutputNode::ExecuteDamageCalculation_Implementation(FLxDam
 	const float CriticalDamagePercent = DefaultNodeGetAttributeSingleValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Percentage_CriticalDamage, 0.f);
 	if (CriticalDamagePercent > 0.f)
 	{
-		CriticalDamageMultiplier = 1.f + CriticalDamagePercent * 0.01f;
+		CriticalDamageMultiplier = 1.f + CriticalDamagePercent;
 	}
 
 	CriticalDamageMultiplier = FMath::Max(1.f, CriticalDamageMultiplier);

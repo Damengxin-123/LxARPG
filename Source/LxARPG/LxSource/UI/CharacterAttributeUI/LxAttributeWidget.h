@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxAttributeWidget.generated.h"
 
 class ULxCharacterDataTransferComponent;
@@ -27,15 +27,15 @@ public:
 
 	/** 接收数据中转组件转发的角色属性变化事件。 */
 	UFUNCTION()
-	void HandleCharacterAttributesChanged(const TArray<FLxAttributeData>& AttributeList);
+	void HandleCharacterAttributesChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot);
 
 	/** 按属性标签 ID 获取当前运行时属性值字符串，普通数值取整数，百分比和概率类型自动追加%。 */
 	UFUNCTION(BlueprintPure, Category="角色属性", DisplayName="获取属性可视化字符串", meta=(Categories="属性"))
 	FText GetAttributeValueStringByIDTag(FGameplayTag InAttributeIDTag) const;
 
-	/** 按属性标签 ID 获取属性完整数据，供蓝图或调试读取。 */
-	UFUNCTION(BlueprintCallable, Category="角色属性", DisplayName="获取属性数据", meta=(Categories="属性"))
-	bool GetAttributeDataByIDTag(FGameplayTag InAttributeIDTag, FLxAttributeData& OutAttributeData);
+	/** 按属性标签ID获取只读显示数据，供蓝图界面使用。 */
+	UFUNCTION(BlueprintCallable, Category="角色属性", DisplayName="获取属性显示数据", meta=(Categories="属性"))
+	bool GetAttributeDisplayDataByIDTag(FGameplayTag InAttributeIDTag, FLxAttributeDisplayData& OutAttributeData) const;
 
 	/** 可直接显示在列表中的属性刷新时调用，蓝图中负责更新列表显示。 */
 	UFUNCTION(BlueprintImplementableEvent, Category="Attribute", DisplayName="属性列表显示更新")
@@ -46,7 +46,7 @@ private:
 	void BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent);
 	void UnbindDataTransferComponent();
 	void RefreshAttributeListFromDataTransfer();
-	TArray<ULxUITextData*> BuildAttributesUIDataList(const TArray<FLxAttributeData>& AttributeList);
+	TArray<ULxUITextData*> BuildAttributesUIDataList(const FLxTypedAttributeSnapshot& AttributeSnapshot);
 
 	/** 当前角色的数据中转组件，属性 UI 的数据获取和事件刷新都从这里进入。 */
 };

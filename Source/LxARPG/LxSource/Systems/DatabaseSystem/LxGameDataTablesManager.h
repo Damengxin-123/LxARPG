@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxDataTableBase.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
 #include "LxGameDataTablesManager.generated.h"
@@ -27,14 +26,6 @@ public:
 	// 输入行为信息表，Row Struct 使用 FLxInputActionInfo。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|输入", DisplayName="输入行为信息表")
 	TObjectPtr<UDataTable> m_pInputActionInfoTableConfig = nullptr;
-
-	// 角色属性规则定义表，Row Struct 使用 FLxAttributeData。
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|角色属性", DisplayName="角色属性信息表")
-	TObjectPtr<UDataTable> m_pCharacterAttributeDataTable = nullptr;
-
-	// 各种族的基础属性数值表，Key 为角色种族，Value 的 Row Struct 使用 FLxAttributeValueConfig。
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|角色属性", DisplayName="种族基础属性值表")
-	TMap<ELxCharacterRaceType, TObjectPtr<UDataTable>> m_mapRaceAttributeValueConfigTables;
 
 	// 属性增益词条表，Row Struct 使用 FLxEntryAttributeGain。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|词条", DisplayName="属性增益词条表")

@@ -2,15 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxCharacterAttributeComponent.generated.h"
 
 class ULxCharacterBaseAttributeSet;
 
-/** 旧版属性列表刷新事件；事件数据由六类独立属性临时转换生成。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeTableChanged, const TArray<FLxAttributeData>&, AttributeList);
+/** 六类角色属性快照刷新事件。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTypedCharacterAttributeSnapshotChanged, const FLxTypedAttributeSnapshot&, AttributeSnapshot);
 
 /** 角色基础属性组件，负责六类独立属性的运行时计算、词条应用与网络同步。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色基础属性组件")
@@ -34,19 +33,17 @@ public:
 	/** 接收一组资源属性恢复效果。 */
 	void ReceiveAttributeRecoveryEffects(const TArray<FLxAttributeRecoveryEffect>& InEffectList);
 
-	/** 获取兼容旧界面的完整属性列表。 */
-	void GetCharacterAttributeList(TArray<FLxAttributeData>& OutAttributeList) const;
-
-	/** 按属性ID查询兼容旧接口的属性视图。 */
-	const FLxAttributeData* GetCharacterAttributeByIDTag(FGameplayTag InAttributeIDTag) const;
+	/** 获取当前六类角色属性快照。 */
+	UFUNCTION(BlueprintCallable, Category="角色|基础属性", DisplayName="获取角色分类属性快照")
+	void GetTypedAttributeSnapshot(FLxTypedAttributeSnapshot& OutAttributeSnapshot) const;
 
 	/** 获取与配置对象分离的运行时分类属性对象。 */
 	UFUNCTION(BlueprintPure, Category="角色|基础属性", DisplayName="获取运行时基础属性对象")
 	ULxCharacterBaseAttributeSet* GetRuntimeAttributeSet() const { return RuntimeAttributeSet; }
 
-	/** 兼容旧界面的属性更新事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|基础属性|旧版兼容", DisplayName="旧版属性更新事件")
-	FOnLxCharacterAttributeTableChanged OnAttributeTableChanged;
+	/** 六类属性发生变化时广播完整分类快照。 */
+	UPROPERTY(BlueprintAssignable, Category="角色|基础属性", DisplayName="角色分类属性更新事件")
+	FOnLxTypedCharacterAttributeSnapshotChanged OnTypedAttributeSnapshotChanged;
 
 protected:
 	/** 配置数据的分类属性模板，运行时重算会从该对象重新复制。 */
@@ -66,9 +63,6 @@ protected:
 private:
 	/** 创建分类配置模板和运行时属性对象。 */
 	void InitializeRuntimeAttributeSet();
-
-	/** 从旧数据表构建迁移用统一属性配置。 */
-	void BuildLegacyConfigurationMap(TMap<FGameplayTag, FLxAttributeData>& OutAttributeDataMap) const;
 
 	/** 初始化运行时分类属性并补满资源有效值。 */
 	void InitializeAttributeTable();
@@ -103,9 +97,6 @@ private:
 	/** 判断属性公共信息是否满足词条目标。 */
 	static bool AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, FGameplayTag InAttributeIDTag, const TArray<ELxCharacterAttributeCategoryType>& InTargetCategories);
 
-	/** 重建仅供旧接口使用的统一属性临时视图。 */
-	void RebuildLegacyAttributeView() const;
-
 	/** 广播分类属性变化并生成网络快照。 */
 	void BroadcastAttributeTableChanged();
 
@@ -117,10 +108,4 @@ private:
 	UPROPERTY(ReplicatedUsing=OnRep_TypedAttributeSnapshot, VisibleAnywhere, Category="角色|基础属性|网络", DisplayName="分类属性网络快照")
 	FLxTypedAttributeSnapshot ReplicatedTypedAttributeSnapshot;
 
-	/** 由分类属性临时转换的旧统一结构视图，不参与实际计算或网络存储。 */
-	UPROPERTY(Transient)
-	mutable TMap<FGameplayTag, FLxAttributeData> LegacyAttributeView;
-
-	/** 当前配置是否由旧数据表临时迁移生成。 */
-	bool bUsingLegacyConfiguration = true;
 };

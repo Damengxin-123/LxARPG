@@ -210,3 +210,45 @@ struct LXARPG_API FLxTypedAttributeSnapshot
 	/** 区间属性快照。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|网络", DisplayName="区间属性快照") TArray<FLxRangeAttributeData> RangeAttributes;
 };
+
+/**
+ * 角色属性显示数据。
+ * 该结构只用于 UI 展示，不参与属性存储、计算、修改或网络同步。
+ */
+USTRUCT(BlueprintType, DisplayName="角色属性显示数据")
+struct LXARPG_API FLxAttributeDisplayData
+{
+	GENERATED_BODY()
+
+	/** 显示数据对应的属性ID。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="属性ID标签")
+	FGameplayTag AttributeIDTag;
+
+	/** 显示数据对应的属性分类。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="属性分类类型")
+	ELxCharacterAttributeCategoryType AttributeCategory = ELxCharacterAttributeCategoryType::Numeric;
+
+	/** 属性名称、描述、样式及可见性。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="属性可视化信息")
+	FLxAttributeShowInfo ShowInfo;
+
+	/** 已按属性分类格式化的数值显示文本。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="属性数值文本")
+	FText ValueText;
+
+	/** 套用名称显示样式并填充数值后的完整富文本。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="属性完整显示文本")
+	FText DisplayText;
+
+	/** 可供进度条或其他数值控件使用的当前值。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="当前值")
+	float Value = 0.f;
+
+	/** 资源属性的上限值，其他分类保持为零。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="上限值")
+	float ValueLimit = 0.f;
+
+	/** 当前显示数据是否具有有效的上限值。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="是否具有上限值")
+	bool bHasValueLimit = false;
+};
