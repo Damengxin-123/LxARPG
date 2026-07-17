@@ -29,7 +29,7 @@ public:
 	UFUNCTION()
 	void HandleCharacterAttributesChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot);
 
-	/** 按属性标签 ID 获取当前运行时属性值字符串，普通数值取整数，百分比和概率类型自动追加%。 */
+	/** 按属性标签ID获取包含属性名称、分类格式化数值和富文本样式标签的完整可视化文本。 */
 	UFUNCTION(BlueprintPure, Category="角色属性", DisplayName="获取属性可视化字符串", meta=(Categories="属性"))
 	FText GetAttributeValueStringByIDTag(FGameplayTag InAttributeIDTag) const;
 

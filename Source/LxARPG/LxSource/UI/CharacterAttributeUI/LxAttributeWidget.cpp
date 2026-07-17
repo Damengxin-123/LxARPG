@@ -35,7 +35,7 @@ FText ULxAttributeWidget::GetAttributeValueStringByIDTag(FGameplayTag InAttribut
 	{
 		return FText::GetEmpty();
 	}
-	return AttributeData.ValueText;
+	return AttributeData.DisplayText;
 }
 
 bool ULxAttributeWidget::GetAttributeDisplayDataByIDTag(const FGameplayTag InAttributeIDTag, FLxAttributeDisplayData& OutAttributeData) const
