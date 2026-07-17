@@ -3,139 +3,124 @@
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeData.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxCharacterAttributeComponent.generated.h"
 
 class ULxCharacterBaseAttributeSet;
 
-/** 属性表刷新事件，广播当前完整的角色属性列表。 */
+/** 旧版属性列表刷新事件；事件数据由六类独立属性临时转换生成。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeTableChanged, const TArray<FLxAttributeData>&, AttributeList);
 
-/**
- * 角色属性组件。
- *
- * 负责维护角色基础属性、运行时计算属性和按来源缓存的属性增益减益效果。
- * 其他模块通常通过数据中转组件访问它，不直接持有属性组件。
- */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色属性组件")
+/** 角色基础属性组件，负责六类独立属性的运行时计算、词条应用与网络同步。 */
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色基础属性组件")
 class LXARPG_API ULxCharacterAttributeComponent : public ULxCharacterComponentBase
 {
 	GENERATED_BODY()
 
 public:
-	/** 创建属性组件并关闭 Tick。 */
+	/** 创建基础属性组件并关闭 Tick。 */
 	ULxCharacterAttributeComponent();
+
+	/** 注册分类属性网络快照。 */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	/** 初始化属性表，并广播一次当前完整属性数据。 */
+	/** 创建配置模板和独立运行时属性对象。 */
 	virtual void BaseComponentInitialize() override;
 
-	/** 接收一组属性增益减益效果，同来源替换策略会覆盖旧效果缓存。 */
+	/** 接收一组属性增益减益效果。 */
 	void ReceiveAttributeModifierEffects(const FLxEffectSourceContext& InSourceContext, ELxEffectPackageApplyPolicy InApplyPolicy, const TArray<FLxAttributeModifierEffect>& InEffectList);
 
-	/** 接收一组属性恢复效果。属性恢复属于即时效果，不进入属性增益缓存。 */
+	/** 接收一组资源属性恢复效果。 */
 	void ReceiveAttributeRecoveryEffects(const TArray<FLxAttributeRecoveryEffect>& InEffectList);
 
-	/**
-	 * 获取当前完整角色属性列表。
-	 *
-	 * @param OutAttributeList 输出当前属性列表。
-	 */
+	/** 获取兼容旧界面的完整属性列表。 */
 	void GetCharacterAttributeList(TArray<FLxAttributeData>& OutAttributeList) const;
 
-	/**
-	 * 按属性标签 ID 查询当前角色属性。
-	 *
-	 * @param InAttributeIDTag 要查询的属性标签 ID。
-	 * @return 找到时返回属性数据指针，否则返回 nullptr。
-	 */
+	/** 按属性ID查询兼容旧接口的属性视图。 */
 	const FLxAttributeData* GetCharacterAttributeByIDTag(FGameplayTag InAttributeIDTag) const;
 
-	/** 获取与配置对象分离的角色运行时基础属性对象。 */
+	/** 获取与配置对象分离的运行时分类属性对象。 */
 	UFUNCTION(BlueprintPure, Category="角色|基础属性", DisplayName="获取运行时基础属性对象")
 	ULxCharacterBaseAttributeSet* GetRuntimeAttributeSet() const { return RuntimeAttributeSet; }
 
-	/** 属性更新事件，广播当前完整属性表。 */
-	UPROPERTY(BlueprintAssignable, Category="Character Attribute", DisplayName="属性更新事件")
+	/** 兼容旧界面的属性更新事件。 */
+	UPROPERTY(BlueprintAssignable, Category="角色|基础属性|旧版兼容", DisplayName="旧版属性更新事件")
 	FOnLxCharacterAttributeTableChanged OnAttributeTableChanged;
 
 protected:
-	/** 由角色基础属性配置类型复制生成的独立运行时对象。 */
+	/** 配置数据的分类属性模板，运行时重算会从该对象重新复制。 */
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性", DisplayName="基础属性配置模板")
+	TObjectPtr<ULxCharacterBaseAttributeSet> AttributeConfigurationTemplate;
+
+	/** 与配置模板分离的角色运行时分类属性对象。 */
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性", DisplayName="运行时基础属性对象")
 	TObjectPtr<ULxCharacterBaseAttributeSet> RuntimeAttributeSet;
-
-	/** 角色种族，用于初始化当前角色对应的基础属性值。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Character Attribute", DisplayName="角色种族")
-	ELxCharacterRaceType CharacterRaceType = ELxCharacterRaceType::None;
-
-
-	/** 当前角色属性表；每项属性同时保存基础值和计算后的实时有效值。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Character Attribute", DisplayName="角色属性表")
-	TMap<FGameplayTag, FLxAttributeData> CharacterAttributeTable;
 
 	/** 按效果来源缓存的属性增益减益效果。 */
 	TMap<FName, TArray<FLxAttributeModifierEffect>> AttributeModifierEffectCache;
 
-	/** 运行时范围属性当前值缓存，避免装备或 Buff 重算时把已恢复/已消耗的当前值重置为配置默认值。 */
-	TMap<FGameplayTag, float> RuntimeRangedAttributeValues;
-
-	/** 从角色单位专属属性数值表中读取并缓存的基础属性覆盖配置。 */
-	TArray<FLxAttributeValueConfig> CharacterAttributeValueConfigs;
+	/** 重算前保存的资源属性有效值。 */
+	TMap<FGameplayTag, float> RuntimeResourceValues;
 
 private:
-	/** 根据角色配置类型创建独立运行时基础属性对象。 */
+	/** 创建分类配置模板和运行时属性对象。 */
 	void InitializeRuntimeAttributeSet();
 
-	/** 将兼容属性表中的计算结果同步回运行时基础属性对象。 */
-	void SynchronizeRuntimeAttributeSet();
+	/** 从旧数据表构建迁移用统一属性配置。 */
+	void BuildLegacyConfigurationMap(TMap<FGameplayTag, FLxAttributeData>& OutAttributeDataMap) const;
 
-	/** 服务端属性快照同步到客户端后重建本地属性表并刷新界面。 */
-	UFUNCTION(Category="角色属性|网络", DisplayName="角色属性同步")
-	void OnRep_ReplicatedAttributeList();
-
-	/** 初始化属性组件内部数据。 */
+	/** 初始化运行时分类属性并补满资源有效值。 */
 	void InitializeAttributeTable();
 
-	/** 从新基础属性对象或旧种族配置重新构建兼容属性表。 */
-	void RebuildAttributeTableFromRaceConfig();
+	/** 从配置模板重新创建运行时分类属性对象。 */
+	void ResetRuntimeAttributeSetFromConfiguration();
 
-	/** 根据已缓存的增益词条重新计算最终属性表。 */
+	/** 根据缓存词条重新计算六类属性。 */
 	void RefreshCharacterAttributesByCachedEntries();
 
-	/** 将当前属性表中的范围属性当前值保存到运行时缓存。 */
-	void CacheRuntimeRangedAttributeValues();
+	/** 将一个通用词条翻译并应用到对应的独立属性结构。 */
+	void ApplyModifierEffect(const FLxAttributeModifierEffect& InEffect);
 
-	/** 将运行时缓存中的范围属性当前值恢复到重算后的属性表。 */
-	void RestoreRuntimeRangedAttributeValues();
+	/** 将恢复效果应用到资源属性结构。 */
+	void ApplyRecoveryEffect(const FLxAttributeRecoveryEffect& InEffect);
 
-	/** 根据属性衍生规则刷新计算属性。 */
+	/** 将基础属性的衍生规则应用到目标分类属性。 */
 	void RefreshDerivedAttributes();
 
-	/** 广播完整角色属性表。 */
+	/** 按目标ID向对应分类属性字段应用衍生数值。 */
+	void ApplyDerivedValue(FGameplayTag InTargetAttributeIDTag, const FLxAttributeDerivedRule& InDerivedRule, float InSourceValue);
+
+	/** 保存资源属性有效值。 */
+	void CacheRuntimeResourceValues();
+
+	/** 在重算后恢复资源属性有效值。 */
+	void RestoreRuntimeResourceValues();
+
+	/** 修正各分类属性的数值范围。 */
+	void NormalizeTypedAttributeValues();
+
+	/** 判断属性公共信息是否满足词条目标。 */
+	static bool AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, FGameplayTag InAttributeIDTag, const FGameplayTagContainer& InTargetTags);
+
+	/** 重建仅供旧接口使用的统一属性临时视图。 */
+	void RebuildLegacyAttributeView() const;
+
+	/** 广播分类属性变化并生成网络快照。 */
 	void BroadcastAttributeTableChanged();
 
-	/** 根据属性值类型修正最终数值，例如取整或限制到范围内。 */
-	static void NormalizeAttributeValueByType(FLxAttributeValue& InOutAttributeValue);
+	/** 分类属性网络快照复制回调。 */
+	UFUNCTION(Category="角色|基础属性|网络", DisplayName="分类属性同步")
+	void OnRep_TypedAttributeSnapshot();
 
-	/** 将单条属性增益减益效果应用到指定属性数据上。 */
-	static void ApplyModifierEffectToAttribute(FLxAttributeData& InOutAttributeData, const FLxAttributeModifierEffect& InEffect);
+	/** 六类独立属性的网络快照。 */
+	UPROPERTY(ReplicatedUsing=OnRep_TypedAttributeSnapshot, VisibleAnywhere, Category="角色|基础属性|网络", DisplayName="分类属性网络快照")
+	FLxTypedAttributeSnapshot ReplicatedTypedAttributeSnapshot;
 
-	/** 将单条属性恢复效果应用到指定属性数据上。 */
-	static void ApplyRecoveryEffectToAttribute(FLxAttributeData& InOutAttributeData, const FLxAttributeRecoveryEffect& InEffect);
+	/** 由分类属性临时转换的旧统一结构视图，不参与实际计算或网络存储。 */
+	UPROPERTY(Transient)
+	mutable TMap<FGameplayTag, FLxAttributeData> LegacyAttributeView;
 
-	/** 将一条属性衍生规则应用到指定属性数据上。 */
-	static void ApplyDerivedRuleToAttribute(FLxAttributeData& InOutAttributeData, const FLxAttributeDerivedRule& InDerivedRule, float InSourceValue);
-
-	/** 判断属性标签是否满足词条或衍生规则要求的目标标签。 */
-	static bool AttributeMatchesTargetTags(const FLxAttributeData& InAttributeData, const FGameplayTagContainer& InTargetTags);
-
-	/** 判断属性是否满足属性增益减益效果的目标条件。 */
-	static bool AttributeMatchesModifierEffect(const FLxAttributeData& InAttributeData, const FLxAttributeModifierEffect& InEffect);
-
-	/** 判断属性是否满足属性恢复效果的目标条件。 */
-	static bool AttributeMatchesRecoveryEffect(const FLxAttributeData& InAttributeData, const FLxAttributeRecoveryEffect& InEffect);
-
-	/** 由服务端复制的完整角色属性快照，客户端据此重建属性表。 */
-	UPROPERTY(ReplicatedUsing=OnRep_ReplicatedAttributeList, VisibleAnywhere, Category="角色属性|网络", DisplayName="网络同步属性列表")
-	TArray<FLxAttributeData> ReplicatedAttributeList;
+	/** 当前配置是否由旧数据表临时迁移生成。 */
+	bool bUsingLegacyConfiguration = true;
 };
