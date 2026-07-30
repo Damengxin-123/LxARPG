@@ -24,7 +24,9 @@ public class LxARPG : ModuleRules
 			"JsonUtilities",
 			"GameplayTags", 
 			"DeveloperSettings",
-			"ModularGameplay"
+			"ModularGameplay",
+			"AIModule",
+			"NavigationSystem"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
