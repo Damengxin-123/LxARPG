@@ -170,6 +170,11 @@ void ULxCharacterDataTransferComponent::GetAllCharacterAttributes(FLxTypedAttrib
 	AttributeComponent->GetTypedAttributeSnapshot(OutAttributeSnapshot);
 }
 
+int32 ULxCharacterDataTransferComponent::GetCharacterTotalStrength() const
+{
+	return AttributeComponent != nullptr ? AttributeComponent->CalculateTotalStrength() : 0;
+}
+
 void ULxCharacterDataTransferComponent::GetAllBackpackItems(TArray<ULxItemSlotData*>& OutItemSlots) const
 {
 	OutItemSlots.Reset();

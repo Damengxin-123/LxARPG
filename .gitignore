@@ -4,4 +4,5 @@
 !.gitignore
 !Source/
 !Source/**
-
+!Config/
+!Config/DefaultGameplayTags.ini

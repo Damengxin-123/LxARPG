@@ -139,6 +139,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|百分比", DisplayName="暴击伤害") FLxPercentageAttributeData CriticalDamage;
 	/** 格挡伤害减免百分比属性。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|百分比", DisplayName="格挡伤害减免") FLxPercentageAttributeData BlockDamageReduction;
+	/** 移动速度加成百分比属性，数值为1时表示基础移动速度提高100%。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|百分比", DisplayName="移动速度加成") FLxPercentageAttributeData MovementSpeedBonus;
 
 	/** 负重数值属性。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|数值", DisplayName="负重") FLxNumericAttributeData CarryWeight;
@@ -146,10 +148,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|数值", DisplayName="幸运") FLxNumericAttributeData Luck;
 	/** 护甲数值属性。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|数值", DisplayName="护甲") FLxNumericAttributeData Armor;
-	/** 攻击力数值属性。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|数值", DisplayName="攻击力") FLxNumericAttributeData AttackPower;
+	/** 攻击力区间属性，攻击时在基准值的向上与向下浮动范围内随机取值。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|区间", DisplayName="攻击力") FLxRangeAttributeData AttackPower;
 	/** 攻击速度数值属性。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|数值", DisplayName="攻击速度") FLxNumericAttributeData AttackSpeed;
+	/** 基础移动速度数值属性，配置单位为米/秒。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|数值", DisplayName="基础移动速度（m/s）") FLxNumericAttributeData BaseMovementSpeed;
 	/** 火元素亲和数值属性。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|数值", DisplayName="火元素亲和") FLxNumericAttributeData FireAffinity;
 	/** 水元素亲和数值属性。 */

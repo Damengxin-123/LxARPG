@@ -37,6 +37,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="角色|基础属性", DisplayName="获取角色分类属性快照")
 	void GetTypedAttributeSnapshot(FLxTypedAttributeSnapshot& OutAttributeSnapshot) const;
 
+	/** 按六类属性各自的换算规则计算当前角色总强度数值。 */
+	UFUNCTION(BlueprintPure, Category="角色|基础属性|强度", DisplayName="计算角色总强度")
+	int32 CalculateTotalStrength() const;
+
 	/** 获取与配置对象分离的运行时分类属性对象。 */
 	UFUNCTION(BlueprintPure, Category="角色|基础属性", DisplayName="获取运行时基础属性对象")
 	ULxCharacterBaseAttributeSet* GetRuntimeAttributeSet() const { return RuntimeAttributeSet; }
@@ -93,6 +97,9 @@ private:
 
 	/** 修正各分类属性的数值范围。 */
 	void NormalizeTypedAttributeValues();
+
+	/** 根据基础移动速度和移动速度加成刷新角色移动组件的最大行走速度，并将米/秒换算为厘米/秒。 */
+	void RefreshCharacterMovementSpeed() const;
 
 	/** 判断属性公共信息是否满足词条目标。 */
 	static bool AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, FGameplayTag InAttributeIDTag, const TArray<ELxCharacterAttributeCategoryType>& InTargetCategories);

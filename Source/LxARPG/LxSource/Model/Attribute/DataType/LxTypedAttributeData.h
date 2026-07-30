@@ -20,6 +20,10 @@ struct LXARPG_API FLxCharacterAttributeCommonData
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="属性分类类型")
 	ELxCharacterAttributeCategoryType AttributeCategory = ELxCharacterAttributeCategoryType::Numeric;
 
+	/** 当前属性每1点或1%能够换算得到的角色强度数值。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="角色强度换算指数")
+	int32 StrengthConversionIndex = 0;
+
 	/** 属性在界面中使用的名称、描述和可见性。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="属性可视化信息")
 	FLxAttributeShowInfo ShowInfo;

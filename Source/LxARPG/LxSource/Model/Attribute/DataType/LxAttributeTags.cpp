@@ -24,12 +24,15 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Judgement_CriticalChance, TEXT("�
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Percentage, TEXT("属性.百分比属性"), "百分比属性");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Percentage_CriticalDamage, TEXT("属性.百分比属性.暴击伤害"), "暴击伤害");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Percentage_BlockDamageReduction, TEXT("属性.百分比属性.格挡减伤比例"), "格挡减伤比例");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Percentage_MovementSpeedBonus, TEXT("属性.百分比属性.移动速度加成"), "移动速度加成");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Numeric, TEXT("属性.数值属性"), "数值属性");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Numeric_CarryWeight, TEXT("属性.数值属性.负重"), "负重");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Numeric_Luck, TEXT("属性.数值属性.幸运"), "幸运");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Numeric_Armor, TEXT("属性.数值属性.护甲值"), "护甲值");
-UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Numeric_AttackPower, TEXT("属性.数值属性.攻击力"), "攻击力");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Numeric_AttackSpeed, TEXT("属性.数值属性.攻击速度"), "攻击速度");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Numeric_BaseMovementSpeed, TEXT("属性.数值属性.基础移动速度"), "基础移动速度（m/s）");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Range, TEXT("属性.区间属性"), "区间属性");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Range_AttackPower, TEXT("属性.区间属性.攻击力"), "攻击力");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Element, TEXT("属性.元素属性"), "元素属性");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Element_FireAffinity, TEXT("属性.元素属性.火元素亲和"), "火元素亲和");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Element_WaterAffinity, TEXT("属性.元素属性.水元素亲和"), "水元素亲和");

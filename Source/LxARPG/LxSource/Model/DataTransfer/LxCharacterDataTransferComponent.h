@@ -85,6 +85,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="获取角色分类属性快照")
 	void GetAllCharacterAttributes(FLxTypedAttributeSnapshot& OutAttributeSnapshot) const;
 
+	/** 通过角色属性组件计算并获取当前角色总强度数值。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|基础属性|强度", DisplayName="获取角色总强度")
+	int32 GetCharacterTotalStrength() const;
+
 	/** 获取所有背包槽位物品。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有背包物品")
 	void GetAllBackpackItems(TArray<ULxItemSlotData*>& OutItemSlots) const;

@@ -1,11 +1,25 @@
 #include "LxCharacterAttributeComponent.h"
 
+#include "GameFramework/CharacterMovementComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "Net/UnrealNetwork.h"
 
 namespace
 {
+	/** 将属性架构使用的米换算为 Unreal 移动组件使用的厘米。 */
+	constexpr float MetersToCentimeters = 100.f;
+
+	/** 百分比属性换算为强度时，每1%对应的比例倍数。 */
+	constexpr double PercentageUnitsPerRatio = 100.0;
+
+	/** 将属性值四舍五入到最小细分单位后，再乘以换算指数得到整数强度。 */
+	int64 ConvertAttributeUnitsToStrength(const double InAttributeUnits, const int32 InConversionIndex)
+	{
+		return FMath::RoundToInt64(InAttributeUnits) * static_cast<int64>(InConversionIndex);
+	}
+
 	/** 按词条修改方式更新指定数值。 */
 	void ApplyOperation(float& InOutValue, const ELxAttributeModifierOperation InOperation, const float InModifierValue)
 	{
@@ -232,6 +246,26 @@ void ULxCharacterAttributeComponent::NormalizeTypedAttributeValues()
 	TArray<FLxProbabilityAttributeData> Probability; RuntimeAttributeSet->GetAllProbabilityAttributes(Probability); for (const auto& Data : Probability) if (auto* A = RuntimeAttributeSet->FindMutableProbabilityAttribute(Data.AttributeIDTag)) A->Value = FMath::Clamp(A->Value, 0.f, 1.f);
 }
 
+void ULxCharacterAttributeComponent::RefreshCharacterMovementSpeed() const
+{
+	const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
+	if (OwnerCharacter == nullptr || RuntimeAttributeSet == nullptr) return;
+
+	FLxNumericAttributeData BaseMovementSpeed;
+	FLxPercentageAttributeData MovementSpeedBonus;
+	if (!RuntimeAttributeSet->GetNumericAttribute(LxTag_Attribute_Numeric_BaseMovementSpeed, BaseMovementSpeed)
+		|| !RuntimeAttributeSet->GetPercentageAttribute(LxTag_Attribute_Percentage_MovementSpeedBonus, MovementSpeedBonus))
+	{
+		return;
+	}
+
+	if (UCharacterMovementComponent* MovementComponent = OwnerCharacter->GetCharacterMovement())
+	{
+		const float MovementSpeedMetersPerSecond = FMath::Max(0.f, BaseMovementSpeed.Value * (1.f + MovementSpeedBonus.Value));
+		MovementComponent->MaxWalkSpeed = MovementSpeedMetersPerSecond * MetersToCentimeters;
+	}
+}
+
 bool ULxCharacterAttributeComponent::AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, const FGameplayTag InAttributeIDTag, const TArray<ELxCharacterAttributeCategoryType>& InTargetCategories)
 {
 	const bool bHasID = InAttributeIDTag.IsValid();
@@ -253,8 +287,54 @@ void ULxCharacterAttributeComponent::GetTypedAttributeSnapshot(FLxTypedAttribute
 	RuntimeAttributeSet->GetAllRangeAttributes(OutAttributeSnapshot.RangeAttributes);
 }
 
+int32 ULxCharacterAttributeComponent::CalculateTotalStrength() const
+{
+	if (RuntimeAttributeSet == nullptr)
+	{
+		return 0;
+	}
+
+	FLxTypedAttributeSnapshot AttributeSnapshot;
+	GetTypedAttributeSnapshot(AttributeSnapshot);
+
+	int64 TotalStrength = 0;
+	for (const FLxBasicAttributeData& AttributeData : AttributeSnapshot.BasicAttributes)
+	{
+		TotalStrength += ConvertAttributeUnitsToStrength(AttributeData.Value, AttributeData.StrengthConversionIndex);
+	}
+	for (const FLxResourceAttributeData& AttributeData : AttributeSnapshot.ResourceAttributes)
+	{
+		TotalStrength += ConvertAttributeUnitsToStrength(AttributeData.ValueLimit, AttributeData.StrengthConversionIndex);
+	}
+	for (const FLxProbabilityAttributeData& AttributeData : AttributeSnapshot.ProbabilityAttributes)
+	{
+		const double ProbabilityPercent = FMath::Clamp(static_cast<double>(AttributeData.Value) * PercentageUnitsPerRatio, 0.0, 100.0);
+		TotalStrength += ConvertAttributeUnitsToStrength(ProbabilityPercent, AttributeData.StrengthConversionIndex);
+	}
+	for (const FLxPercentageAttributeData& AttributeData : AttributeSnapshot.PercentageAttributes)
+	{
+		const double PercentageValue = static_cast<double>(AttributeData.Value) * PercentageUnitsPerRatio;
+		TotalStrength += ConvertAttributeUnitsToStrength(PercentageValue, AttributeData.StrengthConversionIndex);
+	}
+	for (const FLxNumericAttributeData& AttributeData : AttributeSnapshot.NumericAttributes)
+	{
+		TotalStrength += ConvertAttributeUnitsToStrength(AttributeData.Value, AttributeData.StrengthConversionIndex);
+	}
+	for (const FLxRangeAttributeData& AttributeData : AttributeSnapshot.RangeAttributes)
+	{
+		const double BaseValue = static_cast<double>(AttributeData.Value);
+		const double LowerValue = BaseValue - BaseValue * static_cast<double>(AttributeData.DownwardFloatingRatio);
+		const double UpperValue = BaseValue + BaseValue * static_cast<double>(AttributeData.UpwardFloatingRatio);
+		const double AverageValue = (LowerValue + UpperValue) * 0.5;
+		TotalStrength += ConvertAttributeUnitsToStrength(AverageValue, AttributeData.StrengthConversionIndex);
+	}
+
+	return static_cast<int32>(FMath::Clamp<int64>(TotalStrength, MIN_int32, MAX_int32));
+}
+
 void ULxCharacterAttributeComponent::BroadcastAttributeTableChanged()
 {
+	RefreshCharacterMovementSpeed();
 	if (const AActor* OwnerActor = GetOwner(); OwnerActor != nullptr && OwnerActor->HasAuthority() && RuntimeAttributeSet != nullptr)
 	{
 		RuntimeAttributeSet->GetAllBasicAttributes(ReplicatedTypedAttributeSnapshot.BasicAttributes);
@@ -279,6 +359,7 @@ void ULxCharacterAttributeComponent::OnRep_TypedAttributeSnapshot()
 		ReplicatedTypedAttributeSnapshot.PercentageAttributes,
 		ReplicatedTypedAttributeSnapshot.NumericAttributes,
 		ReplicatedTypedAttributeSnapshot.RangeAttributes);
+	RefreshCharacterMovementSpeed();
 	OnTypedAttributeSnapshotChanged.Broadcast(ReplicatedTypedAttributeSnapshot);
 	OnDataChange.Broadcast();
 }

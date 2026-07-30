@@ -64,6 +64,7 @@ namespace
 
 ULxCharacterBaseAttributeSet::ULxCharacterBaseAttributeSet()
 {
+	BaseMovementSpeed.Value = 6.f;
 	RegisterBasicAttribute(LxTag_Attribute_Basic_Strength, Strength);
 	RegisterBasicAttribute(LxTag_Attribute_Basic_Wisdom, Wisdom);
 	RegisterBasicAttribute(LxTag_Attribute_Basic_Agility, Agility);
@@ -75,11 +76,13 @@ ULxCharacterBaseAttributeSet::ULxCharacterBaseAttributeSet()
 	RegisterProbabilityAttribute(LxTag_Attribute_Judgement_CriticalChance, CriticalChance);
 	RegisterPercentageAttribute(LxTag_Attribute_Percentage_CriticalDamage, CriticalDamage);
 	RegisterPercentageAttribute(LxTag_Attribute_Percentage_BlockDamageReduction, BlockDamageReduction);
+	RegisterPercentageAttribute(LxTag_Attribute_Percentage_MovementSpeedBonus, MovementSpeedBonus);
 	RegisterNumericAttribute(LxTag_Attribute_Numeric_CarryWeight, CarryWeight);
 	RegisterNumericAttribute(LxTag_Attribute_Numeric_Luck, Luck);
 	RegisterNumericAttribute(LxTag_Attribute_Numeric_Armor, Armor);
-	RegisterNumericAttribute(LxTag_Attribute_Numeric_AttackPower, AttackPower);
+	RegisterRangeAttribute(LxTag_Attribute_Range_AttackPower, AttackPower);
 	RegisterNumericAttribute(LxTag_Attribute_Numeric_AttackSpeed, AttackSpeed);
+	RegisterNumericAttribute(LxTag_Attribute_Numeric_BaseMovementSpeed, BaseMovementSpeed);
 	RegisterNumericAttribute(LxTag_Attribute_Element_FireAffinity, FireAffinity);
 	RegisterNumericAttribute(LxTag_Attribute_Element_WaterAffinity, WaterAffinity);
 	RegisterNumericAttribute(LxTag_Attribute_Element_ElectricAffinity, ElectricAffinity);

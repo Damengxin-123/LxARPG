@@ -57,7 +57,7 @@ ULxDamageAttackPowerOutputNode::ULxDamageAttackPowerOutputNode()
 
 void ULxDamageAttackPowerOutputNode::ExecuteDamageCalculation_Implementation(FLxDamageCalculationContext& InOutContext)
 {
-	const float RolledDamageValue = FMath::Max(0.f, DefaultNodeGetDamageSourceValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Numeric_AttackPower));
+	const float RolledDamageValue = FMath::Max(0.f, DefaultNodeGetDamageSourceValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Range_AttackPower));
 	if (FMath::IsNearlyZero(RolledDamageValue))
 	{
 		return;

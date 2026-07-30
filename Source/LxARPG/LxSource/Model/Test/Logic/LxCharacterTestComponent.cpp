@@ -157,7 +157,7 @@ bool ULxCharacterTestComponent::ApplyTestDamageFromAttacker(AActor* InAttackerAc
 
 	FLxDamageValue DamageValue;
 	DamageValue.DamageTypeTag = LxTag_CommonEffect_DamageEffect_Normal;
-	DamageValue.SourceAttributeIDTag = LxTag_Attribute_Numeric_AttackPower;
+	DamageValue.SourceAttributeIDTag = LxTag_Attribute_Range_AttackPower;
 	DamageValue.SourceAttributeRatio = 1.f;
 
 	FLxDamageEffect DamageEffect;
