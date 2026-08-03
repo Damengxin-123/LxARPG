@@ -22,6 +22,10 @@ public:
 	/** 缓存所属AI角色、出生位置和角色通用移动组件。 */
 	virtual void BaseComponentInitialize() override;
 
+	/** 由指定行为自己的条件判断当前是否可以执行，不读取通用行为限制参数。 */
+	UFUNCTION(BlueprintPure, Category="AI|行为", DisplayName="AI行为是否可执行")
+	bool CanExecuteBehavior(ELxAIActionType InActionType, const FLxAIBattleSnapshot& InBattleSnapshot) const;
+
 	/** 使用角色已有组件执行指定AI行为，不在本组件内重复实现角色能力。 */
 	UFUNCTION(BlueprintCallable, Category="AI|行为", DisplayName="执行AI行为")
 	void ExecuteBehavior(ELxAIActionType InActionType, const FLxAIBattleSnapshot& InBattleSnapshot);
@@ -31,6 +35,24 @@ public:
 	void StopBehavior();
 
 private:
+	/** 判断巡逻行为是否满足自身的无威胁条件。 */
+	bool CanExecutePatrol(const FLxAIBattleSnapshot& InBattleSnapshot) const;
+
+	/** 判断警戒行为是否可以作为当前安全回退行为。 */
+	bool CanExecuteAlert(const FLxAIBattleSnapshot& InBattleSnapshot) const;
+
+	/** 判断攻击行为是否具有有效敌方目标。 */
+	bool CanExecuteAttack(const FLxAIBattleSnapshot& InBattleSnapshot) const;
+
+	/** 判断防守行为是否存在需要应对的敌方目标。 */
+	bool CanExecuteDefend(const FLxAIBattleSnapshot& InBattleSnapshot) const;
+
+	/** 判断治疗行为是否具有有效友方目标、技能配置和技能组件。 */
+	bool CanExecuteHeal(const FLxAIBattleSnapshot& InBattleSnapshot) const;
+
+	/** 判断逃跑行为是否存在有效威胁。 */
+	bool CanExecuteRetreat(const FLxAIBattleSnapshot& InBattleSnapshot) const;
+
 	/** 使用通用移动组件执行无威胁巡逻。 */
 	void ExecutePatrol();
 

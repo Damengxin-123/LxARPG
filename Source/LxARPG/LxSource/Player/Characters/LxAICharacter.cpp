@@ -8,15 +8,14 @@
 
 namespace
 {
-	/** 创建包含指定战略的默认行为规则。 */
-	FLxAIActionRule MakeDefaultRule(const ELxAIActionType InActionType, const ELxAITacticalStrategy InStrategy,
-		const float InBaseScore)
+	/** 创建指定局势按顺序匹配的默认行为候选集合。 */
+	FLxAISituationBehaviorSet MakeDefaultBehaviorSet(const ELxAISituationLevel InSituation,
+		std::initializer_list<ELxAIActionType> InBehaviorCandidates)
 	{
-		FLxAIActionRule Rule;
-		Rule.ActionType = InActionType;
-		Rule.AllowedStrategies.Add(InStrategy);
-		Rule.BaseScore = InBaseScore;
-		return Rule;
+		FLxAISituationBehaviorSet BehaviorSet;
+		BehaviorSet.Situation = InSituation;
+		BehaviorSet.BehaviorCandidates.Append(InBehaviorCandidates);
+		return BehaviorSet;
 	}
 }
 
@@ -26,37 +25,16 @@ ALxAICharacter::ALxAICharacter()
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	AIBehaviorComponent = CreateDefaultSubobject<ULxAIBehaviorComponent>(TEXT("AIBehaviorComponent"));
 
-	FLxAIActionRule PatrolRule = MakeDefaultRule(ELxAIActionType::Patrol, ELxAITacticalStrategy::Idle, 50.0f);
-	PatrolRule.MinExecutionTime = 2.0f;
-	AIControlConfig.ActionRules.Add(PatrolRule);
-
-	FLxAIActionRule AlertRule = MakeDefaultRule(ELxAIActionType::Alert, ELxAITacticalStrategy::Idle, 20.0f);
-	AIControlConfig.ActionRules.Add(AlertRule);
-
-	FLxAIActionRule AttackRule = MakeDefaultRule(ELxAIActionType::Attack, ELxAITacticalStrategy::Engage, 40.0f);
-	AttackRule.AdvantageWeight = 30.0f;
-	AttackRule.AssistAdvanceRatioWeight = 15.0f;
-	AttackRule.SelfInjuryWeight = -35.0f;
-	AttackRule.MinSelfHealthRatio = 0.2f;
-	AIControlConfig.ActionRules.Add(AttackRule);
-
-	FLxAIActionRule DefendRule = MakeDefaultRule(ELxAIActionType::Defend, ELxAITacticalStrategy::Engage, 30.0f);
-	DefendRule.EnemyAdvanceRatioWeight = 35.0f;
-	DefendRule.AssistAdvanceRatioWeight = -15.0f;
-	DefendRule.MaxGroupExecutors = 2;
-	AIControlConfig.ActionRules.Add(DefendRule);
-
-	FLxAIActionRule HealRule = MakeDefaultRule(ELxAIActionType::Heal, ELxAITacticalStrategy::Engage, 20.0f);
-	HealRule.bRequiresInjuredAlly = true;
-	HealRule.InjuredAllyWeight = 70.0f;
-	HealRule.MaxGroupExecutors = 1;
-	HealRule.MinExecutionTime = 1.5f;
-	AIControlConfig.ActionRules.Add(HealRule);
-
-	FLxAIActionRule RetreatRule = MakeDefaultRule(ELxAIActionType::Retreat, ELxAITacticalStrategy::Escape, 100.0f);
-	RetreatRule.SelfInjuryWeight = 30.0f;
-	RetreatRule.MinExecutionTime = 2.0f;
-	AIControlConfig.ActionRules.Add(RetreatRule);
+	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::NoThreat,
+		{ELxAIActionType::Patrol, ELxAIActionType::Alert}));
+	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::Advantage,
+		{ELxAIActionType::Heal, ELxAIActionType::Attack, ELxAIActionType::Defend}));
+	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::Balanced,
+		{ELxAIActionType::Heal, ELxAIActionType::Defend, ELxAIActionType::Attack}));
+	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::Disadvantage,
+		{ELxAIActionType::Heal, ELxAIActionType::Defend, ELxAIActionType::Retreat}));
+	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::SelfDanger,
+		{ELxAIActionType::Retreat, ELxAIActionType::Defend}));
 }
 
 void ALxAICharacter::InitialCharacterInformation()

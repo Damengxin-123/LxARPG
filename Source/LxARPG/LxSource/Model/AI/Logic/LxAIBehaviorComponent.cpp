@@ -22,6 +22,28 @@ void ULxAIBehaviorComponent::BaseComponentInitialize()
 	}
 }
 
+bool ULxAIBehaviorComponent::CanExecuteBehavior(const ELxAIActionType InActionType,
+	const FLxAIBattleSnapshot& InBattleSnapshot) const
+{
+	switch (InActionType)
+	{
+	case ELxAIActionType::Patrol:
+		return CanExecutePatrol(InBattleSnapshot);
+	case ELxAIActionType::Alert:
+		return CanExecuteAlert(InBattleSnapshot);
+	case ELxAIActionType::Attack:
+		return CanExecuteAttack(InBattleSnapshot);
+	case ELxAIActionType::Defend:
+		return CanExecuteDefend(InBattleSnapshot);
+	case ELxAIActionType::Heal:
+		return CanExecuteHeal(InBattleSnapshot);
+	case ELxAIActionType::Retreat:
+		return CanExecuteRetreat(InBattleSnapshot);
+	default:
+		return false;
+	}
+}
+
 void ULxAIBehaviorComponent::ExecuteBehavior(const ELxAIActionType InActionType,
 	const FLxAIBattleSnapshot& InBattleSnapshot)
 {
@@ -32,6 +54,10 @@ void ULxAIBehaviorComponent::ExecuteBehavior(const ELxAIActionType InActionType,
 		{
 			return;
 		}
+	}
+	if (!CanExecuteBehavior(InActionType, InBattleSnapshot))
+	{
+		return;
 	}
 
 	switch (InActionType)
@@ -58,6 +84,43 @@ void ULxAIBehaviorComponent::ExecuteBehavior(const ELxAIActionType InActionType,
 		StopBehavior();
 		break;
 	}
+}
+
+bool ULxAIBehaviorComponent::CanExecutePatrol(const FLxAIBattleSnapshot& InBattleSnapshot) const
+{
+	return OwnerAICharacter && CharacterMoveComponent && !InBattleSnapshot.bHasThreat;
+}
+
+bool ULxAIBehaviorComponent::CanExecuteAlert(const FLxAIBattleSnapshot&) const
+{
+	return OwnerAICharacter && CharacterMoveComponent;
+}
+
+bool ULxAIBehaviorComponent::CanExecuteAttack(const FLxAIBattleSnapshot& InBattleSnapshot) const
+{
+	return OwnerAICharacter && CharacterMoveComponent && IsValid(InBattleSnapshot.HighestThreatEnemy);
+}
+
+bool ULxAIBehaviorComponent::CanExecuteDefend(const FLxAIBattleSnapshot& InBattleSnapshot) const
+{
+	return OwnerAICharacter && CharacterMoveComponent && InBattleSnapshot.bHasThreat;
+}
+
+bool ULxAIBehaviorComponent::CanExecuteHeal(const FLxAIBattleSnapshot& InBattleSnapshot) const
+{
+	if (!OwnerAICharacter || !CharacterMoveComponent || !IsValid(InBattleSnapshot.LowestStateAlly))
+	{
+		return false;
+	}
+	const FLxAIControlConfig& Config = OwnerAICharacter->GetAIControlConfig();
+	const ULxSkillBackpackComponent* SkillBackpack = OwnerAICharacter->GetSkillBackpackComponent();
+	return Config.HealSkillItemId.IsValid() && SkillBackpack && OwnerAICharacter->GetSkillCastComponent() &&
+		SkillBackpack->FindSkillItemByTagID(Config.HealSkillItemId);
+}
+
+bool ULxAIBehaviorComponent::CanExecuteRetreat(const FLxAIBattleSnapshot& InBattleSnapshot) const
+{
+	return OwnerAICharacter && CharacterMoveComponent && InBattleSnapshot.bHasThreat;
 }
 
 void ULxAIBehaviorComponent::StopBehavior()

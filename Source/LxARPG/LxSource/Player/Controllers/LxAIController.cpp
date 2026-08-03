@@ -5,9 +5,9 @@
 #include "Perception/AISenseConfig_Damage.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISense_Damage.h"
+#include "Perception/AISense_Sight.h"
 #include "TimerManager.h"
 #include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorComponent.h"
-#include "LxARPG/LxSource/Model/AI/Logic/LxAIGroupSubsystem.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
@@ -16,12 +16,20 @@
 
 namespace
 {
-	/** 构建单个目标参与群体分析时使用的临时数据。 */
-	struct FLxAnalyzedCharacter
+	/** 单个目标参与当前AI数值汇总时使用的临时数据。 */
+	struct FLxAnalyzedTarget
 	{
+		/** 被当前AI直接感知到的角色。 */
 		TObjectPtr<ALxBaseCharacter> Character = nullptr;
-		float CombatPower = 0.0f;
-		float HealthRatio = 1.0f;
+
+		/** 角色未乘当前状态前的基础强度。 */
+		float BaseStrength = 0.0f;
+
+		/** 角色当前生命值对应的归一化状态。 */
+		float StateRatio = 1.0f;
+
+		/** 基础强度乘状态比例后的有效强度。 */
+		float EffectiveStrength = 0.0f;
 	};
 }
 
@@ -54,13 +62,13 @@ void ALxAIController::OnPossess(APawn* InPawn)
 		return;
 	}
 
-	RuntimeGroupId = ResolveRuntimeGroupId(AICharacter);
-	if (ULxAIGroupSubsystem* GroupSubsystem = GetWorld()->GetSubsystem<ULxAIGroupSubsystem>())
-	{
-		GroupSubsystem->RegisterMember(RuntimeGroupId, AICharacter);
-	}
-
+	TargetMemory.Reset();
+	DynamicHostileTargets.Reset();
+	CurrentSituation = ELxAISituationLevel::NoThreat;
+	CurrentAction = ELxAIActionType::None;
+	CurrentBattleSnapshot = FLxAIBattleSnapshot();
 	ApplyPerceptionConfiguration();
+
 	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
 	if (Config.bEnableAutomaticControl)
 	{
@@ -75,14 +83,16 @@ void ALxAIController::OnUnPossess()
 	GetWorldTimerManager().ClearTimer(AutomaticDecisionTimer);
 	if (ALxAICharacter* AICharacter = GetAICharacter())
 	{
-		if (ULxAIGroupSubsystem* GroupSubsystem = GetWorld()->GetSubsystem<ULxAIGroupSubsystem>())
+		if (ULxAIBehaviorComponent* BehaviorComponent = AICharacter->GetAIBehaviorComponent())
 		{
-			GroupSubsystem->SetMemberAction(RuntimeGroupId, AICharacter, ELxAIActionType::None);
-			GroupSubsystem->UnregisterMember(RuntimeGroupId, AICharacter);
+			BehaviorComponent->StopBehavior();
 		}
 	}
-	RuntimeGroupId = NAME_None;
+	TargetMemory.Reset();
 	DynamicHostileTargets.Reset();
+	CurrentSituation = ELxAISituationLevel::NoThreat;
+	CurrentAction = ELxAIActionType::None;
+	CurrentBattleSnapshot = FLxAIBattleSnapshot();
 	Super::OnUnPossess();
 }
 
@@ -92,24 +102,39 @@ void ALxAIController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void ALxAIController::HandleTargetPerceptionUpdated(AActor* InActor, const FAIStimulus InStimulus)
+void ALxAIController::ReportPerceivedTarget(AActor* InTargetActor, const ELxAIPerceptionSource InPerceptionSource,
+	const bool bInMarkAsHostile)
 {
-	ALxAICharacter* AICharacter = GetAICharacter();
-	if (!AICharacter || !IsValid(InActor) || !InStimulus.WasSuccessfullySensed())
+	ALxBaseCharacter* TargetCharacter = Cast<ALxBaseCharacter>(InTargetActor);
+	const ALxAICharacter* AICharacter = GetAICharacter();
+	if (!IsValid(TargetCharacter) || !AICharacter || TargetCharacter == AICharacter)
 	{
 		return;
 	}
 
-	const bool bHostileBehavior = InStimulus.Type == UAISense::GetSenseID<UAISense_Damage>();
-	if (bHostileBehavior)
+	FLxAITargetMemoryRecord& Record = TargetMemory.FindOrAdd(InTargetActor);
+	Record.TargetCharacter = TargetCharacter;
+	Record.PerceptionSource = InPerceptionSource;
+	Record.LastSensedTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	Record.bHostileByDamage |= bInMarkAsHostile;
+	if (bInMarkAsHostile)
 	{
-		DynamicHostileTargets.Add(InActor);
+		DynamicHostileTargets.Add(InTargetActor);
+	}
+}
+
+void ALxAIController::HandleTargetPerceptionUpdated(AActor* InActor, const FAIStimulus InStimulus)
+{
+	if (!IsValid(InActor) || !InStimulus.WasSuccessfullySensed())
+	{
+		return;
 	}
 
-	if (ULxAIGroupSubsystem* GroupSubsystem = GetWorld()->GetSubsystem<ULxAIGroupSubsystem>())
-	{
-		GroupSubsystem->ReportSensedTarget(RuntimeGroupId, AICharacter, InActor, bHostileBehavior);
-	}
+	const bool bDamageSource = InStimulus.Type == UAISense::GetSenseID<UAISense_Damage>();
+	const bool bSightSource = InStimulus.Type == UAISense::GetSenseID<UAISense_Sight>();
+	const ELxAIPerceptionSource PerceptionSource = bDamageSource ? ELxAIPerceptionSource::Damage :
+		(bSightSource ? ELxAIPerceptionSource::Sight : ELxAIPerceptionSource::Unknown);
+	ReportPerceivedTarget(InActor, PerceptionSource, bDamageSource);
 }
 
 void ALxAIController::RunAutomaticDecision()
@@ -120,44 +145,18 @@ void ALxAIController::RunAutomaticDecision()
 		return;
 	}
 
+	RefreshActivePerceptionMemory();
 	CurrentBattleSnapshot = BuildBattleSnapshot();
-	const ELxAITacticalStrategy NewStrategy = EvaluateStrategy(CurrentBattleSnapshot);
-	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
-	const double CurrentTime = GetWorld()->GetTimeSeconds();
-
-	const FLxAIActionRule* CurrentRule = Config.ActionRules.FindByPredicate([this](const FLxAIActionRule& Rule)
-	{
-		return Rule.ActionType == CurrentAction;
-	});
-	if (CurrentAction != ELxAIActionType::None && NewStrategy == CurrentStrategy && CurrentRule &&
-		CurrentTime - CurrentActionStartTime < CurrentRule->MinExecutionTime)
-	{
-		ExecuteCurrentAction();
-		return;
-	}
-
-	float BestScore = 0.0f;
-	ELxAIActionType BestAction = SelectBestAction(CurrentBattleSnapshot, NewStrategy, BestScore);
-	if (BestAction == ELxAIActionType::None)
-	{
-		BestAction = NewStrategy == ELxAITacticalStrategy::Idle ? ELxAIActionType::Alert :
-			(NewStrategy == ELxAITacticalStrategy::Escape ? ELxAIActionType::Retreat : ELxAIActionType::Attack);
-	}
-
-	if (BestAction != CurrentAction && NewStrategy == CurrentStrategy && BestScore < CurrentActionScore + Config.ActionSwitchScoreMargin)
-	{
-		BestAction = CurrentAction;
-		BestScore = CurrentActionScore;
-	}
-
-	ChangeAction(NewStrategy, BestAction, BestScore);
+	const ELxAISituationLevel NewSituation = EvaluateSituation(CurrentBattleSnapshot);
+	const ELxAIActionType NewAction = SelectFirstExecutableAction(CurrentBattleSnapshot, NewSituation);
+	ChangeAction(NewSituation, NewAction);
 	ExecuteCurrentAction();
 }
 
 void ALxAIController::ApplyPerceptionConfiguration()
 {
 	const ALxAICharacter* AICharacter = GetAICharacter();
-	if (!AICharacter || !SightConfig || !AIPerceptionComponent)
+	if (!AICharacter || !SightConfig || !DamageConfig || !AIPerceptionComponent)
 	{
 		return;
 	}
@@ -165,104 +164,143 @@ void ALxAIController::ApplyPerceptionConfiguration()
 	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
 	SightConfig->SightRadius = FMath::Max(0.0f, Config.SightRadius);
 	SightConfig->LoseSightRadius = FMath::Max(SightConfig->SightRadius, Config.LoseSightRadius);
-	SightConfig->SetMaxAge(FMath::Max(0.1f, Config.SharedPerceptionMaxAge));
-	DamageConfig->SetMaxAge(FMath::Max(0.1f, Config.SharedPerceptionMaxAge));
+	SightConfig->SetMaxAge(FMath::Max(0.1f, Config.TargetMemoryMaxAge));
+	DamageConfig->SetMaxAge(FMath::Max(0.1f, Config.TargetMemoryMaxAge));
 	AIPerceptionComponent->ConfigureSense(*SightConfig);
 	AIPerceptionComponent->ConfigureSense(*DamageConfig);
 	AIPerceptionComponent->RequestStimuliListenerUpdate();
 }
 
-FLxAIBattleSnapshot ALxAIController::BuildBattleSnapshot() const
+void ALxAIController::RefreshActivePerceptionMemory()
+{
+	if (!AIPerceptionComponent)
+	{
+		return;
+	}
+
+	TArray<AActor*> CurrentlyPerceivedActors;
+	AIPerceptionComponent->GetCurrentlyPerceivedActors(UAISense_Sight::StaticClass(), CurrentlyPerceivedActors);
+	for (AActor* PerceivedActor : CurrentlyPerceivedActors)
+	{
+		ReportPerceivedTarget(PerceivedActor, ELxAIPerceptionSource::Sight);
+	}
+}
+
+void ALxAIController::PruneTargetMemory()
+{
+	const ALxAICharacter* AICharacter = GetAICharacter();
+	const double CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	const double MaxAge = AICharacter ? FMath::Max(0.1f, AICharacter->GetAIControlConfig().TargetMemoryMaxAge) : 0.1;
+
+	for (auto Iterator = TargetMemory.CreateIterator(); Iterator; ++Iterator)
+	{
+		const FLxAITargetMemoryRecord& Record = Iterator.Value();
+		if (!Record.TargetCharacter.IsValid() || CurrentTime - Record.LastSensedTime > MaxAge)
+		{
+			DynamicHostileTargets.Remove(Iterator.Key());
+			Iterator.RemoveCurrent();
+		}
+	}
+}
+
+FLxAIBattleSnapshot ALxAIController::BuildBattleSnapshot()
 {
 	FLxAIBattleSnapshot Snapshot;
-	const ALxAICharacter* AICharacter = GetAICharacter();
+	ALxAICharacter* AICharacter = GetAICharacter();
 	if (!AICharacter)
 	{
 		return Snapshot;
 	}
 
+	PruneTargetMemory();
 	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
-	TArray<AActor*> SharedTargets;
-	TArray<ALxAICharacter*> GroupMembers;
-	if (const ULxAIGroupSubsystem* GroupSubsystem = GetWorld()->GetSubsystem<ULxAIGroupSubsystem>())
-	{
-		GroupSubsystem->GetSharedTargets(RuntimeGroupId, Config.SharedPerceptionMaxAge, SharedTargets);
-		GroupSubsystem->GetGroupMembers(RuntimeGroupId, GroupMembers);
-	}
-
-	TArray<FLxAnalyzedCharacter> EnemyCharacters;
-	TArray<FLxAnalyzedCharacter> AssistCharacters;
+	TArray<FLxAnalyzedTarget> EnemyTargets;
+	TArray<FLxAnalyzedTarget> AssistTargets;
 	TSet<const ALxBaseCharacter*> AddedCharacters;
 
-	auto AddAnalyzedCharacter = [&AddedCharacters](ALxBaseCharacter* InAnalyzedCharacter, TArray<FLxAnalyzedCharacter>& TargetList)
+	auto AddAnalyzedTarget = [&AddedCharacters](ALxBaseCharacter* InTargetCharacter, TArray<FLxAnalyzedTarget>& TargetList)
 	{
-		if (!IsValid(InAnalyzedCharacter) || AddedCharacters.Contains(InAnalyzedCharacter))
+		if (!IsValid(InTargetCharacter) || AddedCharacters.Contains(InTargetCharacter))
 		{
 			return;
 		}
-		AddedCharacters.Add(InAnalyzedCharacter);
-		FLxAnalyzedCharacter Analysis;
-		Analysis.Character = InAnalyzedCharacter;
-		Analysis.HealthRatio = ALxAIController::GetHealthRatioForCharacter(InAnalyzedCharacter);
-		Analysis.CombatPower = ALxAIController::GetCombatPowerForCharacter(InAnalyzedCharacter);
+		AddedCharacters.Add(InTargetCharacter);
+		FLxAnalyzedTarget Analysis;
+		Analysis.Character = InTargetCharacter;
+		Analysis.StateRatio = ALxAIController::GetStateRatioForCharacter(InTargetCharacter);
+		Analysis.BaseStrength = ALxAIController::GetBaseStrengthForCharacter(InTargetCharacter);
+		Analysis.EffectiveStrength = Analysis.BaseStrength * Analysis.StateRatio;
 		TargetList.Add(Analysis);
 	};
 
-	AddAnalyzedCharacter(const_cast<ALxAICharacter*>(AICharacter), AssistCharacters);
-	for (ALxAICharacter* Member : GroupMembers)
+	AddAnalyzedTarget(AICharacter, AssistTargets);
+	for (const TPair<TWeakObjectPtr<AActor>, FLxAITargetMemoryRecord>& Pair : TargetMemory)
 	{
-		AddAnalyzedCharacter(Member, AssistCharacters);
-	}
-
-	for (AActor* SharedTarget : SharedTargets)
-	{
-		ALxBaseCharacter* TargetCharacter = Cast<ALxBaseCharacter>(SharedTarget);
-		if (!TargetCharacter)
-		{
-			continue;
-		}
-
+		ALxBaseCharacter* TargetCharacter = Pair.Value.TargetCharacter.Get();
 		switch (ResolveTargetRelation(TargetCharacter))
 		{
 		case ELxAITargetRelation::Hostile:
-			AddAnalyzedCharacter(TargetCharacter, EnemyCharacters);
+			AddAnalyzedTarget(TargetCharacter, EnemyTargets);
 			break;
 		case ELxAITargetRelation::Assist:
-			AddAnalyzedCharacter(TargetCharacter, AssistCharacters);
+			AddAnalyzedTarget(TargetCharacter, AssistTargets);
 			break;
 		default:
 			break;
 		}
 	}
 
-	auto AccumulateSide = [](const TArray<FLxAnalyzedCharacter>& Characters, int32& OutCount, float& OutPower, FVector& OutCenter)
+	auto AccumulateSide = [](const TArray<FLxAnalyzedTarget>& Targets, int32& OutCount, float& OutBaseStrength,
+		float& OutEffectiveStrength, float& OutAverageState, FVector& OutCenter)
 	{
-		OutCount = Characters.Num();
-		OutPower = 0.0f;
+		OutCount = Targets.Num();
+		OutBaseStrength = 0.0f;
+		OutEffectiveStrength = 0.0f;
+		OutAverageState = 0.0f;
 		OutCenter = FVector::ZeroVector;
-		for (const FLxAnalyzedCharacter& Character : Characters)
+		for (const FLxAnalyzedTarget& Target : Targets)
 		{
-			OutPower += Character.CombatPower;
-			OutCenter += Character.Character->GetActorLocation();
+			OutBaseStrength += Target.BaseStrength;
+			OutEffectiveStrength += Target.EffectiveStrength;
+			OutAverageState += Target.StateRatio;
+			OutCenter += Target.Character->GetActorLocation();
 		}
 		if (OutCount > 0)
 		{
-			OutCenter /= static_cast<float>(OutCount);
+			const float CountScale = 1.0f / static_cast<float>(OutCount);
+			OutAverageState *= CountScale;
+			OutCenter *= CountScale;
 		}
 	};
 
-	AccumulateSide(EnemyCharacters, Snapshot.EnemyCount, Snapshot.EnemyPower, Snapshot.EnemyCenter);
-	AccumulateSide(AssistCharacters, Snapshot.AssistCount, Snapshot.AssistPower, Snapshot.AssistCenter);
-	const float TotalPower = Snapshot.EnemyPower + Snapshot.AssistPower;
-	Snapshot.AdvantageScore = TotalPower > UE_SMALL_NUMBER ?
-		(Snapshot.AssistPower - Snapshot.EnemyPower) / TotalPower : 0.0f;
+	AccumulateSide(EnemyTargets, Snapshot.EnemyCount, Snapshot.EnemyBaseStrength,
+		Snapshot.EnemyEffectiveStrength, Snapshot.EnemyAverageState, Snapshot.EnemyCenter);
+	AccumulateSide(AssistTargets, Snapshot.AssistCount, Snapshot.AssistBaseStrength,
+		Snapshot.AssistEffectiveStrength, Snapshot.AssistAverageState, Snapshot.AssistCenter);
+	Snapshot.SelfState = AICharacter->GetCurrentHealthRatio();
 	Snapshot.bHasThreat = Snapshot.EnemyCount > 0;
+	Snapshot.NumberAdvantageRatio = static_cast<float>(Snapshot.AssistCount) /
+		static_cast<float>(FMath::Max(Snapshot.EnemyCount, 1));
+	Snapshot.StrengthAdvantageRatio = Snapshot.AssistEffectiveStrength /
+		FMath::Max(Snapshot.EnemyEffectiveStrength, 1.0f);
+	Snapshot.StateAdvantageRatio = Snapshot.AssistAverageState / FMath::Max(Snapshot.EnemyAverageState, 0.01f);
+
+	const float NumberComparison = CalculateNormalizedComparison(
+		static_cast<float>(Snapshot.AssistCount), static_cast<float>(Snapshot.EnemyCount));
+	const float StrengthComparison = CalculateNormalizedComparison(
+		Snapshot.AssistEffectiveStrength, Snapshot.EnemyEffectiveStrength);
+	const float StateComparison = CalculateNormalizedComparison(Snapshot.AssistAverageState, Snapshot.EnemyAverageState);
+	const float TotalWeight = Config.NumberComparisonWeight + Config.StrengthComparisonWeight + Config.StateComparisonWeight;
+	Snapshot.AdvantageScore = TotalWeight > UE_SMALL_NUMBER ?
+		(NumberComparison * Config.NumberComparisonWeight + StrengthComparison * Config.StrengthComparisonWeight +
+			StateComparison * Config.StateComparisonWeight) / TotalWeight : 0.0f;
 
 	float HighestThreatScore = -1.0f;
-	for (const FLxAnalyzedCharacter& Enemy : EnemyCharacters)
+	for (const FLxAnalyzedTarget& Enemy : EnemyTargets)
 	{
-		const float DistanceScale = FMath::Max(1.0f, FVector::Dist(AICharacter->GetActorLocation(), Enemy.Character->GetActorLocation()) / 100.0f);
-		const float ThreatScore = Enemy.CombatPower / DistanceScale;
+		const float DistanceInMeters = FMath::Max(1.0f,
+			FVector::Dist(AICharacter->GetActorLocation(), Enemy.Character->GetActorLocation()) / 100.0f);
+		const float ThreatScore = Enemy.EffectiveStrength / DistanceInMeters;
 		if (ThreatScore > HighestThreatScore)
 		{
 			HighestThreatScore = ThreatScore;
@@ -270,79 +308,15 @@ FLxAIBattleSnapshot ALxAIController::BuildBattleSnapshot() const
 		}
 	}
 
-	for (const FLxAnalyzedCharacter& Assist : AssistCharacters)
+	for (const FLxAnalyzedTarget& Assist : AssistTargets)
 	{
-		if (Assist.Character != AICharacter && Assist.HealthRatio < Snapshot.LowestAllyHealthRatio &&
-			Assist.HealthRatio <= Config.InjuredAllyThreshold)
+		if (Assist.Character != AICharacter && Assist.StateRatio < Snapshot.LowestAllyState &&
+			Assist.StateRatio <= Config.InjuredAllyThreshold)
 		{
-			Snapshot.LowestAllyHealthRatio = Assist.HealthRatio;
+			Snapshot.LowestAllyState = Assist.StateRatio;
 			Snapshot.LowestStateAlly = Assist.Character;
 		}
 	}
-
-	auto BuildIntentSummary = [&Config](const TArray<FLxAnalyzedCharacter>& Characters, const FVector& OpposingCenter,
-		const bool bHasOpposingSide)
-	{
-		FLxAIGroupIntentSummary Summary;
-		if (Characters.IsEmpty() || !bHasOpposingSide)
-		{
-			return Summary;
-		}
-
-		float AdvancePower = 0.0f;
-		float DefendPower = 0.0f;
-		float RetreatPower = 0.0f;
-		for (const FLxAnalyzedCharacter& Character : Characters)
-		{
-			const FVector Velocity = Character.Character->GetVelocity();
-			const float Speed = Velocity.Size2D();
-			const FVector DirectionToOpposition = (OpposingCenter - Character.Character->GetActorLocation()).GetSafeNormal2D();
-			const float RadialSpeed = FVector::DotProduct(Velocity, DirectionToOpposition);
-			if (Speed <= Config.IntentStationarySpeed || FMath::Abs(RadialSpeed) < Config.IntentRadialSpeed)
-			{
-				DefendPower += Character.CombatPower;
-			}
-			else if (RadialSpeed > 0.0f)
-			{
-				AdvancePower += Character.CombatPower;
-			}
-			else
-			{
-				RetreatPower += Character.CombatPower;
-			}
-		}
-
-		const float IntentPower = AdvancePower + DefendPower + RetreatPower;
-		if (IntentPower <= UE_SMALL_NUMBER)
-		{
-			return Summary;
-		}
-
-		Summary.AdvanceRatio = AdvancePower / IntentPower;
-		Summary.DefendRatio = DefendPower / IntentPower;
-		Summary.RetreatRatio = RetreatPower / IntentPower;
-		float HighestRatio = Summary.AdvanceRatio;
-		float SecondRatio = FMath::Max(Summary.DefendRatio, Summary.RetreatRatio);
-		Summary.DominantIntent = ELxAIMovementIntent::Advance;
-		if (Summary.DefendRatio > HighestRatio)
-		{
-			SecondRatio = FMath::Max(HighestRatio, Summary.RetreatRatio);
-			HighestRatio = Summary.DefendRatio;
-			Summary.DominantIntent = ELxAIMovementIntent::Defend;
-		}
-		if (Summary.RetreatRatio > HighestRatio)
-		{
-			SecondRatio = FMath::Max(HighestRatio, Summary.DefendRatio);
-			HighestRatio = Summary.RetreatRatio;
-			Summary.DominantIntent = ELxAIMovementIntent::Retreat;
-		}
-		Summary.Dominance = FMath::Max(0.0f, HighestRatio - SecondRatio);
-		Summary.Confidence = FMath::Clamp(static_cast<float>(Characters.Num()) / 3.0f, 0.25f, 1.0f);
-		return Summary;
-	};
-
-	Snapshot.EnemyIntent = BuildIntentSummary(EnemyCharacters, Snapshot.AssistCenter, Snapshot.AssistCount > 0);
-	Snapshot.AssistIntent = BuildIntentSummary(AssistCharacters, Snapshot.EnemyCenter, Snapshot.EnemyCount > 0);
 	return Snapshot;
 }
 
@@ -356,148 +330,87 @@ ELxAITargetRelation ALxAIController::ResolveTargetRelation(const ALxBaseCharacte
 	{
 		return ELxAITargetRelation::Hostile;
 	}
-	if (const ULxAIGroupSubsystem* GroupSubsystem = GetWorld()->GetSubsystem<ULxAIGroupSubsystem>())
-	{
-		if (GroupSubsystem->IsTargetMarkedHostile(RuntimeGroupId, InTargetCharacter))
-		{
-			return ELxAITargetRelation::Hostile;
-		}
-	}
 	const ALxAICharacter* AICharacter = GetAICharacter();
 	return AICharacter ? AICharacter->ResolveBaseTargetRelation(InTargetCharacter) : ELxAITargetRelation::Ignore;
 }
 
-ELxAITacticalStrategy ALxAIController::EvaluateStrategy(const FLxAIBattleSnapshot& InSnapshot) const
+ELxAISituationLevel ALxAIController::EvaluateSituation(const FLxAIBattleSnapshot& InSnapshot) const
 {
 	const ALxAICharacter* AICharacter = GetAICharacter();
 	if (!AICharacter || !InSnapshot.bHasThreat)
 	{
-		return ELxAITacticalStrategy::Idle;
+		return ELxAISituationLevel::NoThreat;
 	}
 
 	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
-	if (InSnapshot.AdvantageScore <= Config.EscapeAdvantageThreshold ||
-		AICharacter->GetCurrentHealthRatio() <= Config.EscapeHealthThreshold)
+	if (InSnapshot.SelfState <= Config.SelfDangerStateThreshold)
 	{
-		return ELxAITacticalStrategy::Escape;
+		return ELxAISituationLevel::SelfDanger;
 	}
-	return ELxAITacticalStrategy::Engage;
+	if (InSnapshot.AdvantageScore >= Config.AdvantageThreshold)
+	{
+		return ELxAISituationLevel::Advantage;
+	}
+	if (InSnapshot.AdvantageScore <= Config.DisadvantageThreshold)
+	{
+		return ELxAISituationLevel::Disadvantage;
+	}
+	return ELxAISituationLevel::Balanced;
 }
 
-ELxAIActionType ALxAIController::SelectBestAction(const FLxAIBattleSnapshot& InSnapshot,
-	const ELxAITacticalStrategy InStrategy, float& OutBestScore) const
-{
-	OutBestScore = -TNumericLimits<float>::Max();
-	ELxAIActionType BestAction = ELxAIActionType::None;
-	const ALxAICharacter* AICharacter = GetAICharacter();
-	if (!AICharacter)
-	{
-		return BestAction;
-	}
-
-	for (const FLxAIActionRule& Rule : AICharacter->GetAIControlConfig().ActionRules)
-	{
-		if (!IsActionRuleAvailable(Rule, InSnapshot, InStrategy))
-		{
-			continue;
-		}
-		const float Score = CalculateActionScore(Rule, InSnapshot);
-		if (Score > OutBestScore)
-		{
-			OutBestScore = Score;
-			BestAction = Rule.ActionType;
-		}
-	}
-	return BestAction;
-}
-
-bool ALxAIController::IsActionRuleAvailable(const FLxAIActionRule& InRule, const FLxAIBattleSnapshot& InSnapshot,
-	const ELxAITacticalStrategy InStrategy) const
+ELxAIActionType ALxAIController::SelectFirstExecutableAction(const FLxAIBattleSnapshot& InSnapshot,
+	const ELxAISituationLevel InSituation) const
 {
 	const ALxAICharacter* AICharacter = GetAICharacter();
-	if (!AICharacter || !InRule.bEnabled || InRule.ActionType == ELxAIActionType::None || !InRule.AllowsStrategy(InStrategy))
+	const ULxAIBehaviorComponent* BehaviorComponent = AICharacter ? AICharacter->GetAIBehaviorComponent() : nullptr;
+	if (!AICharacter || !BehaviorComponent)
 	{
-		return false;
+		return ELxAIActionType::None;
 	}
 
-	const float SelfHealthRatio = AICharacter->GetCurrentHealthRatio();
-	if (InSnapshot.AdvantageScore < InRule.MinAdvantage || InSnapshot.AdvantageScore > InRule.MaxAdvantage ||
-		SelfHealthRatio < InRule.MinSelfHealthRatio || SelfHealthRatio > InRule.MaxSelfHealthRatio ||
-		(InRule.bRequiresInjuredAlly && !IsValid(InSnapshot.LowestStateAlly)))
-	{
-		return false;
-	}
-
-	if (InRule.ActionType == ELxAIActionType::Heal && !AICharacter->GetAIControlConfig().HealSkillItemId.IsValid())
-	{
-		return false;
-	}
-
-	if (InRule.MaxGroupExecutors > 0 && InRule.ActionType != CurrentAction)
-	{
-		if (const ULxAIGroupSubsystem* GroupSubsystem = GetWorld()->GetSubsystem<ULxAIGroupSubsystem>())
+	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
+	const FLxAISituationBehaviorSet* BehaviorSet = Config.SituationBehaviorSets.FindByPredicate(
+		[InSituation](const FLxAISituationBehaviorSet& CandidateSet)
 		{
-			if (GroupSubsystem->GetActionExecutorCount(RuntimeGroupId, InRule.ActionType) >= InRule.MaxGroupExecutors)
+			return CandidateSet.Situation == InSituation;
+		});
+	if (BehaviorSet)
+	{
+		for (const ELxAIActionType CandidateAction : BehaviorSet->BehaviorCandidates)
+		{
+			if (BehaviorComponent->CanExecuteBehavior(CandidateAction, InSnapshot))
 			{
-				return false;
+				return CandidateAction;
 			}
 		}
 	}
 
-	if (InRule.ActionType != CurrentAction)
-	{
-		if (const double* LastEndTime = ActionEndTimes.Find(InRule.ActionType))
-		{
-			if (GetWorld()->GetTimeSeconds() - *LastEndTime < InRule.Cooldown)
-			{
-				return false;
-			}
-		}
-	}
-	return true;
+	return BehaviorComponent->CanExecuteBehavior(Config.FallbackAction, InSnapshot) ?
+		Config.FallbackAction : ELxAIActionType::None;
 }
 
-float ALxAIController::CalculateActionScore(const FLxAIActionRule& InRule, const FLxAIBattleSnapshot& InSnapshot) const
+void ALxAIController::ChangeAction(const ELxAISituationLevel InSituation, const ELxAIActionType InActionType)
 {
-	const ALxAICharacter* AICharacter = GetAICharacter();
-	const float SelfInjuryRatio = AICharacter ? 1.0f - AICharacter->GetCurrentHealthRatio() : 0.0f;
-	const float InjuredAllyRatio = IsValid(InSnapshot.LowestStateAlly) ? 1.0f - InSnapshot.LowestAllyHealthRatio : 0.0f;
-	return InRule.BaseScore +
-		InSnapshot.AdvantageScore * InRule.AdvantageWeight +
-		InSnapshot.EnemyIntent.AdvanceRatio * InRule.EnemyAdvanceRatioWeight +
-		InSnapshot.AssistIntent.AdvanceRatio * InRule.AssistAdvanceRatioWeight +
-		InjuredAllyRatio * InRule.InjuredAllyWeight +
-		SelfInjuryRatio * InRule.SelfInjuryWeight;
-}
-
-void ALxAIController::ChangeAction(const ELxAITacticalStrategy InStrategy, const ELxAIActionType InActionType,
-	const float InActionScore)
-{
-	const bool bChanged = CurrentStrategy != InStrategy || CurrentAction != InActionType;
-	if (!bChanged)
+	const bool bSituationChanged = CurrentSituation != InSituation;
+	const bool bActionChanged = CurrentAction != InActionType;
+	if (!bSituationChanged && !bActionChanged)
 	{
-		CurrentActionScore = InActionScore;
 		return;
 	}
 
-	const double CurrentTime = GetWorld()->GetTimeSeconds();
-	if (CurrentAction != ELxAIActionType::None)
+	if (bActionChanged)
 	{
-		ActionEndTimes.FindOrAdd(CurrentAction) = CurrentTime;
-	}
-	CurrentStrategy = InStrategy;
-	CurrentAction = InActionType;
-	CurrentActionScore = InActionScore;
-	CurrentActionStartTime = CurrentTime;
-
-	if (ALxAICharacter* AICharacter = GetAICharacter())
-	{
-		if (ULxAIGroupSubsystem* GroupSubsystem = GetWorld()->GetSubsystem<ULxAIGroupSubsystem>())
+		if (ALxAICharacter* AICharacter = GetAICharacter())
 		{
-			GroupSubsystem->SetMemberAction(RuntimeGroupId, AICharacter, CurrentAction);
+			if (ULxAIBehaviorComponent* BehaviorComponent = AICharacter->GetAIBehaviorComponent())
+			{
+				BehaviorComponent->StopBehavior();
+			}
 		}
 	}
-	OnAIActionChanged.Broadcast(CurrentStrategy, CurrentAction);
+	CurrentSituation = InSituation;
+	CurrentAction = InActionType;
+	OnAIActionChanged.Broadcast(CurrentSituation, CurrentAction);
 }
 
 void ALxAIController::ExecuteCurrentAction()
@@ -511,7 +424,15 @@ void ALxAIController::ExecuteCurrentAction()
 	}
 }
 
-float ALxAIController::GetHealthRatioForCharacter(const ALxBaseCharacter* InCharacter)
+float ALxAIController::CalculateNormalizedComparison(const float InAssistValue, const float InEnemyValue)
+{
+	const float SafeAssistValue = FMath::Max(0.0f, InAssistValue);
+	const float SafeEnemyValue = FMath::Max(0.0f, InEnemyValue);
+	const float TotalValue = SafeAssistValue + SafeEnemyValue;
+	return TotalValue > UE_SMALL_NUMBER ? (SafeAssistValue - SafeEnemyValue) / TotalValue : 0.0f;
+}
+
+float ALxAIController::GetStateRatioForCharacter(const ALxBaseCharacter* InCharacter)
 {
 	if (!InCharacter)
 	{
@@ -533,35 +454,20 @@ float ALxAIController::GetHealthRatioForCharacter(const ALxBaseCharacter* InChar
 	return FMath::Clamp(HealthAttribute.Value / HealthAttribute.ValueLimit, 0.0f, 1.0f);
 }
 
-float ALxAIController::GetCombatPowerForCharacter(const ALxBaseCharacter* InCharacter)
+float ALxAIController::GetBaseStrengthForCharacter(const ALxBaseCharacter* InCharacter)
 {
 	if (!InCharacter)
 	{
 		return 0.0f;
 	}
-	if (const ALxAICharacter* AICharacter = Cast<ALxAICharacter>(InCharacter))
-	{
-		return AICharacter->CalculateEffectiveCombatPower();
-	}
 	const ULxCharacterAttributeComponent* AttributeComponent = InCharacter->GetCharacterAttributeComponent();
 	const float TotalStrength = AttributeComponent ? static_cast<float>(AttributeComponent->CalculateTotalStrength()) : 0.0f;
-	return FMath::Max(1.0f, TotalStrength) * GetHealthRatioForCharacter(InCharacter);
+	const ALxAICharacter* AICharacter = Cast<ALxAICharacter>(InCharacter);
+	const float StrengthMultiplier = AICharacter ? AICharacter->GetAIControlConfig().CombatStrengthMultiplier : 1.0f;
+	return FMath::Max(1.0f, TotalStrength) * FMath::Max(0.0f, StrengthMultiplier);
 }
 
 ALxAICharacter* ALxAIController::GetAICharacter() const
 {
 	return Cast<ALxAICharacter>(GetPawn());
-}
-
-FName ALxAIController::ResolveRuntimeGroupId(const ALxAICharacter* InCharacter) const
-{
-	if (!InCharacter)
-	{
-		return NAME_None;
-	}
-	if (!InCharacter->GetAIGroupId().IsNone())
-	{
-		return InCharacter->GetAIGroupId();
-	}
-	return FName(*FString::Printf(TEXT("AI_Solo_%u"), InCharacter->GetUniqueID()));
 }

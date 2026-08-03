@@ -14,7 +14,7 @@ class LXARPG_API ALxAICharacter : public ALxBaseCharacter
 	GENERATED_BODY()
 
 public:
-	/** 创建AI控制角色并配置默认控制器与第一版行为规则。 */
+	/** 创建AI控制角色并配置默认控制器与局势行为候选。 */
 	ALxAICharacter();
 
 	/** 初始化AI专属行为组件。 */
@@ -23,10 +23,6 @@ public:
 	/** 获取负责组合调用角色通用组件的AI行为组件。 */
 	UFUNCTION(BlueprintPure, Category="AI|行为", DisplayName="获取AI行为组件")
 	ULxAIBehaviorComponent* GetAIBehaviorComponent() const { return AIBehaviorComponent; }
-
-	/** 获取群体共享使用的配置群体ID。 */
-	UFUNCTION(BlueprintPure, Category="AI|群体", DisplayName="获取AI群体ID")
-	FName GetAIGroupId() const { return AIGroupId; }
 
 	/** 获取无需连接蓝图节点即可运行的AI控制参数。 */
 	UFUNCTION(BlueprintPure, Category="AI|配置", DisplayName="获取AI控制配置")
@@ -49,10 +45,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|行为", DisplayName="AI行为组件")
 	TObjectPtr<ULxAIBehaviorComponent> AIBehaviorComponent;
 
-	/** 用于共享感知和群体行为占用的群体ID；为空时由控制器创建单体群体。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|群体", DisplayName="AI群体ID")
-	FName AIGroupId = NAME_None;
-
 	/** 除自身阵营外同样被视为协助方的阵营ID。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|阵营", DisplayName="协助阵营ID")
 	TArray<uint8> AssistFactionIds;
@@ -61,7 +53,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|阵营", DisplayName="敌对阵营ID")
 	TArray<uint8> HostileFactionIds;
 
-	/** AI感知、分析、决策和自动执行使用的全部第一版参数。 */
+	/** 当前角色独立感知、数值对比、行为匹配和执行使用的参数。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|配置", DisplayName="AI控制配置")
 	FLxAIControlConfig AIControlConfig;
 };
