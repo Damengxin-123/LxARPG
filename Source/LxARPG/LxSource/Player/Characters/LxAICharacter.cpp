@@ -1,5 +1,6 @@
 #include "LxAICharacter.h"
 
+#include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
@@ -23,6 +24,7 @@ ALxAICharacter::ALxAICharacter()
 {
 	AIControllerClass = ALxAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+	AIBehaviorComponent = CreateDefaultSubobject<ULxAIBehaviorComponent>(TEXT("AIBehaviorComponent"));
 
 	FLxAIActionRule PatrolRule = MakeDefaultRule(ELxAIActionType::Patrol, ELxAITacticalStrategy::Idle, 50.0f);
 	PatrolRule.MinExecutionTime = 2.0f;
@@ -55,6 +57,15 @@ ALxAICharacter::ALxAICharacter()
 	RetreatRule.SelfInjuryWeight = 30.0f;
 	RetreatRule.MinExecutionTime = 2.0f;
 	AIControlConfig.ActionRules.Add(RetreatRule);
+}
+
+void ALxAICharacter::InitialCharacterInformation()
+{
+	Super::InitialCharacterInformation();
+	if (AIBehaviorComponent)
+	{
+		AIBehaviorComponent->BaseComponentInitialize();
+	}
 }
 
 ELxAITargetRelation ALxAICharacter::ResolveBaseTargetRelation(const ALxBaseCharacter* InTargetCharacter) const

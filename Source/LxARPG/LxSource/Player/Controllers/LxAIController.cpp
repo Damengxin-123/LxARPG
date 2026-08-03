@@ -1,19 +1,16 @@
 #include "LxAIController.h"
 
-#include "NavigationSystem.h"
-#include "Navigation/PathFollowingComponent.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISense.h"
 #include "Perception/AISenseConfig_Damage.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISense_Damage.h"
 #include "TimerManager.h"
+#include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorComponent.h"
 #include "LxARPG/LxSource/Model/AI/Logic/LxAIGroupSubsystem.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
-#include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
-#include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxAICharacter.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
@@ -57,7 +54,6 @@ void ALxAIController::OnPossess(APawn* InPawn)
 		return;
 	}
 
-	PatrolOrigin = AICharacter->GetActorLocation();
 	RuntimeGroupId = ResolveRuntimeGroupId(AICharacter);
 	if (ULxAIGroupSubsystem* GroupSubsystem = GetWorld()->GetSubsystem<ULxAIGroupSubsystem>())
 	{
@@ -506,182 +502,11 @@ void ALxAIController::ChangeAction(const ELxAITacticalStrategy InStrategy, const
 
 void ALxAIController::ExecuteCurrentAction()
 {
-	switch (CurrentAction)
+	if (ALxAICharacter* AICharacter = GetAICharacter())
 	{
-	case ELxAIActionType::Patrol:
-		ExecutePatrolAction();
-		break;
-	case ELxAIActionType::Alert:
-		ExecuteAlertAction();
-		break;
-	case ELxAIActionType::Attack:
-		ExecuteAttackAction();
-		break;
-	case ELxAIActionType::Defend:
-		ExecuteDefendAction();
-		break;
-	case ELxAIActionType::Heal:
-		ExecuteHealAction();
-		break;
-	case ELxAIActionType::Retreat:
-		ExecuteRetreatAction();
-		break;
-	default:
-		StopMovement();
-		ClearFocus(EAIFocusPriority::Gameplay);
-		break;
-	}
-}
-
-void ALxAIController::ExecutePatrolAction()
-{
-	const ALxAICharacter* AICharacter = GetAICharacter();
-	if (!AICharacter || GetMoveStatus() == EPathFollowingStatus::Moving)
-	{
-		return;
-	}
-
-	FNavLocation PatrolLocation;
-	if (UNavigationSystemV1* NavigationSystem = UNavigationSystemV1::GetCurrent(GetWorld()))
-	{
-		if (NavigationSystem->GetRandomReachablePointInRadius(PatrolOrigin, AICharacter->GetAIControlConfig().PatrolRadius, PatrolLocation))
+		if (ULxAIBehaviorComponent* BehaviorComponent = AICharacter->GetAIBehaviorComponent())
 		{
-			MoveToLocation(PatrolLocation.Location, 50.0f, true, true, false, true, nullptr, true);
-		}
-	}
-}
-
-void ALxAIController::ExecuteAlertAction()
-{
-	StopMovement();
-	if (IsValid(CurrentBattleSnapshot.HighestThreatEnemy))
-	{
-		SetFocus(CurrentBattleSnapshot.HighestThreatEnemy);
-	}
-	else
-	{
-		ClearFocus(EAIFocusPriority::Gameplay);
-	}
-}
-
-void ALxAIController::ExecuteAttackAction()
-{
-	ALxAICharacter* AICharacter = GetAICharacter();
-	AActor* TargetActor = CurrentBattleSnapshot.HighestThreatEnemy;
-	if (!AICharacter || !IsValid(TargetActor))
-	{
-		ExecuteAlertAction();
-		return;
-	}
-
-	SetFocus(TargetActor);
-	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
-	const float Distance = FVector::Dist(AICharacter->GetActorLocation(), TargetActor->GetActorLocation());
-	if (Distance > Config.AttackAcceptanceRadius)
-	{
-		MoveToActor(TargetActor, Config.AttackAcceptanceRadius, true, true, true, nullptr, true);
-	}
-	else
-	{
-		StopMovement();
-	}
-
-	if (Distance <= Config.AttackSkillRange && Config.AttackSkillItemId.IsValid())
-	{
-		ULxSkillBackpackComponent* SkillBackpack = AICharacter->GetSkillBackpackComponent();
-		ULxSkillCastComponent* SkillCast = AICharacter->GetSkillCastComponent();
-		if (SkillBackpack && SkillCast && SkillCast->IsSkillCastIdle())
-		{
-			if (ULxSkillItem* SkillItem = SkillBackpack->FindSkillItemByTagID(Config.AttackSkillItemId))
-			{
-				const FVector AimDirection = (TargetActor->GetActorLocation() - AICharacter->GetActorLocation()).GetSafeNormal();
-				const FLxSkillCastContext CastContext = SkillCast->MakeSkillCastContext(AICharacter, TargetActor,
-					TargetActor->GetActorLocation(), true, AimDirection, true);
-				SkillCast->ReleaseSkillItemDirectly(SkillItem, CastContext);
-			}
-		}
-	}
-}
-
-void ALxAIController::ExecuteDefendAction()
-{
-	ALxAICharacter* AICharacter = GetAICharacter();
-	if (!AICharacter)
-	{
-		return;
-	}
-
-	if (IsValid(CurrentBattleSnapshot.HighestThreatEnemy))
-	{
-		SetFocus(CurrentBattleSnapshot.HighestThreatEnemy);
-	}
-	if (FVector::DistSquared2D(AICharacter->GetActorLocation(), CurrentBattleSnapshot.AssistCenter) > FMath::Square(250.0f))
-	{
-		MoveToLocation(CurrentBattleSnapshot.AssistCenter, 150.0f, true, true, true, true, nullptr, true);
-	}
-	else
-	{
-		StopMovement();
-	}
-}
-
-void ALxAIController::ExecuteHealAction()
-{
-	ALxAICharacter* AICharacter = GetAICharacter();
-	AActor* HealTarget = CurrentBattleSnapshot.LowestStateAlly;
-	if (!AICharacter || !IsValid(HealTarget))
-	{
-		ExecuteDefendAction();
-		return;
-	}
-
-	SetFocus(HealTarget);
-	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
-	const float Distance = FVector::Dist(AICharacter->GetActorLocation(), HealTarget->GetActorLocation());
-	if (Distance > Config.HealSkillRange)
-	{
-		MoveToActor(HealTarget, Config.HealSkillRange * 0.8f, true, true, true, nullptr, true);
-		return;
-	}
-
-	StopMovement();
-	ULxSkillBackpackComponent* SkillBackpack = AICharacter->GetSkillBackpackComponent();
-	ULxSkillCastComponent* SkillCast = AICharacter->GetSkillCastComponent();
-	if (SkillBackpack && SkillCast && SkillCast->IsSkillCastIdle())
-	{
-		if (ULxSkillItem* SkillItem = SkillBackpack->FindSkillItemByTagID(Config.HealSkillItemId))
-		{
-			const FVector AimDirection = (HealTarget->GetActorLocation() - AICharacter->GetActorLocation()).GetSafeNormal();
-			const FLxSkillCastContext CastContext = SkillCast->MakeSkillCastContext(AICharacter, HealTarget,
-				HealTarget->GetActorLocation(), true, AimDirection, true);
-			SkillCast->ReleaseSkillItemDirectly(SkillItem, CastContext);
-		}
-	}
-}
-
-void ALxAIController::ExecuteRetreatAction()
-{
-	ALxAICharacter* AICharacter = GetAICharacter();
-	if (!AICharacter || GetMoveStatus() == EPathFollowingStatus::Moving)
-	{
-		return;
-	}
-
-	FVector RetreatDirection = (AICharacter->GetActorLocation() - CurrentBattleSnapshot.EnemyCenter).GetSafeNormal2D();
-	if (RetreatDirection.IsNearlyZero())
-	{
-		RetreatDirection = -AICharacter->GetActorForwardVector();
-	}
-	const FVector DesiredLocation = AICharacter->GetActorLocation() +
-		RetreatDirection * AICharacter->GetAIControlConfig().RetreatDistance;
-
-	FNavLocation ReachableLocation;
-	if (UNavigationSystemV1* NavigationSystem = UNavigationSystemV1::GetCurrent(GetWorld()))
-	{
-		if (NavigationSystem->ProjectPointToNavigation(DesiredLocation, ReachableLocation))
-		{
-			ClearFocus(EAIFocusPriority::Gameplay);
-			MoveToLocation(ReachableLocation.Location, 50.0f, true, true, false, true, nullptr, true);
+			BehaviorComponent->ExecuteBehavior(CurrentAction, CurrentBattleSnapshot);
 		}
 	}
 }

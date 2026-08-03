@@ -85,26 +85,8 @@ private:
 	/** 切换当前行为并同步群体行为占用。 */
 	void ChangeAction(ELxAITacticalStrategy InStrategy, ELxAIActionType InActionType, float InActionScore);
 
-	/** 使用内置通用执行器自动执行当前行为。 */
+	/** 将当前决策结果转交给AI角色上的行为组件执行。 */
 	void ExecuteCurrentAction();
-
-	/** 执行无威胁巡逻行为。 */
-	void ExecutePatrolAction();
-
-	/** 执行警戒行为并关注当前最高威胁目标。 */
-	void ExecuteAlertAction();
-
-	/** 接近最高威胁目标并按配置自动释放攻击技能。 */
-	void ExecuteAttackAction();
-
-	/** 靠近协助方中心并面向最高威胁目标进行协助防御。 */
-	void ExecuteDefendAction();
-
-	/** 接近最低状态友方并按配置自动释放治疗技能。 */
-	void ExecuteHealAction();
-
-	/** 选择远离敌方中心的可达位置并撤退。 */
-	void ExecuteRetreatAction();
 
 	/** 获取指定基础角色的当前生命比例。 */
 	static float GetHealthRatioForCharacter(const ALxBaseCharacter* InCharacter);
@@ -157,9 +139,6 @@ private:
 
 	/** 当前行为最近一次计算出的评分。 */
 	float CurrentActionScore = 0.0f;
-
-	/** 角色生成时保存的巡逻中心位置。 */
-	FVector PatrolOrigin = FVector::ZeroVector;
 
 	/** 定时执行自动分析与决策的计时器。 */
 	FTimerHandle AutomaticDecisionTimer;

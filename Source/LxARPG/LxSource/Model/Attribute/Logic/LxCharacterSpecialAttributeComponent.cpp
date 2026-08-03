@@ -39,6 +39,7 @@ void ULxCharacterSpecialAttributeComponent::GetLifetimeReplicatedProps(TArray<FL
 	DOREPLIFETIME(ULxCharacterSpecialAttributeComponent, LifecycleStateTags);
 	DOREPLIFETIME(ULxCharacterSpecialAttributeComponent, MovementStateTags);
 	DOREPLIFETIME(ULxCharacterSpecialAttributeComponent, CombatStateTags);
+	DOREPLIFETIME(ULxCharacterSpecialAttributeComponent, CharacterFaction);
 	DOREPLIFETIME(ULxCharacterSpecialAttributeComponent, bIsAlive);
 }
 
@@ -169,6 +170,19 @@ FGameplayTag ULxCharacterSpecialAttributeComponent::GetCurrentLifecycleStateTag(
 		return FGameplayTag();
 	}
 	return bIsAlive ? LifecycleObject->GetAliveStateTag() : LifecycleObject->GetDeadStateTag();
+}
+
+ELxCharacterCampType ULxCharacterSpecialAttributeComponent::GetFactionRelation(const FGameplayTag InFactionTag) const
+{
+	if (InFactionTag.MatchesAny(CharacterFaction.FriendlyTags))
+	{
+		return ELxCharacterCampType::Friendly;
+	}
+	if (InFactionTag.MatchesAny(CharacterFaction.HostileTags))
+	{
+		return ELxCharacterCampType::Hostile;
+	}
+	return ELxCharacterCampType::Neutral;
 }
 
 ULxCharacterSpecialAttributeObject* ULxCharacterSpecialAttributeComponent::FindSpecialAttributeObject(const TSubclassOf<ULxCharacterSpecialAttributeObject> InObjectClass) const

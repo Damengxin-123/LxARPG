@@ -3,10 +3,26 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
 #include "LxCharacterSpecialAttributeComponent.generated.h"
 
 class ULxCharacterLifecycleAttributeObject;
 class ULxCharacterSpecialAttributeObject;
+
+/** 角色阵营标签数据，用于描述当前角色认可的我方阵营和敌对阵营。 */
+USTRUCT(BlueprintType, DisplayName="角色阵营标签数据")
+struct LXARPG_API FLxCharacterFactionData
+{
+	GENERATED_BODY()
+
+	/** 当前角色所属或认可为我方的阵营标签。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|特殊属性|阵营", DisplayName="我方标签")
+	FGameplayTagContainer FriendlyTags;
+
+	/** 当前角色会视为敌方的阵营标签。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|特殊属性|阵营", DisplayName="敌对标签")
+	FGameplayTagContainer HostileTags;
+};
 
 /** 特殊属性状态标签变化事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSpecialAttributeStateTagsChanged, FGameplayTag, StateCategoryTag, const FGameplayTagContainer&, StateTags);
@@ -89,6 +105,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="角色|特殊属性|生命周期", DisplayName="获取当前生命周期状态标签")
 	FGameplayTag GetCurrentLifecycleStateTag() const;
 
+	/** 根据阵营标签判断目标是友方、敌对方还是其他中立方；我方与敌对配置重叠时优先视为友方。 */
+	UFUNCTION(BlueprintPure, Category="角色|特殊属性|阵营", DisplayName="判断阵营关系")
+	ELxCharacterCampType GetFactionRelation(FGameplayTag InFactionTag) const;
+
 	/** 按类型查询运行时特殊属性业务对象。 */
 	UFUNCTION(BlueprintPure, Category="角色|特殊属性", DisplayName="查询特殊属性业务对象", meta=(DeterminesOutputType="InObjectClass"))
 	ULxCharacterSpecialAttributeObject* FindSpecialAttributeObject(TSubclassOf<ULxCharacterSpecialAttributeObject> InObjectClass) const;
@@ -125,6 +145,10 @@ protected:
 	/** 战斗状态标签。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing=OnRep_CombatStateTags, Category="角色|特殊属性|状态", DisplayName="战斗状态标签", meta=(Categories="角色状态.战斗状态"))
 	FGameplayTagContainer CombatStateTags;
+
+	/** 当前角色用于判断友方、敌对方和其他中立方的阵营标签配置。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category="角色|特殊属性|阵营", DisplayName="角色阵营")
+	FLxCharacterFactionData CharacterFaction;
 
 	/** 当前角色是否存活。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_IsAlive, Category="角色|特殊属性|生命周期", DisplayName="角色是否存活")

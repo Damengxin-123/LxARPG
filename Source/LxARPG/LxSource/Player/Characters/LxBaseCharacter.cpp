@@ -245,28 +245,6 @@ void ALxBaseCharacter::BeginPlay()
 void ALxBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	if (!HasAuthority() && !IsLocallyControlled())
-	{
-		return;
-	}
-
-	if (GetCharacterMovement()->Velocity.X + GetCharacterMovement()->Velocity.Y <= 0)
-	{
-		if (m_nCharacterState == ELxCharacterState::Moving ||
-			m_nCharacterState == ELxCharacterState::JumpEnd)
-		{
-			SetCharacterState(ELxCharacterState::Idle);
-			if (m_pCharacterAnimationMotionAnalysisComponent)
-			{
-				FLxCharacterMotionSignal MotionSignal;
-				MotionSignal.MotionType = ELxCharacterMotionType::Idle;
-				MotionSignal.MotionDirection = FVector::ZeroVector;
-				MotionSignal.MotionSpeed = 0.0f;
-				MotionSignal.bLoop = true;
-				m_pCharacterAnimationMotionAnalysisComponent->ReceiveBaseMotionEvent(MotionSignal);
-			}
-		}
-	}
 }
 
 void ALxBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

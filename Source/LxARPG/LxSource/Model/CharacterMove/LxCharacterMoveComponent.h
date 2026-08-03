@@ -6,6 +6,7 @@
 #include "LxCharacterMoveComponent.generated.h"
 
 class ALxBaseCharacter;
+class AActor;
 
 /**
  * 角色移动组件，封装移动和跳跃行为。
@@ -24,6 +25,10 @@ public:
 	 * 负责缓存所属角色引用，供后续移动、跳跃和视角控制使用。
 	 */
 	virtual void BaseComponentInitialize() override;
+
+	/** 根据角色真实移动状态统一刷新玩家与AI使用的基础动画信号。 */
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
+		FActorComponentTickFunction* ThisTickFunction) override;
 
 	UFUNCTION(BlueprintCallable, Category="角色|移动", DisplayName="角色移动")
 	/**
@@ -49,6 +54,26 @@ public:
 	 */
 	void HandleLookInput(const FVector2D& InMoveValue);
 
+	/** 通过当前AI控制器请求寻路移动到目标角色。 */
+	UFUNCTION(BlueprintCallable, Category="角色|移动|寻路", DisplayName="请求移动到目标")
+	bool RequestMoveToActor(AActor* InTargetActor, float InAcceptanceRadius);
+
+	/** 通过当前AI控制器请求寻路移动到世界位置。 */
+	UFUNCTION(BlueprintCallable, Category="角色|移动|寻路", DisplayName="请求移动到位置")
+	bool RequestMoveToLocation(FVector InTargetLocation, float InAcceptanceRadius);
+
+	/** 停止玩家或AI当前正在执行的移动。 */
+	UFUNCTION(BlueprintCallable, Category="角色|移动", DisplayName="停止角色移动")
+	void StopActiveMovement();
+
+	/** 判断AI路径跟随当前是否仍在移动。 */
+	UFUNCTION(BlueprintPure, Category="角色|移动|寻路", DisplayName="AI寻路是否移动中")
+	bool IsNavigationMoving() const;
+
+	/** 立即根据真实速度与落地状态刷新基础动画运动信号。 */
+	UFUNCTION(BlueprintCallable, Category="角色|动画信号", DisplayName="刷新基础动画运动信号")
+	void RefreshBaseAnimationMotionSignal();
+
 	/** 增加移动转向锁，锁定期间移动输入仍然生效，但不会由移动方向旋转角色。 */
 	UFUNCTION(BlueprintCallable, Category="角色|移动", DisplayName="增加移动转向锁")
 	void AddMoveRotationLock();
@@ -69,9 +94,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category="角色|动画信号", DisplayName="发送动作动画运动信号")
 	void SendActionAnimationMotionSignal(const FLxCharacterMotionSignal& InMotionSignal) const;
 
+protected:
+	/** 低于该二维速度时将角色实际移动判断为待机。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="角色|动画信号", DisplayName="待机速度阈值", meta=(ClampMin="0.0", Units="cm/s"))
+	float IdleSpeedThreshold = 3.0f;
+
+	/** 速度变化超过该值时刷新移动动画播放速率。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="角色|动画信号", DisplayName="动画速度刷新阈值", meta=(ClampMin="0.0", Units="cm/s"))
+	float AnimationSpeedRefreshThreshold = 10.0f;
+
+	/** 移动方向变化超过该角度时刷新动画方向。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="角色|动画信号", DisplayName="动画方向刷新角度", meta=(ClampMin="0.0", ClampMax="180.0", Units="deg"))
+	float AnimationDirectionRefreshAngle = 10.0f;
+
 private:
-	/** 根据当前移动数据构建并发送基础运动信号。 */
-	void BuildAndSendBaseAnimationMotionSignal(ELxCharacterMotionType InMotionType, const FVector& InMotionDirection, bool bInLoop) const;
+	/** 判断新的真实运动信号是否需要发送到通用动画流水线。 */
+	bool ShouldSendBaseAnimationSignal(const FLxCharacterMotionSignal& InSignal) const;
 
 	UPROPERTY()
 	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter;
@@ -79,4 +117,13 @@ private:
 	/** 移动转向锁计数，瞄准和技能释放可同时锁定，全部释放后才恢复。 */
 	UPROPERTY(Transient)
 	int32 MoveRotationLockCount = 0;
+
+	/** 最近一次已经发送的基础动画运动信号。 */
+	FLxCharacterMotionSignal LastBaseAnimationSignal;
+
+	/** 是否已经发送过至少一次基础动画运动信号。 */
+	bool bHasSentBaseAnimationSignal = false;
+
+	/** 上一次真实运动采样时角色是否处于下落状态。 */
+	bool bWasFalling = false;
 };
