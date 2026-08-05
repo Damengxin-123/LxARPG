@@ -190,9 +190,6 @@ public:
 	UFUNCTION(BlueprintPure, Category="角色|命名", DisplayName="查询角色命名文本")
 	FText GetCharacterNamingText() const { return CharacterNamingText; }
 
-	/** 获取角色自身所属的阵营ID；敌对、协助等关系由观察者根据该ID计算。 */
-	UFUNCTION(BlueprintPure, Category="角色|阵营", DisplayName="获取角色阵营ID")
-	uint8 GetFactionId() const { return FactionId; }
 protected:
 	/**
 	 * 角色基础属性配置类型；具体角色通过继承配置类型覆盖默认值。
@@ -209,10 +206,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|命名", DisplayName="名称数据表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxCharacterNamingRow"))
 	TObjectPtr<UDataTable> CharacterNamingTable = nullptr;
 
-	/** 角色自身所属的阵营ID；该值只描述阵营身份，不直接表示敌对或友好。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|阵营", DisplayName="角色阵营ID", meta=(ClampMin="0", ClampMax="255"))
-	uint8 FactionId = 0;
-/** 角色移动组件，用于管理和控制角色移动行为。 */
+	/** 角色移动组件，用于管理和控制角色移动行为。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色移动组件")
 	TObjectPtr<ULxCharacterMoveComponent> m_pCharacterMoveComponent;
 

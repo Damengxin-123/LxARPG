@@ -6,6 +6,7 @@
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Controllers/LxAIController.h"
 
 ULxCharacterTestComponent::ULxCharacterTestComponent()
 {
@@ -21,6 +22,26 @@ void ULxCharacterTestComponent::BaseComponentInitialize()
 		EffectProcessComponent->OnCharacterDamageReceived.RemoveDynamic(this, &ULxCharacterTestComponent::HandleCharacterDamageReceived);
 		EffectProcessComponent->OnCharacterDamageReceived.AddDynamic(this, &ULxCharacterTestComponent::HandleCharacterDamageReceived);
 	}
+
+	if (ALxBaseCharacter* OwnerCharacter = GetCharacterOwner())
+	{
+		OwnerCharacter->ReceiveControllerChangedDelegate.RemoveDynamic(this,
+			&ULxCharacterTestComponent::HandleOwnerControllerChanged);
+		OwnerCharacter->ReceiveControllerChangedDelegate.AddDynamic(this,
+			&ULxCharacterTestComponent::HandleOwnerControllerChanged);
+		BindAIControllerActionEvent(Cast<ALxAIController>(OwnerCharacter->GetController()));
+	}
+}
+
+void ULxCharacterTestComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (ALxBaseCharacter* OwnerCharacter = GetCharacterOwner())
+	{
+		OwnerCharacter->ReceiveControllerChangedDelegate.RemoveDynamic(this,
+			&ULxCharacterTestComponent::HandleOwnerControllerChanged);
+	}
+	BindAIControllerActionEvent(nullptr);
+	Super::EndPlay(EndPlayReason);
 }
 
 bool ULxCharacterTestComponent::AddTestItemToBackpack(FGameplayTag InItemIDTag, int32 InItemCount)
@@ -189,6 +210,48 @@ bool ULxCharacterTestComponent::ApplyTestDamageFromAttacker(AActor* InAttackerAc
 	return true;
 }
 
+FString ULxCharacterTestComponent::GetCurrentAIBehaviorText() const
+{
+	const ALxAIController* AIController = BoundAIController.Get();
+	return ConvertAIActionToString(AIController ? AIController->GetCurrentAction() : ELxAIActionType::None);
+}
+
+FString ULxCharacterTestComponent::ConvertAIActionToString(const ELxAIActionType InActionType)
+{
+	switch (InActionType)
+	{
+	case ELxAIActionType::Patrol:
+		return TEXT("巡逻");
+	case ELxAIActionType::Alert:
+		return TEXT("警戒");
+	case ELxAIActionType::Attack:
+		return TEXT("攻击");
+	case ELxAIActionType::Defend:
+		return TEXT("防守");
+	case ELxAIActionType::Heal:
+		return TEXT("治疗友方");
+	case ELxAIActionType::Retreat:
+		return TEXT("逃跑");
+	default:
+		return TEXT("无");
+	}
+}
+
+void ULxCharacterTestComponent::BindAIControllerActionEvent(ALxAIController* InAIController)
+{
+	if (BoundAIController)
+	{
+		BoundAIController->OnAIActionChanged.RemoveDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
+	}
+	BoundAIController = InAIController;
+	if (BoundAIController)
+	{
+		BoundAIController->OnAIActionChanged.RemoveDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
+		BoundAIController->OnAIActionChanged.AddDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
+		OnTestAIBehaviorTextOutput.Broadcast(ConvertAIActionToString(BoundAIController->GetCurrentAction()));
+	}
+}
+
 ULxCharacterDataTransferComponent* ULxCharacterTestComponent::GetDataTransferComponent() const
 {
 	const ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
@@ -210,4 +273,14 @@ void ULxCharacterTestComponent::HandleCharacterDamageReceived(const FLxDamageRec
 	const float FinalDamageValue = CalculateFinalDamageValueFromReceiveResult(InDamageReceiveResult);
 	OnTestReceivedDamageValueOutput.Broadcast(FinalDamageValue);
 	OnTestReceivedDamageAttackerOutput.Broadcast(InAttackerActor);
+}
+
+void ULxCharacterTestComponent::HandleOwnerControllerChanged(APawn*, AController*, AController* InNewController)
+{
+	BindAIControllerActionEvent(Cast<ALxAIController>(InNewController));
+}
+
+void ULxCharacterTestComponent::HandleAIActionChanged(const ELxAISituationLevel, const ELxAIActionType InActionType)
+{
+	OnTestAIBehaviorTextOutput.Broadcast(ConvertAIActionToString(InActionType));
 }

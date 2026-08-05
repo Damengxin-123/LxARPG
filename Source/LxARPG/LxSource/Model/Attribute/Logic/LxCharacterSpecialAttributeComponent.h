@@ -8,6 +8,16 @@
 
 class ULxCharacterLifecycleAttributeObject;
 class ULxCharacterSpecialAttributeObject;
+class ALxBaseCharacter;
+
+/** 角色特殊属性组件根据双方阵营标签计算出的关系。 */
+UENUM(BlueprintType, DisplayName="角色阵营关系")
+enum class ELxCharacterFactionRelation : uint8
+{
+	Friendly UMETA(DisplayName="友方"),
+	Neutral UMETA(DisplayName="中立"),
+	Hostile UMETA(DisplayName="敌方")
+};
 
 /** 角色阵营标签数据，用于描述当前角色认可的我方阵营和敌对阵营。 */
 USTRUCT(BlueprintType, DisplayName="角色阵营标签数据")
@@ -105,9 +115,13 @@ public:
 	UFUNCTION(BlueprintPure, Category="角色|特殊属性|生命周期", DisplayName="获取当前生命周期状态标签")
 	FGameplayTag GetCurrentLifecycleStateTag() const;
 
-	/** 根据阵营标签判断目标是友方、敌对方还是其他中立方；我方与敌对配置重叠时优先视为友方。 */
+	/** 根据目标阵营标签集合判断友方、敌方或中立关系；友方与敌方配置重叠时优先视为友方。 */
 	UFUNCTION(BlueprintPure, Category="角色|特殊属性|阵营", DisplayName="判断阵营关系")
-	ELxCharacterCampType GetFactionRelation(FGameplayTag InFactionTag) const;
+	ELxCharacterFactionRelation GetFactionRelation(const FGameplayTagContainer& InTargetFactionTags) const;
+
+	/** 使用双方角色特殊属性组件中的阵营标签判断目标角色关系。 */
+	UFUNCTION(BlueprintPure, Category="角色|特殊属性|阵营", DisplayName="判断目标角色阵营关系")
+	ELxCharacterFactionRelation GetCharacterFactionRelation(const ALxBaseCharacter* InTargetCharacter) const;
 
 	/** 按类型查询运行时特殊属性业务对象。 */
 	UFUNCTION(BlueprintPure, Category="角色|特殊属性", DisplayName="查询特殊属性业务对象", meta=(DeterminesOutputType="InObjectClass"))

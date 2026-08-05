@@ -34,19 +34,6 @@ enum class ELxCharacterRaceType : uint8
 };
 
 /**
- * 角色阵营类型
- */
-UENUM(BlueprintType, DisplayName = "角色阵营类型")
-enum class ELxCharacterCampType : uint8
-{
-	None UMETA(DisplayName = "无效"),
-	Invincible UMETA(DisplayName = "无敌"),
-	Friendly UMETA(DisplayName = "友好"),
-	Neutral UMETA(DisplayName = "中立"),
-	Hostile UMETA(DisplayName = "敌对")
-};
-
-/**
  * 角色属性值类型
  */
 /** 角色属性分类类型，由 C++ 注册逻辑固定设置，蓝图只能读取。 */

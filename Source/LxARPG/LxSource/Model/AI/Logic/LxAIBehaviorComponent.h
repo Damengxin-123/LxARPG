@@ -26,9 +26,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="AI|行为", DisplayName="AI行为是否可执行")
 	bool CanExecuteBehavior(ELxAIActionType InActionType, const FLxAIBattleSnapshot& InBattleSnapshot) const;
 
-	/** 使用角色已有组件执行指定AI行为，不在本组件内重复实现角色能力。 */
+	/** 使用角色已有组件尝试执行指定AI行为，并将执行结果返回给控制器继续匹配。 */
 	UFUNCTION(BlueprintCallable, Category="AI|行为", DisplayName="执行AI行为")
-	void ExecuteBehavior(ELxAIActionType InActionType, const FLxAIBattleSnapshot& InBattleSnapshot);
+	ELxAIBehaviorExecutionResult ExecuteBehavior(ELxAIActionType InActionType,
+		const FLxAIBattleSnapshot& InBattleSnapshot);
 
 	/** 停止当前移动并清除AI控制器的关注目标。 */
 	UFUNCTION(BlueprintCallable, Category="AI|行为", DisplayName="停止AI行为")
@@ -50,26 +51,26 @@ private:
 	/** 判断治疗行为是否具有有效友方目标、技能配置和技能组件。 */
 	bool CanExecuteHeal(const FLxAIBattleSnapshot& InBattleSnapshot) const;
 
-	/** 判断逃跑行为是否存在有效威胁。 */
+	/** 判断逃跑行为是否存在有效的最近敌方目标。 */
 	bool CanExecuteRetreat(const FLxAIBattleSnapshot& InBattleSnapshot) const;
 
 	/** 使用通用移动组件执行无威胁巡逻。 */
-	void ExecutePatrol();
+	ELxAIBehaviorExecutionResult ExecutePatrol();
 
 	/** 停止移动并关注当前最高威胁目标。 */
-	void ExecuteAlert(const FLxAIBattleSnapshot& InBattleSnapshot);
+	ELxAIBehaviorExecutionResult ExecuteAlert(const FLxAIBattleSnapshot& InBattleSnapshot);
 
 	/** 使用通用移动和技能组件接近并攻击最高威胁目标。 */
-	void ExecuteAttack(const FLxAIBattleSnapshot& InBattleSnapshot);
+	ELxAIBehaviorExecutionResult ExecuteAttack(const FLxAIBattleSnapshot& InBattleSnapshot);
 
 	/** 使用通用移动组件靠近协助方中心并面向威胁。 */
-	void ExecuteDefend(const FLxAIBattleSnapshot& InBattleSnapshot);
+	ELxAIBehaviorExecutionResult ExecuteDefend(const FLxAIBattleSnapshot& InBattleSnapshot);
 
 	/** 使用通用移动和技能组件接近并治疗最低状态友方。 */
-	void ExecuteHeal(const FLxAIBattleSnapshot& InBattleSnapshot);
+	ELxAIBehaviorExecutionResult ExecuteHeal(const FLxAIBattleSnapshot& InBattleSnapshot);
 
-	/** 使用通用移动组件前往远离敌方中心的可达位置。 */
-	void ExecuteRetreat(const FLxAIBattleSnapshot& InBattleSnapshot);
+	/** 根据最近敌方的实时位置，使用通用移动组件前往反方向的邻近可达点。 */
+	ELxAIBehaviorExecutionResult ExecuteRetreat(const FLxAIBattleSnapshot& InBattleSnapshot);
 
 	/** 获取所属AI角色的AI控制器。 */
 	AAIController* GetOwnerAIController() const;

@@ -6,7 +6,6 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute, TEXT("属性"), "属性");
 // 角色设定属性 ID 标签。
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Setting, TEXT("属性.设定属性"), "设定属性");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Setting_Race, TEXT("属性.设定属性.种族"), "种族");
-UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Setting_Camp, TEXT("属性.设定属性.阵营"), "阵营");
 
 // 按属性分类组织的角色属性 ID 标签。
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Attribute_Basic, TEXT("属性.基础属性"), "基础属性");

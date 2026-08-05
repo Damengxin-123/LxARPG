@@ -8,7 +8,6 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute);
 // 角色设定属性 ID 标签。
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Setting);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Setting_Race);
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Setting_Camp);
 
 // 按属性分类组织的角色属性 ID 标签。
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Attribute_Basic);

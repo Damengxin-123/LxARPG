@@ -161,18 +161,6 @@ enum class ELxSkillBounceType : uint8
 	TowardNearestTarget	UMETA(DisplayName="朝向最近目标")
 };
 
-/** 技能可筛选的目标阵营。 */
-UENUM(BlueprintType, DisplayName="技能目标阵营类型")
-enum class ELxSkillTargetFactionType : uint8
-{
-	Self	UMETA(DisplayName="自身"),
-	Ally	UMETA(DisplayName="友方"),
-	Enemy	UMETA(DisplayName="敌方"),
-	Neutral	UMETA(DisplayName="中立"),
-	All		UMETA(DisplayName="全部"),
-	Custom	UMETA(DisplayName="自定义")
-};
-
 /** 目标排序方式，用于最大目标数量限制前的优先级选择。 */
 UENUM(BlueprintType, DisplayName="技能目标排序类型")
 enum class ELxSkillTargetSortType : uint8
@@ -200,16 +188,6 @@ enum class ELxSkillUnitResultType : uint8
 	Completed	UMETA(DisplayName="已完成")
 };
 
-
-/** 召唤实体所属阵营。 */
-UENUM(BlueprintType, DisplayName="召唤实体阵营")
-enum class ELxSkillEntityFactionType : uint8
-{
-	Ally		UMETA(DisplayName="友方"),
-	Passive		UMETA(DisplayName="被动"),
-	Neutral		UMETA(DisplayName="中立"),
-	Hostile		UMETA(DisplayName="敌对")
-};
 
 /** 多个实体生成时的排列方式。 */
 UENUM(BlueprintType, DisplayName="技能实体生成阵型")

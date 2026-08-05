@@ -4,6 +4,7 @@
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Player/Controllers/LxAIController.h"
 
 namespace
@@ -30,7 +31,7 @@ ALxAICharacter::ALxAICharacter()
 	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::Advantage,
 		{ELxAIActionType::Heal, ELxAIActionType::Attack, ELxAIActionType::Defend}));
 	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::Balanced,
-		{ELxAIActionType::Heal, ELxAIActionType::Defend, ELxAIActionType::Attack}));
+		{ELxAIActionType::Heal, ELxAIActionType::Attack, ELxAIActionType::Defend}));
 	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::Disadvantage,
 		{ELxAIActionType::Heal, ELxAIActionType::Defend, ELxAIActionType::Retreat}));
 	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::SelfDanger,
@@ -53,16 +54,21 @@ ELxAITargetRelation ALxAICharacter::ResolveBaseTargetRelation(const ALxBaseChara
 		return ELxAITargetRelation::Ignore;
 	}
 
-	const uint8 TargetFactionId = InTargetCharacter->GetFactionId();
-	if (TargetFactionId == GetFactionId() || AssistFactionIds.Contains(TargetFactionId))
+	const ULxCharacterSpecialAttributeComponent* SpecialAttributeComponent = GetCharacterSpecialAttributeComponent();
+	if (!SpecialAttributeComponent)
 	{
+		return ELxAITargetRelation::Ignore;
+	}
+
+	switch (SpecialAttributeComponent->GetCharacterFactionRelation(InTargetCharacter))
+	{
+	case ELxCharacterFactionRelation::Friendly:
 		return ELxAITargetRelation::Assist;
-	}
-	if (HostileFactionIds.Contains(TargetFactionId))
-	{
+	case ELxCharacterFactionRelation::Hostile:
 		return ELxAITargetRelation::Hostile;
+	default:
+		return ELxAITargetRelation::Ignore;
 	}
-	return ELxAITargetRelation::Ignore;
 }
 
 float ALxAICharacter::CalculateEffectiveCombatPower() const

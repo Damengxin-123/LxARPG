@@ -11,6 +11,7 @@
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitActor.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
+#include "Perception/AISense_Damage.h"
 
 namespace
 {
@@ -221,6 +222,14 @@ bool ULxCharacterEffectProcessComponent::ReceiveIncomingEffectPackage(const FLxE
 	{
 		ApplyDamageReceiveResultToTarget(OutDamageReceiveResult);
 		RefreshLifecycleAfterDamage();
+
+		// 将自定义效果伤害同步到 AI 伤害感知，保证受击角色能立即识别攻击来源。
+		if (IsValid(DamageContext.SourceActor) && DamageContext.SourceActor != GetOwner())
+		{
+			UAISense_Damage::ReportDamageEvent(this, GetOwner(), DamageContext.SourceActor,
+				OutDamageReceiveResult.GetTotalDamageValue(), DamageContext.SourceActor->GetActorLocation(),
+				GetOwner()->GetActorLocation());
+		}
 	}
 
 	OnCharacterDamageReceived.Broadcast(OutDamageReceiveResult, DamageContext.SourceActor);

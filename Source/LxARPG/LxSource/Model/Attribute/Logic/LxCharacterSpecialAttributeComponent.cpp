@@ -3,6 +3,7 @@
 #include "LxCharacterLifecycleAttributeObject.h"
 #include "LxCharacterSpecialAttributeObject.h"
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "Net/UnrealNetwork.h"
 
 ULxCharacterSpecialAttributeComponent::ULxCharacterSpecialAttributeComponent()
@@ -172,17 +173,33 @@ FGameplayTag ULxCharacterSpecialAttributeComponent::GetCurrentLifecycleStateTag(
 	return bIsAlive ? LifecycleObject->GetAliveStateTag() : LifecycleObject->GetDeadStateTag();
 }
 
-ELxCharacterCampType ULxCharacterSpecialAttributeComponent::GetFactionRelation(const FGameplayTag InFactionTag) const
+ELxCharacterFactionRelation ULxCharacterSpecialAttributeComponent::GetFactionRelation(
+	const FGameplayTagContainer& InTargetFactionTags) const
 {
-	if (InFactionTag.MatchesAny(CharacterFaction.FriendlyTags))
+	if (CharacterFaction.FriendlyTags.HasAny(InTargetFactionTags))
 	{
-		return ELxCharacterCampType::Friendly;
+		return ELxCharacterFactionRelation::Friendly;
 	}
-	if (InFactionTag.MatchesAny(CharacterFaction.HostileTags))
+	if (CharacterFaction.HostileTags.HasAny(InTargetFactionTags))
 	{
-		return ELxCharacterCampType::Hostile;
+		return ELxCharacterFactionRelation::Hostile;
 	}
-	return ELxCharacterCampType::Neutral;
+	return ELxCharacterFactionRelation::Neutral;
+}
+
+ELxCharacterFactionRelation ULxCharacterSpecialAttributeComponent::GetCharacterFactionRelation(
+	const ALxBaseCharacter* InTargetCharacter) const
+{
+	if (!IsValid(InTargetCharacter) || InTargetCharacter == GetCharacterOwner())
+	{
+		return ELxCharacterFactionRelation::Friendly;
+	}
+
+	const ULxCharacterSpecialAttributeComponent* TargetSpecialAttributeComponent =
+		InTargetCharacter->GetCharacterSpecialAttributeComponent();
+	return TargetSpecialAttributeComponent ?
+		GetFactionRelation(TargetSpecialAttributeComponent->CharacterFaction.FriendlyTags) :
+		ELxCharacterFactionRelation::Neutral;
 }
 
 ULxCharacterSpecialAttributeObject* ULxCharacterSpecialAttributeComponent::FindSpecialAttributeObject(const TSubclassOf<ULxCharacterSpecialAttributeObject> InObjectClass) const

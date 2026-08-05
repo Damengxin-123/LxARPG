@@ -10,10 +10,6 @@ struct FLxSkillSpawnEntitySpec
 {
 	GENERATED_BODY()
 
-	/** 生成实体所属阵营。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|形态|生成实体", DisplayName="实体阵营")
-	ELxSkillEntityFactionType EntityFaction = ELxSkillEntityFactionType::Ally;
-
 	/** 一次释放生成的实体数量。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|形态|生成实体", DisplayName="实体数量")
 	int32 EntityCount = 1;

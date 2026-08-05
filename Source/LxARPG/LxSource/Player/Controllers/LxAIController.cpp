@@ -148,9 +148,7 @@ void ALxAIController::RunAutomaticDecision()
 	RefreshActivePerceptionMemory();
 	CurrentBattleSnapshot = BuildBattleSnapshot();
 	const ELxAISituationLevel NewSituation = EvaluateSituation(CurrentBattleSnapshot);
-	const ELxAIActionType NewAction = SelectFirstExecutableAction(CurrentBattleSnapshot, NewSituation);
-	ChangeAction(NewSituation, NewAction);
-	ExecuteCurrentAction();
+	SelectAndExecuteAction(NewSituation);
 }
 
 void ALxAIController::ApplyPerceptionConfiguration()
@@ -296,15 +294,22 @@ FLxAIBattleSnapshot ALxAIController::BuildBattleSnapshot()
 			StateComparison * Config.StateComparisonWeight) / TotalWeight : 0.0f;
 
 	float HighestThreatScore = -1.0f;
+	float NearestEnemyDistanceSquared = TNumericLimits<float>::Max();
 	for (const FLxAnalyzedTarget& Enemy : EnemyTargets)
 	{
-		const float DistanceInMeters = FMath::Max(1.0f,
-			FVector::Dist(AICharacter->GetActorLocation(), Enemy.Character->GetActorLocation()) / 100.0f);
+		const float EnemyDistanceSquared = FVector::DistSquared2D(
+			AICharacter->GetActorLocation(), Enemy.Character->GetActorLocation());
+		const float DistanceInMeters = FMath::Max(1.0f, FMath::Sqrt(EnemyDistanceSquared) / 100.0f);
 		const float ThreatScore = Enemy.EffectiveStrength / DistanceInMeters;
 		if (ThreatScore > HighestThreatScore)
 		{
 			HighestThreatScore = ThreatScore;
 			Snapshot.HighestThreatEnemy = Enemy.Character;
+		}
+		if (EnemyDistanceSquared < NearestEnemyDistanceSquared)
+		{
+			NearestEnemyDistanceSquared = EnemyDistanceSquared;
+			Snapshot.NearestEnemy = Enemy.Character;
 		}
 	}
 
@@ -359,7 +364,7 @@ ELxAISituationLevel ALxAIController::EvaluateSituation(const FLxAIBattleSnapshot
 }
 
 ELxAIActionType ALxAIController::SelectFirstExecutableAction(const FLxAIBattleSnapshot& InSnapshot,
-	const ELxAISituationLevel InSituation) const
+	const ELxAISituationLevel InSituation, const TSet<ELxAIActionType>& InExcludedActions) const
 {
 	const ALxAICharacter* AICharacter = GetAICharacter();
 	const ULxAIBehaviorComponent* BehaviorComponent = AICharacter ? AICharacter->GetAIBehaviorComponent() : nullptr;
@@ -378,15 +383,55 @@ ELxAIActionType ALxAIController::SelectFirstExecutableAction(const FLxAIBattleSn
 	{
 		for (const ELxAIActionType CandidateAction : BehaviorSet->BehaviorCandidates)
 		{
-			if (BehaviorComponent->CanExecuteBehavior(CandidateAction, InSnapshot))
+			if (!InExcludedActions.Contains(CandidateAction) &&
+				BehaviorComponent->CanExecuteBehavior(CandidateAction, InSnapshot))
 			{
 				return CandidateAction;
 			}
 		}
 	}
 
-	return BehaviorComponent->CanExecuteBehavior(Config.FallbackAction, InSnapshot) ?
+	return !InExcludedActions.Contains(Config.FallbackAction) &&
+		BehaviorComponent->CanExecuteBehavior(Config.FallbackAction, InSnapshot) ?
 		Config.FallbackAction : ELxAIActionType::None;
+}
+
+void ALxAIController::SelectAndExecuteAction(const ELxAISituationLevel InSituation)
+{
+	ALxAICharacter* AICharacter = GetAICharacter();
+	ULxAIBehaviorComponent* BehaviorComponent = AICharacter ? AICharacter->GetAIBehaviorComponent() : nullptr;
+	if (!BehaviorComponent)
+	{
+		ChangeAction(InSituation, ELxAIActionType::None);
+		return;
+	}
+
+	TSet<ELxAIActionType> ExcludedActions;
+	while (true)
+	{
+		const ELxAIActionType CandidateAction = SelectFirstExecutableAction(
+			CurrentBattleSnapshot, InSituation, ExcludedActions);
+		if (CandidateAction == ELxAIActionType::None)
+		{
+			BehaviorComponent->StopBehavior();
+			ChangeAction(InSituation, ELxAIActionType::None);
+			return;
+		}
+
+		if (CandidateAction != CurrentAction)
+		{
+			BehaviorComponent->StopBehavior();
+		}
+		const ELxAIBehaviorExecutionResult ExecutionResult = BehaviorComponent->ExecuteBehavior(
+			CandidateAction, CurrentBattleSnapshot);
+		if (ExecutionResult != ELxAIBehaviorExecutionResult::Failed)
+		{
+			ChangeAction(InSituation, CandidateAction);
+			return;
+		}
+
+		ExcludedActions.Add(CandidateAction);
+	}
 }
 
 void ALxAIController::ChangeAction(const ELxAISituationLevel InSituation, const ELxAIActionType InActionType)
@@ -398,30 +443,9 @@ void ALxAIController::ChangeAction(const ELxAISituationLevel InSituation, const 
 		return;
 	}
 
-	if (bActionChanged)
-	{
-		if (ALxAICharacter* AICharacter = GetAICharacter())
-		{
-			if (ULxAIBehaviorComponent* BehaviorComponent = AICharacter->GetAIBehaviorComponent())
-			{
-				BehaviorComponent->StopBehavior();
-			}
-		}
-	}
 	CurrentSituation = InSituation;
 	CurrentAction = InActionType;
 	OnAIActionChanged.Broadcast(CurrentSituation, CurrentAction);
-}
-
-void ALxAIController::ExecuteCurrentAction()
-{
-	if (ALxAICharacter* AICharacter = GetAICharacter())
-	{
-		if (ULxAIBehaviorComponent* BehaviorComponent = AICharacter->GetAIBehaviorComponent())
-		{
-			BehaviorComponent->ExecuteBehavior(CurrentAction, CurrentBattleSnapshot);
-		}
-	}
 }
 
 float ALxAIController::CalculateNormalizedComparison(const float InAssistValue, const float InEnemyValue)

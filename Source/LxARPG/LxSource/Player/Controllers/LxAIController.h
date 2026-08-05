@@ -102,15 +102,15 @@ private:
 	/** 根据威胁、自身状态和综合优势值确定局势等级。 */
 	ELxAISituationLevel EvaluateSituation(const FLxAIBattleSnapshot& InSnapshot) const;
 
-	/** 按当前局势候选顺序选择第一个通过行为自身检查的行为。 */
+	/** 按当前局势候选顺序选择第一个通过自身检查且未在本轮排除的行为。 */
 	ELxAIActionType SelectFirstExecutableAction(const FLxAIBattleSnapshot& InSnapshot,
-		ELxAISituationLevel InSituation) const;
+		ELxAISituationLevel InSituation, const TSet<ELxAIActionType>& InExcludedActions) const;
 
-	/** 切换当前局势与行为，并停止旧行为留下的移动和关注状态。 */
+	/** 依次尝试当前局势的行为候选，执行失败时排除该行为并立即匹配下一个。 */
+	void SelectAndExecuteAction(ELxAISituationLevel InSituation);
+
+	/** 提交已经开始、正在执行或等待条件的行为，并广播最终决策结果。 */
 	void ChangeAction(ELxAISituationLevel InSituation, ELxAIActionType InActionType);
-
-	/** 将当前决策结果转交给AI角色上的行为组件执行。 */
-	void ExecuteCurrentAction();
 
 	/** 将一方数值与另一方数值转换为-1到1的归一化比较结果。 */
 	static float CalculateNormalizedComparison(float InAssistValue, float InEnemyValue);

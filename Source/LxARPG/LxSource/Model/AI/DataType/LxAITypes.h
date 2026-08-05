@@ -51,6 +51,16 @@ enum class ELxAIActionType : uint8
 	Retreat UMETA(DisplayName="逃跑")
 };
 
+/** AI行为组件尝试执行行为后返回给控制器的结果。 */
+UENUM(BlueprintType, DisplayName="AI行为执行结果")
+enum class ELxAIBehaviorExecutionResult : uint8
+{
+	Failed UMETA(DisplayName="执行失败"),
+	Started UMETA(DisplayName="已开始"),
+	InProgress UMETA(DisplayName="执行中"),
+	Waiting UMETA(DisplayName="等待条件")
+};
+
 /** 单个局势等级按顺序匹配的行为候选，不包含任何行为限制参数。 */
 USTRUCT(BlueprintType, DisplayName="AI局势行为集合")
 struct LXARPG_API FLxAISituationBehaviorSet
@@ -148,10 +158,6 @@ struct LXARPG_API FLxAIControlConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|治疗", DisplayName="治疗技能距离", meta=(ClampMin="0.0", Units="cm"))
 	float HealSkillRange = 400.0f;
 
-	/** 逃跑行为每次尝试远离敌方中心的距离。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|逃跑", DisplayName="逃跑移动距离", meta=(ClampMin="0.0", Units="cm"))
-	float RetreatDistance = 1200.0f;
-
 	/** 巡逻行为围绕角色出生点选择位置的半径。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|巡逻", DisplayName="巡逻半径", meta=(ClampMin="0.0", Units="cm"))
 	float PatrolRadius = 800.0f;
@@ -230,6 +236,10 @@ struct LXARPG_API FLxAIBattleSnapshot
 	/** 当前有效强度与距离组合后威胁最高的敌方目标。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|战场快照", DisplayName="最高威胁目标")
 	TObjectPtr<AActor> HighestThreatEnemy = nullptr;
+
+	/** 当前AI与全部有效敌方比较后距离最近的敌方目标。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|战场快照", DisplayName="最近敌方目标")
+	TObjectPtr<AActor> NearestEnemy = nullptr;
 
 	/** 当前状态最低且低于角色配置阈值的友方目标。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|战场快照", DisplayName="最低状态友方")

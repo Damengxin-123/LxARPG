@@ -11,10 +11,6 @@ struct FLxSkillTargetFilterSpec
 {
 	GENERATED_BODY()
 
-	/** 目标阵营类型。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|目标筛选", DisplayName="目标阵营")
-	ELxSkillTargetFactionType TargetFactionType = ELxSkillTargetFactionType::Enemy;
-
 	/** 目标必须拥有的标签。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|目标筛选", DisplayName="必须拥有标签")
 	FGameplayTagContainer RequiredTags;

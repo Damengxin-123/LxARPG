@@ -45,14 +45,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|行为", DisplayName="AI行为组件")
 	TObjectPtr<ULxAIBehaviorComponent> AIBehaviorComponent;
 
-	/** 除自身阵营外同样被视为协助方的阵营ID。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|阵营", DisplayName="协助阵营ID")
-	TArray<uint8> AssistFactionIds;
-
-	/** 被基础关系分析直接视为敌对方的阵营ID。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|阵营", DisplayName="敌对阵营ID")
-	TArray<uint8> HostileFactionIds;
-
 	/** 当前角色独立感知、数值对比、行为匹配和执行使用的参数。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|配置", DisplayName="AI控制配置")
 	FLxAIControlConfig AIControlConfig;

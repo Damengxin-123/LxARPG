@@ -21,7 +21,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能单元|触发", DisplayName="设置触发参数")
 	void SetTriggerSpec(const FLxSkillTriggerSpec& InTriggerSpec);
 
-	/** 设置目标筛选参数，主要用于深度判断阵营、标签等触发条件。 */
+	/** 设置目标筛选参数，主要用于深度判断标签、存活状态等触发条件。 */
 	UFUNCTION(BlueprintCallable, Category="技能单元|触发", DisplayName="设置目标筛选参数")
 	void SetTargetFilterSpec(const FLxSkillTargetFilterSpec& InTargetFilterSpec);
 

@@ -7,9 +7,13 @@
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxARPG/LxSource/Model/Damage/DataType/LxDamageCalculationTypes.h"
+#include "LxARPG/LxSource/Model/AI/DataType/LxAITypes.h"
 #include "LxCharacterTestComponent.generated.h"
 
 class AActor;
+class AController;
+class APawn;
+class ALxAIController;
 class ULxCharacterDataTransferComponent;
 class ULxCharacterEffectProcessComponent;
 
@@ -18,6 +22,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTestReceivedDamageValueOutput, 
 
 /** 测试受伤攻击者输出事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTestReceivedDamageAttackerOutput, AActor*, AttackerActor);
+
+/** 当前AI行为转换为字符串后的蓝图输出事件。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTestAIBehaviorTextOutput, const FString&, BehaviorText);
 
 /**
  * 角色测试组件。
@@ -33,8 +40,11 @@ public:
 	/** 创建角色测试组件。 */
 	ULxCharacterTestComponent();
 
-	/** 初始化角色测试组件，并绑定伤害测试输出事件。 */
+	/** 初始化角色测试组件，并绑定伤害、控制器和AI行为测试输出事件。 */
 	virtual void BaseComponentInitialize() override;
+
+	/** 组件结束运行时解除角色控制器与AI行为事件绑定。 */
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/** 添加一个测试物品到角色背包。 */
 	UFUNCTION(BlueprintCallable, Category="角色测试|物品", DisplayName="添加测试物品到背包", meta=(Categories="物品"))
@@ -68,6 +78,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="角色测试|伤害", DisplayName="测试受到攻击者伤害")
 	bool ApplyTestDamageFromAttacker(AActor* InAttackerActor, float& OutFinalDamageValue, AActor*& OutAttackerActor, bool bApplyResult = true);
 
+	/** 获取当前角色AI行为对应的中文字符串。 */
+	UFUNCTION(BlueprintPure, Category="角色测试|AI行为", DisplayName="获取当前AI行为字符串")
+	FString GetCurrentAIBehaviorText() const;
+
 	/** 测试受伤后输出最终实际伤害数字。 */
 	UPROPERTY(BlueprintAssignable, Category="角色测试|伤害", DisplayName="测试受伤输出最终伤害数字")
 	FOnLxTestReceivedDamageValueOutput OnTestReceivedDamageValueOutput;
@@ -76,7 +90,17 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="角色测试|伤害", DisplayName="测试受伤输出攻击者")
 	FOnLxTestReceivedDamageAttackerOutput OnTestReceivedDamageAttackerOutput;
 
+	/** AI行为发生变化时向蓝图输出对应的中文字符串。 */
+	UPROPERTY(BlueprintAssignable, Category="角色测试|AI行为", DisplayName="当前AI行为字符串输出事件")
+	FOnLxTestAIBehaviorTextOutput OnTestAIBehaviorTextOutput;
+
 private:
+	/** 将AI行为枚举转换为日志和角色头顶显示可直接使用的中文字符串。 */
+	static FString ConvertAIActionToString(ELxAIActionType InActionType);
+
+	/** 解除旧控制器并绑定新的AI行为变化事件。 */
+	void BindAIControllerActionEvent(ALxAIController* InAIController);
+
 	/** 获取当前角色的数据中转组件。 */
 	ULxCharacterDataTransferComponent* GetDataTransferComponent() const;
 
@@ -89,4 +113,16 @@ private:
 	/** 处理角色伤害组件的受伤事件，并转发测试输出事件。 */
 	UFUNCTION()
 	void HandleCharacterDamageReceived(const FLxDamageReceiveResult& InDamageReceiveResult, AActor* InAttackerActor);
+
+	/** 角色控制器变化时重新绑定对应AI控制器的行为事件。 */
+	UFUNCTION()
+	void HandleOwnerControllerChanged(APawn* InPawn, AController* InOldController, AController* InNewController);
+
+	/** 接收AI行为变化并向蓝图发布转换后的中文行为字符串。 */
+	UFUNCTION()
+	void HandleAIActionChanged(ELxAISituationLevel InSituation, ELxAIActionType InActionType);
+
+	/** 当前已绑定行为变化事件的AI控制器。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ALxAIController> BoundAIController = nullptr;
 };
