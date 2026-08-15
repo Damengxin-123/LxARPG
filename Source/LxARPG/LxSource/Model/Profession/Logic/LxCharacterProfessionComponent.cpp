@@ -37,7 +37,14 @@ float ULxCharacterProfessionComponent::GetProfessionExperience(FGameplayTag InPr
 	return ProfessionData != nullptr ? ProfessionData->Experience : 0.f;
 }
 
-bool ULxCharacterProfessionComponent::CanLearnProfession(FGameplayTag InProfessionIDTag, FLxProfessionLearnCheckResult& OutCheckResult)
+bool ULxCharacterProfessionComponent::CanProfessionUpgrade(FGameplayTag InProfessionIDTag) const
+{
+	const FLxProfessionRuntimeData* ProfessionData = FindProfessionRuntimeData(InProfessionIDTag);
+	return ProfessionData != nullptr && ProfessionData->bCanUpgrade;
+}
+
+bool ULxCharacterProfessionComponent::CanLearnProfession(FGameplayTag InProfessionIDTag,
+	FLxProfessionLearnCheckResult& OutCheckResult, bool bCheckRequirements)
 {
 	OutCheckResult = FLxProfessionLearnCheckResult();
 
@@ -62,9 +69,10 @@ bool ULxCharacterProfessionComponent::CanLearnProfession(FGameplayTag InProfessi
 		return false;
 	}
 
-	if (!CheckDependencyRules(ProfessionDefinition, OutCheckResult)
-		|| !CheckAttributeRequirements(ProfessionDefinition, OutCheckResult)
-		|| !CheckStateRequirements(ProfessionDefinition, OutCheckResult))
+	if (bCheckRequirements
+		&& (!CheckDependencyRules(ProfessionDefinition, OutCheckResult)
+			|| !CheckAttributeRequirements(ProfessionDefinition, OutCheckResult)
+			|| !CheckStateRequirements(ProfessionDefinition, OutCheckResult)))
 	{
 		return false;
 	}
@@ -74,10 +82,11 @@ bool ULxCharacterProfessionComponent::CanLearnProfession(FGameplayTag InProfessi
 	return true;
 }
 
-bool ULxCharacterProfessionComponent::LearnProfession(FGameplayTag InProfessionIDTag)
+bool ULxCharacterProfessionComponent::LearnProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel,
+	bool bInCanUpgrade, bool bCheckRequirements)
 {
 	FLxProfessionLearnCheckResult CheckResult;
-	if (!CanLearnProfession(InProfessionIDTag, CheckResult))
+	if (!CanLearnProfession(InProfessionIDTag, CheckResult, bCheckRequirements))
 	{
 		return false;
 	}
@@ -91,12 +100,50 @@ bool ULxCharacterProfessionComponent::LearnProfession(FGameplayTag InProfessionI
 	FLxProfessionRuntimeData NewProfessionData;
 	NewProfessionData.ProfessionIDTag = InProfessionIDTag;
 	NewProfessionData.ProfessionClass = ProfessionDefinition->GetClass();
-	NewProfessionData.Level = ProfessionDefinition->GetMaxLevel() > 0 ? 1 : 0;
+	const int32 MaxLevel = ProfessionDefinition->GetMaxLevel();
+	NewProfessionData.Level = MaxLevel > 0 ? FMath::Clamp(InInitialLevel, 1, MaxLevel) : 0;
 	NewProfessionData.Experience = 0.f;
+	NewProfessionData.bCanUpgrade = bInCanUpgrade;
 	LearnedProfessions.Add(NewProfessionData);
 
 	OnProfessionChanged.Broadcast();
 	return true;
+}
+
+bool ULxCharacterProfessionComponent::GrantProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel,
+	bool bInCanUpgrade)
+{
+	ULxProfessionDefinition* ProfessionDefinition = FindProfessionDefinition(InProfessionIDTag);
+	if (!InProfessionIDTag.IsValid() || ProfessionDefinition == nullptr)
+	{
+		return false;
+	}
+
+	const int32 MaxLevel = ProfessionDefinition->GetMaxLevel();
+	const int32 GrantedLevel = MaxLevel > 0 ? FMath::Clamp(InInitialLevel, 1, MaxLevel) : 0;
+	if (FLxProfessionRuntimeData* ExistingProfessionData = FindProfessionRuntimeData(InProfessionIDTag))
+	{
+		bool bChanged = false;
+		if (GrantedLevel > ExistingProfessionData->Level)
+		{
+			ExistingProfessionData->Level = GrantedLevel;
+			ExistingProfessionData->Experience = 0.f;
+			bChanged = true;
+		}
+		if (bInCanUpgrade && !ExistingProfessionData->bCanUpgrade)
+		{
+			ExistingProfessionData->bCanUpgrade = true;
+			bChanged = true;
+		}
+
+		if (bChanged)
+		{
+			OnProfessionChanged.Broadcast();
+		}
+		return true;
+	}
+
+	return LearnProfession(InProfessionIDTag, GrantedLevel, bInCanUpgrade, false);
 }
 
 void ULxCharacterProfessionComponent::AddProfessionExperienceByType(ELxProfessionType InProfessionType, float InExperience)
@@ -110,7 +157,8 @@ void ULxCharacterProfessionComponent::AddProfessionExperienceByType(ELxProfessio
 	for (FLxProfessionRuntimeData& ProfessionData : LearnedProfessions)
 	{
 		ULxProfessionDefinition* ProfessionDefinition = FindProfessionDefinition(ProfessionData.ProfessionIDTag);
-		if (ProfessionDefinition != nullptr && ProfessionDefinition->GetProfessionType() == InProfessionType)
+		if (ProfessionData.bCanUpgrade && ProfessionDefinition != nullptr
+			&& ProfessionDefinition->GetProfessionType() == InProfessionType)
 		{
 			TargetProfessionList.Add(&ProfessionData);
 		}
@@ -324,7 +372,7 @@ void ULxCharacterProfessionComponent::ResolveLearnedProfessionClasses()
 
 bool ULxCharacterProfessionComponent::AddExperienceToProfession(FLxProfessionRuntimeData& InOutProfessionData, ULxProfessionDefinition* ProfessionDefinition, float InExperience)
 {
-	if (ProfessionDefinition == nullptr || InExperience <= 0.f)
+	if (!InOutProfessionData.bCanUpgrade || ProfessionDefinition == nullptr || InExperience <= 0.f)
 	{
 		return false;
 	}

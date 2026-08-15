@@ -5,6 +5,7 @@
 #include "GameplayTagContainer.h"
 #include "GameFramework/Character.h"
 #include "LxCharacterStateEnum.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxBaseCharacter.generated.h"
 
 class UDataTable;
@@ -182,8 +183,12 @@ public:
 	ULxCharacterTestComponent* GetCharacterTestComponent() const { return m_pCharacterTestComponent; }
 
 	/** 获取创建角色运行时基础属性对象所使用的配置类型。 */
-	UFUNCTION(BlueprintPure, Category="角色|基础属性", DisplayName="获取基础属性配置类型")
+	UFUNCTION(BlueprintPure, Category="角色配置|基础属性", DisplayName="获取基础属性配置类型")
 	TSubclassOf<ULxCharacterBaseAttributeSet> GetCharacterBaseAttributeSetClass() const { return CharacterBaseAttributeSetClass; }
+
+	/** 获取角色初始化时自动应用的默认词条配置。 */
+	UFUNCTION(BlueprintPure, Category="角色配置|默认词条", DisplayName="获取默认词条配置")
+	const TArray<FLxEntryQuote>& GetDefaultEntryConfig() const { return DefaultEntryConfig; }
 
 
 	/** 查询角色初始化后缓存的命名文本。 */
@@ -195,16 +200,20 @@ protected:
 	 * 角色基础属性配置类型；具体角色通过继承配置类型覆盖默认值。
 	 * 未配置时使用原生基础属性配置类型。
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="基础属性配置类型")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|基础属性", DisplayName="基础属性配置类型")
 	TSubclassOf<ULxCharacterBaseAttributeSet> CharacterBaseAttributeSetClass;
 
 	/** 当前角色使用的命名ID标签，初始化时会用它从名称数据表查询显示文本。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|命名", DisplayName="名称ID标签", meta=(Categories="单位命名"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|命名", DisplayName="名称ID标签", meta=(Categories="单位命名"))
 	FGameplayTag CharacterNameIDTag;
 
 	/** 当前角色使用的名称数据表，行结构使用 FLxCharacterNamingRow。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|命名", DisplayName="名称数据表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxCharacterNamingRow"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|命名", DisplayName="名称数据表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxCharacterNamingRow"))
 	TObjectPtr<UDataTable> CharacterNamingTable = nullptr;
+
+	/** 角色初始化时自动应用的词条引用列表，可混合配置属性、Buff、状态、技能和职业等词条。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|默认词条", DisplayName="默认词条配置")
+	TArray<FLxEntryQuote> DefaultEntryConfig;
 
 	/** 角色移动组件，用于管理和控制角色移动行为。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色移动组件")
@@ -298,6 +307,9 @@ protected:
 
 		/** 初始化并缓存角色命名文本。 */
 	void InitializeCharacterNamingText();
+
+	/** 在服务端创建并应用当前角色配置的全部默认词条。 */
+	void ApplyDefaultEntryConfig();
 UFUNCTION()
 	void OnRep_CharacterState();
 

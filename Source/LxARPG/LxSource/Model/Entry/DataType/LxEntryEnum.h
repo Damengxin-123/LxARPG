@@ -63,8 +63,8 @@ enum class ELxEntryType : uint8
 {
 	// 无词条
 	NoneEntryType		UMETA(DisplayName="无词条"),
-	// 属性增益
-	AttributeGain		UMETA(DisplayName="属性增益"),
+	// 属性数值修改，统一承载能力值、判定、百分比和普通数值等标量修改。
+	AttributeGain		UMETA(DisplayName="属性数值修改"),
 	// 属性回复
 	AttributeRecovery	UMETA(DisplayName="属性回复"),
 	// 改变状态
@@ -77,8 +77,12 @@ enum class ELxEntryType : uint8
 	DisplayText			UMETA(DisplayName="显示文本"),
 	// 授予技能
 	GrantSkill			UMETA(DisplayName="授予技能"),
+	// 赋予职业
+	GrantProfession		UMETA(DisplayName="赋予职业"),
 	// 造成伤害
 	Damage				UMETA(DisplayName="造成伤害"),
+	// 属性影响：使用一个属性字段按比例影响另一个属性字段。
+	AttributeInfluence	UMETA(DisplayName="属性影响"),
 };
 
 /** 状态词条取值。 */

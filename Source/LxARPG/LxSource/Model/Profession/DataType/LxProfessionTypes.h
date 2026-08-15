@@ -268,6 +268,10 @@ struct LXARPG_API FLxProfessionRuntimeData
 	/** 当前等级内经验。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="职业|运行时", DisplayName="当前经验")
 	float Experience = 0.f;
+
+	/** 当前职业是否允许通过获得经验继续升级。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="职业|运行时", DisplayName="是否可以升级")
+	bool bCanUpgrade = true;
 };
 namespace LxProfessionDisplayTools
 {

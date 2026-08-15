@@ -15,6 +15,8 @@
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectTransferComponent.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
+#include "LxARPG/LxSource/Model/DataTransfer/LxCharacterEntryPackage.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
 #include "LxARPG/LxSource/Model/Lifecycle/Logic/LxCharacterLifecycleComponent.h"
@@ -138,6 +140,7 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	if (m_pCharacterDataTransferComponent)
 	{
 		m_pCharacterDataTransferComponent->BaseComponentInitialize();
+		ApplyDefaultEntryConfig();
 	}
 
 	if (m_pCharacterTestComponent)
@@ -155,6 +158,28 @@ void ALxBaseCharacter::InitialCharacterInformation()
 		m_pCharacterCloseCombatComponent->BaseComponentInitialize();
 	}
 	IsInitialized  = true;
+}
+
+void ALxBaseCharacter::ApplyDefaultEntryConfig()
+{
+	if (!HasAuthority() || m_pCharacterDataTransferComponent == nullptr || DefaultEntryConfig.IsEmpty())
+	{
+		return;
+	}
+
+	FLxCharacterEntryPackage DefaultEntryPackage;
+	DefaultEntryPackage.EntrySource = ELxCharacterEntrySource::CharacterDefault;
+	DefaultEntryPackage.EntryList.Reserve(DefaultEntryConfig.Num());
+
+	for (const FLxEntryQuote& EntryQuote : DefaultEntryConfig)
+	{
+		if (ULxEntryObjectBase* EntryObject = ULxEntryObjectBase::CreateEnterObject(m_pCharacterDataTransferComponent, EntryQuote))
+		{
+			DefaultEntryPackage.EntryList.Add(EntryObject);
+		}
+	}
+
+	m_pCharacterDataTransferComponent->ReceiveEntryPackage(DefaultEntryPackage);
 }
 
 

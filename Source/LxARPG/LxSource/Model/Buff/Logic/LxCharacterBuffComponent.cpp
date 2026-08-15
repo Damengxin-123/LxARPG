@@ -22,6 +22,8 @@ namespace
 			return ELxCharacterEntrySource::Skill;
 		case ELxEffectPackageSource::Profession:
 			return ELxCharacterEntrySource::Profession;
+		case ELxEffectPackageSource::CharacterDefault:
+			return ELxCharacterEntrySource::CharacterDefault;
 		default:
 			return ELxCharacterEntrySource::Other;
 		}
@@ -42,6 +44,8 @@ namespace
 			return ELxEffectPackageSource::Skill;
 		case ELxCharacterEntrySource::Profession:
 			return ELxEffectPackageSource::Profession;
+		case ELxCharacterEntrySource::CharacterDefault:
+			return ELxEffectPackageSource::CharacterDefault;
 		default:
 			return ELxEffectPackageSource::Other;
 		}

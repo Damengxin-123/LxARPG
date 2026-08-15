@@ -26,7 +26,8 @@ public class LxARPG : ModuleRules
 			"DeveloperSettings",
 			"ModularGameplay",
 			"AIModule",
-			"NavigationSystem"
+			"NavigationSystem",
+			"ProceduralMeshComponent"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });

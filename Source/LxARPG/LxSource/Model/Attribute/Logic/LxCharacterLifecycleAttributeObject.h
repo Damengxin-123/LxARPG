@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxCharacterSpecialAttributeObject.h"
 #include "LxCharacterLifecycleAttributeObject.generated.h"
 
@@ -12,8 +14,14 @@ class LXARPG_API ULxCharacterLifecycleAttributeObject : public ULxCharacterSpeci
 	GENERATED_BODY()
 
 public:
-	/** 根据当前存活状态应用角色移动控制。 */
-	void ApplyMovementControl(bool bInAlive) const;
+	/** 绑定角色属性变化事件并检查初始生命值。 */
+	virtual void InitializeSpecialAttributeObject(ULxCharacterSpecialAttributeComponent* InOwnerComponent) override;
+
+	/** 解除角色属性变化事件。 */
+	virtual void DeinitializeSpecialAttributeObject() override;
+
+	/** 根据当前存活状态应用移动控制、倒地动画和延迟销毁逻辑。 */
+	void ApplyLifecycleState(bool bInAlive);
 
 	/** 获取存活状态标签。 */
 	FGameplayTag GetAliveStateTag() const { return AliveStateTag; }
@@ -26,6 +34,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|特殊属性|生命周期", DisplayName="死亡时禁用移动")
 	bool bDisableMovementWhenDead = true;
 
+	/** 角色死亡后是否自动销毁角色对象。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|特殊属性|生命周期", DisplayName="死亡后销毁角色")
+	bool bDestroyCharacterWhenDead = true;
+
+	/** 角色死亡后等待多少秒销毁角色对象。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|特殊属性|生命周期", DisplayName="死亡后销毁延迟", meta=(ClampMin="0.0", UIMin="0.0", Units="s"))
+	float DeathDestroyDelay = 2.0f;
+
+	/** 角色进入死亡状态时发送给动画系统的倒地动画类型。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|特殊属性|生命周期", DisplayName="倒地动画类型")
+	ELxCharacterMotionType DeathAnimationType = ELxCharacterMotionType::Dead;
+
 	/** 存活状态标签。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|特殊属性|生命周期", DisplayName="存活状态标签", meta=(Categories="角色状态.生命周期状态"))
 	FGameplayTag AliveStateTag;
@@ -33,6 +53,23 @@ protected:
 	/** 死亡状态标签。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|特殊属性|生命周期", DisplayName="死亡状态标签", meta=(Categories="角色状态.生命周期状态"))
 	FGameplayTag DeadStateTag;
+
+private:
+	/** 角色属性变化时检查生命值是否已经归零。 */
+	UFUNCTION(Category="角色|特殊属性|生命周期", DisplayName="处理生命周期属性变化")
+	void HandleCharacterAttributesChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot);
+
+	/** 在权威端根据指定属性快照检查并触发死亡。 */
+	void EvaluateDeathFromAttributeSnapshot(const FLxTypedAttributeSnapshot& AttributeSnapshot) const;
+
+	/** 根据当前运行时属性检查并触发死亡。 */
+	void EvaluateDeathFromCurrentAttributes() const;
+
+	/** 对死亡角色播放倒地动画，并由权威端启动销毁倒计时。 */
+	void StartDeathSequence();
+
+	/** 当前死亡表现和销毁倒计时是否已经启动。 */
+	bool bDeathSequenceStarted = false;
 
 public:
 	/** 创建生命周期特殊属性并设置默认状态标签。 */

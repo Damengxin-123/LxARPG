@@ -199,6 +199,14 @@ void ULxGameDataTablesManager::LoadDataTables()
 			LxEntryConfig::SetAttributeGainEntryData(RowData);
 		});
 
+	LoadEntryDataTable<FLxEntryAttributeInfluence>(
+		m_pAttributeInfluenceEntryTable.Get(),
+		TEXT("ULxGameDataTablesManager::LoadAttributeInfluenceEntryTable"),
+		[](const FLxEntryAttributeInfluence& RowData)
+		{
+			LxEntryConfig::SetAttributeInfluenceEntryData(RowData);
+		});
+
 	LoadEntryDataTable<FLxEntryAttributeRecovery>(
 		m_pAttributeRecoveryEntryTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadAttributeRecoveryEntryTable"),
@@ -245,6 +253,14 @@ void ULxGameDataTablesManager::LoadDataTables()
 		[](const FLxEntryGrantSkill& RowData)
 		{
 			LxEntryConfig::SetGrantSkillEntryData(RowData);
+		});
+
+	LoadEntryDataTable<FLxEntryGrantProfession>(
+		m_pGrantProfessionEntryTable.Get(),
+		TEXT("ULxGameDataTablesManager::LoadGrantProfessionEntryTable"),
+		[](const FLxEntryGrantProfession& RowData)
+		{
+			LxEntryConfig::SetGrantProfessionEntryData(RowData);
 		});
 
 	LoadEntryDataTable<FLxEntryDamage>(

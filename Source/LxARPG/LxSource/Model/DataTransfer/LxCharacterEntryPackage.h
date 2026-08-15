@@ -19,6 +19,7 @@ enum class ELxCharacterEntrySource : uint8
 	Skill UMETA(DisplayName="技能"),
 	Profession UMETA(DisplayName="职业"),
 	Other UMETA(DisplayName="其他"),
+	CharacterDefault UMETA(DisplayName="角色默认配置"),
 };
 
 /**

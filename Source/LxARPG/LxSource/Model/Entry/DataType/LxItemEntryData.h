@@ -54,7 +54,7 @@ struct FLxEntryBase : public FTableRowBase
 };
 
 /** 属性增益词条。 */
-USTRUCT(BlueprintType, DisplayName = "属性增益词条")
+USTRUCT(BlueprintType, DisplayName = "属性数值修改词条")
 struct FLxEntryAttributeGain : public FLxEntryBase
 {
 	GENERATED_BODY()
@@ -80,9 +80,46 @@ struct FLxEntryAttributeGain : public FLxEntryBase
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条", DisplayName = "词条数值")
 	float EntryValue = 0.f;
 
-	/** 未指定属性ID时需要匹配的属性分类。 */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="目标属性分类")
-	TArray<ELxCharacterAttributeCategoryType> TargetAttributeCategories;
+	/** 未指定属性ID时需要匹配的业务分类；优先使用业务语义筛选属性。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="目标属性业务分类")
+	TArray<ELxCharacterAttributeBusinessCategory> TargetBusinessCategories;
+};
+
+/** 属性影响词条，描述一个属性字段如何按比例影响另一个属性字段。 */
+USTRUCT(BlueprintType, DisplayName = "属性影响词条")
+struct FLxEntryAttributeInfluence : public FLxEntryBase
+{
+	GENERATED_BODY()
+
+	/** 创建属性影响词条并固定其运行时词条类型。 */
+	FLxEntryAttributeInfluence()
+	{
+		EntryType = ELxEntryType::AttributeInfluence;
+	}
+
+	/** 提供影响数值的来源属性标签。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条|属性影响", DisplayName="来源属性标签ID", meta=(Categories="属性"))
+	FGameplayTag SourceAttributeIDTag;
+
+	/** 从来源属性数值结构中读取的字段。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条|属性影响", DisplayName="来源属性字段")
+	ELxEntryTarget SourceEntryTarget = ELxEntryTarget::ToValue;
+
+	/** 接受影响数值的目标属性标签。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条|属性影响", DisplayName="目标属性标签ID", meta=(Categories="属性"))
+	FGameplayTag TargetAttributeIDTag;
+
+	/** 影响结果写入目标属性数值结构中的字段。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条|属性影响", DisplayName="目标属性字段")
+	ELxEntryTarget TargetEntryTarget = ELxEntryTarget::ToValue;
+
+	/** 影响结果的作用方式。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条|属性影响", DisplayName="影响方式")
+	ELxEntryEffectiveType EffectiveType = ELxEntryEffectiveType::BasicValue;
+
+	/** 来源属性数值乘以该比例后形成最终影响数值。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条|属性影响", DisplayName="影响比例")
+	float InfluenceRatio = 1.f;
 };
 
 /** 属性恢复词条。 */
@@ -108,9 +145,9 @@ struct FLxEntryAttributeRecovery : public FLxEntryBase
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条", DisplayName = "恢复数值")
 	float EntryValue = 0.f;
 
-	/** 未指定属性ID时需要匹配的属性分类，恢复词条通常选择资源属性。 */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="目标属性分类")
-	TArray<ELxCharacterAttributeCategoryType> TargetAttributeCategories;
+	/** 未指定属性ID时需要匹配的业务分类，资源恢复通常选择资源属性。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="词条", DisplayName="目标属性业务分类")
+	TArray<ELxCharacterAttributeBusinessCategory> TargetBusinessCategories;
 };
 
 /** 状态改变词条。 */
@@ -203,6 +240,30 @@ struct FLxEntryGrantSkill : public FLxEntryBase
 	/** 技能物品标签 ID。 */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条", DisplayName = "技能物品标签ID", meta = (Categories = "物品.技能"))
 	FGameplayTag SkillItemIDTag;
+};
+
+/** 赋予职业词条。 */
+USTRUCT(BlueprintType, DisplayName = "赋予职业词条")
+struct FLxEntryGrantProfession : public FLxEntryBase
+{
+	GENERATED_BODY()
+
+	FLxEntryGrantProfession()
+	{
+		EntryType = ELxEntryType::GrantProfession;
+	}
+
+	/** 需要赋予角色的职业标签 ID。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条|职业", DisplayName = "职业标签ID", meta = (Categories = "职业"))
+	FGameplayTag ProfessionIDTag;
+
+	/** 赋予职业时设置的初始等级，运行时会限制在职业有效等级范围内。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条|职业", DisplayName = "职业等级", meta = (ClampMin = "1", UIMin = "1"))
+	int32 ProfessionLevel = 1;
+
+	/** 通过该词条获得的职业是否允许继续获得经验并升级。 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条|职业", DisplayName = "是否可以升级")
+	bool bCanUpgrade = false;
 };
 
 /** 造成伤害词条。 */

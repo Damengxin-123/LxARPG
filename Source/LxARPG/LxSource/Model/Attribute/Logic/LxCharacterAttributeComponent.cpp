@@ -1,7 +1,7 @@
 #include "LxCharacterAttributeComponent.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
+#include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "Net/UnrealNetwork.h"
@@ -33,18 +33,6 @@ namespace
 		}
 	}
 
-	/** 按衍生规则方式更新指定数值。 */
-	void ApplyDerivedOperation(float& InOutValue, const ELxEntryEffectiveType InOperation, const float InSourceValue, const float InRatio)
-	{
-		const float DerivedValue = InSourceValue * InRatio;
-		switch (InOperation)
-		{
-		case ELxEntryEffectiveType::BasicValue: InOutValue += DerivedValue; break;
-		case ELxEntryEffectiveType::BasicImprove:
-		case ELxEntryEffectiveType::AdditionalImprove: InOutValue += InOutValue * DerivedValue * 0.01f; break;
-		case ELxEntryEffectiveType::Mechanism: InOutValue = FMath::Max(InOutValue, DerivedValue); break;
-		}
-	}
 }
 
 ULxCharacterAttributeComponent::ULxCharacterAttributeComponent()
@@ -87,8 +75,8 @@ void ULxCharacterAttributeComponent::InitializeAttributeTable()
 	AttributeModifierEffectCache.Reset();
 	RuntimeResourceValues.Reset();
 	ResetRuntimeAttributeSetFromConfiguration();
-	RefreshDerivedAttributes();
 	NormalizeTypedAttributeValues();
+	FillRuntimeResourceValuesToLimit();
 	CacheRuntimeResourceValues();
 }
 
@@ -104,7 +92,14 @@ void ULxCharacterAttributeComponent::ReceiveAttributeModifierEffects(const FLxEf
 	if (RuntimeAttributeSet == nullptr) InitializeRuntimeAttributeSet();
 	if (InApplyPolicy == ELxEffectPackageApplyPolicy::Instant)
 	{
-		for (const FLxAttributeModifierEffect& Effect : InEffectList) ApplyModifierEffect(Effect);
+		for (const FLxAttributeModifierEffect& Effect : InEffectList)
+		{
+			if (!Effect.SourceAttributeIDTag.IsValid()) ApplyModifierEffect(Effect);
+		}
+		for (const FLxAttributeModifierEffect& Effect : InEffectList)
+		{
+			if (Effect.SourceAttributeIDTag.IsValid()) ApplyModifierEffect(Effect);
+		}
 		NormalizeTypedAttributeValues();
 		CacheRuntimeResourceValues();
 		BroadcastAttributeTableChanged();
@@ -134,9 +129,18 @@ void ULxCharacterAttributeComponent::RefreshCharacterAttributesByCachedEntries()
 	ResetRuntimeAttributeSetFromConfiguration();
 	for (const TPair<FName, TArray<FLxAttributeModifierEffect>>& EffectCachePair : AttributeModifierEffectCache)
 	{
-		for (const FLxAttributeModifierEffect& Effect : EffectCachePair.Value) ApplyModifierEffect(Effect);
+		for (const FLxAttributeModifierEffect& Effect : EffectCachePair.Value)
+		{
+			if (!Effect.SourceAttributeIDTag.IsValid()) ApplyModifierEffect(Effect);
+		}
 	}
-	RefreshDerivedAttributes();
+	for (const TPair<FName, TArray<FLxAttributeModifierEffect>>& EffectCachePair : AttributeModifierEffectCache)
+	{
+		for (const FLxAttributeModifierEffect& Effect : EffectCachePair.Value)
+		{
+			if (Effect.SourceAttributeIDTag.IsValid()) ApplyModifierEffect(Effect);
+		}
+	}
 	RestoreRuntimeResourceValues();
 	NormalizeTypedAttributeValues();
 	CacheRuntimeResourceValues();
@@ -145,30 +149,39 @@ void ULxCharacterAttributeComponent::RefreshCharacterAttributesByCachedEntries()
 void ULxCharacterAttributeComponent::ApplyModifierEffect(const FLxAttributeModifierEffect& InEffect)
 {
 	if (RuntimeAttributeSet == nullptr) return;
+	float EffectiveModifierValue = InEffect.ModifierValue;
+	if (InEffect.SourceAttributeIDTag.IsValid())
+	{
+		float SourceAttributeValue = 0.f;
+		if (InEffect.SourceAttributeIDTag == InEffect.AttributeIDTag
+			|| !TryGetAttributeFieldValue(InEffect.SourceAttributeIDTag, InEffect.SourceAttributeTarget, SourceAttributeValue))
+		{
+			return;
+		}
+		EffectiveModifierValue += SourceAttributeValue * InEffect.SourceAttributeRatio;
+	}
+
 	TArray<FGameplayTag> TargetAttributeIDs;
 	auto CollectTarget = [&InEffect, &TargetAttributeIDs](const auto& Attribute)
 	{
-		if (AttributeMatchesEffect(Attribute, InEffect.AttributeIDTag, InEffect.TargetAttributeCategories)) TargetAttributeIDs.AddUnique(Attribute.AttributeIDTag);
+		if (AttributeMatchesEffect(Attribute, InEffect.AttributeIDTag, InEffect.TargetBusinessCategories))
+		{
+			TargetAttributeIDs.AddUnique(Attribute.AttributeIDTag);
+		}
 	};
-	TArray<FLxBasicAttributeData> Basic; RuntimeAttributeSet->GetAllBasicAttributes(Basic); for (const auto& A : Basic) CollectTarget(A);
+	TArray<FLxScalarAttributeData> Scalar; RuntimeAttributeSet->GetAllScalarAttributes(Scalar); for (const auto& A : Scalar) CollectTarget(A);
 	TArray<FLxResourceAttributeData> Resource; RuntimeAttributeSet->GetAllResourceAttributes(Resource); for (const auto& A : Resource) CollectTarget(A);
-	TArray<FLxProbabilityAttributeData> Probability; RuntimeAttributeSet->GetAllProbabilityAttributes(Probability); for (const auto& A : Probability) CollectTarget(A);
-	TArray<FLxPercentageAttributeData> Percentage; RuntimeAttributeSet->GetAllPercentageAttributes(Percentage); for (const auto& A : Percentage) CollectTarget(A);
-	TArray<FLxNumericAttributeData> Numeric; RuntimeAttributeSet->GetAllNumericAttributes(Numeric); for (const auto& A : Numeric) CollectTarget(A);
 	TArray<FLxRangeAttributeData> Range; RuntimeAttributeSet->GetAllRangeAttributes(Range); for (const auto& A : Range) CollectTarget(A);
 
 	for (const FGameplayTag AttributeIDTag : TargetAttributeIDs)
 	{
-		if (FLxBasicAttributeData* A = RuntimeAttributeSet->FindMutableBasicAttribute(AttributeIDTag)) { if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, InEffect.ModifierValue); continue; }
-		if (FLxResourceAttributeData* A = RuntimeAttributeSet->FindMutableResourceAttribute(AttributeIDTag)) { if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, InEffect.ModifierValue); else if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValueLimit) ApplyOperation(A->ValueLimit, InEffect.ModifierOperation, InEffect.ModifierValue); continue; }
-		if (FLxProbabilityAttributeData* A = RuntimeAttributeSet->FindMutableProbabilityAttribute(AttributeIDTag)) { if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, InEffect.ModifierValue); continue; }
-		if (FLxPercentageAttributeData* A = RuntimeAttributeSet->FindMutablePercentageAttribute(AttributeIDTag)) { if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, InEffect.ModifierValue); continue; }
-		if (FLxNumericAttributeData* A = RuntimeAttributeSet->FindMutableNumericAttribute(AttributeIDTag)) { if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, InEffect.ModifierValue); continue; }
+		if (FLxScalarAttributeData* A = RuntimeAttributeSet->FindMutableScalarAttribute(AttributeIDTag)) { if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, EffectiveModifierValue); continue; }
+		if (FLxResourceAttributeData* A = RuntimeAttributeSet->FindMutableResourceAttribute(AttributeIDTag)) { if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, EffectiveModifierValue); else if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValueLimit) ApplyOperation(A->ValueLimit, InEffect.ModifierOperation, EffectiveModifierValue); continue; }
 		if (FLxRangeAttributeData* A = RuntimeAttributeSet->FindMutableRangeAttribute(AttributeIDTag))
 		{
-			if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, InEffect.ModifierValue);
-			else if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToUpwardFloatingRatio) ApplyOperation(A->UpwardFloatingRatio, InEffect.ModifierOperation, InEffect.ModifierValue);
-			else if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToDownwardFloatingRatio) ApplyOperation(A->DownwardFloatingRatio, InEffect.ModifierOperation, InEffect.ModifierValue);
+			if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, EffectiveModifierValue);
+			else if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToUpwardFloatingRatio) ApplyOperation(A->UpwardFloatingRatio, InEffect.ModifierOperation, EffectiveModifierValue);
+			else if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToDownwardFloatingRatio) ApplyOperation(A->DownwardFloatingRatio, InEffect.ModifierOperation, EffectiveModifierValue);
 		}
 	}
 }
@@ -180,7 +193,7 @@ void ULxCharacterAttributeComponent::ApplyRecoveryEffect(const FLxAttributeRecov
 	RuntimeAttributeSet->GetAllResourceAttributes(Resources);
 	for (const FLxResourceAttributeData& Resource : Resources)
 	{
-		if (!AttributeMatchesEffect(Resource, InEffect.AttributeIDTag, InEffect.TargetAttributeCategories)) continue;
+		if (!AttributeMatchesEffect(Resource, InEffect.AttributeIDTag, InEffect.TargetBusinessCategories)) continue;
 		FLxResourceAttributeData* MutableResource = RuntimeAttributeSet->FindMutableResourceAttribute(Resource.AttributeIDTag);
 		if (MutableResource == nullptr) continue;
 		if (InEffect.RecoveryOperation == ELxAttributeModifierOperation::AddBasePercent || InEffect.RecoveryOperation == ELxAttributeModifierOperation::AddTotalPercent)
@@ -189,34 +202,40 @@ void ULxCharacterAttributeComponent::ApplyRecoveryEffect(const FLxAttributeRecov
 	}
 }
 
-void ULxCharacterAttributeComponent::RefreshDerivedAttributes()
+bool ULxCharacterAttributeComponent::TryGetAttributeFieldValue(const FGameplayTag InAttributeIDTag,
+	const ELxAttributeModifierTarget InAttributeTarget, float& OutAttributeValue) const
 {
-	if (RuntimeAttributeSet == nullptr) return;
-	TArray<FLxBasicAttributeData> BasicAttributes;
-	RuntimeAttributeSet->GetAllBasicAttributes(BasicAttributes);
-	for (const FLxBasicAttributeData& SourceAttribute : BasicAttributes)
-	{
-		for (const FLxAttributeDerivedRule& DerivedRule : SourceAttribute.DerivedRules)
-		{
-			const FGameplayTag TargetID = DerivedRule.AttributeIDTag;
-			if (TargetID.IsValid() && TargetID != SourceAttribute.AttributeIDTag) ApplyDerivedValue(TargetID, DerivedRule, SourceAttribute.Value);
-		}
-	}
-}
+	OutAttributeValue = 0.f;
+	if (RuntimeAttributeSet == nullptr || !InAttributeIDTag.IsValid()) return false;
 
-void ULxCharacterAttributeComponent::ApplyDerivedValue(const FGameplayTag InTargetAttributeIDTag, const FLxAttributeDerivedRule& InDerivedRule, const float InSourceValue)
-{
-	if (FLxBasicAttributeData* A = RuntimeAttributeSet->FindMutableBasicAttribute(InTargetAttributeIDTag)) { if (InDerivedRule.EntryTarget == ELxEntryTarget::ToValue) ApplyDerivedOperation(A->Value, InDerivedRule.EffectiveType, InSourceValue, InDerivedRule.Ratio); return; }
-	if (FLxResourceAttributeData* A = RuntimeAttributeSet->FindMutableResourceAttribute(InTargetAttributeIDTag)) { if (InDerivedRule.EntryTarget == ELxEntryTarget::ToValue) ApplyDerivedOperation(A->Value, InDerivedRule.EffectiveType, InSourceValue, InDerivedRule.Ratio); else if (InDerivedRule.EntryTarget == ELxEntryTarget::ToValueLimit) ApplyDerivedOperation(A->ValueLimit, InDerivedRule.EffectiveType, InSourceValue, InDerivedRule.Ratio); return; }
-	if (FLxProbabilityAttributeData* A = RuntimeAttributeSet->FindMutableProbabilityAttribute(InTargetAttributeIDTag)) { if (InDerivedRule.EntryTarget == ELxEntryTarget::ToValue) ApplyDerivedOperation(A->Value, InDerivedRule.EffectiveType, InSourceValue, InDerivedRule.Ratio); return; }
-	if (FLxPercentageAttributeData* A = RuntimeAttributeSet->FindMutablePercentageAttribute(InTargetAttributeIDTag)) { if (InDerivedRule.EntryTarget == ELxEntryTarget::ToValue) ApplyDerivedOperation(A->Value, InDerivedRule.EffectiveType, InSourceValue, InDerivedRule.Ratio); return; }
-	if (FLxNumericAttributeData* A = RuntimeAttributeSet->FindMutableNumericAttribute(InTargetAttributeIDTag)) { if (InDerivedRule.EntryTarget == ELxEntryTarget::ToValue) ApplyDerivedOperation(A->Value, InDerivedRule.EffectiveType, InSourceValue, InDerivedRule.Ratio); return; }
-	if (FLxRangeAttributeData* A = RuntimeAttributeSet->FindMutableRangeAttribute(InTargetAttributeIDTag))
+	FLxScalarAttributeData ScalarAttribute;
+	if (RuntimeAttributeSet->GetScalarAttribute(InAttributeIDTag, ScalarAttribute))
 	{
-		if (InDerivedRule.EntryTarget == ELxEntryTarget::ToValue) ApplyDerivedOperation(A->Value, InDerivedRule.EffectiveType, InSourceValue, InDerivedRule.Ratio);
-		else if (InDerivedRule.EntryTarget == ELxEntryTarget::ToUpwardFloatingRatio) ApplyDerivedOperation(A->UpwardFloatingRatio, InDerivedRule.EffectiveType, InSourceValue, InDerivedRule.Ratio);
-		else if (InDerivedRule.EntryTarget == ELxEntryTarget::ToDownwardFloatingRatio) ApplyDerivedOperation(A->DownwardFloatingRatio, InDerivedRule.EffectiveType, InSourceValue, InDerivedRule.Ratio);
+		if (InAttributeTarget != ELxAttributeModifierTarget::ToValue) return false;
+		OutAttributeValue = ScalarAttribute.Value;
+		return true;
 	}
+
+	FLxResourceAttributeData ResourceAttribute;
+	if (RuntimeAttributeSet->GetResourceAttribute(InAttributeIDTag, ResourceAttribute))
+	{
+		if (InAttributeTarget == ELxAttributeModifierTarget::ToValue) OutAttributeValue = ResourceAttribute.Value;
+		else if (InAttributeTarget == ELxAttributeModifierTarget::ToValueLimit) OutAttributeValue = ResourceAttribute.ValueLimit;
+		else return false;
+		return true;
+	}
+
+	FLxRangeAttributeData RangeAttribute;
+	if (RuntimeAttributeSet->GetRangeAttribute(InAttributeIDTag, RangeAttribute))
+	{
+		if (InAttributeTarget == ELxAttributeModifierTarget::ToValue) OutAttributeValue = RangeAttribute.Value;
+		else if (InAttributeTarget == ELxAttributeModifierTarget::ToUpwardFloatingRatio) OutAttributeValue = RangeAttribute.UpwardFloatingRatio;
+		else if (InAttributeTarget == ELxAttributeModifierTarget::ToDownwardFloatingRatio) OutAttributeValue = RangeAttribute.DownwardFloatingRatio;
+		else return false;
+		return true;
+	}
+
+	return false;
 }
 
 void ULxCharacterAttributeComponent::CacheRuntimeResourceValues()
@@ -236,14 +255,27 @@ void ULxCharacterAttributeComponent::RestoreRuntimeResourceValues()
 	}
 }
 
+void ULxCharacterAttributeComponent::FillRuntimeResourceValuesToLimit()
+{
+	if (RuntimeAttributeSet == nullptr) return;
+
+	TArray<FLxResourceAttributeData> Resources;
+	RuntimeAttributeSet->GetAllResourceAttributes(Resources);
+	for (const FLxResourceAttributeData& ResourceData : Resources)
+	{
+		if (FLxResourceAttributeData* Resource = RuntimeAttributeSet->FindMutableResourceAttribute(ResourceData.AttributeIDTag))
+		{
+			Resource->Value = Resource->ValueLimit;
+		}
+	}
+}
+
 void ULxCharacterAttributeComponent::NormalizeTypedAttributeValues()
 {
 	if (RuntimeAttributeSet == nullptr) return;
 	TArray<FLxResourceAttributeData> Resources; RuntimeAttributeSet->GetAllResourceAttributes(Resources);
 	for (const FLxResourceAttributeData& Data : Resources) if (FLxResourceAttributeData* A = RuntimeAttributeSet->FindMutableResourceAttribute(Data.AttributeIDTag)) { A->ValueLimit = FMath::Max(0.f, FMath::RoundToFloat(A->ValueLimit)); A->Value = FMath::Clamp(FMath::RoundToFloat(A->Value), 0.f, A->ValueLimit); }
-	TArray<FLxBasicAttributeData> Basic; RuntimeAttributeSet->GetAllBasicAttributes(Basic); for (const auto& Data : Basic) if (auto* A = RuntimeAttributeSet->FindMutableBasicAttribute(Data.AttributeIDTag)) A->Value = FMath::RoundToFloat(A->Value);
-	TArray<FLxNumericAttributeData> Numeric; RuntimeAttributeSet->GetAllNumericAttributes(Numeric); for (const auto& Data : Numeric) if (auto* A = RuntimeAttributeSet->FindMutableNumericAttribute(Data.AttributeIDTag)) A->Value = FMath::RoundToFloat(A->Value);
-	TArray<FLxProbabilityAttributeData> Probability; RuntimeAttributeSet->GetAllProbabilityAttributes(Probability); for (const auto& Data : Probability) if (auto* A = RuntimeAttributeSet->FindMutableProbabilityAttribute(Data.AttributeIDTag)) A->Value = FMath::Clamp(A->Value, 0.f, 1.f);
+	TArray<FLxScalarAttributeData> Scalar; RuntimeAttributeSet->GetAllScalarAttributes(Scalar); for (const auto& Data : Scalar) if (auto* A = RuntimeAttributeSet->FindMutableScalarAttribute(Data.AttributeIDTag)) A->Value = A->ScalarRule.NormalizeValue(A->Value);
 }
 
 void ULxCharacterAttributeComponent::RefreshCharacterMovementSpeed() const
@@ -251,10 +283,10 @@ void ULxCharacterAttributeComponent::RefreshCharacterMovementSpeed() const
 	const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
 	if (OwnerCharacter == nullptr || RuntimeAttributeSet == nullptr) return;
 
-	FLxNumericAttributeData BaseMovementSpeed;
-	FLxPercentageAttributeData MovementSpeedBonus;
-	if (!RuntimeAttributeSet->GetNumericAttribute(LxTag_Attribute_Numeric_BaseMovementSpeed, BaseMovementSpeed)
-		|| !RuntimeAttributeSet->GetPercentageAttribute(LxTag_Attribute_Percentage_MovementSpeedBonus, MovementSpeedBonus))
+	FLxScalarAttributeData BaseMovementSpeed;
+	FLxScalarAttributeData MovementSpeedBonus;
+	if (!RuntimeAttributeSet->GetScalarAttribute(LxTag_Attribute_Action_BaseMovementSpeed, BaseMovementSpeed)
+		|| !RuntimeAttributeSet->GetScalarAttribute(LxTag_Attribute_Action_MovementSpeedBonus, MovementSpeedBonus))
 	{
 		return;
 	}
@@ -266,24 +298,22 @@ void ULxCharacterAttributeComponent::RefreshCharacterMovementSpeed() const
 	}
 }
 
-bool ULxCharacterAttributeComponent::AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, const FGameplayTag InAttributeIDTag, const TArray<ELxCharacterAttributeCategoryType>& InTargetCategories)
+bool ULxCharacterAttributeComponent::AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData,
+	const FGameplayTag InAttributeIDTag, const TArray<ELxCharacterAttributeBusinessCategory>& InTargetBusinessCategories)
 {
 	const bool bHasID = InAttributeIDTag.IsValid();
-	const bool bHasCategories = !InTargetCategories.IsEmpty();
-	if (!bHasID && !bHasCategories) return false;
+	const bool bHasBusinessCategories = !InTargetBusinessCategories.IsEmpty();
+	if (!bHasID && !bHasBusinessCategories) return false;
 	if (bHasID && InAttributeData.AttributeIDTag != InAttributeIDTag) return false;
-	return !bHasCategories || InTargetCategories.Contains(InAttributeData.AttributeCategory);
+	return !bHasBusinessCategories || InTargetBusinessCategories.Contains(InAttributeData.BusinessCategory);
 }
 
 void ULxCharacterAttributeComponent::GetTypedAttributeSnapshot(FLxTypedAttributeSnapshot& OutAttributeSnapshot) const
 {
 	OutAttributeSnapshot = FLxTypedAttributeSnapshot();
 	if (RuntimeAttributeSet == nullptr) return;
-	RuntimeAttributeSet->GetAllBasicAttributes(OutAttributeSnapshot.BasicAttributes);
+	RuntimeAttributeSet->GetAllScalarAttributes(OutAttributeSnapshot.ScalarAttributes);
 	RuntimeAttributeSet->GetAllResourceAttributes(OutAttributeSnapshot.ResourceAttributes);
-	RuntimeAttributeSet->GetAllProbabilityAttributes(OutAttributeSnapshot.ProbabilityAttributes);
-	RuntimeAttributeSet->GetAllPercentageAttributes(OutAttributeSnapshot.PercentageAttributes);
-	RuntimeAttributeSet->GetAllNumericAttributes(OutAttributeSnapshot.NumericAttributes);
 	RuntimeAttributeSet->GetAllRangeAttributes(OutAttributeSnapshot.RangeAttributes);
 }
 
@@ -298,27 +328,16 @@ int32 ULxCharacterAttributeComponent::CalculateTotalStrength() const
 	GetTypedAttributeSnapshot(AttributeSnapshot);
 
 	int64 TotalStrength = 0;
-	for (const FLxBasicAttributeData& AttributeData : AttributeSnapshot.BasicAttributes)
+	for (const FLxScalarAttributeData& AttributeData : AttributeSnapshot.ScalarAttributes)
 	{
-		TotalStrength += ConvertAttributeUnitsToStrength(AttributeData.Value, AttributeData.StrengthConversionIndex);
+		const double AttributeUnits = AttributeData.ScalarRule.DisplayFormat == ELxScalarAttributeDisplayFormat::Percentage
+			? static_cast<double>(AttributeData.Value) * PercentageUnitsPerRatio
+			: static_cast<double>(AttributeData.Value);
+		TotalStrength += ConvertAttributeUnitsToStrength(AttributeUnits, AttributeData.StrengthConversionIndex);
 	}
 	for (const FLxResourceAttributeData& AttributeData : AttributeSnapshot.ResourceAttributes)
 	{
 		TotalStrength += ConvertAttributeUnitsToStrength(AttributeData.ValueLimit, AttributeData.StrengthConversionIndex);
-	}
-	for (const FLxProbabilityAttributeData& AttributeData : AttributeSnapshot.ProbabilityAttributes)
-	{
-		const double ProbabilityPercent = FMath::Clamp(static_cast<double>(AttributeData.Value) * PercentageUnitsPerRatio, 0.0, 100.0);
-		TotalStrength += ConvertAttributeUnitsToStrength(ProbabilityPercent, AttributeData.StrengthConversionIndex);
-	}
-	for (const FLxPercentageAttributeData& AttributeData : AttributeSnapshot.PercentageAttributes)
-	{
-		const double PercentageValue = static_cast<double>(AttributeData.Value) * PercentageUnitsPerRatio;
-		TotalStrength += ConvertAttributeUnitsToStrength(PercentageValue, AttributeData.StrengthConversionIndex);
-	}
-	for (const FLxNumericAttributeData& AttributeData : AttributeSnapshot.NumericAttributes)
-	{
-		TotalStrength += ConvertAttributeUnitsToStrength(AttributeData.Value, AttributeData.StrengthConversionIndex);
 	}
 	for (const FLxRangeAttributeData& AttributeData : AttributeSnapshot.RangeAttributes)
 	{
@@ -337,11 +356,8 @@ void ULxCharacterAttributeComponent::BroadcastAttributeTableChanged()
 	RefreshCharacterMovementSpeed();
 	if (const AActor* OwnerActor = GetOwner(); OwnerActor != nullptr && OwnerActor->HasAuthority() && RuntimeAttributeSet != nullptr)
 	{
-		RuntimeAttributeSet->GetAllBasicAttributes(ReplicatedTypedAttributeSnapshot.BasicAttributes);
+		RuntimeAttributeSet->GetAllScalarAttributes(ReplicatedTypedAttributeSnapshot.ScalarAttributes);
 		RuntimeAttributeSet->GetAllResourceAttributes(ReplicatedTypedAttributeSnapshot.ResourceAttributes);
-		RuntimeAttributeSet->GetAllProbabilityAttributes(ReplicatedTypedAttributeSnapshot.ProbabilityAttributes);
-		RuntimeAttributeSet->GetAllPercentageAttributes(ReplicatedTypedAttributeSnapshot.PercentageAttributes);
-		RuntimeAttributeSet->GetAllNumericAttributes(ReplicatedTypedAttributeSnapshot.NumericAttributes);
 		RuntimeAttributeSet->GetAllRangeAttributes(ReplicatedTypedAttributeSnapshot.RangeAttributes);
 	}
 	FLxTypedAttributeSnapshot CurrentSnapshot;
@@ -353,11 +369,8 @@ void ULxCharacterAttributeComponent::BroadcastAttributeTableChanged()
 void ULxCharacterAttributeComponent::OnRep_TypedAttributeSnapshot()
 {
 	if (RuntimeAttributeSet == nullptr) RuntimeAttributeSet = NewObject<ULxCharacterBaseAttributeSet>(this);
-	RuntimeAttributeSet->ApplyTypedSnapshots(ReplicatedTypedAttributeSnapshot.BasicAttributes,
+	RuntimeAttributeSet->ApplyTypedSnapshots(ReplicatedTypedAttributeSnapshot.ScalarAttributes,
 		ReplicatedTypedAttributeSnapshot.ResourceAttributes,
-		ReplicatedTypedAttributeSnapshot.ProbabilityAttributes,
-		ReplicatedTypedAttributeSnapshot.PercentageAttributes,
-		ReplicatedTypedAttributeSnapshot.NumericAttributes,
 		ReplicatedTypedAttributeSnapshot.RangeAttributes);
 	RefreshCharacterMovementSpeed();
 	OnTypedAttributeSnapshotChanged.Broadcast(ReplicatedTypedAttributeSnapshot);

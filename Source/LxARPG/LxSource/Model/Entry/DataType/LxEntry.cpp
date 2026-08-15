@@ -124,6 +124,9 @@ ULxEntryObjectBase* ULxEntryObjectBase::CreateEnterObject(UObject* InParent, con
 		case ELxEntryType::AttributeGain:
 			OutEntryObject = NewObject<ULxEntryObjectAttributeGain>(InParent);
 			break;
+		case ELxEntryType::AttributeInfluence:
+			OutEntryObject = NewObject<ULxEntryObjectAttributeInfluence>(InParent);
+			break;
 		case ELxEntryType::AttributeRecovery:
 			OutEntryObject = NewObject<ULxEntryObjectAttributeRecovery>(InParent);
 			break;
@@ -141,6 +144,9 @@ ULxEntryObjectBase* ULxEntryObjectBase::CreateEnterObject(UObject* InParent, con
 			break;
 		case ELxEntryType::GrantSkill:
 			OutEntryObject = NewObject<ULxEntryObjectGrantSkill>(InParent);
+			break;
+		case ELxEntryType::GrantProfession:
+			OutEntryObject = NewObject<ULxEntryObjectGrantProfession>(InParent);
 			break;
 		case ELxEntryType::Damage:
 			OutEntryObject = NewObject<ULxEntryObjectDamage>(InParent);
@@ -191,7 +197,7 @@ void ULxEntryObjectAttributeGain::SetEntryData(const FLxEntryBase* InEntryData)
 
 void ULxEntryObjectAttributeGain::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale) const
 {
-	if (!AttributeGainData.AttributeIDTag.IsValid() && AttributeGainData.TargetAttributeCategories.IsEmpty())
+	if (!AttributeGainData.AttributeIDTag.IsValid() && AttributeGainData.TargetBusinessCategories.IsEmpty())
 	{
 		return;
 	}
@@ -201,8 +207,46 @@ void ULxEntryObjectAttributeGain::AppendEffectsToPackage(FLxEffectPackage& InOut
 	ModifierEffect.ModifierTarget = ConvertToModifierTarget(AttributeGainData.EntryTarget);
 	ModifierEffect.ModifierOperation = ConvertToModifierOperation(AttributeGainData.EffectiveType);
 	ModifierEffect.ModifierValue = AttributeGainData.EntryValue * MakeEntryEffectScale(GetEntryQuote(), InEffectScale);
-	ModifierEffect.TargetAttributeCategories = AttributeGainData.TargetAttributeCategories;
+	ModifierEffect.TargetBusinessCategories = AttributeGainData.TargetBusinessCategories;
 	ULxEffectFunctionLibrary::AddAggregatedAttributeModifierEffect(InOutEffectPackage.AttributeModifierEffects, ModifierEffect);
+}
+
+//////////////////////////////////////////////////
+
+FText ULxEntryObjectAttributeInfluence::GetDisplayName() const
+{
+	const float DisplayRatio = MakeEntryDisplayValue(AttributeInfluenceData.InfluenceRatio, GetEntryQuote());
+	return MakeStyledEntryDisplayName(AttributeInfluenceData.EntryText.EntryDisplayName,
+		FLxString::DoubleToIntStr(DisplayRatio).ToFString());
+}
+
+void ULxEntryObjectAttributeInfluence::SetEntryData(const FLxEntryBase* InEntryData)
+{
+	Super::SetEntryData(InEntryData);
+	if (InEntryData != nullptr && InEntryData->EntryType == ELxEntryType::AttributeInfluence)
+	{
+		AttributeInfluenceData = *static_cast<const FLxEntryAttributeInfluence*>(InEntryData);
+	}
+}
+
+void ULxEntryObjectAttributeInfluence::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, const float InEffectScale) const
+{
+	if (!AttributeInfluenceData.SourceAttributeIDTag.IsValid()
+		|| !AttributeInfluenceData.TargetAttributeIDTag.IsValid()
+		|| AttributeInfluenceData.SourceAttributeIDTag == AttributeInfluenceData.TargetAttributeIDTag)
+	{
+		return;
+	}
+
+	FLxAttributeModifierEffect InfluenceEffect;
+	InfluenceEffect.AttributeIDTag = AttributeInfluenceData.TargetAttributeIDTag;
+	InfluenceEffect.ModifierTarget = ConvertToModifierTarget(AttributeInfluenceData.TargetEntryTarget);
+	InfluenceEffect.ModifierOperation = ConvertToModifierOperation(AttributeInfluenceData.EffectiveType);
+	InfluenceEffect.SourceAttributeIDTag = AttributeInfluenceData.SourceAttributeIDTag;
+	InfluenceEffect.SourceAttributeTarget = ConvertToModifierTarget(AttributeInfluenceData.SourceEntryTarget);
+	InfluenceEffect.SourceAttributeRatio = AttributeInfluenceData.InfluenceRatio
+		* MakeEntryEffectScale(GetEntryQuote(), InEffectScale);
+	ULxEffectFunctionLibrary::AddAggregatedAttributeModifierEffect(InOutEffectPackage.AttributeModifierEffects, InfluenceEffect);
 }
 
 //////////////////////////////////////////////////
@@ -240,7 +284,7 @@ void ULxEntryObjectAttributeRecovery::SetEntryData(const FLxEntryBase* InEntryDa
 
 void ULxEntryObjectAttributeRecovery::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale) const
 {
-	if (!AttributeRecoveryData.AttributeIDTag.IsValid() && AttributeRecoveryData.TargetAttributeCategories.IsEmpty())
+	if (!AttributeRecoveryData.AttributeIDTag.IsValid() && AttributeRecoveryData.TargetBusinessCategories.IsEmpty())
 	{
 		return;
 	}
@@ -254,7 +298,7 @@ void ULxEntryObjectAttributeRecovery::AppendEffectsToPackage(FLxEffectPackage& I
 	{
 		RecoveryEffect.RecoveryValue *= 100.f;
 	}
-	RecoveryEffect.TargetAttributeCategories = AttributeRecoveryData.TargetAttributeCategories;
+	RecoveryEffect.TargetBusinessCategories = AttributeRecoveryData.TargetBusinessCategories;
 	InOutEffectPackage.AttributeRecoveryEffects.Add(RecoveryEffect);
 }
 /////////////////////////////////////////////////////
@@ -367,6 +411,35 @@ void ULxEntryObjectGrantSkill::AppendEffectsToPackage(FLxEffectPackage& InOutEff
 	FLxSkillGrantEffect SkillGrantEffect;
 	SkillGrantEffect.SkillItemIDTag = GrantSkillData.SkillItemIDTag;
 	InOutEffectPackage.SkillGrantEffects.Add(SkillGrantEffect);
+}
+
+FText ULxEntryObjectGrantProfession::GetDisplayName() const
+{
+	return MakeStyledEntryDisplayName(GrantProfessionData.EntryText.EntryDisplayName,
+		FString::FromInt(GrantProfessionData.ProfessionLevel));
+}
+
+void ULxEntryObjectGrantProfession::SetEntryData(const FLxEntryBase* InEntryData)
+{
+	Super::SetEntryData(InEntryData);
+	if (InEntryData && InEntryData->EntryType == ELxEntryType::GrantProfession)
+	{
+		GrantProfessionData = *static_cast<const FLxEntryGrantProfession*>(InEntryData);
+	}
+}
+
+void ULxEntryObjectGrantProfession::AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale) const
+{
+	if (!GrantProfessionData.ProfessionIDTag.IsValid())
+	{
+		return;
+	}
+
+	FLxProfessionGrantEffect ProfessionGrantEffect;
+	ProfessionGrantEffect.ProfessionIDTag = GrantProfessionData.ProfessionIDTag;
+	ProfessionGrantEffect.ProfessionLevel = FMath::Max(1, GrantProfessionData.ProfessionLevel);
+	ProfessionGrantEffect.bCanUpgrade = GrantProfessionData.bCanUpgrade;
+	InOutEffectPackage.ProfessionGrantEffects.Add(ProfessionGrantEffect);
 }
 
 

@@ -207,6 +207,14 @@ void ULxCharacterMoveComponent::RefreshBaseAnimationMotionSignal()
 	{
 		BaseComponentInitialize();
 	}
+	const ULxCharacterSpecialAttributeComponent* SpecialAttributeComponent = m_pOwnerCharacter
+		? m_pOwnerCharacter->GetCharacterSpecialAttributeComponent()
+		: nullptr;
+	if (SpecialAttributeComponent && !SpecialAttributeComponent->IsCharacterAlive())
+	{
+		// 死亡后保留 Dead（死亡状态），避免基础移动采样继续写回 Idle（待机状态）。
+		return;
+	}
 	UCharacterMovementComponent* MovementComponent = m_pOwnerCharacter ? m_pOwnerCharacter->GetCharacterMovement() : nullptr;
 	if (!MovementComponent)
 	{

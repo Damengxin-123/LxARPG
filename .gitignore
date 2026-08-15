@@ -2,7 +2,10 @@
 *
 
 !.gitignore
+!README.md
 !Source/
 !Source/**
 !Config/
 !Config/DefaultGameplayTags.ini
+!Config/Tags/
+!Config/Tags/LxAttributeAndEntryTags.ini

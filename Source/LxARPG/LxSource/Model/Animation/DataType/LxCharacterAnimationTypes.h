@@ -18,7 +18,7 @@ enum class ELxCharacterMotionType : uint8
 	Attack UMETA(DisplayName="攻击"),
 	Skill UMETA(DisplayName="技能"),
 	Hurt UMETA(DisplayName="受击"),
-	Dead UMETA(DisplayName="死亡")
+	Dead UMETA(DisplayName="倒地")
 };
 
 /**

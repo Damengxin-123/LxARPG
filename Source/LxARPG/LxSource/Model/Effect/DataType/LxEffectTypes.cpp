@@ -33,7 +33,9 @@ bool FLxAttributeModifierEffect::HasSameAggregationKey(const FLxAttributeModifie
 	return AttributeIDTag == Other.AttributeIDTag
 		&& ModifierTarget == Other.ModifierTarget
 		&& ModifierOperation == Other.ModifierOperation
-		&& TargetAttributeCategories == Other.TargetAttributeCategories;
+		&& SourceAttributeIDTag == Other.SourceAttributeIDTag
+		&& SourceAttributeTarget == Other.SourceAttributeTarget
+		&& TargetBusinessCategories == Other.TargetBusinessCategories;
 }
 
 bool FLxEffectPackage::IsEmpty() const
@@ -43,5 +45,6 @@ bool FLxEffectPackage::IsEmpty() const
 		&& DamageEffects.IsEmpty()
 		&& StateChangeEffects.IsEmpty()
 		&& BuffGrantEffects.IsEmpty()
-		&& SkillGrantEffects.IsEmpty();
+		&& SkillGrantEffects.IsEmpty()
+		&& ProfessionGrantEffects.IsEmpty();
 }

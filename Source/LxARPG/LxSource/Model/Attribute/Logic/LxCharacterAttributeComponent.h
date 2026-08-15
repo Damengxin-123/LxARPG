@@ -83,17 +83,18 @@ private:
 	/** 将恢复效果应用到资源属性结构。 */
 	void ApplyRecoveryEffect(const FLxAttributeRecoveryEffect& InEffect);
 
-	/** 将基础属性的衍生规则应用到目标分类属性。 */
-	void RefreshDerivedAttributes();
-
-	/** 按目标ID向对应分类属性字段应用衍生数值。 */
-	void ApplyDerivedValue(FGameplayTag InTargetAttributeIDTag, const FLxAttributeDerivedRule& InDerivedRule, float InSourceValue);
+	/** 按属性标签和字段读取属性影响词条使用的来源数值。 */
+	bool TryGetAttributeFieldValue(FGameplayTag InAttributeIDTag, ELxAttributeModifierTarget InAttributeTarget,
+		float& OutAttributeValue) const;
 
 	/** 保存资源属性有效值。 */
 	void CacheRuntimeResourceValues();
 
 	/** 在重算后恢复资源属性有效值。 */
 	void RestoreRuntimeResourceValues();
+
+	/** 将全部资源属性的当前有效值设置为各自的上限值，仅用于角色首次初始化。 */
+	void FillRuntimeResourceValuesToLimit();
 
 	/** 修正各分类属性的数值范围。 */
 	void NormalizeTypedAttributeValues();
@@ -102,7 +103,8 @@ private:
 	void RefreshCharacterMovementSpeed() const;
 
 	/** 判断属性公共信息是否满足词条目标。 */
-	static bool AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, FGameplayTag InAttributeIDTag, const TArray<ELxCharacterAttributeCategoryType>& InTargetCategories);
+	static bool AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, FGameplayTag InAttributeIDTag,
+		const TArray<ELxCharacterAttributeBusinessCategory>& InTargetBusinessCategories);
 
 	/** 广播分类属性变化并生成网络快照。 */
 	void BroadcastAttributeTableChanged();

@@ -1,6 +1,6 @@
 #include "LxDamageCalculationFlow.h"
 
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
+#include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Damage/DataType/LxDamageTags.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 
@@ -150,7 +150,7 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateAttackPowerDamage
 {
 	FLxDamageCalculationContext ResultContext = InDamageContext;
 
-	const float RolledDamageValue = FMath::Max(0.f, GetDamageSourceValue(ResultContext.SourceDataTransferComponent, LxTag_Attribute_Range_AttackPower));
+	const float RolledDamageValue = FMath::Max(0.f, GetDamageSourceValue(ResultContext.SourceDataTransferComponent, LxTag_Attribute_Combat_AttackPower));
 	if (FMath::IsNearlyZero(RolledDamageValue))
 	{
 		return ResultContext;
@@ -183,7 +183,7 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateCriticalDamageOut
 	}
 
 	float CriticalDamageMultiplier = DefaultCriticalDamageMultiplier;
-	const float CriticalDamagePercent = GetAttributeSingleValue(ResultContext.SourceDataTransferComponent, LxTag_Attribute_Percentage_CriticalDamage, 0.f);
+	const float CriticalDamagePercent = GetAttributeSingleValue(ResultContext.SourceDataTransferComponent, LxTag_Attribute_Combat_CriticalDamage, 0.f);
 	if (CriticalDamagePercent > 0.f)
 	{
 		CriticalDamageMultiplier = 1.f + CriticalDamagePercent;
@@ -208,7 +208,7 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateCriticalDamageOut
 FLxDamageCalculationContext ULxDamageCalculationFlow::CalculateDefenseDamageReduction(const FLxDamageCalculationContext& InDamageContext)
 {
 	FLxDamageCalculationContext ResultContext = InDamageContext;
-	const float DefenseValue = FMath::Max(0.f, GetAttributeSingleValue(ResultContext.TargetDataTransferComponent, LxTag_Attribute_Numeric_Armor));
+	const float DefenseValue = FMath::Max(0.f, GetAttributeSingleValue(ResultContext.TargetDataTransferComponent, LxTag_Attribute_Combat_Armor));
 	ResultContext.DefenseValue = DefenseValue;
 	if (FMath::IsNearlyZero(DefenseValue))
 	{

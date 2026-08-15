@@ -1,7 +1,7 @@
 #include "LxCharacterEffectProcessComponent.h"
 
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
+#include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Damage/Logic/LxDamageCalculationFlow.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
@@ -221,7 +221,6 @@ bool ULxCharacterEffectProcessComponent::ReceiveIncomingEffectPackage(const FLxE
 	if (bApplyResult)
 	{
 		ApplyDamageReceiveResultToTarget(OutDamageReceiveResult);
-		RefreshLifecycleAfterDamage();
 
 		// 将自定义效果伤害同步到 AI 伤害感知，保证受击角色能立即识别攻击来源。
 		if (IsValid(DamageContext.SourceActor) && DamageContext.SourceActor != GetOwner())
@@ -332,6 +331,7 @@ void ULxCharacterEffectProcessComponent::BuildEffectPackagesFromSkillEntries(ULx
 			CombinedPackage.StateChangeEffects.Append(Package.StateChangeEffects);
 			CombinedPackage.BuffGrantEffects.Append(Package.BuffGrantEffects);
 			CombinedPackage.SkillGrantEffects.Append(Package.SkillGrantEffects);
+			CombinedPackage.ProfessionGrantEffects.Append(Package.ProfessionGrantEffects);
 		}
 		OutEffectPackages.Reset();
 		OutEffectPackages.Add(MoveTemp(CombinedPackage));
@@ -373,24 +373,5 @@ void ULxCharacterEffectProcessComponent::ApplyDamageReceiveResultToTarget(const 
 	if (!DamageRecoveryPackage.AttributeRecoveryEffects.IsEmpty())
 	{
 		DataTransferComponent->ApplyEffectPackage(DamageRecoveryPackage);
-	}
-}
-
-void ULxCharacterEffectProcessComponent::RefreshLifecycleAfterDamage()
-{
-	if (SpecialAttributeComponent == nullptr || DataTransferComponent == nullptr || !SpecialAttributeComponent->IsCharacterAlive())
-	{
-		return;
-	}
-
-	FLxResourceAttributeData HealthAttributeData;
-	if (!DataTransferComponent->QueryResourceAttribute(LxTag_Attribute_Resource_Health, HealthAttributeData))
-	{
-		return;
-	}
-
-	if (HealthAttributeData.Value <= 0.f)
-	{
-		SpecialAttributeComponent->SetCharacterDead();
 	}
 }

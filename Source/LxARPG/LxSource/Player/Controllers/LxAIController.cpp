@@ -8,7 +8,7 @@
 #include "Perception/AISense_Sight.h"
 #include "TimerManager.h"
 #include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorComponent.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
+#include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Player/Characters/LxAICharacter.h"
@@ -16,6 +16,9 @@
 
 namespace
 {
+	/** 将AI业务配置使用的米换算为虚幻世界单位厘米。 */
+	constexpr float MetersToCentimeters = 100.0f;
+
 	/** 单个目标参与当前AI数值汇总时使用的临时数据。 */
 	struct FLxAnalyzedTarget
 	{
@@ -39,8 +42,8 @@ ALxAIController::ALxAIController()
 	SetPerceptionComponent(*AIPerceptionComponent);
 
 	SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
-	SightConfig->SightRadius = 2500.0f;
-	SightConfig->LoseSightRadius = 3000.0f;
+	SightConfig->SightRadius = 25.0f * MetersToCentimeters;
+	SightConfig->LoseSightRadius = 30.0f * MetersToCentimeters;
 	SightConfig->PeripheralVisionAngleDegrees = 90.0f;
 	SightConfig->DetectionByAffiliation.bDetectEnemies = true;
 	SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
@@ -160,8 +163,8 @@ void ALxAIController::ApplyPerceptionConfiguration()
 	}
 
 	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
-	SightConfig->SightRadius = FMath::Max(0.0f, Config.SightRadius);
-	SightConfig->LoseSightRadius = FMath::Max(SightConfig->SightRadius, Config.LoseSightRadius);
+	SightConfig->SightRadius = FMath::Max(0.0f, Config.SightRadius) * MetersToCentimeters;
+	SightConfig->LoseSightRadius = FMath::Max(Config.SightRadius, Config.LoseSightRadius) * MetersToCentimeters;
 	SightConfig->SetMaxAge(FMath::Max(0.1f, Config.TargetMemoryMaxAge));
 	DamageConfig->SetMaxAge(FMath::Max(0.1f, Config.TargetMemoryMaxAge));
 	AIPerceptionComponent->ConfigureSense(*SightConfig);
@@ -403,6 +406,21 @@ void ALxAIController::SelectAndExecuteAction(const ELxAISituationLevel InSituati
 	if (!BehaviorComponent)
 	{
 		ChangeAction(InSituation, ELxAIActionType::None);
+		return;
+	}
+
+	// 先按正常候选判断本轮是否仍然应该逃跑，再更新敌方追近和逃跑距离状态。
+	const TSet<ELxAIActionType> NoExcludedActions;
+	const ELxAIActionType PreferredAction = SelectFirstExecutableAction(
+		CurrentBattleSnapshot, InSituation, NoExcludedActions);
+	BehaviorComponent->UpdateRetreatProgress(
+		CurrentBattleSnapshot, PreferredAction == ELxAIActionType::Retreat);
+
+	// 单次逃跑在达到配置距离前具有持续性；即使暂时丢失敌方，也会在当前路径结束后继续分段寻路。
+	if (BehaviorComponent->IsRetreatInProgress())
+	{
+		BehaviorComponent->ExecuteBehavior(ELxAIActionType::Retreat, CurrentBattleSnapshot);
+		ChangeAction(InSituation, ELxAIActionType::Retreat);
 		return;
 	}
 

@@ -10,8 +10,17 @@
 
 namespace
 {
-	/** 逃跑行为每次重新寻路时使用的邻近移动步长，避免远距离终点越出导航区域。 */
-	constexpr float RetreatMoveStepDistance = 300.0f;
+	/** 将AI行为配置使用的米换算为虚幻世界单位厘米。 */
+	constexpr float MetersToCentimeters = 100.0f;
+
+	/** 将非负的AI业务距离从米换算为虚幻世界单位厘米。 */
+	float ConvertMetersToWorldDistance(const float InDistanceMeters)
+	{
+		return FMath::Max(0.0f, InDistanceMeters) * MetersToCentimeters;
+	}
+
+	/** 逃跑行为每次重新寻路时使用的邻近移动步长，配置语义为米。 */
+	constexpr float RetreatMoveStepDistanceMeters = 3.0f;
 
 	/** 逃跑目标点投射失败时逐级缩短距离的尝试比例。 */
 	constexpr float RetreatDistanceScales[] = {1.0f, 0.75f, 0.5f, 0.25f};
@@ -19,30 +28,14 @@ namespace
 	/** 主逃跑方向不可导航时在后方扇区内按左右交替顺序尝试的水平偏转角度。 */
 	constexpr float RetreatDirectionAngles[] = {0.0f, 25.0f, -25.0f, 50.0f, -50.0f, 70.0f, -70.0f};
 
-	/** 导航路径点距离比较允许的微小误差，避免导航投射误差导致有效路径被拒绝。 */
-	constexpr float RetreatPathDistanceTolerance = 5.0f;
+	/** 判断敌方开始追近时允许的距离抖动误差，单位为厘米。 */
+	constexpr float RetreatClosingDistanceTolerance = 10.0f;
 
-	/** 判断导航路径中的每一段是否都没有向追逐中的最近敌方靠近。 */
-	bool IsRetreatPathMovingAwayFromEnemy(const UNavigationPath* InNavigationPath, const FVector& InEnemyLocation)
+	/** 判断逃跑候选路径是否完整可达，允许导航系统为了绕过障碍短暂横移或接近敌方。 */
+	bool IsCompleteRetreatPath(const UNavigationPath* InNavigationPath)
 	{
-		if (!IsValid(InNavigationPath) || !InNavigationPath->IsValid() || InNavigationPath->IsPartial() ||
-			InNavigationPath->PathPoints.Num() < 2)
-		{
-			return false;
-		}
-
-		float PreviousDistance = FVector::Dist2D(InNavigationPath->PathPoints[0], InEnemyLocation);
-		for (int32 PointIndex = 1; PointIndex < InNavigationPath->PathPoints.Num(); ++PointIndex)
-		{
-			const float CurrentDistance = FVector::Dist2D(
-				InNavigationPath->PathPoints[PointIndex], InEnemyLocation);
-			if (CurrentDistance + RetreatPathDistanceTolerance < PreviousDistance)
-			{
-				return false;
-			}
-			PreviousDistance = CurrentDistance;
-		}
-		return true;
+		return IsValid(InNavigationPath) && InNavigationPath->IsValid() && !InNavigationPath->IsPartial() &&
+			InNavigationPath->PathPoints.Num() >= 2;
 	}
 }
 
@@ -160,8 +153,8 @@ bool ULxAIBehaviorComponent::CanExecuteHeal(const FLxAIBattleSnapshot& InBattleS
 
 bool ULxAIBehaviorComponent::CanExecuteRetreat(const FLxAIBattleSnapshot& InBattleSnapshot) const
 {
-	return OwnerAICharacter && CharacterMoveComponent && InBattleSnapshot.bHasThreat &&
-		IsValid(InBattleSnapshot.NearestEnemy);
+	return OwnerAICharacter && CharacterMoveComponent && (bRetreatInProgress ||
+		(!bRetreatCompletionBlocked && InBattleSnapshot.bHasThreat && IsValid(InBattleSnapshot.NearestEnemy)));
 }
 
 void ULxAIBehaviorComponent::StopBehavior()
@@ -173,6 +166,93 @@ void ULxAIBehaviorComponent::StopBehavior()
 	if (AAIController* AIController = GetOwnerAIController())
 	{
 		AIController->ClearFocus(EAIFocusPriority::Gameplay);
+	}
+	ResetRetreatState();
+}
+
+void ULxAIBehaviorComponent::UpdateRetreatProgress(const FLxAIBattleSnapshot& InBattleSnapshot,
+	const bool bInShouldRetreat)
+{
+	if (!OwnerAICharacter)
+	{
+		return;
+	}
+
+	AActor* NearestEnemy = InBattleSnapshot.NearestEnemy;
+	if (bRetreatCompletionBlocked)
+	{
+		const bool bHasEnemy = InBattleSnapshot.bHasThreat && IsValid(NearestEnemy);
+		const float CurrentEnemyDistance = bHasEnemy ? FVector::Dist2D(
+			OwnerAICharacter->GetActorLocation(), NearestEnemy->GetActorLocation()) : 0.0f;
+		const bool bEnemyChanged = bHasEnemy && CompletedRetreatEnemy.Get() != NearestEnemy;
+		const bool bEnemyCaughtUp = bHasEnemy && !bEnemyChanged &&
+			CurrentEnemyDistance + RetreatClosingDistanceTolerance < CompletedRetreatEnemyDistance;
+		if (!bHasEnemy || bEnemyChanged || bEnemyCaughtUp)
+		{
+			bRetreatCompletionBlocked = false;
+			CompletedRetreatEnemy.Reset();
+			CompletedRetreatEnemyDistance = 0.0f;
+		}
+	}
+
+	if (!bRetreatInProgress)
+	{
+		return;
+	}
+
+	const bool bHasRetreatEnemy = bInShouldRetreat && InBattleSnapshot.bHasThreat && IsValid(NearestEnemy);
+	if (bHasRetreatEnemy)
+	{
+		const float CurrentEnemyDistance = FVector::Dist2D(
+			OwnerAICharacter->GetActorLocation(), NearestEnemy->GetActorLocation());
+		const bool bEnemyChanged = LastRetreatEnemy.Get() != NearestEnemy;
+		const bool bEnemyReacquired = !bHadRetreatEnemy;
+		const bool bEnemyClosing = !bEnemyChanged && bHadRetreatEnemy &&
+			CurrentEnemyDistance + RetreatClosingDistanceTolerance < LastRetreatEnemyDistance;
+
+		// 敌方重新出现、目标切换或由远离转为追近时，从当前位置重新累计完整逃跑距离。
+		if (bEnemyChanged || bEnemyReacquired || (bEnemyClosing && !bRetreatEnemyWasClosing))
+		{
+			RetreatStartLocation = OwnerAICharacter->GetActorLocation();
+		}
+
+		LastRetreatEnemy = NearestEnemy;
+		LastRetreatEnemyDistance = CurrentEnemyDistance;
+		bRetreatEnemyWasClosing = bEnemyClosing;
+		bHadRetreatEnemy = true;
+
+		const FVector UpdatedDirection = (OwnerAICharacter->GetActorLocation() -
+			NearestEnemy->GetActorLocation()).GetSafeNormal2D();
+		if (!UpdatedDirection.IsNearlyZero())
+		{
+			LastRetreatDirection = UpdatedDirection;
+		}
+	}
+	else
+	{
+		bHadRetreatEnemy = false;
+		bRetreatEnemyWasClosing = false;
+	}
+
+	const float RequiredRetreatDistance = ConvertMetersToWorldDistance(
+		OwnerAICharacter->GetAIControlConfig().RetreatDistance);
+	if (FVector::Dist2D(OwnerAICharacter->GetActorLocation(), RetreatStartLocation) >= RequiredRetreatDistance)
+	{
+		CompletedRetreatEnemy = IsValid(NearestEnemy) ? NearestEnemy : LastRetreatEnemy;
+		CompletedRetreatEnemyDistance = CompletedRetreatEnemy.IsValid() ? FVector::Dist2D(
+			OwnerAICharacter->GetActorLocation(), CompletedRetreatEnemy->GetActorLocation()) : 0.0f;
+		if (CharacterMoveComponent)
+		{
+			CharacterMoveComponent->StopActiveMovement();
+		}
+		bRetreatInProgress = false;
+		RetreatStartLocation = FVector::ZeroVector;
+		LastRetreatDirection = FVector::ZeroVector;
+		LastRetreatEnemy.Reset();
+		LastRetreatEnemyDistance = 0.0f;
+		bHadRetreatEnemy = false;
+		bRetreatEnemyWasClosing = false;
+		bRetreatCompletionBlocked = true;
 	}
 }
 
@@ -187,8 +267,9 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecutePatrol()
 	FNavLocation PatrolLocation;
 	if (UNavigationSystemV1* NavigationSystem = UNavigationSystemV1::GetCurrent(GetWorld()))
 	{
+		const float PatrolRadius = ConvertMetersToWorldDistance(OwnerAICharacter->GetAIControlConfig().PatrolRadius);
 		if (NavigationSystem->GetRandomReachablePointInRadius(PatrolOrigin,
-			OwnerAICharacter->GetAIControlConfig().PatrolRadius, PatrolLocation))
+			PatrolRadius, PatrolLocation))
 		{
 			return CharacterMoveComponent->RequestMoveToLocation(PatrolLocation.Location, 50.0f) ?
 				ELxAIBehaviorExecutionResult::Started : ELxAIBehaviorExecutionResult::Failed;
@@ -228,9 +309,11 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteAttack(const FLxAIBa
 	}
 	const FLxAIControlConfig& Config = OwnerAICharacter->GetAIControlConfig();
 	const float Distance = FVector::Dist(OwnerAICharacter->GetActorLocation(), TargetActor->GetActorLocation());
-	if (Distance > Config.AttackSkillRange)
+	const float AttackSkillRange = ConvertMetersToWorldDistance(Config.AttackSkillRange);
+	if (Distance > AttackSkillRange)
 	{
-		const float AcceptanceRadius = FMath::Min(Config.AttackAcceptanceRadius, Config.AttackSkillRange);
+		const float AcceptanceRadius = FMath::Min(
+			ConvertMetersToWorldDistance(Config.AttackAcceptanceRadius), AttackSkillRange);
 		return CharacterMoveComponent->RequestMoveToActor(TargetActor, AcceptanceRadius) ?
 			ELxAIBehaviorExecutionResult::Started : ELxAIBehaviorExecutionResult::Failed;
 	}
@@ -290,9 +373,10 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteHeal(const FLxAIBatt
 	}
 	const FLxAIControlConfig& Config = OwnerAICharacter->GetAIControlConfig();
 	const float Distance = FVector::Dist(OwnerAICharacter->GetActorLocation(), HealTarget->GetActorLocation());
-	if (Distance > Config.HealSkillRange)
+	const float HealSkillRange = ConvertMetersToWorldDistance(Config.HealSkillRange);
+	if (Distance > HealSkillRange)
 	{
-		return CharacterMoveComponent->RequestMoveToActor(HealTarget, Config.HealSkillRange * 0.8f) ?
+		return CharacterMoveComponent->RequestMoveToActor(HealTarget, HealSkillRange * 0.8f) ?
 			ELxAIBehaviorExecutionResult::Started : ELxAIBehaviorExecutionResult::Failed;
 	}
 
@@ -322,18 +406,37 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteHeal(const FLxAIBatt
 ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteRetreat(const FLxAIBattleSnapshot& InBattleSnapshot)
 {
 	AActor* NearestEnemy = InBattleSnapshot.NearestEnemy;
-	if (!IsValid(NearestEnemy))
+	if (!bRetreatInProgress && !IsValid(NearestEnemy))
 	{
 		return ELxAIBehaviorExecutionResult::Failed;
 	}
 
 	const FVector CurrentLocation = OwnerAICharacter->GetActorLocation();
-	const FVector EnemyLocation = NearestEnemy->GetActorLocation();
-	FVector RetreatDirection = (CurrentLocation - EnemyLocation).GetSafeNormal2D();
+	if (!bRetreatInProgress)
+	{
+		bRetreatInProgress = true;
+		RetreatStartLocation = CurrentLocation;
+		LastRetreatEnemy = NearestEnemy;
+		LastRetreatEnemyDistance = FVector::Dist2D(CurrentLocation, NearestEnemy->GetActorLocation());
+		bHadRetreatEnemy = true;
+		bRetreatEnemyWasClosing = false;
+	}
+
+	if (CharacterMoveComponent->IsNavigationMoving())
+	{
+		return ELxAIBehaviorExecutionResult::InProgress;
+	}
+
+	const FVector EnemyLocation = IsValid(NearestEnemy) ? NearestEnemy->GetActorLocation() :
+		CurrentLocation - LastRetreatDirection * ConvertMetersToWorldDistance(RetreatMoveStepDistanceMeters);
+	FVector RetreatDirection = IsValid(NearestEnemy) ?
+		(CurrentLocation - EnemyLocation).GetSafeNormal2D() : LastRetreatDirection;
 	if (RetreatDirection.IsNearlyZero())
 	{
 		RetreatDirection = -OwnerAICharacter->GetActorForwardVector();
 	}
+	LastRetreatDirection = RetreatDirection.GetSafeNormal2D();
+	const float RetreatMoveStepDistance = ConvertMetersToWorldDistance(RetreatMoveStepDistanceMeters);
 
 	if (UNavigationSystemV1* NavigationSystem = UNavigationSystemV1::GetCurrent(GetWorld()))
 	{
@@ -357,7 +460,7 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteRetreat(const FLxAIB
 
 				const UNavigationPath* NavigationPath = UNavigationSystemV1::FindPathToLocationSynchronously(
 					this, CurrentLocation, ReachableLocation.Location, OwnerAICharacter);
-				if (!IsRetreatPathMovingAwayFromEnemy(NavigationPath, EnemyLocation))
+				if (!IsCompleteRetreatPath(NavigationPath))
 				{
 					continue;
 				}
@@ -374,6 +477,20 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteRetreat(const FLxAIB
 		}
 	}
 	return ELxAIBehaviorExecutionResult::Failed;
+}
+
+void ULxAIBehaviorComponent::ResetRetreatState()
+{
+	bRetreatInProgress = false;
+	RetreatStartLocation = FVector::ZeroVector;
+	LastRetreatDirection = FVector::ZeroVector;
+	LastRetreatEnemy.Reset();
+	LastRetreatEnemyDistance = 0.0f;
+	bHadRetreatEnemy = false;
+	bRetreatEnemyWasClosing = false;
+	bRetreatCompletionBlocked = false;
+	CompletedRetreatEnemy.Reset();
+	CompletedRetreatEnemyDistance = 0.0f;
 }
 
 AAIController* ULxAIBehaviorComponent::GetOwnerAIController() const

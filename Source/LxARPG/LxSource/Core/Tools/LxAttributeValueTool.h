@@ -13,20 +13,14 @@ public:
 	/** 计算区间属性能够生成的最大整数值。 */
 	static int32 GetRangeValueMax(const FLxRangeAttributeData& InAttributeData);
 
-	/** 构建基础属性显示数据。 */
-	static FLxAttributeDisplayData BuildDisplayData(const FLxBasicAttributeData& InAttributeData);
+	/** 构建标量属性显示数据。 */
+	static FLxAttributeDisplayData BuildDisplayData(const FLxScalarAttributeData& InAttributeData);
 	/** 构建资源属性显示数据。 */
 	static FLxAttributeDisplayData BuildDisplayData(const FLxResourceAttributeData& InAttributeData);
-	/** 构建几率属性显示数据。 */
-	static FLxAttributeDisplayData BuildDisplayData(const FLxProbabilityAttributeData& InAttributeData);
-	/** 构建百分比属性显示数据。 */
-	static FLxAttributeDisplayData BuildDisplayData(const FLxPercentageAttributeData& InAttributeData);
-	/** 构建数值属性显示数据。 */
-	static FLxAttributeDisplayData BuildDisplayData(const FLxNumericAttributeData& InAttributeData);
 	/** 构建区间属性显示数据。 */
 	static FLxAttributeDisplayData BuildDisplayData(const FLxRangeAttributeData& InAttributeData);
 
-	/** 将六类属性快照转换为只读 UI 显示列表。 */
+	/** 将三种数值结构的属性快照转换为只读 UI 显示列表。 */
 	static void BuildDisplayDataList(const FLxTypedAttributeSnapshot& InAttributeSnapshot, TArray<FLxAttributeDisplayData>& OutDisplayDataList);
 
 	/** 按属性ID查询显示数据。 */

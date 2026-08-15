@@ -16,18 +16,7 @@
               "Down" : 1,
               "Max" : 0,
               "Value" : 0
-        },
-        // 角色属性派生增益信息
-        "DerivedRules" : [
-          {
-            // 派生增益ID，对应角色属性派生增益ID枚举
-            "DerivedID" : 15,
-            // 增益方式
-            "EffectiveType" : 1,
-            // 转换比例
-            "Ratio" : 0.02
-          }
-        ]
+        }
       }
     },
     {
@@ -45,18 +34,7 @@
           "Down" : 1,
           "Max" : 0,
           "Value" : 0
-        },
-        // 角色属性派生增益信息
-        "DerivedRules" : [
-          {
-            // 派生增益ID，对应角色属性派生增益ID枚举
-            "DerivedID" : 12,
-            // 增益方式
-            "EffectiveType" : 0,
-            // 转换比例
-            "Ratio" : 2
-          }
-        ]
+        }
       }
     },
     {
@@ -74,9 +52,7 @@
           "Down" : 1,
           "Max" : 0,
           "Value" : 0
-        },
-        // 角色属性派生增益信息
-        "DerivedRules" : []
+        }
       }
     },
     {
@@ -94,9 +70,7 @@
           "Down" : 1,
           "Max" : 0,
           "Value" : 0
-        },
-        // 角色属性派生增益信息
-        "DerivedRules" : []
+        }
       }
     },
     {
@@ -119,9 +93,7 @@
           "Max" : 0,
           // 属性值
           "Value" : 0
-        },
-        // 角色属性派生增益信息
-        "DerivedRules" : []
+        }
       }
     }
   ],

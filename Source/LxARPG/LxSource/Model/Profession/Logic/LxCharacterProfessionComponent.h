@@ -39,13 +39,22 @@ public:
 	UFUNCTION(BlueprintPure, Category="职业|角色职业", DisplayName="获取职业经验", meta=(Categories="职业"))
 	float GetProfessionExperience(FGameplayTag InProfessionIDTag) const;
 
-	/** 检查角色是否可以学习指定职业。 */
-	UFUNCTION(BlueprintCallable, Category="职业|角色职业", DisplayName="检查能否学习职业", meta=(Categories="职业"))
-	bool CanLearnProfession(FGameplayTag InProfessionIDTag, FLxProfessionLearnCheckResult& OutCheckResult);
+	/** 检查指定职业是否允许通过经验继续升级。 */
+	UFUNCTION(BlueprintPure, Category="职业|角色职业", DisplayName="职业是否可以升级", meta=(Categories="职业"))
+	bool CanProfessionUpgrade(FGameplayTag InProfessionIDTag) const;
 
-	/** 学习指定职业。 */
+	/** 检查角色是否可以学习指定职业，可选择跳过前置职业、属性和状态需求。 */
+	UFUNCTION(BlueprintCallable, Category="职业|角色职业", DisplayName="检查能否学习职业", meta=(Categories="职业"))
+	bool CanLearnProfession(FGameplayTag InProfessionIDTag, FLxProfessionLearnCheckResult& OutCheckResult, bool bCheckRequirements = true);
+
+	/** 学习指定职业，并设置初始等级、升级权限和是否检查学习需求。 */
 	UFUNCTION(BlueprintCallable, Category="职业|角色职业", DisplayName="学习职业", meta=(Categories="职业"))
-	bool LearnProfession(FGameplayTag InProfessionIDTag);
+	bool LearnProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel = 1,
+		bool bInCanUpgrade = true, bool bCheckRequirements = true);
+
+	/** 无视全部学习需求赋予职业；重复赋予时只提升等级或开放升级权限。 */
+	UFUNCTION(BlueprintCallable, Category="职业|角色职业", DisplayName="无视需求赋予职业", meta=(Categories="职业"))
+	bool GrantProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel = 1, bool bInCanUpgrade = false);
 
 	/**
 	 * 增加同类型职业经验。

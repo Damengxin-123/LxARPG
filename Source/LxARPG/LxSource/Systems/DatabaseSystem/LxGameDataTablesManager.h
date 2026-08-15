@@ -31,6 +31,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|词条", DisplayName="属性增益词条表")
 	TObjectPtr<UDataTable> m_pAttributeGainEntryTable = nullptr;
 
+	/** 属性影响词条表，Row Struct（行结构）使用 FLxEntryAttributeInfluence。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|词条", DisplayName="属性影响词条表",
+		meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxEntryAttributeInfluence"))
+	TObjectPtr<UDataTable> m_pAttributeInfluenceEntryTable = nullptr;
+
 	// 属性回复词条表，Row Struct 使用 FLxEntryAttributeRecovery。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|词条", DisplayName="属性回复词条表")
 	TObjectPtr<UDataTable> m_pAttributeRecoveryEntryTable = nullptr;
@@ -54,6 +59,10 @@ public:
 	// 授予技能词条表，Row Struct 使用 FLxEntryGrantSkill。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|词条", DisplayName="授予技能词条表")
 	TObjectPtr<UDataTable> m_pGrantSkillEntryTable = nullptr;
+
+	/** 赋予职业词条表，Row Struct（行结构）使用 FLxEntryGrantProfession。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|词条", DisplayName="赋予职业词条表")
+	TObjectPtr<UDataTable> m_pGrantProfessionEntryTable = nullptr;
 
 	// 造成伤害词条表，Row Struct 使用 FLxEntryDamage。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|词条", DisplayName="造成伤害词条表")

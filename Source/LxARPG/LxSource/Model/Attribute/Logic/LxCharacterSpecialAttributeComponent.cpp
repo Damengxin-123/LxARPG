@@ -283,7 +283,7 @@ void ULxCharacterSpecialAttributeComponent::ApplyLifecycleState()
 		{
 			LifecycleStateTags.AddTag(CurrentStateTag);
 		}
-		LifecycleObject->ApplyMovementControl(bIsAlive);
+		LifecycleObject->ApplyLifecycleState(bIsAlive);
 		BroadcastStateTagsChanged(LxTag_CharacterState_Lifecycle, LifecycleStateTags);
 	}
 }

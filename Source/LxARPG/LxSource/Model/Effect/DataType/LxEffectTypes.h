@@ -20,7 +20,8 @@ enum class ELxEffectPackageSource : uint8
 	Skill UMETA(DisplayName = "技能"),
 	Profession UMETA(DisplayName = "职业"),
 	Interaction UMETA(DisplayName = "交互"),
-	Other UMETA(DisplayName = "其他")
+	Other UMETA(DisplayName = "其他"),
+	CharacterDefault UMETA(DisplayName = "角色默认配置")
 };
 
 /** 效果包应用策略，用于决定同来源旧效果包是否被替换。 */
@@ -114,9 +115,21 @@ struct LXARPG_API FLxAttributeModifierEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|属性", DisplayName = "属性修改数值")
 	float ModifierValue = 0.f;
 
-	/** 未指定属性ID时需要匹配的属性分类。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="效果|属性", DisplayName="目标属性分类")
-	TArray<ELxCharacterAttributeCategoryType> TargetAttributeCategories;
+	/** 未指定属性ID时需要匹配的玩法业务分类。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="效果|属性", DisplayName="目标属性业务分类")
+	TArray<ELxCharacterAttributeBusinessCategory> TargetBusinessCategories;
+
+	/** 可选的来源属性标签；有效时，修改数值由来源属性字段乘以来源比例动态计算。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="效果|属性影响", DisplayName="来源属性标签ID", meta=(Categories="属性"))
+	FGameplayTag SourceAttributeIDTag;
+
+	/** 属性影响效果从来源属性数值结构中读取的字段。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="效果|属性影响", DisplayName="来源属性字段")
+	ELxAttributeModifierTarget SourceAttributeTarget = ELxAttributeModifierTarget::ToValue;
+
+	/** 来源属性字段乘以该比例后追加到修改数值。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="效果|属性影响", DisplayName="来源属性比例")
+	float SourceAttributeRatio = 0.f;
 
 	/** 判断两个属性效果是否可以汇总到同一条效果。 */
 	bool HasSameAggregationKey(const FLxAttributeModifierEffect& Other) const;
@@ -140,9 +153,9 @@ struct LXARPG_API FLxAttributeRecoveryEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|属性恢复", DisplayName = "恢复数值")
 	float RecoveryValue = 0.f;
 
-	/** 未指定属性ID时需要匹配的属性分类，恢复效果通常只选择资源属性。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="效果|属性恢复", DisplayName="目标属性分类")
-	TArray<ELxCharacterAttributeCategoryType> TargetAttributeCategories;
+	/** 未指定属性ID时需要匹配的玩法业务分类。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="效果|属性恢复", DisplayName="目标属性业务分类")
+	TArray<ELxCharacterAttributeBusinessCategory> TargetBusinessCategories;
 };
 
 /** 伤害效果预留数据，后续由伤害核算组件解释。 */
@@ -221,6 +234,25 @@ struct LXARPG_API FLxSkillGrantEffect
 	FGameplayTag SkillItemIDTag;
 };
 
+/** 赋予职业效果，用于无视学习需求向角色添加指定职业。 */
+USTRUCT(BlueprintType, DisplayName = "赋予职业效果")
+struct LXARPG_API FLxProfessionGrantEffect
+{
+	GENERATED_BODY()
+
+	/** 需要赋予角色的职业标签 ID。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|职业", DisplayName = "职业标签ID", meta = (Categories = "职业"))
+	FGameplayTag ProfessionIDTag;
+
+	/** 赋予职业时设置的等级。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|职业", DisplayName = "职业等级", meta = (ClampMin = "1", UIMin = "1"))
+	int32 ProfessionLevel = 1;
+
+	/** 被赋予的职业是否允许继续获得经验并升级。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|职业", DisplayName = "是否可以升级")
+	bool bCanUpgrade = false;
+};
+
 /** 模块效果总包，承载一个业务模块本次输出的全部分类效果。 */
 USTRUCT(BlueprintType, DisplayName = "模块效果数据包")
 struct LXARPG_API FLxEffectPackage
@@ -262,6 +294,10 @@ struct LXARPG_API FLxEffectPackage
 	/** 授予技能效果列表。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果包|技能", DisplayName = "授予技能效果列表")
 	TArray<FLxSkillGrantEffect> SkillGrantEffects;
+
+	/** 赋予职业效果列表。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果包|职业", DisplayName = "赋予职业效果列表")
+	TArray<FLxProfessionGrantEffect> ProfessionGrantEffects;
 
 	/** 判断效果包是否没有任何子效果。 */
 	bool IsEmpty() const;

@@ -1,11 +1,13 @@
 #include "LxAICharacter.h"
 
+#include "Components/WidgetComponent.h"
 #include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorComponent.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
+#include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Player/Controllers/LxAIController.h"
+#include "LxARPG/LxSource/UI/WorldSpace/AICharacterInfo/LxAICharacterInfoWidget.h"
 
 namespace
 {
@@ -41,9 +43,44 @@ ALxAICharacter::ALxAICharacter()
 void ALxAICharacter::InitialCharacterInformation()
 {
 	Super::InitialCharacterInformation();
+	BindCharacterInfoWidgets();
 	if (AIBehaviorComponent)
 	{
 		AIBehaviorComponent->BaseComponentInitialize();
+	}
+}
+
+void ALxAICharacter::HandleAIAttributesChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot)
+{
+	RefreshCharacterInfoWidgetsHealth();
+}
+
+void ALxAICharacter::BindCharacterInfoWidgets()
+{
+	if (ULxCharacterAttributeComponent* AttributeComponent = GetCharacterAttributeComponent())
+	{
+		AttributeComponent->OnTypedAttributeSnapshotChanged.RemoveDynamic(this, &ALxAICharacter::HandleAIAttributesChanged);
+		AttributeComponent->OnTypedAttributeSnapshotChanged.AddDynamic(this, &ALxAICharacter::HandleAIAttributesChanged);
+	}
+
+	RefreshCharacterInfoWidgetsHealth();
+}
+
+void ALxAICharacter::RefreshCharacterInfoWidgetsHealth() const
+{
+	TInlineComponentArray<UWidgetComponent*> WidgetComponents(this);
+	for (UWidgetComponent* WidgetComponent : WidgetComponents)
+	{
+		if (!IsValid(WidgetComponent))
+		{
+			continue;
+		}
+
+		WidgetComponent->InitWidget();
+		if (ULxAICharacterInfoWidget* CharacterInfoWidget = Cast<ULxAICharacterInfoWidget>(WidgetComponent->GetUserWidgetObject()))
+		{
+			CharacterInfoWidget->UpdateAIHealthPercent(GetCurrentHealthRatio());
+		}
 	}
 }
 

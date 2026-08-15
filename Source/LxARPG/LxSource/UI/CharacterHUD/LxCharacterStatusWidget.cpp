@@ -1,6 +1,6 @@
 #include "LxCharacterStatusWidget.h"
 
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
+#include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 
 void ULxCharacterStatusWidget::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)

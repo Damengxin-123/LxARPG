@@ -35,6 +35,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="AI|行为", DisplayName="停止AI行为")
 	void StopBehavior();
 
+	/** 获取当前是否仍处于尚未达到配置距离的逃跑过程。 */
+	UFUNCTION(BlueprintPure, Category="AI|行为|逃跑", DisplayName="逃跑行为是否进行中")
+	bool IsRetreatInProgress() const { return bRetreatInProgress; }
+
+	/** 根据本轮敌对目标与决策结果更新追近状态，并在达到配置距离时结束逃跑。 */
+	void UpdateRetreatProgress(const FLxAIBattleSnapshot& InBattleSnapshot, bool bInShouldRetreat);
+
 private:
 	/** 判断巡逻行为是否满足自身的无威胁条件。 */
 	bool CanExecutePatrol(const FLxAIBattleSnapshot& InBattleSnapshot) const;
@@ -51,7 +58,7 @@ private:
 	/** 判断治疗行为是否具有有效友方目标、技能配置和技能组件。 */
 	bool CanExecuteHeal(const FLxAIBattleSnapshot& InBattleSnapshot) const;
 
-	/** 判断逃跑行为是否存在有效的最近敌方目标。 */
+	/** 判断逃跑行为是否已经开始，或当前存在可以用于开始逃跑的最近敌方目标。 */
 	bool CanExecuteRetreat(const FLxAIBattleSnapshot& InBattleSnapshot) const;
 
 	/** 使用通用移动组件执行无威胁巡逻。 */
@@ -75,6 +82,9 @@ private:
 	/** 获取所属AI角色的AI控制器。 */
 	AAIController* GetOwnerAIController() const;
 
+	/** 清除本次逃跑的起点、方向和敌方追近检测状态。 */
+	void ResetRetreatState();
+
 	/** 当前组件所属的AI角色。 */
 	UPROPERTY(Transient)
 	TObjectPtr<ALxAICharacter> OwnerAICharacter = nullptr;
@@ -85,4 +95,34 @@ private:
 
 	/** AI角色开始运行时记录的巡逻中心位置。 */
 	FVector PatrolOrigin = FVector::ZeroVector;
+
+	/** 本次逃跑用于累计实际移动距离的开始位置。 */
+	FVector RetreatStartLocation = FVector::ZeroVector;
+
+	/** 最近一次有效的逃离方向，用于敌方暂时丢失后继续分段逃跑。 */
+	FVector LastRetreatDirection = FVector::ZeroVector;
+
+	/** 上一轮追近检测使用的敌方角色。 */
+	TWeakObjectPtr<AActor> LastRetreatEnemy;
+
+	/** 上一轮追近检测时角色与敌方之间的水平距离，单位为厘米。 */
+	float LastRetreatEnemyDistance = 0.0f;
+
+	/** 当前是否仍需累计逃跑距离。 */
+	bool bRetreatInProgress = false;
+
+	/** 上一轮是否存在满足逃跑决策的有效敌方目标。 */
+	bool bHadRetreatEnemy = false;
+
+	/** 上一轮敌方是否正在缩短与角色之间的距离。 */
+	bool bRetreatEnemyWasClosing = false;
+
+	/** 达到逃跑距离后是否等待威胁消失、切换或再次追近，避免每轮决策立即重启逃跑。 */
+	bool bRetreatCompletionBlocked = false;
+
+	/** 完成本次逃跑时仍在检测范围内的敌方角色。 */
+	TWeakObjectPtr<AActor> CompletedRetreatEnemy;
+
+	/** 完成本次逃跑时与敌方之间的水平距离，单位为厘米。 */
+	float CompletedRetreatEnemyDistance = 0.0f;
 };

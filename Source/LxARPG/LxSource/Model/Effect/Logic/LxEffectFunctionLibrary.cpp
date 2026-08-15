@@ -16,6 +16,7 @@ void ULxEffectFunctionLibrary::AddAggregatedAttributeModifierEffect(TArray<FLxAt
 		if (ExistingEffect.HasSameAggregationKey(InEffect))
 		{
 			ExistingEffect.ModifierValue += InEffect.ModifierValue;
+			ExistingEffect.SourceAttributeRatio += InEffect.SourceAttributeRatio;
 			return;
 		}
 	}

@@ -31,6 +31,11 @@ namespace LxEntryConfig
 		SetEntryData(InEntryData);
 	}
 
+	void SetAttributeInfluenceEntryData(const FLxEntryAttributeInfluence& InEntryData)
+	{
+		SetEntryData(InEntryData);
+	}
+
 	void SetAttributeRecoveryEntryData(const FLxEntryAttributeRecovery& InEntryData)
 	{
 		SetEntryData(InEntryData);
@@ -57,6 +62,11 @@ namespace LxEntryConfig
 	}
 
 	void SetGrantSkillEntryData(const FLxEntryGrantSkill& InEntryData)
+	{
+		SetEntryData(InEntryData);
+	}
+
+	void SetGrantProfessionEntryData(const FLxEntryGrantProfession& InEntryData)
 	{
 		SetEntryData(InEntryData);
 	}

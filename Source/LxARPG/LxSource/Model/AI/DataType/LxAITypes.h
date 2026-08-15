@@ -86,13 +86,13 @@ struct LXARPG_API FLxAIControlConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|基础", DisplayName="启用自动控制")
 	bool bEnableAutomaticControl = true;
 
-	/** AI视觉感知半径。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|感知", DisplayName="视觉感知半径", meta=(ClampMin="0.0", Units="cm"))
-	float SightRadius = 2500.0f;
+	/** AI视觉感知半径，配置单位为米。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|感知", DisplayName="视觉感知半径", meta=(ClampMin="0.0", Units="m"))
+	float SightRadius = 25.0f;
 
-	/** 已发现目标离开该半径后允许视觉丢失。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|感知", DisplayName="视觉丢失半径", meta=(ClampMin="0.0", Units="cm"))
-	float LoseSightRadius = 3000.0f;
+	/** 已发现目标离开该半径后允许视觉丢失，配置单位为米。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|感知", DisplayName="视觉丢失半径", meta=(ClampMin="0.0", Units="m"))
+	float LoseSightRadius = 30.0f;
 
 	/** 当前AI私有目标记录超过该时间后失效。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|感知", DisplayName="目标记忆有效时间", meta=(ClampMin="0.1", Units="s"))
@@ -138,13 +138,13 @@ struct LXARPG_API FLxAIControlConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|决策", DisplayName="安全回退行为")
 	ELxAIActionType FallbackAction = ELxAIActionType::Alert;
 
-	/** 接敌移动停止时与目标保持的距离。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|攻击", DisplayName="攻击接近距离", meta=(ClampMin="0.0", Units="cm"))
-	float AttackAcceptanceRadius = 180.0f;
+	/** 接敌移动停止时与目标保持的距离，配置单位为米。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|攻击", DisplayName="攻击接近距离", meta=(ClampMin="0.0", Units="m"))
+	float AttackAcceptanceRadius = 1.8f;
 
-	/** 自动释放攻击技能允许的最大距离。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|攻击", DisplayName="攻击技能距离", meta=(ClampMin="0.0", Units="cm"))
-	float AttackSkillRange = 220.0f;
+	/** 自动释放攻击技能允许的最大距离，配置单位为米。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|攻击", DisplayName="攻击技能距离", meta=(ClampMin="0.0", Units="m"))
+	float AttackSkillRange = 2.2f;
 
 	/** 攻击行为使用的技能物品ID。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|攻击", DisplayName="攻击技能物品ID", meta=(Categories="物品.技能"))
@@ -154,13 +154,17 @@ struct LXARPG_API FLxAIControlConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|治疗", DisplayName="治疗技能物品ID", meta=(Categories="物品.技能"))
 	FGameplayTag HealSkillItemId;
 
-	/** 治疗行为允许释放技能的最大距离。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|治疗", DisplayName="治疗技能距离", meta=(ClampMin="0.0", Units="cm"))
-	float HealSkillRange = 400.0f;
+	/** 治疗行为允许释放技能的最大距离，配置单位为米。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|治疗", DisplayName="治疗技能距离", meta=(ClampMin="0.0", Units="m"))
+	float HealSkillRange = 4.0f;
 
-	/** 巡逻行为围绕角色出生点选择位置的半径。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|巡逻", DisplayName="巡逻半径", meta=(ClampMin="0.0", Units="cm"))
-	float PatrolRadius = 800.0f;
+	/** 巡逻行为围绕角色出生点选择位置的半径，配置单位为米。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|巡逻", DisplayName="巡逻半径", meta=(ClampMin="0.0", Units="m"))
+	float PatrolRadius = 8.0f;
+
+	/** 单次逃跑从开始位置至少需要移动的距离，达到后才允许结束本次逃跑，配置单位为米。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|行为|逃跑", DisplayName="逃跑距离", meta=(ClampMin="0.0", Units="m"))
+	float RetreatDistance = 6.0f;
 
 	/** 当前AI基础强度参与数值对比时使用的倍率。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|决策|对比", DisplayName="战力倍率", meta=(ClampMin="0.0"))

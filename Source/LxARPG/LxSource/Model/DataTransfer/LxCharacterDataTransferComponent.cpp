@@ -36,6 +36,8 @@ namespace
 			return ELxCharacterEntrySource::Skill;
 		case ELxEffectPackageSource::Profession:
 			return ELxCharacterEntrySource::Profession;
+		case ELxEffectPackageSource::CharacterDefault:
+			return ELxCharacterEntrySource::CharacterDefault;
 		default:
 			return ELxCharacterEntrySource::Other;
 		}
@@ -56,6 +58,8 @@ namespace
 			return ELxEffectPackageSource::Skill;
 		case ELxCharacterEntrySource::Profession:
 			return ELxEffectPackageSource::Profession;
+		case ELxCharacterEntrySource::CharacterDefault:
+			return ELxEffectPackageSource::CharacterDefault;
 		default:
 			return ELxEffectPackageSource::Other;
 		}
@@ -66,7 +70,8 @@ namespace
 	{
 		return InEffectSource == ELxEffectPackageSource::Equipment
 			|| InEffectSource == ELxEffectPackageSource::Buff
-			|| InEffectSource == ELxEffectPackageSource::Profession;
+			|| InEffectSource == ELxEffectPackageSource::Profession
+			|| InEffectSource == ELxEffectPackageSource::CharacterDefault;
 	}
 
 	/** 判断该来源的属性修饰是否交由角色效果缓存组件统一接入。 */
@@ -74,7 +79,8 @@ namespace
 	{
 		return InEffectSource == ELxEffectPackageSource::Equipment
 			|| InEffectSource == ELxEffectPackageSource::Buff
-			|| InEffectSource == ELxEffectPackageSource::Profession;
+			|| InEffectSource == ELxEffectPackageSource::Profession
+			|| InEffectSource == ELxEffectPackageSource::CharacterDefault;
 	}
 
 }
@@ -108,21 +114,15 @@ void ULxCharacterDataTransferComponent::EndPlay(const EEndPlayReason::Type EndPl
 	Super::EndPlay(EndPlayReason);
 }
 
-bool ULxCharacterDataTransferComponent::QueryBasicAttribute(const FGameplayTag InAttributeIDTag, FLxBasicAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetBasicAttribute(InAttributeIDTag, OutAttributeData); }
+bool ULxCharacterDataTransferComponent::QueryScalarAttribute(const FGameplayTag InAttributeIDTag, FLxScalarAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetScalarAttribute(InAttributeIDTag, OutAttributeData); }
 bool ULxCharacterDataTransferComponent::QueryResourceAttribute(const FGameplayTag InAttributeIDTag, FLxResourceAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetResourceAttribute(InAttributeIDTag, OutAttributeData); }
-bool ULxCharacterDataTransferComponent::QueryProbabilityAttribute(const FGameplayTag InAttributeIDTag, FLxProbabilityAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetProbabilityAttribute(InAttributeIDTag, OutAttributeData); }
-bool ULxCharacterDataTransferComponent::QueryPercentageAttribute(const FGameplayTag InAttributeIDTag, FLxPercentageAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetPercentageAttribute(InAttributeIDTag, OutAttributeData); }
-bool ULxCharacterDataTransferComponent::QueryNumericAttribute(const FGameplayTag InAttributeIDTag, FLxNumericAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetNumericAttribute(InAttributeIDTag, OutAttributeData); }
 bool ULxCharacterDataTransferComponent::QueryRangeAttribute(const FGameplayTag InAttributeIDTag, FLxRangeAttributeData& OutAttributeData) const { return AttributeComponent != nullptr && AttributeComponent->GetRuntimeAttributeSet() != nullptr && AttributeComponent->GetRuntimeAttributeSet()->GetRangeAttribute(InAttributeIDTag, OutAttributeData); }
 
 bool ULxCharacterDataTransferComponent::QueryCharacterAttributeValue(const FGameplayTag InAttributeIDTag, float& OutAttributeValue) const
 {
 	OutAttributeValue = 0.f;
-	FLxBasicAttributeData Basic; if (QueryBasicAttribute(InAttributeIDTag, Basic)) { OutAttributeValue = Basic.Value; return true; }
+	FLxScalarAttributeData Scalar; if (QueryScalarAttribute(InAttributeIDTag, Scalar)) { OutAttributeValue = Scalar.Value; return true; }
 	FLxResourceAttributeData Resource; if (QueryResourceAttribute(InAttributeIDTag, Resource)) { OutAttributeValue = Resource.Value; return true; }
-	FLxProbabilityAttributeData Probability; if (QueryProbabilityAttribute(InAttributeIDTag, Probability)) { OutAttributeValue = Probability.Value; return true; }
-	FLxPercentageAttributeData Percentage; if (QueryPercentageAttribute(InAttributeIDTag, Percentage)) { OutAttributeValue = Percentage.Value; return true; }
-	FLxNumericAttributeData Numeric; if (QueryNumericAttribute(InAttributeIDTag, Numeric)) { OutAttributeValue = Numeric.Value; return true; }
 	FLxRangeAttributeData Range; if (QueryRangeAttribute(InAttributeIDTag, Range)) { OutAttributeValue = Range.Value; return true; }
 	return false;
 }
@@ -230,15 +230,26 @@ bool ULxCharacterDataTransferComponent::AddSkillItemToSkillBackpack(FGameplayTag
 	return SkillBackpackComponent != nullptr && SkillBackpackComponent->AddSkillItemByTagID(InSkillItemIDTag);
 }
 
-bool ULxCharacterDataTransferComponent::CanLearnProfession(FGameplayTag InProfessionIDTag, FLxProfessionLearnCheckResult& OutCheckResult)
+bool ULxCharacterDataTransferComponent::CanLearnProfession(FGameplayTag InProfessionIDTag,
+	FLxProfessionLearnCheckResult& OutCheckResult, bool bCheckRequirements)
 {
 	OutCheckResult = FLxProfessionLearnCheckResult();
-	return ProfessionComponent != nullptr && ProfessionComponent->CanLearnProfession(InProfessionIDTag, OutCheckResult);
+	return ProfessionComponent != nullptr
+		&& ProfessionComponent->CanLearnProfession(InProfessionIDTag, OutCheckResult, bCheckRequirements);
 }
 
-bool ULxCharacterDataTransferComponent::LearnProfession(FGameplayTag InProfessionIDTag)
+bool ULxCharacterDataTransferComponent::LearnProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel,
+	bool bInCanUpgrade, bool bCheckRequirements)
 {
-	return ProfessionComponent != nullptr && ProfessionComponent->LearnProfession(InProfessionIDTag);
+	return ProfessionComponent != nullptr
+		&& ProfessionComponent->LearnProfession(InProfessionIDTag, InInitialLevel, bInCanUpgrade, bCheckRequirements);
+}
+
+bool ULxCharacterDataTransferComponent::GrantProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel,
+	bool bInCanUpgrade)
+{
+	return ProfessionComponent != nullptr
+		&& ProfessionComponent->GrantProfession(InProfessionIDTag, InInitialLevel, bInCanUpgrade);
 }
 
 void ULxCharacterDataTransferComponent::AddProfessionExperienceByType(ELxProfessionType InProfessionType, float InExperience)
@@ -725,10 +736,8 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 		if (RuntimeEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Equipment)
 		{
 			SyncEquipmentBuffGrantEffects(RuntimeEffectPackage.BuffGrantEffects);
-			return;
 		}
-
-		if (RuntimeEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Profession
+		else if (RuntimeEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Profession
 			&& !RuntimeEffectPackage.BuffGrantEffects.IsEmpty())
 		{
 			SyncProfessionBuffGrantEffects(RuntimeEffectPackage.BuffGrantEffects);
@@ -763,6 +772,20 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 			}
 
 			SkillBackpackComponent->AddSkillItemByTagID(SkillGrantEffect.SkillItemIDTag);
+		}
+	}
+
+	if (ProfessionComponent != nullptr)
+	{
+		for (const FLxProfessionGrantEffect& ProfessionGrantEffect : RuntimeEffectPackage.ProfessionGrantEffects)
+		{
+			if (!ProfessionGrantEffect.ProfessionIDTag.IsValid())
+			{
+				continue;
+			}
+
+			ProfessionComponent->GrantProfession(ProfessionGrantEffect.ProfessionIDTag,
+				ProfessionGrantEffect.ProfessionLevel, ProfessionGrantEffect.bCanUpgrade);
 		}
 	}
 }
@@ -947,6 +970,9 @@ void ULxCharacterDataTransferComponent::BuildEntryPackage(ELxCharacterEntrySourc
 			{
 				OutEntryPackage.EquipmentAttributeEntryList.Add(EntryObject);
 			}
+			break;
+		case ELxEntryType::AttributeInfluence:
+			OutEntryPackage.CharacterAttributeEntryList.Add(EntryObject);
 			break;
 		case ELxEntryType::AttributeRecovery:
 			OutEntryPackage.AttributeRecoveryEntryList.Add(EntryObject);

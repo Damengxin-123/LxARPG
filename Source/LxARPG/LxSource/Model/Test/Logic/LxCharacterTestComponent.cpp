@@ -1,7 +1,7 @@
 #include "LxCharacterTestComponent.h"
 
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
+#include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Damage/DataType/LxDamageTags.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
@@ -178,7 +178,7 @@ bool ULxCharacterTestComponent::ApplyTestDamageFromAttacker(AActor* InAttackerAc
 
 	FLxDamageValue DamageValue;
 	DamageValue.DamageTypeTag = LxTag_CommonEffect_DamageEffect_Normal;
-	DamageValue.SourceAttributeIDTag = LxTag_Attribute_Range_AttackPower;
+	DamageValue.SourceAttributeIDTag = LxTag_Attribute_Combat_AttackPower;
 	DamageValue.SourceAttributeRatio = 1.f;
 
 	FLxDamageEffect DamageEffect;

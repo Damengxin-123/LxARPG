@@ -19,6 +19,21 @@ namespace
 		return FText::Format(FText::FromString(TEXT("{0}%")), FText::AsNumber(InValue * 100.f, &Options));
 	}
 
+	/** 按标量属性自身规则构建数值文本。 */
+	FText BuildScalarText(const FLxScalarAttributeData& InAttributeData)
+	{
+		switch (InAttributeData.ScalarRule.DisplayFormat)
+		{
+		case ELxScalarAttributeDisplayFormat::Percentage:
+			return BuildPercentText(InAttributeData.Value);
+		case ELxScalarAttributeDisplayFormat::Decimal:
+			return FText::AsNumber(InAttributeData.Value);
+		case ELxScalarAttributeDisplayFormat::Integer:
+		default:
+			return BuildIntegerText(InAttributeData.Value);
+		}
+	}
+
 	/** 使用属性名称模板和样式生成完整显示文本。 */
 	FText BuildStyledDisplayText(const FLxAttributeShowInfo& InShowInfo, const FText& InValueText)
 	{
@@ -39,7 +54,7 @@ namespace
 	{
 		FLxAttributeDisplayData Result;
 		Result.AttributeIDTag = InAttributeData.AttributeIDTag;
-		Result.AttributeCategory = InAttributeData.AttributeCategory;
+		Result.BusinessCategory = InAttributeData.BusinessCategory;
 		Result.ShowInfo = InAttributeData.ShowInfo;
 		Result.ValueText = InValueText;
 		Result.DisplayText = BuildStyledDisplayText(InAttributeData.ShowInfo, InValueText);
@@ -61,9 +76,9 @@ int32 FLxAttributeValueTool::GetRangeValueMax(const FLxRangeAttributeData& InAtt
 	return FMath::Max(DownwardValue, UpwardValue);
 }
 
-FLxAttributeDisplayData FLxAttributeValueTool::BuildDisplayData(const FLxBasicAttributeData& InAttributeData)
+FLxAttributeDisplayData FLxAttributeValueTool::BuildDisplayData(const FLxScalarAttributeData& InAttributeData)
 {
-	FLxAttributeDisplayData Result = MakeDisplayData(InAttributeData, BuildIntegerText(InAttributeData.Value));
+	FLxAttributeDisplayData Result = MakeDisplayData(InAttributeData, BuildScalarText(InAttributeData));
 	Result.Value = InAttributeData.Value;
 	return Result;
 }
@@ -74,27 +89,6 @@ FLxAttributeDisplayData FLxAttributeValueTool::BuildDisplayData(const FLxResourc
 	Result.Value = InAttributeData.Value;
 	Result.ValueLimit = InAttributeData.ValueLimit;
 	Result.bHasValueLimit = true;
-	return Result;
-}
-
-FLxAttributeDisplayData FLxAttributeValueTool::BuildDisplayData(const FLxProbabilityAttributeData& InAttributeData)
-{
-	FLxAttributeDisplayData Result = MakeDisplayData(InAttributeData, BuildPercentText(InAttributeData.Value));
-	Result.Value = InAttributeData.Value;
-	return Result;
-}
-
-FLxAttributeDisplayData FLxAttributeValueTool::BuildDisplayData(const FLxPercentageAttributeData& InAttributeData)
-{
-	FLxAttributeDisplayData Result = MakeDisplayData(InAttributeData, BuildPercentText(InAttributeData.Value));
-	Result.Value = InAttributeData.Value;
-	return Result;
-}
-
-FLxAttributeDisplayData FLxAttributeValueTool::BuildDisplayData(const FLxNumericAttributeData& InAttributeData)
-{
-	FLxAttributeDisplayData Result = MakeDisplayData(InAttributeData, BuildIntegerText(InAttributeData.Value));
-	Result.Value = InAttributeData.Value;
 	return Result;
 }
 
@@ -109,11 +103,8 @@ FLxAttributeDisplayData FLxAttributeValueTool::BuildDisplayData(const FLxRangeAt
 void FLxAttributeValueTool::BuildDisplayDataList(const FLxTypedAttributeSnapshot& InAttributeSnapshot, TArray<FLxAttributeDisplayData>& OutDisplayDataList)
 {
 	OutDisplayDataList.Reset();
-	for (const FLxBasicAttributeData& Data : InAttributeSnapshot.BasicAttributes) OutDisplayDataList.Add(BuildDisplayData(Data));
+	for (const FLxScalarAttributeData& Data : InAttributeSnapshot.ScalarAttributes) OutDisplayDataList.Add(BuildDisplayData(Data));
 	for (const FLxResourceAttributeData& Data : InAttributeSnapshot.ResourceAttributes) OutDisplayDataList.Add(BuildDisplayData(Data));
-	for (const FLxProbabilityAttributeData& Data : InAttributeSnapshot.ProbabilityAttributes) OutDisplayDataList.Add(BuildDisplayData(Data));
-	for (const FLxPercentageAttributeData& Data : InAttributeSnapshot.PercentageAttributes) OutDisplayDataList.Add(BuildDisplayData(Data));
-	for (const FLxNumericAttributeData& Data : InAttributeSnapshot.NumericAttributes) OutDisplayDataList.Add(BuildDisplayData(Data));
 	for (const FLxRangeAttributeData& Data : InAttributeSnapshot.RangeAttributes) OutDisplayDataList.Add(BuildDisplayData(Data));
 }
 

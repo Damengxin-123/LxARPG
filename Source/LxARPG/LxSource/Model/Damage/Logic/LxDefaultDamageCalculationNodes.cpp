@@ -1,6 +1,6 @@
 #include "LxDefaultDamageCalculationNodes.h"
 
-#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeTags.h"
+#include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Damage/DataType/LxDamageTags.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 
@@ -57,7 +57,7 @@ ULxDamageAttackPowerOutputNode::ULxDamageAttackPowerOutputNode()
 
 void ULxDamageAttackPowerOutputNode::ExecuteDamageCalculation_Implementation(FLxDamageCalculationContext& InOutContext)
 {
-	const float RolledDamageValue = FMath::Max(0.f, DefaultNodeGetDamageSourceValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Range_AttackPower));
+	const float RolledDamageValue = FMath::Max(0.f, DefaultNodeGetDamageSourceValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Combat_AttackPower));
 	if (FMath::IsNearlyZero(RolledDamageValue))
 	{
 		return;
@@ -88,7 +88,7 @@ void ULxDamageCriticalOutputNode::ExecuteDamageCalculation_Implementation(FLxDam
 	}
 
 	float CriticalDamageMultiplier = DefaultCriticalDamageMultiplier;
-	const float CriticalDamagePercent = DefaultNodeGetAttributeSingleValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Percentage_CriticalDamage, 0.f);
+	const float CriticalDamagePercent = DefaultNodeGetAttributeSingleValue(InOutContext.SourceDataTransferComponent, LxTag_Attribute_Combat_CriticalDamage, 0.f);
 	if (CriticalDamagePercent > 0.f)
 	{
 		CriticalDamageMultiplier = 1.f + CriticalDamagePercent;
@@ -110,7 +110,7 @@ void ULxDamageCriticalOutputNode::ExecuteDamageCalculation_Implementation(FLxDam
 
 void ULxDamageDefenseReceiveNode::ExecuteDamageCalculation_Implementation(FLxDamageCalculationContext& InOutContext)
 {
-	const float DefenseValue = FMath::Max(0.f, DefaultNodeGetAttributeSingleValue(InOutContext.TargetDataTransferComponent, LxTag_Attribute_Numeric_Armor));
+	const float DefenseValue = FMath::Max(0.f, DefaultNodeGetAttributeSingleValue(InOutContext.TargetDataTransferComponent, LxTag_Attribute_Combat_Armor));
 	InOutContext.DefenseValue = DefenseValue;
 	if (FMath::IsNearlyZero(DefenseValue))
 	{

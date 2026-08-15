@@ -125,6 +125,35 @@ private:
 	FLxEntryAttributeGain AttributeGainData;
 };
 
+/** 属性影响词条运行时对象，负责把属性间影响配置转换为可重算的属性效果。 */
+UCLASS(BlueprintType, DisplayName="属性影响词条对象")
+class LXARPG_API ULxEntryObjectAttributeInfluence : public ULxEntryObjectBase
+{
+	GENERATED_BODY()
+
+public:
+	/** 获取属性影响词条的完整配置数据。 */
+	const FLxEntryAttributeInfluence& GetAttributeInfluenceData() const { return AttributeInfluenceData; }
+
+	/** 获取当前词条的基础数据指针。 */
+	virtual const FLxEntryBase* GetEntryBase() const override { return &AttributeInfluenceData; }
+
+	/** 获取格式化后的属性影响词条显示名称。 */
+	virtual FText GetDisplayName() const override;
+
+	/** 将属性影响配置追加到模块效果包。 */
+	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
+
+protected:
+	/** 将基础词条数据转换并缓存为属性影响词条数据。 */
+	virtual void SetEntryData(const FLxEntryBase* InEntryData) override;
+
+private:
+	/** 当前对象缓存的属性影响词条数据。 */
+	UPROPERTY()
+	FLxEntryAttributeInfluence AttributeInfluenceData;
+};
+
 /**
  * 属性回复词条运行时对象。
  *
@@ -300,6 +329,38 @@ private:
 	/** 当前对象缓存的授予技能词条数据。 */
 	UPROPERTY()
 	FLxEntryGrantSkill GrantSkillData;
+};
+
+/**
+ * 赋予职业词条运行时对象。
+ * 用于缓存职业授予配置，并将其转换为无视学习需求的职业授予效果。
+ */
+UCLASS(BlueprintType, DisplayName="赋予职业词条对象")
+class LXARPG_API ULxEntryObjectGrantProfession : public ULxEntryObjectBase
+{
+	GENERATED_BODY()
+
+public:
+	/** 获取赋予职业词条的完整配置数据。 */
+	const FLxEntryGrantProfession& GetGrantProfessionData() const { return GrantProfessionData; }
+
+	/** 获取当前词条的基础数据指针。 */
+	virtual const FLxEntryBase* GetEntryBase() const override { return &GrantProfessionData; }
+
+	/** 获取赋予职业词条的显示名称。 */
+	virtual FText GetDisplayName() const override;
+
+	/** 将职业授予配置追加到通用效果包。 */
+	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
+
+protected:
+	/** 将基础词条数据转换并缓存为赋予职业词条数据。 */
+	virtual void SetEntryData(const FLxEntryBase* InEntryData) override;
+
+private:
+	/** 当前对象缓存的赋予职业词条数据。 */
+	UPROPERTY()
+	FLxEntryGrantProfession GrantProfessionData;
 };
 
 /**

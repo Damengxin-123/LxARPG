@@ -73,9 +73,6 @@ private:
 	/** 将最终承伤结果应用到当前角色属性。 */
 	void ApplyDamageReceiveResultToTarget(const FLxDamageReceiveResult& InDamageReceiveResult);
 
-	/** 根据生命值刷新角色生命周期。 */
-	void RefreshLifecycleAfterDamage();
-
 	UPROPERTY()
 	TObjectPtr<ULxCharacterDataTransferComponent> DataTransferComponent = nullptr;
 

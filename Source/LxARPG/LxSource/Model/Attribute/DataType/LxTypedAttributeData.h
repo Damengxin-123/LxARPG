@@ -6,122 +6,100 @@
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxTypedAttributeData.generated.h"
 
-/** 各类角色属性共享的标识和显示信息，不包含任何具体数值字段。 */
+/** 各类角色属性共享的标识、业务分类和显示信息。 */
 USTRUCT(BlueprintType, DisplayName="角色属性公共信息")
 struct LXARPG_API FLxCharacterAttributeCommonData
 {
 	GENERATED_BODY()
 
-	/** 属性ID标签，用于分类和索引。 */
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="属性ID标签", meta=(Categories="属性"))
+	/** 属性ID标签，用于唯一索引一个角色属性。 */
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="角色|属性", DisplayName="属性ID标签", meta=(Categories="属性"))
 	FGameplayTag AttributeIDTag;
 
-	/** 属性分类，由 C++ 注册函数写入，蓝图配置中不可修改。 */
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="属性分类类型")
-	ELxCharacterAttributeCategoryType AttributeCategory = ELxCharacterAttributeCategoryType::Numeric;
+	/** 属性在玩法中的业务分类。 */
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="角色|属性", DisplayName="属性业务分类")
+	ELxCharacterAttributeBusinessCategory BusinessCategory = ELxCharacterAttributeBusinessCategory::Combat;
+
+	/** 属性使用的底层数值结构。 */
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="角色|属性", DisplayName="属性数值结构类型")
+	ELxCharacterAttributeValueType ValueType = ELxCharacterAttributeValueType::Scalar;
 
 	/** 当前属性每1点或1%能够换算得到的角色强度数值。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="角色强度换算指数")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性", DisplayName="角色强度换算指数")
 	int32 StrengthConversionIndex = 0;
 
 	/** 属性在界面中使用的名称、描述和可见性。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性", DisplayName="属性可视化信息")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性", DisplayName="属性可视化信息")
 	FLxAttributeShowInfo ShowInfo;
 };
 
-/** 基础属性数据；基础值可以通过衍生规则影响其他属性。 */
-USTRUCT(BlueprintType, DisplayName="基础属性数据")
-struct LXARPG_API FLxBasicAttributeData : public FLxCharacterAttributeCommonData
+/** 标量属性数据；能力值、判定、百分比和普通数值统一使用该结构。 */
+USTRUCT(BlueprintType, DisplayName="标量属性数据")
+struct LXARPG_API FLxScalarAttributeData : public FLxCharacterAttributeCommonData
 {
 	GENERATED_BODY()
 
-	/** 当前基础属性值。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|基础", DisplayName="属性值")
+	/** 当前标量属性值。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性|标量", DisplayName="属性值")
 	float Value = 0.f;
 
-	/** 当前基础属性对其他属性产生的衍生规则。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|基础", DisplayName="衍生规则列表")
-	TArray<FLxAttributeDerivedRule> DerivedRules;
+	/** 标量属性的范围、取整和显示规则。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性|标量", DisplayName="标量属性规则")
+	FLxScalarAttributeRule ScalarRule;
+
 };
 
-/** 资源属性数据，分别保存上限值和运行时有效值。 */
+/** 资源属性数据，分别保存运行时当前值和上限值。 */
 USTRUCT(BlueprintType, DisplayName="资源属性数据")
 struct LXARPG_API FLxResourceAttributeData : public FLxCharacterAttributeCommonData
 {
 	GENERATED_BODY()
 
 	/** 当前资源能够达到的上限值。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|资源", DisplayName="属性上限值")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性|资源", DisplayName="属性上限值")
 	float ValueLimit = 0.f;
 
 	/** 当前资源在运行时的有效值。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|资源", DisplayName="属性有效值")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性|资源", DisplayName="属性有效值")
 	float Value = 0.f;
 };
 
-/** 几率属性数据，数值为1时表示判定必定成功。 */
-USTRUCT(BlueprintType, DisplayName="几率属性数据")
-struct LXARPG_API FLxProbabilityAttributeData : public FLxCharacterAttributeCommonData
-{
-	GENERATED_BODY()
-
-	/** 当前几率值，使用0到1的比例表达。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|几率", DisplayName="属性值")
-	float Value = 0.f;
-};
-
-/** 百分比属性数据，数值为1时表示100%。 */
-USTRUCT(BlueprintType, DisplayName="百分比属性数据")
-struct LXARPG_API FLxPercentageAttributeData : public FLxCharacterAttributeCommonData
-{
-	GENERATED_BODY()
-
-	/** 当前百分比属性值。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|百分比", DisplayName="属性值")
-	float Value = 0.f;
-};
-
-/** 数值属性数据，用于存储直接参与计算的有效数值。 */
-USTRUCT(BlueprintType, DisplayName="数值属性数据")
-struct LXARPG_API FLxNumericAttributeData : public FLxCharacterAttributeCommonData
-{
-	GENERATED_BODY()
-
-	/** 当前数值属性的有效值。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|数值", DisplayName="属性值")
-	float Value = 0.f;
-};
-
-/** 区间属性数据，用基准值及两个方向的浮动比例定义区间。 */
+/** 区间属性数据，用基准值及两个方向的浮动比例定义数值区间。 */
 USTRUCT(BlueprintType, DisplayName="区间属性数据")
 struct LXARPG_API FLxRangeAttributeData : public FLxCharacterAttributeCommonData
 {
 	GENERATED_BODY()
 
 	/** 当前区间属性的基准值。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|区间", DisplayName="属性基准值")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性|区间", DisplayName="属性基准值")
 	float Value = 0.f;
 
-	/** 区间值向提高方向允许的最大浮动比例。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|区间", DisplayName="提高区间比例")
+	/** 区间向提高方向允许的最大浮动比例。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性|区间", DisplayName="提高区间比例")
 	float UpwardFloatingRatio = 1.f;
 
-	/** 区间值向降低方向允许的最大浮动比例。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|基础属性|区间", DisplayName="降低区间比例")
+	/** 区间向降低方向允许的最大浮动比例。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性|区间", DisplayName="降低区间比例")
 	float DownwardFloatingRatio = 1.f;
 };
 
-/** 基础属性修改数据。 */
-USTRUCT(BlueprintType, DisplayName="基础属性修改数据")
-struct LXARPG_API FLxBasicAttributeModifier
+/** 标量属性修改数据。 */
+USTRUCT(BlueprintType, DisplayName="标量属性修改数据")
+struct LXARPG_API FLxScalarAttributeModifier
 {
 	GENERATED_BODY()
-	/** 目标基础属性ID。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="目标属性ID", meta=(Categories="属性")) FGameplayTag AttributeIDTag;
-	/** 基础属性修改方式。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改方式") ELxAttributeModifierOperation Operation = ELxAttributeModifierOperation::AddValue;
-	/** 基础属性修改数值。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改数值") float Value = 0.f;
+
+	/** 目标标量属性ID。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="目标属性ID", meta=(Categories="属性"))
+	FGameplayTag AttributeIDTag;
+
+	/** 标量属性修改方式。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="修改方式")
+	ELxAttributeModifierOperation Operation = ELxAttributeModifierOperation::AddValue;
+
+	/** 标量属性修改数值。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="修改数值")
+	float Value = 0.f;
 };
 
 /** 资源属性修改数据。 */
@@ -129,53 +107,22 @@ USTRUCT(BlueprintType, DisplayName="资源属性修改数据")
 struct LXARPG_API FLxResourceAttributeModifier
 {
 	GENERATED_BODY()
+
 	/** 目标资源属性ID。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="目标属性ID", meta=(Categories="属性")) FGameplayTag AttributeIDTag;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="目标属性ID", meta=(Categories="属性"))
+	FGameplayTag AttributeIDTag;
+
 	/** 资源属性修改方式。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改方式") ELxAttributeModifierOperation Operation = ELxAttributeModifierOperation::AddValue;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="修改方式")
+	ELxAttributeModifierOperation Operation = ELxAttributeModifierOperation::AddValue;
+
 	/** 资源上限值修改量。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="属性上限值修改值") float ValueLimit = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="属性上限值修改值")
+	float ValueLimit = 0.f;
+
 	/** 资源有效值修改量。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="属性有效值修改值") float Value = 0.f;
-};
-
-/** 几率属性修改数据。 */
-USTRUCT(BlueprintType, DisplayName="几率属性修改数据")
-struct LXARPG_API FLxProbabilityAttributeModifier
-{
-	GENERATED_BODY()
-	/** 目标几率属性ID。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="目标属性ID", meta=(Categories="属性")) FGameplayTag AttributeIDTag;
-	/** 几率属性修改方式。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改方式") ELxAttributeModifierOperation Operation = ELxAttributeModifierOperation::AddValue;
-	/** 几率属性修改数值。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改数值") float Value = 0.f;
-};
-
-/** 百分比属性修改数据。 */
-USTRUCT(BlueprintType, DisplayName="百分比属性修改数据")
-struct LXARPG_API FLxPercentageAttributeModifier
-{
-	GENERATED_BODY()
-	/** 目标百分比属性ID。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="目标属性ID", meta=(Categories="属性")) FGameplayTag AttributeIDTag;
-	/** 百分比属性修改方式。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改方式") ELxAttributeModifierOperation Operation = ELxAttributeModifierOperation::AddValue;
-	/** 百分比属性修改数值。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改数值") float Value = 0.f;
-};
-
-/** 数值属性修改数据。 */
-USTRUCT(BlueprintType, DisplayName="数值属性修改数据")
-struct LXARPG_API FLxNumericAttributeModifier
-{
-	GENERATED_BODY()
-	/** 目标数值属性ID。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="目标属性ID", meta=(Categories="属性")) FGameplayTag AttributeIDTag;
-	/** 数值属性修改方式。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改方式") ELxAttributeModifierOperation Operation = ELxAttributeModifierOperation::AddValue;
-	/** 数值属性修改数值。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改数值") float Value = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="属性有效值修改值")
+	float Value = 0.f;
 };
 
 /** 区间属性修改数据。 */
@@ -183,76 +130,82 @@ USTRUCT(BlueprintType, DisplayName="区间属性修改数据")
 struct LXARPG_API FLxRangeAttributeModifier
 {
 	GENERATED_BODY()
+
 	/** 目标区间属性ID。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="目标属性ID", meta=(Categories="属性")) FGameplayTag AttributeIDTag;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="目标属性ID", meta=(Categories="属性"))
+	FGameplayTag AttributeIDTag;
+
 	/** 区间属性修改方式。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改方式") ELxAttributeModifierOperation Operation = ELxAttributeModifierOperation::AddValue;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="修改方式")
+	ELxAttributeModifierOperation Operation = ELxAttributeModifierOperation::AddValue;
+
 	/** 区间基准值修改量。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改基准值数值") float Value = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="修改基准值数值")
+	float Value = 0.f;
+
 	/** 提高区间比例修改量。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改提高区间比例数值") float UpwardFloatingRatio = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="修改提高区间比例数值")
+	float UpwardFloatingRatio = 0.f;
+
 	/** 降低区间比例修改量。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|基础属性|修改", DisplayName="修改降低区间比例数值") float DownwardFloatingRatio = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|属性|修改", DisplayName="修改降低区间比例数值")
+	float DownwardFloatingRatio = 0.f;
 };
 
-/** 六类独立属性的网络传输快照；仅负责分组传输，不作为单个属性的存储类型。 */
-USTRUCT(BlueprintType, DisplayName="角色分类属性网络快照")
+/** 三种数值结构的角色属性网络快照。 */
+USTRUCT(BlueprintType, DisplayName="角色属性网络快照")
 struct LXARPG_API FLxTypedAttributeSnapshot
 {
 	GENERATED_BODY()
 
-	/** 基础属性快照。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|网络", DisplayName="基础属性快照") TArray<FLxBasicAttributeData> BasicAttributes;
+	/** 标量属性快照。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|属性|网络", DisplayName="标量属性快照")
+	TArray<FLxScalarAttributeData> ScalarAttributes;
+
 	/** 资源属性快照。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|网络", DisplayName="资源属性快照") TArray<FLxResourceAttributeData> ResourceAttributes;
-	/** 几率属性快照。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|网络", DisplayName="几率属性快照") TArray<FLxProbabilityAttributeData> ProbabilityAttributes;
-	/** 百分比属性快照。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|网络", DisplayName="百分比属性快照") TArray<FLxPercentageAttributeData> PercentageAttributes;
-	/** 数值属性快照。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|网络", DisplayName="数值属性快照") TArray<FLxNumericAttributeData> NumericAttributes;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|属性|网络", DisplayName="资源属性快照")
+	TArray<FLxResourceAttributeData> ResourceAttributes;
+
 	/** 区间属性快照。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|网络", DisplayName="区间属性快照") TArray<FLxRangeAttributeData> RangeAttributes;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|属性|网络", DisplayName="区间属性快照")
+	TArray<FLxRangeAttributeData> RangeAttributes;
 };
 
-/**
- * 角色属性显示数据。
- * 该结构只用于 UI 展示，不参与属性存储、计算、修改或网络同步。
- */
+/** 只用于 UI 展示的角色属性数据。 */
 USTRUCT(BlueprintType, DisplayName="角色属性显示数据")
 struct LXARPG_API FLxAttributeDisplayData
 {
 	GENERATED_BODY()
 
 	/** 显示数据对应的属性ID。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="属性ID标签")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|属性|显示", DisplayName="属性ID标签")
 	FGameplayTag AttributeIDTag;
 
-	/** 显示数据对应的属性分类。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="属性分类类型")
-	ELxCharacterAttributeCategoryType AttributeCategory = ELxCharacterAttributeCategoryType::Numeric;
+	/** 显示数据对应的业务分类。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|属性|显示", DisplayName="属性业务分类")
+	ELxCharacterAttributeBusinessCategory BusinessCategory = ELxCharacterAttributeBusinessCategory::Combat;
 
 	/** 属性名称、描述、样式及可见性。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="属性可视化信息")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|属性|显示", DisplayName="属性可视化信息")
 	FLxAttributeShowInfo ShowInfo;
 
-	/** 已按属性分类格式化的数值显示文本。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="属性数值文本")
+	/** 已按属性规则格式化的数值文本。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|属性|显示", DisplayName="属性数值文本")
 	FText ValueText;
 
-	/** 套用名称显示样式并填充数值后的完整富文本。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="属性完整显示文本")
+	/** 套用名称样式并填充数值后的完整富文本。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|属性|显示", DisplayName="属性完整显示文本")
 	FText DisplayText;
 
 	/** 可供进度条或其他数值控件使用的当前值。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="当前值")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|属性|显示", DisplayName="当前值")
 	float Value = 0.f;
 
-	/** 资源属性的上限值，其他分类保持为零。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="上限值")
+	/** 资源属性的上限值，其他数值结构保持为零。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|属性|显示", DisplayName="上限值")
 	float ValueLimit = 0.f;
 
 	/** 当前显示数据是否具有有效的上限值。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性|显示", DisplayName="是否具有上限值")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|属性|显示", DisplayName="是否具有上限值")
 	bool bHasValueLimit = false;
 };

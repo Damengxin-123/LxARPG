@@ -43,6 +43,11 @@ void ULxAnimInstanceBase::NativeUpdateAnimation(float DeltaSeconds)
 			m_pCharacter = Cast<ALxBaseCharacter>(Pawn);
 		}
 	}
+	if (m_pCharacter)
+	{
+		// 同步角色复制状态，保证动画图表能够在生命值归零后读取 Dead（死亡状态）。
+		m_nCharacterState = m_pCharacter->GetCurrentState();
+	}
 }
 
 void ULxAnimInstanceBase::ApplyBaseAnimationSignal(const FLxCharacterAnimationSignal& InAnimationSignal)

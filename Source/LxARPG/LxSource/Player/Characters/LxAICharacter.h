@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "LxBaseCharacter.h"
 #include "LxARPG/LxSource/Model/AI/DataType/LxAITypes.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxAICharacter.generated.h"
 
 class ULxAIBehaviorComponent;
@@ -25,7 +26,7 @@ public:
 	ULxAIBehaviorComponent* GetAIBehaviorComponent() const { return AIBehaviorComponent; }
 
 	/** 获取无需连接蓝图节点即可运行的AI控制参数。 */
-	UFUNCTION(BlueprintPure, Category="AI|配置", DisplayName="获取AI控制配置")
+	UFUNCTION(BlueprintPure, Category="角色配置|AI", DisplayName="获取AI控制配置")
 	const FLxAIControlConfig& GetAIControlConfig() const { return AIControlConfig; }
 
 	/** 根据自身配置和目标阵营属性计算基础目标关系。 */
@@ -41,11 +42,21 @@ public:
 	float GetCurrentHealthRatio() const;
 
 protected:
+	/** 角色属性变化后刷新全部AI角色信息界面的生命值显示。 */
+	UFUNCTION(Category="AI|场景界面", DisplayName="处理AI属性变化")
+	void HandleAIAttributesChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot);
+
+	/** 绑定属性变化事件，并立即刷新场景中已经创建的AI角色信息界面。 */
+	void BindCharacterInfoWidgets();
+
+	/** 将当前生命比例推送给角色身上的全部AI角色信息界面。 */
+	void RefreshCharacterInfoWidgetsHealth() const;
+
 	/** 将AI决策结果转换为角色通用移动、近战和技能组件调用。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|行为", DisplayName="AI行为组件")
 	TObjectPtr<ULxAIBehaviorComponent> AIBehaviorComponent;
 
 	/** 当前角色独立感知、数值对比、行为匹配和执行使用的参数。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|配置", DisplayName="AI控制配置")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|AI", DisplayName="AI控制配置")
 	FLxAIControlConfig AIControlConfig;
 };

@@ -55,23 +55,14 @@ public:
 	virtual void BaseComponentInitialize() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/** 使用属性标签ID查询基础属性。 */
-	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色基础属性", meta=(Categories="属性"))
-	bool QueryBasicAttribute(FGameplayTag InAttributeIDTag, FLxBasicAttributeData& OutAttributeData) const;
+	/** 使用属性标签 ID 查询标量属性。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|属性", DisplayName="查询角色标量属性", meta=(Categories="属性"))
+	bool QueryScalarAttribute(FGameplayTag InAttributeIDTag, FLxScalarAttributeData& OutAttributeData) const;
 	/** 使用属性标签ID查询资源属性。 */
-	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色资源属性", meta=(Categories="属性"))
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|属性", DisplayName="查询角色资源属性", meta=(Categories="属性"))
 	bool QueryResourceAttribute(FGameplayTag InAttributeIDTag, FLxResourceAttributeData& OutAttributeData) const;
-	/** 使用属性标签ID查询几率属性。 */
-	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色几率属性", meta=(Categories="属性"))
-	bool QueryProbabilityAttribute(FGameplayTag InAttributeIDTag, FLxProbabilityAttributeData& OutAttributeData) const;
-	/** 使用属性标签ID查询百分比属性。 */
-	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色百分比属性", meta=(Categories="属性"))
-	bool QueryPercentageAttribute(FGameplayTag InAttributeIDTag, FLxPercentageAttributeData& OutAttributeData) const;
-	/** 使用属性标签ID查询数值属性。 */
-	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色数值属性", meta=(Categories="属性"))
-	bool QueryNumericAttribute(FGameplayTag InAttributeIDTag, FLxNumericAttributeData& OutAttributeData) const;
 	/** 使用属性标签ID查询区间属性。 */
-	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="查询角色区间属性", meta=(Categories="属性"))
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|属性", DisplayName="查询角色区间属性", meta=(Categories="属性"))
 	bool QueryRangeAttribute(FGameplayTag InAttributeIDTag, FLxRangeAttributeData& OutAttributeData) const;
 	/** 按属性ID查询任意分类属性的主要有效值。 */
 	UFUNCTION(BlueprintPure, Category="角色数据中转|基础属性", DisplayName="查询角色属性有效值", meta=(Categories="属性"))
@@ -81,8 +72,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="使用物品过滤查询物品")
 	void QueryBackpackItemsByFilter(ELxItemType InItemType, ELxItemRarityType InRarityType, TArray<ULxItemSlotData*>& OutItemSlots) const;
 
-	/** 获取六类角色属性的完整快照。 */
-	UFUNCTION(BlueprintCallable, Category="角色数据中转|基础属性", DisplayName="获取角色分类属性快照")
+	/** 获取标量、资源和区间三种数值结构的完整快照。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|属性", DisplayName="获取角色属性快照")
 	void GetAllCharacterAttributes(FLxTypedAttributeSnapshot& OutAttributeSnapshot) const;
 
 	/** 通过角色属性组件计算并获取当前角色总强度数值。 */
@@ -109,13 +100,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="添加技能物品到技能背包", meta=(Categories="物品"))
 	bool AddSkillItemToSkillBackpack(FGameplayTag InSkillItemIDTag);
 
-	/** 通过数据中转组件检查角色是否可以学习指定职业。 */
-	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="检查能否学习职业", meta=(Categories="Profession"))
-	bool CanLearnProfession(FGameplayTag InProfessionIDTag, FLxProfessionLearnCheckResult& OutCheckResult);
+	/** 通过数据中转组件检查角色是否可以学习指定职业，可选择跳过全部学习需求。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="检查能否学习职业", meta=(Categories="职业"))
+	bool CanLearnProfession(FGameplayTag InProfessionIDTag, FLxProfessionLearnCheckResult& OutCheckResult,
+		bool bCheckRequirements = true);
 
-	/** 通过数据中转组件让角色学习指定职业。 */
-	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="学习职业", meta=(Categories="Profession"))
-	bool LearnProfession(FGameplayTag InProfessionIDTag);
+	/** 通过数据中转组件让角色学习指定职业，并设置初始等级和升级权限。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="学习职业", meta=(Categories="职业"))
+	bool LearnProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel = 1,
+		bool bInCanUpgrade = true, bool bCheckRequirements = true);
+
+	/** 通过数据中转组件无视全部学习需求赋予角色职业。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="无视需求赋予职业", meta=(Categories="职业"))
+	bool GrantProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel = 1, bool bInCanUpgrade = false);
 
 	/** 通过数据中转组件给同类型已学习职业平分增加经验。 */
 	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="增加同类型职业经验")

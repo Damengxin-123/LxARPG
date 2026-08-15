@@ -9,12 +9,14 @@ namespace LxEntryConfig
 	void ClearEntryConfig();
 
 	void SetAttributeGainEntryData(const FLxEntryAttributeGain& InEntryData);
+	void SetAttributeInfluenceEntryData(const FLxEntryAttributeInfluence& InEntryData);
 	void SetAttributeRecoveryEntryData(const FLxEntryAttributeRecovery& InEntryData);
 	void SetChangeStateEntryData(const FLxEntryChangeState& InEntryData);
 	void SetCreateBuffEntryData(const FLxEntryCreateBuff& InEntryData);
 	void SetMultiTargetEntryData(const FLxEntryMultiTarget& InEntryData);
 	void SetDisplayTextEntryData(const FLxEntryDisplayText& InEntryData);
 	void SetGrantSkillEntryData(const FLxEntryGrantSkill& InEntryData);
+	void SetGrantProfessionEntryData(const FLxEntryGrantProfession& InEntryData);
 	void SetDamageEntryData(const FLxEntryDamage& InEntryData);
 
 	/**

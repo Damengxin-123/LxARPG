@@ -8,6 +8,7 @@ class ULxGameDataTablesManager;
 class ULxDamageCalculationFlow;
 class ULxInteractionUIManager;
 class ULxUIManager;
+class UDataTable;
 
 /** 项目全局开发者设置，保存运行时需要创建的核心管理器类型。 */
 UCLASS(config=Game, defaultconfig, DisplayName="游戏设置")
@@ -34,4 +35,9 @@ public:
 	/** 全局伤害计算流程类型，所有角色伤害组件都会按该类型创建自己的运行时流程实例。 */
 	UPROPERTY(EditDefaultsOnly, config, Category="战斗|伤害计算", DisplayName="伤害计算流程类型")
 	TSubclassOf<ULxDamageCalculationFlow> DamageCalculationFlowClass;
+
+	/** 角色基础属性配置表，行结构使用 FLxCharacterBaseAttributeConfig。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, config, Category="数据|角色", DisplayName="角色基础属性表",
+		meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxCharacterBaseAttributeConfig"))
+	TSoftObjectPtr<UDataTable> CharacterBaseAttributeTable;
 };
