@@ -11,12 +11,12 @@
 namespace
 {
 	/** 将AI行为配置使用的米换算为虚幻世界单位厘米。 */
-	constexpr float MetersToCentimeters = 100.0f;
+	constexpr float AIBehaviorMetersToCentimeters = 100.0f;
 
 	/** 将非负的AI业务距离从米换算为虚幻世界单位厘米。 */
 	float ConvertMetersToWorldDistance(const float InDistanceMeters)
 	{
-		return FMath::Max(0.0f, InDistanceMeters) * MetersToCentimeters;
+		return FMath::Max(0.0f, InDistanceMeters) * AIBehaviorMetersToCentimeters;
 	}
 
 	/** 逃跑行为每次重新寻路时使用的邻近移动步长，配置语义为米。 */

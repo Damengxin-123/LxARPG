@@ -9,7 +9,7 @@
 namespace
 {
 	/** 将属性架构使用的米换算为 Unreal 移动组件使用的厘米。 */
-	constexpr float MetersToCentimeters = 100.f;
+	constexpr float AttributeMetersToCentimeters = 100.f;
 
 	/** 百分比属性换算为强度时，每1%对应的比例倍数。 */
 	constexpr double PercentageUnitsPerRatio = 100.0;
@@ -294,7 +294,7 @@ void ULxCharacterAttributeComponent::RefreshCharacterMovementSpeed() const
 	if (UCharacterMovementComponent* MovementComponent = OwnerCharacter->GetCharacterMovement())
 	{
 		const float MovementSpeedMetersPerSecond = FMath::Max(0.f, BaseMovementSpeed.Value * (1.f + MovementSpeedBonus.Value));
-		MovementComponent->MaxWalkSpeed = MovementSpeedMetersPerSecond * MetersToCentimeters;
+		MovementComponent->MaxWalkSpeed = MovementSpeedMetersPerSecond * AttributeMetersToCentimeters;
 	}
 }
 
