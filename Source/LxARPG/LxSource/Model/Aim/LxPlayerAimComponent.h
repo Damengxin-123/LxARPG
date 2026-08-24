@@ -61,6 +61,8 @@ public:
 	ULxPlayerAimComponent();
 
 	virtual void BaseComponentInitialize() override;
+	/** 组件销毁前释放瞄准行为和朝向控制请求。 */
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
 		FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue) override;

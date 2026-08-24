@@ -160,6 +160,9 @@ private:
 	/** 清理当前技能、技能物品和占用状态。 */
 	void ResetSkillCastState();
 
+	/** 更新技能占用状态，并同步通知统一角色行为控制组件。 */
+	void SetSkillCastState(ELxSkillCastState InNewState);
+
 	/** 接收持续计算出的玩家技能起点和方向，并更新当前持久技能单元。 */
 	UFUNCTION()
 	void HandleAimResultChanged(const FLxPlayerAimResult& AimResult);

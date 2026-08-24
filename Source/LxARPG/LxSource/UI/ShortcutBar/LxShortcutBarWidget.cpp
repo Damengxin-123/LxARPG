@@ -2,7 +2,7 @@
 
 #include "Input/Reply.h"
 #include "InputCoreTypes.h"
-#include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillItem.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
@@ -153,7 +153,7 @@ bool ULxShortcutBarWidget::BeginUseSelectedShortcut()
 	}
 
 	bUsingSelectedShortcut = true;
-	SetMoveRotationLockedByShortcut(true);
+	SetFacingControlRequestedByShortcut(true);
 	if (Skill->CanSkillCharge() || Skill->IsSustainedReleaseSkill())
 	{
 		bUsingSelectedShortcut = SelectedShortcutGrid->StartUseItem();
@@ -161,7 +161,7 @@ bool ULxShortcutBarWidget::BeginUseSelectedShortcut()
 		bSustainingSelectedShortcut = bUsingSelectedShortcut && Skill->IsSustainedReleaseSkill();
 		if (!bUsingSelectedShortcut)
 		{
-			SetMoveRotationLockedByShortcut(false);
+			SetFacingControlRequestedByShortcut(false);
 		}
 		return bUsingSelectedShortcut;
 	}
@@ -187,7 +187,7 @@ bool ULxShortcutBarWidget::EndUseSelectedShortcut()
 		SelectedShortcutGrid->EndUseItem();
 	}
 
-	SetMoveRotationLockedByShortcut(false);
+	SetFacingControlRequestedByShortcut(false);
 	bUsingSelectedShortcut = false;
 	bChargingSelectedShortcut = false;
 	bSustainingSelectedShortcut = false;
@@ -310,28 +310,30 @@ void ULxShortcutBarWidget::StopRepeatedUseTimer()
 	}
 }
 
-void ULxShortcutBarWidget::SetMoveRotationLockedByShortcut(bool bInLocked)
+void ULxShortcutBarWidget::SetFacingControlRequestedByShortcut(const bool bInRequested)
 {
-	if (bMoveRotationLockedByShortcut == bInLocked)
+	if (bFacingControlRequestedByShortcut == bInRequested)
 	{
 		return;
 	}
 
 	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwningPlayerPawn());
-	ULxCharacterMoveComponent* MoveComponent = OwnerCharacter ? OwnerCharacter->GetCharacterMoveComponent() : nullptr;
-	if (!MoveComponent)
+	ULxCharacterBehaviorControlComponent* BehaviorControlComponent = OwnerCharacter
+		? OwnerCharacter->GetCharacterBehaviorControlComponent()
+		: nullptr;
+	if (!BehaviorControlComponent)
 	{
 		return;
 	}
 
-	bMoveRotationLockedByShortcut = bInLocked;
-	if (bMoveRotationLockedByShortcut)
+	bFacingControlRequestedByShortcut = bInRequested;
+	if (bFacingControlRequestedByShortcut)
 	{
-		MoveComponent->AddMoveRotationLock();
+		BehaviorControlComponent->AddFacingControlRequest();
 	}
 	else
 	{
-		MoveComponent->RemoveMoveRotationLock();
+		BehaviorControlComponent->RemoveFacingControlRequest();
 	}
 }
 

@@ -3,7 +3,7 @@
 #include "AIController.h"
 #include "NavigationPath.h"
 #include "NavigationSystem.h"
-#include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxAICharacter.h"
@@ -47,7 +47,7 @@ ULxAIBehaviorComponent::ULxAIBehaviorComponent()
 void ULxAIBehaviorComponent::BaseComponentInitialize()
 {
 	OwnerAICharacter = Cast<ALxAICharacter>(GetOwner());
-	CharacterMoveComponent = OwnerAICharacter ? OwnerAICharacter->GetCharacterMoveComponent() : nullptr;
+	CharacterBehaviorControlComponent = OwnerAICharacter ? OwnerAICharacter->GetCharacterBehaviorControlComponent() : nullptr;
 	if (OwnerAICharacter)
 	{
 		PatrolOrigin = OwnerAICharacter->GetActorLocation();
@@ -79,10 +79,10 @@ bool ULxAIBehaviorComponent::CanExecuteBehavior(const ELxAIActionType InActionTy
 ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteBehavior(const ELxAIActionType InActionType,
 	const FLxAIBattleSnapshot& InBattleSnapshot)
 {
-	if (!OwnerAICharacter || !CharacterMoveComponent)
+	if (!OwnerAICharacter || !CharacterBehaviorControlComponent)
 	{
 		BaseComponentInitialize();
-		if (!OwnerAICharacter || !CharacterMoveComponent)
+		if (!OwnerAICharacter || !CharacterBehaviorControlComponent)
 		{
 			return ELxAIBehaviorExecutionResult::Failed;
 		}
@@ -114,17 +114,17 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteBehavior(const ELxAI
 
 bool ULxAIBehaviorComponent::CanExecutePatrol(const FLxAIBattleSnapshot& InBattleSnapshot) const
 {
-	return OwnerAICharacter && CharacterMoveComponent && !InBattleSnapshot.bHasThreat;
+	return OwnerAICharacter && CharacterBehaviorControlComponent && !InBattleSnapshot.bHasThreat;
 }
 
 bool ULxAIBehaviorComponent::CanExecuteAlert(const FLxAIBattleSnapshot&) const
 {
-	return OwnerAICharacter && CharacterMoveComponent;
+	return OwnerAICharacter && CharacterBehaviorControlComponent;
 }
 
 bool ULxAIBehaviorComponent::CanExecuteAttack(const FLxAIBattleSnapshot& InBattleSnapshot) const
 {
-	if (!OwnerAICharacter || !CharacterMoveComponent || !IsValid(InBattleSnapshot.HighestThreatEnemy))
+	if (!OwnerAICharacter || !CharacterBehaviorControlComponent || !IsValid(InBattleSnapshot.HighestThreatEnemy))
 	{
 		return false;
 	}
@@ -136,12 +136,12 @@ bool ULxAIBehaviorComponent::CanExecuteAttack(const FLxAIBattleSnapshot& InBattl
 
 bool ULxAIBehaviorComponent::CanExecuteDefend(const FLxAIBattleSnapshot& InBattleSnapshot) const
 {
-	return OwnerAICharacter && CharacterMoveComponent && InBattleSnapshot.bHasThreat;
+	return OwnerAICharacter && CharacterBehaviorControlComponent && InBattleSnapshot.bHasThreat;
 }
 
 bool ULxAIBehaviorComponent::CanExecuteHeal(const FLxAIBattleSnapshot& InBattleSnapshot) const
 {
-	if (!OwnerAICharacter || !CharacterMoveComponent || !IsValid(InBattleSnapshot.LowestStateAlly))
+	if (!OwnerAICharacter || !CharacterBehaviorControlComponent || !IsValid(InBattleSnapshot.LowestStateAlly))
 	{
 		return false;
 	}
@@ -153,15 +153,15 @@ bool ULxAIBehaviorComponent::CanExecuteHeal(const FLxAIBattleSnapshot& InBattleS
 
 bool ULxAIBehaviorComponent::CanExecuteRetreat(const FLxAIBattleSnapshot& InBattleSnapshot) const
 {
-	return OwnerAICharacter && CharacterMoveComponent && (bRetreatInProgress ||
+	return OwnerAICharacter && CharacterBehaviorControlComponent && (bRetreatInProgress ||
 		(!bRetreatCompletionBlocked && InBattleSnapshot.bHasThreat && IsValid(InBattleSnapshot.NearestEnemy)));
 }
 
 void ULxAIBehaviorComponent::StopBehavior()
 {
-	if (CharacterMoveComponent)
+	if (CharacterBehaviorControlComponent)
 	{
-		CharacterMoveComponent->StopActiveMovement();
+		CharacterBehaviorControlComponent->StopActiveMovement();
 	}
 	if (AAIController* AIController = GetOwnerAIController())
 	{
@@ -241,9 +241,9 @@ void ULxAIBehaviorComponent::UpdateRetreatProgress(const FLxAIBattleSnapshot& In
 		CompletedRetreatEnemy = IsValid(NearestEnemy) ? NearestEnemy : LastRetreatEnemy;
 		CompletedRetreatEnemyDistance = CompletedRetreatEnemy.IsValid() ? FVector::Dist2D(
 			OwnerAICharacter->GetActorLocation(), CompletedRetreatEnemy->GetActorLocation()) : 0.0f;
-		if (CharacterMoveComponent)
+		if (CharacterBehaviorControlComponent)
 		{
-			CharacterMoveComponent->StopActiveMovement();
+			CharacterBehaviorControlComponent->StopActiveMovement();
 		}
 		bRetreatInProgress = false;
 		RetreatStartLocation = FVector::ZeroVector;
@@ -258,9 +258,9 @@ void ULxAIBehaviorComponent::UpdateRetreatProgress(const FLxAIBattleSnapshot& In
 
 ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecutePatrol()
 {
-	if (!CharacterMoveComponent || CharacterMoveComponent->IsNavigationMoving())
+	if (!CharacterBehaviorControlComponent || CharacterBehaviorControlComponent->IsNavigationMoving())
 	{
-		return CharacterMoveComponent ? ELxAIBehaviorExecutionResult::InProgress :
+		return CharacterBehaviorControlComponent ? ELxAIBehaviorExecutionResult::InProgress :
 			ELxAIBehaviorExecutionResult::Failed;
 	}
 
@@ -271,7 +271,7 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecutePatrol()
 		if (NavigationSystem->GetRandomReachablePointInRadius(PatrolOrigin,
 			PatrolRadius, PatrolLocation))
 		{
-			return CharacterMoveComponent->RequestMoveToLocation(PatrolLocation.Location, 50.0f) ?
+			return CharacterBehaviorControlComponent->RequestMoveToLocation(PatrolLocation.Location, 50.0f) ?
 				ELxAIBehaviorExecutionResult::Started : ELxAIBehaviorExecutionResult::Failed;
 		}
 	}
@@ -280,7 +280,7 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecutePatrol()
 
 ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteAlert(const FLxAIBattleSnapshot& InBattleSnapshot)
 {
-	CharacterMoveComponent->StopActiveMovement();
+	CharacterBehaviorControlComponent->StopActiveMovement();
 	if (AAIController* AIController = GetOwnerAIController())
 	{
 		if (IsValid(InBattleSnapshot.HighestThreatEnemy))
@@ -314,11 +314,11 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteAttack(const FLxAIBa
 	{
 		const float AcceptanceRadius = FMath::Min(
 			ConvertMetersToWorldDistance(Config.AttackAcceptanceRadius), AttackSkillRange);
-		return CharacterMoveComponent->RequestMoveToActor(TargetActor, AcceptanceRadius) ?
+		return CharacterBehaviorControlComponent->RequestMoveToActor(TargetActor, AcceptanceRadius) ?
 			ELxAIBehaviorExecutionResult::Started : ELxAIBehaviorExecutionResult::Failed;
 	}
 
-	CharacterMoveComponent->StopActiveMovement();
+	CharacterBehaviorControlComponent->StopActiveMovement();
 	ULxSkillBackpackComponent* SkillBackpack = OwnerAICharacter->GetSkillBackpackComponent();
 	ULxSkillCastComponent* SkillCast = OwnerAICharacter->GetSkillCastComponent();
 	if (!SkillBackpack || !SkillCast)
@@ -352,10 +352,10 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteDefend(const FLxAIBa
 	}
 	if (FVector::DistSquared2D(OwnerAICharacter->GetActorLocation(), InBattleSnapshot.AssistCenter) > FMath::Square(250.0f))
 	{
-		return CharacterMoveComponent->RequestMoveToLocation(InBattleSnapshot.AssistCenter, 150.0f) ?
+		return CharacterBehaviorControlComponent->RequestMoveToLocation(InBattleSnapshot.AssistCenter, 150.0f) ?
 			ELxAIBehaviorExecutionResult::Started : ELxAIBehaviorExecutionResult::Failed;
 	}
-	CharacterMoveComponent->StopActiveMovement();
+	CharacterBehaviorControlComponent->StopActiveMovement();
 	return ELxAIBehaviorExecutionResult::InProgress;
 }
 
@@ -376,11 +376,11 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteHeal(const FLxAIBatt
 	const float HealSkillRange = ConvertMetersToWorldDistance(Config.HealSkillRange);
 	if (Distance > HealSkillRange)
 	{
-		return CharacterMoveComponent->RequestMoveToActor(HealTarget, HealSkillRange * 0.8f) ?
+		return CharacterBehaviorControlComponent->RequestMoveToActor(HealTarget, HealSkillRange * 0.8f) ?
 			ELxAIBehaviorExecutionResult::Started : ELxAIBehaviorExecutionResult::Failed;
 	}
 
-	CharacterMoveComponent->StopActiveMovement();
+	CharacterBehaviorControlComponent->StopActiveMovement();
 	ULxSkillBackpackComponent* SkillBackpack = OwnerAICharacter->GetSkillBackpackComponent();
 	ULxSkillCastComponent* SkillCast = OwnerAICharacter->GetSkillCastComponent();
 	if (!SkillBackpack || !SkillCast)
@@ -422,7 +422,7 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteRetreat(const FLxAIB
 		bRetreatEnemyWasClosing = false;
 	}
 
-	if (CharacterMoveComponent->IsNavigationMoving())
+	if (CharacterBehaviorControlComponent->IsNavigationMoving())
 	{
 		return ELxAIBehaviorExecutionResult::InProgress;
 	}
@@ -469,7 +469,7 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteRetreat(const FLxAIB
 				{
 					AIController->ClearFocus(EAIFocusPriority::Gameplay);
 				}
-				if (CharacterMoveComponent->RequestMoveToLocation(ReachableLocation.Location, 35.0f))
+				if (CharacterBehaviorControlComponent->RequestMoveToLocation(ReachableLocation.Location, 35.0f))
 				{
 					return ELxAIBehaviorExecutionResult::Started;
 				}

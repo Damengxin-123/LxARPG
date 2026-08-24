@@ -1,7 +1,7 @@
 #include "LxPlayerControlMoveComponent.h"
 
 #include "GameFramework/PlayerController.h"
-#include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 namespace
@@ -26,9 +26,9 @@ void ULxPlayerControlMoveComponent::BaseComponentInitialize()
 	{
 		m_pOwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
 	}
-	if (!m_pMoveComponent && m_pOwnerCharacter)
+	if (!m_pBehaviorControlComponent && m_pOwnerCharacter)
 	{
-		m_pMoveComponent = m_pOwnerCharacter->GetCharacterMoveComponent();
+		m_pBehaviorControlComponent = m_pOwnerCharacter->GetCharacterBehaviorControlComponent();
 	}
 	if (!IsControlledByLocalPlayer(m_pOwnerCharacter))
 	{
@@ -53,11 +53,11 @@ void ULxPlayerControlMoveComponent::BeginPlay()
 
 void ULxPlayerControlMoveComponent::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
 {
-	if (!m_pMoveComponent)
+	if (!m_pBehaviorControlComponent)
 	{
 		BaseComponentInitialize();
 	}
-	if (!m_pMoveComponent)
+	if (!m_pBehaviorControlComponent)
 	{
 		return;
 	}
@@ -69,14 +69,14 @@ void ULxPlayerControlMoveComponent::HandleInputValue(ELxInputActionID InInputAct
 	if (InInputActionID == m_MoveWInputActionID || InInputActionID == m_MoveAInputActionID
 		|| InInputActionID == m_MoveDInputActionID || InInputActionID == m_MoveSInputActionID)
 	{
-		m_pMoveComponent->HandleMoveInput(InValue.m_sVector2D);
+		m_pBehaviorControlComponent->HandleMoveInput(InValue.m_sVector2D);
 	}
 	else if (InInputActionID == m_JumpInputActionID)
 	{
-		m_pMoveComponent->HandleJumpInput(InValue.m_blValue);
+		m_pBehaviorControlComponent->HandleJumpInput(InValue.m_blValue);
 	}
 	else if (InInputActionID == m_LookXInputActionID || InInputActionID == m_LookYInputActionID)
 	{
-		m_pMoveComponent->HandleLookInput(InValue.m_sVector2D);
+		m_pBehaviorControlComponent->HandleLookInput(InValue.m_sVector2D);
 	}
 }

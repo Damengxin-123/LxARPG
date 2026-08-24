@@ -1,7 +1,7 @@
 #include "LxCharacterAnimationProcessComponent.h"
 
 #include "Components/SkeletalMeshComponent.h"
-#include "LxCharacterAnimationMotionAnalysisComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Player/AnimInstance/LxAnimInstanceBase.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
@@ -12,15 +12,21 @@ ULxCharacterAnimationProcessComponent::ULxCharacterAnimationProcessComponent()
 
 void ULxCharacterAnimationProcessComponent::BaseComponentInitialize()
 {
+	if (bAnimationProcessInitialized || bAnimationProcessInitializing)
+	{
+		return;
+	}
+
+	TGuardValue<bool> InitializationGuard(bAnimationProcessInitializing, true);
 	CacheOwnerComponents();
-	BindMotionAnalysisEvent();
 	EnsureAnimationInstanceCached();
 	bAnimationProcessInitialized = true;
+	BindBehaviorControlEvents();
 }
 
 void ULxCharacterAnimationProcessComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	UnbindMotionAnalysisEvent();
+	UnbindBehaviorControlEvents();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -54,16 +60,35 @@ void ULxCharacterAnimationProcessComponent::ReceiveActionMotionSignal(const FLxC
 	}
 }
 
+void ULxCharacterAnimationProcessComponent::ReceiveBehaviorStateChanged(const FGameplayTag InBehaviorStateTag,
+	const bool bInActive)
+{
+	if (!InBehaviorStateTag.IsValid())
+	{
+		return;
+	}
+	if (bInActive)
+	{
+		CurrentBehaviorStateTags.AddTag(InBehaviorStateTag);
+	}
+	else
+	{
+		CurrentBehaviorStateTags.RemoveTag(InBehaviorStateTag);
+	}
+	OnDataChange.Broadcast();
+}
+
 FLxCharacterAnimationSignal ULxCharacterAnimationProcessComponent::ConvertMotionSignalToAnimationSignal_Implementation(const FLxCharacterMotionSignal& InMotionSignal) const
 {
 	FLxCharacterAnimationSignal AnimationSignal;
 	AnimationSignal.AnimationType = InMotionSignal.MotionType;
 	AnimationSignal.bLoop = InMotionSignal.bLoop;
-	if (InMotionSignal.MotionSpeed > 10.0f)
+	if (InMotionSignal.MotionType == ELxCharacterMotionType::Move
+		|| InMotionSignal.MotionType == ELxCharacterMotionType::Run)
 	{
 		AnimationSignal.PlayRate = FMath::Clamp(InMotionSignal.MotionSpeed / 600.0f, 0.1f, 3.0f);
 	}
-	else if (InMotionSignal.MotionSpeed > 0.0f)
+	else if (InMotionSignal.MotionSpeed > 0.0f && InMotionSignal.MotionSpeed <= 10.0f)
 	{
 		AnimationSignal.PlayRate = InMotionSignal.MotionSpeed;
 	}
@@ -82,25 +107,29 @@ void ULxCharacterAnimationProcessComponent::CacheOwnerComponents()
 		return;
 	}
 
-	MotionAnalysisComponent = OwnerCharacter->GetCharacterAnimationMotionAnalysisComponent();
+	BehaviorControlComponent = OwnerCharacter->GetCharacterBehaviorControlComponent();
 }
 
-void ULxCharacterAnimationProcessComponent::BindMotionAnalysisEvent()
+void ULxCharacterAnimationProcessComponent::BindBehaviorControlEvents()
 {
-	UnbindMotionAnalysisEvent();
-	if (MotionAnalysisComponent)
+	UnbindBehaviorControlEvents();
+	if (BehaviorControlComponent)
 	{
-		MotionAnalysisComponent->OnBaseMotionSignalAnalyzed.AddDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveBaseMotionSignal);
-		MotionAnalysisComponent->OnActionMotionSignalAnalyzed.AddDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveActionMotionSignal);
+		CurrentBehaviorStateTags = BehaviorControlComponent->GetActiveBehaviorStateTags();
+		BehaviorControlComponent->OnBehaviorStateChanged.AddDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveBehaviorStateChanged);
+		BehaviorControlComponent->OnBaseMotionSignalChanged.AddDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveBaseMotionSignal);
+		BehaviorControlComponent->OnActionMotionSignalChanged.AddDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveActionMotionSignal);
+		BehaviorControlComponent->ResendCurrentBaseAnimationMotionSignal();
 	}
 }
 
-void ULxCharacterAnimationProcessComponent::UnbindMotionAnalysisEvent()
+void ULxCharacterAnimationProcessComponent::UnbindBehaviorControlEvents()
 {
-	if (MotionAnalysisComponent)
+	if (BehaviorControlComponent)
 	{
-		MotionAnalysisComponent->OnBaseMotionSignalAnalyzed.RemoveDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveBaseMotionSignal);
-		MotionAnalysisComponent->OnActionMotionSignalAnalyzed.RemoveDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveActionMotionSignal);
+		BehaviorControlComponent->OnBehaviorStateChanged.RemoveDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveBehaviorStateChanged);
+		BehaviorControlComponent->OnBaseMotionSignalChanged.RemoveDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveBaseMotionSignal);
+		BehaviorControlComponent->OnActionMotionSignalChanged.RemoveDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveActionMotionSignal);
 	}
 }
 

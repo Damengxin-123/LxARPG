@@ -5,7 +5,7 @@
 #include "LxPlayerControlMoveComponent.generated.h"
 
 class ALxBaseCharacter;
-class ULxCharacterMoveComponent;
+class ULxCharacterBehaviorControlComponent;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="玩家移动控制组件")
 class LXARPG_API ULxPlayerControlMoveComponent : public ULxComponentBase
@@ -45,6 +45,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter = nullptr;
 
+	/** 接收玩家输入并执行通用角色行为的控制组件。 */
 	UPROPERTY()
-	TObjectPtr<ULxCharacterMoveComponent> m_pMoveComponent = nullptr;
+	TObjectPtr<ULxCharacterBehaviorControlComponent> m_pBehaviorControlComponent = nullptr;
 };

@@ -3,12 +3,11 @@
 #include "LxCharacterNameTags.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
-#include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationMotionAnalysisComponent.h"
 #include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationProcessComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
-#include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/CloseCombat/Logic/LxCharacterCloseCombatComponent.h"
 #include "LxARPG/LxSource/Model/CharacterPoint/Logic/LxCharacterAnchorPointComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
@@ -33,8 +32,7 @@ ALxBaseCharacter::ALxBaseCharacter()
 	bReplicates = true;
 	SetReplicateMovement(true);
 	CharacterNameIDTag = LxTag_UnitNaming_DefaultNaming;
-	m_pCharacterMoveComponent = CreateDefaultSubobject<ULxCharacterMoveComponent>(TEXT("CharacterMoveComponent"));
-	m_pCharacterAnimationMotionAnalysisComponent = CreateDefaultSubobject<ULxCharacterAnimationMotionAnalysisComponent>(TEXT("CharacterAnimationMotionAnalysisComponent"));
+	m_pCharacterBehaviorControlComponent = CreateDefaultSubobject<ULxCharacterBehaviorControlComponent>(TEXT("角色行为控制组件"));
 	m_pCharacterAnimationProcessComponent = CreateDefaultSubobject<ULxCharacterAnimationProcessComponent>(TEXT("CharacterAnimationProcessComponent"));
 	m_pCharacterBackpackComponent = CreateDefaultSubobject<ULxCharacterBackpackComponent>(TEXT("CharacterBackpackComponent"));
 	m_pCharacterEquipmentComponent = CreateDefaultSubobject<ULxCharacterEquipmentComponent>(TEXT("CharacterEquipmentComponent"));
@@ -72,19 +70,15 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	}
 
 	InitializeCharacterNamingText();
-	if (m_pCharacterMoveComponent)
-	{
-		m_pCharacterMoveComponent->BaseComponentInitialize();
-	}
-
-	if (m_pCharacterAnimationMotionAnalysisComponent)
-	{
-		m_pCharacterAnimationMotionAnalysisComponent->BaseComponentInitialize();
-	}
-
 	if (m_pCharacterAnimationProcessComponent)
 	{
 		m_pCharacterAnimationProcessComponent->BaseComponentInitialize();
+	}
+
+	// 动画处理组件先绑定行为事件，避免行为组件初始化时发送的首个基础运动信号丢失。
+	if (m_pCharacterBehaviorControlComponent)
+	{
+		m_pCharacterBehaviorControlComponent->BaseComponentInitialize();
 	}
 
 	if (m_pCharacterBackpackComponent)

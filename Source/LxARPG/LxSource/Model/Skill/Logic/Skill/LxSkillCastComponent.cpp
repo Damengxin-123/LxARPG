@@ -6,12 +6,13 @@
 #include "TimerManager.h"
 #include "LxARPG/LxSource/Model/Aim/LxPlayerAimComponent.h"
 #include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
-#include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillItem.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
+#include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxSkill.h"
 
 ULxSkillCastComponent::ULxSkillCastComponent()
@@ -93,7 +94,7 @@ bool ULxSkillCastComponent::ReleaseSkillDirectly(ULxSkill* InSkill, const FLxSki
 		return false;
 	}
 
-	SkillCastState = ELxSkillCastState::DirectReleasing;
+	SetSkillCastState(ELxSkillCastState::DirectReleasing);
 	CurrentCastingSkill = InSkill;
 	if (!InSkill->TryBeginDirectSkillReleaseTiming())
 	{
@@ -112,7 +113,7 @@ bool ULxSkillCastComponent::StartSkillCharge(ULxSkill* InSkill, const FLxSkillCa
 		return false;
 	}
 
-	SkillCastState = ELxSkillCastState::Charging;
+	SetSkillCastState(ELxSkillCastState::Charging);
 	CurrentCastingSkill = InSkill;
 	ChargingSkill = InSkill;
 	ChargingSkillItem = nullptr;
@@ -137,7 +138,7 @@ bool ULxSkillCastComponent::EndSkillCharge(ULxSkill* InSkill, const FLxSkillCast
 
 	ChargingSkill = nullptr;
 	ChargingSkillItem = nullptr;
-	SkillCastState = ELxSkillCastState::DirectReleasing;
+	SetSkillCastState(ELxSkillCastState::DirectReleasing);
 	BeginTimedSkillRelease(SkillToEnd, ELxPendingSkillReleaseExecution::Charge);
 	return true;
 }
@@ -149,7 +150,7 @@ bool ULxSkillCastComponent::StartSustainedRelease(ULxSkill* InSkill, const FLxSk
 		return false;
 	}
 
-	SkillCastState = ELxSkillCastState::SustainedReleasing;
+	SetSkillCastState(ELxSkillCastState::SustainedReleasing);
 	CurrentCastingSkill = InSkill;
 	SustainedSkill = InSkill;
 	if (!InSkill->TryBeginSustainedSkillReleaseTiming())
@@ -335,10 +336,10 @@ void ULxSkillCastComponent::ServerHandleSkillItemReleaseInput_Implementation(FGa
 void ULxSkillCastComponent::MulticastPlaySkillActionAnimation_Implementation(float InSkillReleaseDuration)
 {
 	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
-	ULxCharacterMoveComponent* CharacterMoveComponent = OwnerCharacter
-		? OwnerCharacter->GetCharacterMoveComponent()
+	ULxCharacterBehaviorControlComponent* BehaviorControlComponent = OwnerCharacter
+		? OwnerCharacter->GetCharacterBehaviorControlComponent()
 		: nullptr;
-	if (!CharacterMoveComponent)
+	if (!BehaviorControlComponent)
 	{
 		return;
 	}
@@ -348,16 +349,16 @@ void ULxSkillCastComponent::MulticastPlaySkillActionAnimation_Implementation(flo
 	// 技能动作资产统一按一秒制作，通过播放速率把实际时长拉伸或压缩到技能释放时间。
 	ActionMotionSignal.MotionSpeed = 1.0f / FMath::Max(InSkillReleaseDuration, 0.1f);
 	ActionMotionSignal.bLoop = false;
-	CharacterMoveComponent->SendActionAnimationMotionSignal(ActionMotionSignal);
+	BehaviorControlComponent->SendActionAnimationMotionSignal(ActionMotionSignal);
 }
 
 void ULxSkillCastComponent::MulticastStopSkillActionAnimation_Implementation()
 {
 	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
-	ULxCharacterMoveComponent* CharacterMoveComponent = OwnerCharacter
-		? OwnerCharacter->GetCharacterMoveComponent()
+	ULxCharacterBehaviorControlComponent* BehaviorControlComponent = OwnerCharacter
+		? OwnerCharacter->GetCharacterBehaviorControlComponent()
 		: nullptr;
-	if (!CharacterMoveComponent)
+	if (!BehaviorControlComponent)
 	{
 		return;
 	}
@@ -366,7 +367,7 @@ void ULxSkillCastComponent::MulticastStopSkillActionAnimation_Implementation()
 	ActionMotionSignal.MotionType = ELxCharacterMotionType::None;
 	ActionMotionSignal.MotionSpeed = 0.0f;
 	ActionMotionSignal.bLoop = false;
-	CharacterMoveComponent->SendActionAnimationMotionSignal(ActionMotionSignal);
+	BehaviorControlComponent->SendActionAnimationMotionSignal(ActionMotionSignal);
 }
 
 void ULxSkillCastComponent::BeginTimedSkillRelease(ULxSkill* InSkill,
@@ -574,12 +575,78 @@ FLxSkillCastContext ULxSkillCastComponent::NormalizeCastContext(const FLxSkillCa
 void ULxSkillCastComponent::ResetSkillCastState()
 {
 	ClearTimedSkillRelease(false);
-	SkillCastState = ELxSkillCastState::Idle;
+	SetSkillCastState(ELxSkillCastState::Idle);
 	CurrentCastingSkill = nullptr;
 	ChargingSkill = nullptr;
 	ChargingSkillItem = nullptr;
 	SustainedSkill = nullptr;
 	SustainedSkillItem = nullptr;
+}
+
+void ULxSkillCastComponent::SetSkillCastState(const ELxSkillCastState InNewState)
+{
+	if (SkillCastState == InNewState)
+	{
+		return;
+	}
+
+	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
+	ULxCharacterBehaviorControlComponent* BehaviorControlComponent = OwnerCharacter
+		? OwnerCharacter->GetCharacterBehaviorControlComponent()
+		: nullptr;
+	const bool bWasCasting = SkillCastState != ELxSkillCastState::Idle;
+	const bool bWillCast = InNewState != ELxSkillCastState::Idle;
+
+	if (BehaviorControlComponent)
+	{
+		switch (SkillCastState)
+		{
+		case ELxSkillCastState::DirectReleasing:
+			BehaviorControlComponent->RemoveBehaviorState(LxTag_CharacterState_Combat_Casting);
+			break;
+		case ELxSkillCastState::Charging:
+			BehaviorControlComponent->RemoveBehaviorState(LxTag_CharacterState_Combat_Charging);
+			break;
+		case ELxSkillCastState::SustainedReleasing:
+			BehaviorControlComponent->RemoveBehaviorState(LxTag_CharacterState_Combat_Sustaining);
+			BehaviorControlComponent->RemoveBehaviorState(LxTag_CharacterState_Combat_Casting);
+			break;
+		default:
+			break;
+		}
+	}
+
+	SkillCastState = InNewState;
+	if (!BehaviorControlComponent)
+	{
+		return;
+	}
+
+	switch (SkillCastState)
+	{
+	case ELxSkillCastState::DirectReleasing:
+		BehaviorControlComponent->AddBehaviorState(LxTag_CharacterState_Combat_Casting);
+		break;
+	case ELxSkillCastState::Charging:
+		BehaviorControlComponent->AddBehaviorState(LxTag_CharacterState_Combat_Charging);
+		break;
+	case ELxSkillCastState::SustainedReleasing:
+		BehaviorControlComponent->AddBehaviorState(LxTag_CharacterState_Combat_Sustaining);
+		BehaviorControlComponent->AddBehaviorState(LxTag_CharacterState_Combat_Casting);
+		break;
+	default:
+		break;
+	}
+
+	if (!bWasCasting && bWillCast)
+	{
+		BehaviorControlComponent->SetDesiredFacingDirection(CurrentCastContext.AimDirection);
+		BehaviorControlComponent->AddFacingControlRequest();
+	}
+	else if (bWasCasting && !bWillCast)
+	{
+		BehaviorControlComponent->RemoveFacingControlRequest();
+	}
 }
 
 void ULxSkillCastComponent::BeginSustainedAimTracking()
@@ -620,6 +687,14 @@ void ULxSkillCastComponent::HandleAimResultChanged(const FLxPlayerAimResult& Aim
 	CurrentCastContext.AimDirection = AimResult.SkillDirection;
 	CurrentCastContext.bHasAimDirection = true;
 	CurrentCastContext.SpawnTransform = FTransform(AimResult.SkillDirection.Rotation(), AimResult.ReleaseLocation);
+	if (const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner()))
+	{
+		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
+			OwnerCharacter->GetCharacterBehaviorControlComponent())
+		{
+			BehaviorControlComponent->SetDesiredFacingDirection(AimResult.CameraRayDirection);
+		}
+	}
 	SustainedSkill->TryUpdateSustainedReleaseTransform(CurrentCastContext.SpawnTransform);
 }
 

@@ -62,7 +62,7 @@ private:
 	bool SelectShortcutByOffset(int32 InOffset);
 	void UseSelectedShortcutRepeatedly();
 	void StopRepeatedUseTimer();
-	void SetMoveRotationLockedByShortcut(bool bInLocked);
+	void SetFacingControlRequestedByShortcut(bool bInRequested);
 	ULxItemGridWidget* GetShortcutGridByInputAction(ELxInputActionID InInputActionID) const;
 	int32 GetShortcutGridIndex(ULxItemGridWidget* InItemGridWidget) const;
 	static bool IsShortcutInputActionID(ELxInputActionID InInputActionID);
@@ -91,9 +91,9 @@ private:
 	UPROPERTY(Transient)
 	bool bSustainingSelectedShortcut = false;
 
-	/** 当前快捷栏技能使用是否锁定了移动转向。 */
+	/** 当前快捷栏技能使用是否申请了统一战斗朝向控制。 */
 	UPROPERTY(Transient)
-	bool bMoveRotationLockedByShortcut = false;
+	bool bFacingControlRequestedByShortcut = false;
 
 	FTimerHandle RepeatedUseTimerHandle;
 };

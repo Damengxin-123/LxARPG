@@ -4,7 +4,8 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "LxARPG/LxSource/Model/CharacterMove/LxCharacterMoveComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
+#include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 
 ULxPlayerAimComponent::ULxPlayerAimComponent()
@@ -17,6 +18,12 @@ void ULxPlayerAimComponent::BaseComponentInitialize()
 {
 	CacheOwnerReferences();
 	RegisterInputActionReceive(AimInputActionID);
+}
+
+void ULxPlayerAimComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	SetAiming(false);
+	Super::EndPlay(EndPlayReason);
 }
 
 void ULxPlayerAimComponent::TickComponent(float DeltaTime, ELevelTick TickType,
@@ -79,15 +86,18 @@ void ULxPlayerAimComponent::SetAiming(bool bNewAiming)
 
 	if (OwnerPlayerCharacter)
 	{
-		if (ULxCharacterMoveComponent* MoveComponent = OwnerPlayerCharacter->GetCharacterMoveComponent())
+		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
+			OwnerPlayerCharacter->GetCharacterBehaviorControlComponent())
 		{
 			if (bIsAiming)
 			{
-				MoveComponent->AddMoveRotationLock();
+				BehaviorControlComponent->AddBehaviorState(LxTag_CharacterState_Combat_Aiming);
+				BehaviorControlComponent->AddFacingControlRequest();
 			}
 			else
 			{
-				MoveComponent->RemoveMoveRotationLock();
+				BehaviorControlComponent->RemoveBehaviorState(LxTag_CharacterState_Combat_Aiming);
+				BehaviorControlComponent->RemoveFacingControlRequest();
 			}
 		}
 	}
@@ -390,23 +400,13 @@ void ULxPlayerAimComponent::RotateCharacterToAimResult(const FLxPlayerAimResult&
 		return;
 	}
 
-	const FRotator TargetRotation(0.f, ToAimLocation.Rotation().Yaw, 0.f);
-	if (DeltaTime <= 0.f)
+	if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
+		OwnerPlayerCharacter->GetCharacterBehaviorControlComponent())
 	{
-		DeltaTime = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.f;
-	}
-
-	const FRotator NewRotation = bInstantRotation
-		? TargetRotation
-		: FMath::RInterpTo(
-			OwnerPlayerCharacter->GetActorRotation(),
-			TargetRotation,
-			DeltaTime,
-			AimTurnSpeed);
-
-	OwnerPlayerCharacter->SetActorRotation(NewRotation);
-	if (!OwnerPlayerCharacter->HasAuthority())
-	{
-		OwnerPlayerCharacter->ServerSetCharacterRotation(NewRotation);
+		BehaviorControlComponent->SetDesiredFacingDirection(ToAimLocation);
+		if (bInstantRotation && !bIsAiming)
+		{
+			BehaviorControlComponent->RefreshFacingControl();
+		}
 	}
 }

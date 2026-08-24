@@ -9,7 +9,6 @@
 #include "LxBaseCharacter.generated.h"
 
 class UDataTable;
-class ULxCharacterAnimationMotionAnalysisComponent;
 class ULxCharacterAnimationProcessComponent;
 class ULxCharacterAttributeComponent;
 class ULxCharacterBaseAttributeSet;
@@ -25,7 +24,7 @@ class ULxCharacterEquipmentComponent;
 class ULxCharacterLifecycleComponent;
 class ULxCharacterProfessionComponent;
 class ULxCharacterTestComponent;
-class ULxCharacterMoveComponent;
+class ULxCharacterBehaviorControlComponent;
 class ULxCharacterStateComponent;
 class ULxCharacterSpecialAttributeComponent;
 class ULxSkillBackpackComponent;
@@ -94,13 +93,9 @@ public:
 	/** 绑定角色输入组件。 */
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	/** 获取角色移动组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色移动组件")
-	ULxCharacterMoveComponent* GetCharacterMoveComponent() const { return m_pCharacterMoveComponent; }
-
-	/** 获取角色动画运动分析组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件|角色动画", DisplayName="获取角色动画运动分析组件")
-	ULxCharacterAnimationMotionAnalysisComponent* GetCharacterAnimationMotionAnalysisComponent() const { return m_pCharacterAnimationMotionAnalysisComponent; }
+	/** 获取统一管理移动、跳跃、朝向和即时状态的角色行为控制组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色行为", DisplayName="获取角色行为控制组件")
+	ULxCharacterBehaviorControlComponent* GetCharacterBehaviorControlComponent() const { return m_pCharacterBehaviorControlComponent; }
 
 	/** 获取角色动画处理组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件|角色动画", DisplayName="获取角色动画处理组件")
@@ -215,13 +210,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|默认词条", DisplayName="默认词条配置")
 	TArray<FLxEntryQuote> DefaultEntryConfig;
 
-	/** 角色移动组件，用于管理和控制角色移动行为。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色移动组件")
-	TObjectPtr<ULxCharacterMoveComponent> m_pCharacterMoveComponent;
-
-	/** 角色动画运动分析组件，用于接收外部行为并输出运动信号。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色动画", DisplayName="角色动画运动分析组件")
-	TObjectPtr<ULxCharacterAnimationMotionAnalysisComponent> m_pCharacterAnimationMotionAnalysisComponent;
+	/** 角色行为控制组件，统一管理移动、跳跃、朝向、即时行为状态和动画运动信号。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色行为", DisplayName="角色行为控制组件")
+	TObjectPtr<ULxCharacterBehaviorControlComponent> m_pCharacterBehaviorControlComponent;
 
 	/** 角色动画处理组件，用于将运动信号转换为动画播放信号。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色动画", DisplayName="角色动画处理组件")

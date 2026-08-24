@@ -7,7 +7,7 @@
 
 class ALxAICharacter;
 class AAIController;
-class ULxCharacterMoveComponent;
+class ULxCharacterBehaviorControlComponent;
 
 /** 将AI决策结果转换为角色通用移动、近战和技能组件调用。 */
 UCLASS(ClassGroup=(AI), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="AI行为组件")
@@ -89,9 +89,9 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ALxAICharacter> OwnerAICharacter = nullptr;
 
-	/** 玩家输入与AI行为共同调用的角色移动组件。 */
+	/** 玩家输入与AI行为共同调用的角色行为控制组件。 */
 	UPROPERTY(Transient)
-	TObjectPtr<ULxCharacterMoveComponent> CharacterMoveComponent = nullptr;
+	TObjectPtr<ULxCharacterBehaviorControlComponent> CharacterBehaviorControlComponent = nullptr;
 
 	/** AI角色开始运行时记录的巡逻中心位置。 */
 	FVector PatrolOrigin = FVector::ZeroVector;

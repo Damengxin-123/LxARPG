@@ -1,7 +1,9 @@
 #include "LxCharacterCloseCombatComponent.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitGroup.h"
+#include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 ULxCharacterCloseCombatComponent::ULxCharacterCloseCombatComponent()
@@ -46,6 +48,15 @@ bool ULxCharacterCloseCombatComponent::StartAttack(const FLxMeleeAttackRequest& 
 	CurrentAttackHitCount = 0;
 	CurrentHitTargets.Reset();
 	CloseCombatState = ELxCloseCombatState::Attacking;
+	if (OwnerCharacter)
+	{
+		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
+			OwnerCharacter->GetCharacterBehaviorControlComponent())
+		{
+			BehaviorControlComponent->AddBehaviorState(LxTag_CharacterState_Combat_Attacking);
+			BehaviorControlComponent->AddFacingControlRequest();
+		}
+	}
 
 	CurrentAttackRequest.WeaponCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatComponent::HandleWeaponBeginOverlap);
 	CurrentAttackRequest.WeaponCollision->OnComponentBeginOverlap.AddDynamic(this, &ULxCharacterCloseCombatComponent::HandleWeaponBeginOverlap);
@@ -83,6 +94,15 @@ bool ULxCharacterCloseCombatComponent::StartBlock(const FLxBlockRequest& InBlock
 
 	CurrentBlockRequest = InBlockRequest;
 	CloseCombatState = ELxCloseCombatState::Blocking;
+	if (OwnerCharacter)
+	{
+		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
+			OwnerCharacter->GetCharacterBehaviorControlComponent())
+		{
+			BehaviorControlComponent->AddBehaviorState(LxTag_CharacterState_Combat_Blocking);
+			BehaviorControlComponent->AddFacingControlRequest();
+		}
+	}
 	CurrentBlockRequest.ShieldCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatComponent::HandleShieldBeginOverlap);
 	CurrentBlockRequest.ShieldCollision->OnComponentBeginOverlap.AddDynamic(this, &ULxCharacterCloseCombatComponent::HandleShieldBeginOverlap);
 	if (OwnerCharacter && CurrentBlockRequest.BlockMontage)
@@ -205,6 +225,15 @@ void ULxCharacterCloseCombatComponent::InterruptCurrentAttackByBlock()
 
 void ULxCharacterCloseCombatComponent::FinishAttack()
 {
+	if (OwnerCharacter)
+	{
+		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
+			OwnerCharacter->GetCharacterBehaviorControlComponent())
+		{
+			BehaviorControlComponent->RemoveBehaviorState(LxTag_CharacterState_Combat_Attacking);
+			BehaviorControlComponent->RemoveFacingControlRequest();
+		}
+	}
 	if (CurrentAttackRequest.WeaponCollision)
 	{
 		CurrentAttackRequest.WeaponCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatComponent::HandleWeaponBeginOverlap);
@@ -225,6 +254,15 @@ void ULxCharacterCloseCombatComponent::FinishAttack()
 
 void ULxCharacterCloseCombatComponent::FinishBlock()
 {
+	if (OwnerCharacter)
+	{
+		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
+			OwnerCharacter->GetCharacterBehaviorControlComponent())
+		{
+			BehaviorControlComponent->RemoveBehaviorState(LxTag_CharacterState_Combat_Blocking);
+			BehaviorControlComponent->RemoveFacingControlRequest();
+		}
+	}
 	if (CurrentBlockRequest.ShieldCollision)
 	{
 		CurrentBlockRequest.ShieldCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatComponent::HandleShieldBeginOverlap);

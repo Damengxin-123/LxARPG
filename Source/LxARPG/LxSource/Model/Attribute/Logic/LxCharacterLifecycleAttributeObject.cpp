@@ -1,7 +1,7 @@
 #include "LxCharacterLifecycleAttributeObject.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
-#include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationProcessComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
@@ -144,13 +144,14 @@ void ULxCharacterLifecycleAttributeObject::StartDeathSequence()
 	}
 	OwnerCharacter->SetCharacterState(ELxCharacterState::Dead);
 
-	if (ULxCharacterAnimationProcessComponent* AnimationProcessComponent = OwnerCharacter->GetCharacterAnimationProcessComponent())
+	if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
+		OwnerCharacter->GetCharacterBehaviorControlComponent())
 	{
 		FLxCharacterMotionSignal DeathMotionSignal;
 		DeathMotionSignal.MotionType = DeathAnimationType;
 		DeathMotionSignal.MotionSpeed = 1.0f;
 		DeathMotionSignal.bLoop = false;
-		AnimationProcessComponent->ReceiveActionMotionSignal(DeathMotionSignal);
+		BehaviorControlComponent->SendActionAnimationMotionSignal(DeathMotionSignal);
 	}
 
 	if (bDestroyCharacterWhenDead && OwnerCharacter->HasAuthority())

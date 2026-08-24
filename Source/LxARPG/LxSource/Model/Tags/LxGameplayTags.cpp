@@ -15,7 +15,21 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Lifecycle, TEXT("角色状�
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Lifecycle_Alive, TEXT("角色状态.生命周期状态.存活"), "存活");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Lifecycle_Dead, TEXT("角色状态.生命周期状态.死亡"), "死亡");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Movement, TEXT("角色状态.角色移动状态"), "角色状态.角色移动状态");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Movement_Idle, TEXT("角色状态.角色移动状态.待机"), "待机");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Movement_Moving, TEXT("角色状态.角色移动状态.移动"), "移动");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Movement_Jumping, TEXT("角色状态.角色移动状态.跳跃"), "跳跃");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Movement_Airborne, TEXT("角色状态.角色移动状态.滞空"), "滞空");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Movement_Landing, TEXT("角色状态.角色移动状态.落地"), "落地");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Movement_Running, TEXT("角色状态.角色移动状态.奔跑"), "奔跑");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat, TEXT("角色状态.战斗状态"), "角色状态.战斗状态");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat_Attacking, TEXT("角色状态.战斗状态.攻击"), "攻击");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat_Blocking, TEXT("角色状态.战斗状态.格挡"), "格挡");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat_Casting, TEXT("角色状态.战斗状态.释放技能"), "释放技能");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat_Charging, TEXT("角色状态.战斗状态.蓄力"), "蓄力");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat_Sustaining, TEXT("角色状态.战斗状态.持续释放"), "持续释放");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat_Aiming, TEXT("角色状态.战斗状态.瞄准"), "瞄准");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat_CombatFacing, TEXT("角色状态.战斗状态.战斗朝向"), "战斗朝向");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_CharacterState_Combat_Hurt, TEXT("角色状态.战斗状态.受击"), "受击");
 
 // Function category tags.
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Function_AttributeRecovery, "Function.AttributeRecovery", "功能.属性回复");
