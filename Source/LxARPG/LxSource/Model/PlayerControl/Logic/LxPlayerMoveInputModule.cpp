@@ -6,7 +6,7 @@
 
 namespace
 {
-	bool IsControlledByLocalPlayer(const ALxBaseCharacter* InCharacter)
+	bool IsMoveModuleControlledByLocalPlayer(const ALxBaseCharacter* InCharacter)
 	{
 		const APlayerController* PlayerController = InCharacter
 			? Cast<APlayerController>(InCharacter->GetController())
@@ -26,7 +26,7 @@ void ULxPlayerMoveInputModule::InitializeModule(ULxPlayerControlComponent* InOwn
 	{
 		m_pBehaviorControlComponent = m_pOwnerCharacter->GetCharacterBehaviorControlComponent();
 	}
-	if (!IsControlledByLocalPlayer(m_pOwnerCharacter))
+	if (!IsMoveModuleControlledByLocalPlayer(m_pOwnerCharacter))
 	{
 		UnregisterAllInputActionReceives();
 		return;
@@ -61,7 +61,7 @@ void ULxPlayerMoveInputModule::HandleInputValue(ELxInputActionID InInputActionID
 	{
 		return;
 	}
-	if (!IsControlledByLocalPlayer(m_pOwnerCharacter))
+	if (!IsMoveModuleControlledByLocalPlayer(m_pOwnerCharacter))
 	{
 		return;
 	}
@@ -80,4 +80,3 @@ void ULxPlayerMoveInputModule::HandleInputValue(ELxInputActionID InInputActionID
 		m_pBehaviorControlComponent->HandleLookInput(InValue.m_sVector2D);
 	}
 }
-

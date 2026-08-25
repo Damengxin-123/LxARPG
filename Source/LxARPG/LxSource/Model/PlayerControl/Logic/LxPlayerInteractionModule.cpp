@@ -15,7 +15,7 @@
 
 namespace
 {
-	bool IsInteractionControlledByLocalPlayer(const ALxBaseCharacter* InCharacter)
+	bool IsInteractionModuleControlledByLocalPlayer(const ALxBaseCharacter* InCharacter)
 	{
 		const APlayerController* PlayerController = InCharacter
 			? Cast<APlayerController>(InCharacter->GetController())
@@ -28,7 +28,7 @@ void ULxPlayerInteractionModule::InitializeModule(ULxPlayerControlComponent* InO
 {
 	Super::InitializeModule(InOwnerComponent);
 	ALxBaseCharacter* OwnerCharacter = GetPlayerCharacter();
-	if (!IsInteractionControlledByLocalPlayer(OwnerCharacter))
+	if (!IsInteractionModuleControlledByLocalPlayer(OwnerCharacter))
 	{
 		UnregisterAllInputActionReceives();
 		return;
@@ -46,7 +46,7 @@ void ULxPlayerInteractionModule::ShutdownModule()
 void ULxPlayerInteractionModule::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
 {
 	ALxBaseCharacter* OwnerCharacter = GetPlayerCharacter();
-	if (!IsInteractionControlledByLocalPlayer(OwnerCharacter))
+	if (!IsInteractionModuleControlledByLocalPlayer(OwnerCharacter))
 	{
 		return;
 	}
