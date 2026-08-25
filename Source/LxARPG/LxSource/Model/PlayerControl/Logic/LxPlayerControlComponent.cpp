@@ -11,10 +11,8 @@ ULxPlayerControlComponent::ULxPlayerControlComponent()
 
 void ULxPlayerControlComponent::BaseComponentInitialize()
 {
-	if (bControlInitialized)
-	{
-		return;
-	}
+	// 角色 BeginPlay 时可能尚未被玩家控制器占有；OnPossess 后必须允许再次刷新模块输入监听。
+	// 各模块的输入注册本身会去重，因此重复初始化不会产生重复回调。
 	bControlInitialized = true;
 
 	if (MoveInputModule) MoveInputModule->InitializeModule(this);
@@ -40,4 +38,3 @@ void ULxPlayerControlComponent::TickComponent(const float DeltaTime, const ELeve
 		AimModule->TickModule(DeltaTime);
 	}
 }
-
