@@ -191,7 +191,7 @@ ULxItemSlotData* ULxTreasureChestInteractionComponent::GetTreasureChestSlotAt(in
 	return TreasureChestItemSlotList.IsValidIndex(SlotIndex) ? TreasureChestItemSlotList[SlotIndex] : nullptr;
 }
 
-bool ULxTreasureChestInteractionComponent::MoveTreasureChestSlotToBackpack(ULxCharacterBackpackComponent* BackpackComponent, int32 TreasureChestSlotIndex, int32 BackpackSlotIndex)
+bool ULxTreasureChestInteractionComponent::MoveTreasureChestSlotToBackpack(ULxCharacterBackpackModule* BackpackComponent, int32 TreasureChestSlotIndex, int32 BackpackSlotIndex)
 {
 	if (AActor* OwnerActor = GetOwner(); OwnerActor && !OwnerActor->HasAuthority())
 	{

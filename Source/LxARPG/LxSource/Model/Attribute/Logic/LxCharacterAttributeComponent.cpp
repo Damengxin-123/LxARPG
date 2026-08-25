@@ -4,6 +4,11 @@
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxCharacterBaseAttributeConfig.h"
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
+#include "LxCharacterFactionAttributeObject.h"
+#include "LxCharacterLifecycleAttributeObject.h"
+#include "LxCharacterSpecialAttributeObject.h"
+#include "LxCharacterStateAttributeObject.h"
+#include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "Net/UnrealNetwork.h"
 
@@ -40,6 +45,10 @@ ULxCharacterAttributeComponent::ULxCharacterAttributeComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
+	bReplicateUsingRegisteredSubObjectList = true;
+	StateAttributeObject = CreateDefaultSubobject<ULxCharacterStateAttributeObject>(TEXT("角色状态属性"));
+	FactionAttributeObject = CreateDefaultSubobject<ULxCharacterFactionAttributeObject>(TEXT("角色阵营属性"));
+	LifecycleAttributeObject = CreateDefaultSubobject<ULxCharacterLifecycleAttributeObject>(TEXT("角色生命周期属性"));
 }
 
 void ULxCharacterAttributeComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -50,9 +59,44 @@ void ULxCharacterAttributeComponent::GetLifetimeReplicatedProps(TArray<FLifetime
 
 void ULxCharacterAttributeComponent::BaseComponentInitialize()
 {
+	if (bAttributeComponentInitialized)
+	{
+		return;
+	}
+	bAttributeComponentInitialized = true;
+
 	InitializeRuntimeAttributeSet();
 	InitializeAttributeTable();
 	BroadcastAttributeTableChanged();
+	InitializeSpecialAttributeObjects();
+	RegisterReplicatedAttributeObjects();
+}
+
+void ULxCharacterAttributeComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (LifecycleAttributeObject) LifecycleAttributeObject->DeinitializeSpecialAttributeObject();
+	if (FactionAttributeObject) FactionAttributeObject->DeinitializeSpecialAttributeObject();
+	if (StateAttributeObject) StateAttributeObject->DeinitializeSpecialAttributeObject();
+	Super::EndPlay(EndPlayReason);
+}
+
+void ULxCharacterAttributeComponent::InitializeSpecialAttributeObjects()
+{
+	if (StateAttributeObject) StateAttributeObject->InitializeSpecialAttributeObject(this);
+	if (FactionAttributeObject) FactionAttributeObject->InitializeSpecialAttributeObject(this);
+	if (LifecycleAttributeObject)
+	{
+		LifecycleAttributeObject->InitializeSpecialAttributeObject(this);
+		HandleLifecycleAttributeChanged(LifecycleAttributeObject->IsCharacterAlive());
+	}
+}
+
+void ULxCharacterAttributeComponent::RegisterReplicatedAttributeObjects()
+{
+	if (GetOwner() == nullptr || !GetOwner()->HasAuthority()) return;
+	AddReplicatedSubObject(StateAttributeObject);
+	AddReplicatedSubObject(FactionAttributeObject);
+	AddReplicatedSubObject(LifecycleAttributeObject);
 }
 
 void ULxCharacterAttributeComponent::InitializeRuntimeAttributeSet()
@@ -383,5 +427,122 @@ void ULxCharacterAttributeComponent::OnRep_TypedAttributeSnapshot()
 		ReplicatedTypedAttributeSnapshot.RangeAttributes);
 	RefreshCharacterMovementSpeed();
 	OnTypedAttributeSnapshotChanged.Broadcast(ReplicatedTypedAttributeSnapshot);
+	OnDataChange.Broadcast();
+}
+
+bool ULxCharacterAttributeComponent::GetStateTagsByCategory(const FGameplayTag InStateCategoryTag, FGameplayTagContainer& OutStateTags) const
+{
+	OutStateTags.Reset();
+	return StateAttributeObject != nullptr && StateAttributeObject->GetStateTagsByCategory(InStateCategoryTag, OutStateTags);
+}
+
+bool ULxCharacterAttributeComponent::SetStateTagsByCategory(const FGameplayTag InStateCategoryTag, const FGameplayTagContainer& InStateTags)
+{
+	return StateAttributeObject != nullptr && StateAttributeObject->SetStateTagsByCategory(InStateCategoryTag, InStateTags);
+}
+
+bool ULxCharacterAttributeComponent::AddStateTag(const FGameplayTag InStateCategoryTag, const FGameplayTag InStateTag)
+{
+	return StateAttributeObject != nullptr && StateAttributeObject->AddStateTag(InStateCategoryTag, InStateTag);
+}
+
+bool ULxCharacterAttributeComponent::RemoveStateTag(const FGameplayTag InStateCategoryTag, const FGameplayTag InStateTag)
+{
+	return StateAttributeObject != nullptr && StateAttributeObject->RemoveStateTag(InStateCategoryTag, InStateTag);
+}
+
+bool ULxCharacterAttributeComponent::HasStateTag(const FGameplayTag InStateTag) const
+{
+	return StateAttributeObject != nullptr && StateAttributeObject->HasStateTag(InStateTag);
+}
+
+bool ULxCharacterAttributeComponent::HasStateTagInCategory(const FGameplayTag InStateCategoryTag, const FGameplayTag InStateTag) const
+{
+	return StateAttributeObject != nullptr && StateAttributeObject->HasStateTagInCategory(InStateCategoryTag, InStateTag);
+}
+
+void ULxCharacterAttributeComponent::GetAllStateTags(FGameplayTagContainer& OutStateTags) const
+{
+	OutStateTags.Reset();
+	if (StateAttributeObject != nullptr) StateAttributeObject->GetAllStateTags(OutStateTags);
+}
+
+bool ULxCharacterAttributeComponent::ClearStateTagsByCategory(const FGameplayTag InStateCategoryTag)
+{
+	return StateAttributeObject != nullptr && StateAttributeObject->ClearStateTagsByCategory(InStateCategoryTag);
+}
+
+bool ULxCharacterAttributeComponent::IsCharacterAlive() const
+{
+	return LifecycleAttributeObject == nullptr || LifecycleAttributeObject->IsCharacterAlive();
+}
+
+void ULxCharacterAttributeComponent::SetCharacterAlive()
+{
+	SetCharacterAliveState(true);
+}
+
+void ULxCharacterAttributeComponent::SetCharacterDead()
+{
+	SetCharacterAliveState(false);
+}
+
+void ULxCharacterAttributeComponent::SetCharacterAliveState(const bool bInAlive)
+{
+	if (LifecycleAttributeObject != nullptr) LifecycleAttributeObject->SetCharacterAliveState(bInAlive);
+}
+
+FGameplayTag ULxCharacterAttributeComponent::GetCurrentLifecycleStateTag() const
+{
+	if (LifecycleAttributeObject == nullptr) return FGameplayTag();
+	return LifecycleAttributeObject->IsCharacterAlive()
+		? LifecycleAttributeObject->GetAliveStateTag()
+		: LifecycleAttributeObject->GetDeadStateTag();
+}
+
+ELxCharacterFactionRelation ULxCharacterAttributeComponent::GetFactionRelation(const FGameplayTagContainer& InTargetFactionTags) const
+{
+	return FactionAttributeObject != nullptr
+		? FactionAttributeObject->GetFactionRelation(InTargetFactionTags)
+		: ELxCharacterFactionRelation::Neutral;
+}
+
+ELxCharacterFactionRelation ULxCharacterAttributeComponent::GetCharacterFactionRelation(const ALxBaseCharacter* InTargetCharacter) const
+{
+	if (!IsValid(InTargetCharacter) || InTargetCharacter == GetCharacterOwner()) return ELxCharacterFactionRelation::Friendly;
+	const ULxCharacterAttributeComponent* TargetAttributeComponent = InTargetCharacter->GetCharacterAttributeComponent();
+	const ULxCharacterFactionAttributeObject* TargetFactionObject = TargetAttributeComponent != nullptr
+		? TargetAttributeComponent->GetFactionAttributeObject()
+		: nullptr;
+	return TargetFactionObject != nullptr
+		? GetFactionRelation(TargetFactionObject->GetFriendlyTags())
+		: ELxCharacterFactionRelation::Neutral;
+}
+
+ULxCharacterSpecialAttributeObject* ULxCharacterAttributeComponent::FindSpecialAttributeObject(const TSubclassOf<ULxCharacterSpecialAttributeObject> InObjectClass) const
+{
+	if (!InObjectClass) return nullptr;
+	if (StateAttributeObject != nullptr && StateAttributeObject->IsA(InObjectClass)) return StateAttributeObject;
+	if (FactionAttributeObject != nullptr && FactionAttributeObject->IsA(InObjectClass)) return FactionAttributeObject;
+	if (LifecycleAttributeObject != nullptr && LifecycleAttributeObject->IsA(InObjectClass)) return LifecycleAttributeObject;
+	return nullptr;
+}
+
+void ULxCharacterAttributeComponent::HandleStateAttributeChanged(const FGameplayTag InStateCategoryTag, const FGameplayTagContainer& InStateTags)
+{
+	OnStateTagsChanged.Broadcast(InStateCategoryTag, InStateTags);
+	OnDataChange.Broadcast();
+}
+
+void ULxCharacterAttributeComponent::HandleLifecycleAttributeChanged(const bool bInAlive)
+{
+	if (StateAttributeObject != nullptr && LifecycleAttributeObject != nullptr)
+	{
+		StateAttributeObject->RemoveStateTag(LxTag_CharacterState_Lifecycle, LifecycleAttributeObject->GetAliveStateTag());
+		StateAttributeObject->RemoveStateTag(LxTag_CharacterState_Lifecycle, LifecycleAttributeObject->GetDeadStateTag());
+		const FGameplayTag CurrentStateTag = GetCurrentLifecycleStateTag();
+		if (CurrentStateTag.IsValid()) StateAttributeObject->AddStateTag(LxTag_CharacterState_Lifecycle, CurrentStateTag);
+	}
+	OnLifecycleStateChanged.Broadcast(bInAlive, GetCurrentLifecycleStateTag());
 	OnDataChange.Broadcast();
 }

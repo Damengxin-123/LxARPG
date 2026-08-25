@@ -2,7 +2,6 @@
 
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
-#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
@@ -225,9 +224,9 @@ void ULxCharacterDataTransferComponent::QuerySkillBackpackSlotsByTag(FGameplayTa
 	SkillBackpackComponent->QuerySkillItemSlotsByTag(InSkillTag, OutSkillSlots);
 }
 
-bool ULxCharacterDataTransferComponent::AddSkillItemToSkillBackpack(FGameplayTag InSkillItemIDTag)
+bool ULxCharacterDataTransferComponent::AddSkillItemsToSkillBackpack(const TArray<FGameplayTag>& InSkillItemIDTags)
 {
-	return SkillBackpackComponent != nullptr && SkillBackpackComponent->AddSkillItemByTagID(InSkillItemIDTag);
+	return SkillBackpackComponent != nullptr && SkillBackpackComponent->AddSkillItemsByTagID(InSkillItemIDTags);
 }
 
 bool ULxCharacterDataTransferComponent::CanLearnProfession(FGameplayTag InProfessionIDTag,
@@ -319,7 +318,7 @@ void ULxCharacterDataTransferComponent::GetDisplayBuffs(TArray<ULxBuff*>& OutBuf
 		return;
 	}
 
-	BuffComponent->GetDisplayBuffs(OutBuffList);
+	BuffComponent->GetActiveBuffs(OutBuffList);
 }
 
 ULxCharacterStateComponent* ULxCharacterDataTransferComponent::GetCharacterStateComponent() const
@@ -334,57 +333,57 @@ ULxCharacterLifecycleComponent* ULxCharacterDataTransferComponent::GetCharacterL
 
 bool ULxCharacterDataTransferComponent::IsCharacterAlive() const
 {
-	return SpecialAttributeComponent == nullptr || SpecialAttributeComponent->IsCharacterAlive();
+return AttributeComponent == nullptr || AttributeComponent->IsCharacterAlive();
 }
 
 void ULxCharacterDataTransferComponent::SetCharacterAliveState(bool bInAlive)
 {
-	if (SpecialAttributeComponent != nullptr)
+if (AttributeComponent != nullptr)
 	{
-		SpecialAttributeComponent->SetCharacterAliveState(bInAlive);
+AttributeComponent->SetCharacterAliveState(bInAlive);
 	}
 }
 
 bool ULxCharacterDataTransferComponent::GetCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag, FGameplayTagContainer& OutStateTags) const
 {
 	OutStateTags.Reset();
-	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->GetStateTagsByCategory(InStateCategoryTag, OutStateTags);
+return AttributeComponent != nullptr && AttributeComponent->GetStateTagsByCategory(InStateCategoryTag, OutStateTags);
 }
 
 bool ULxCharacterDataTransferComponent::SetCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag, const FGameplayTagContainer& InStateTags)
 {
-	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->SetStateTagsByCategory(InStateCategoryTag, InStateTags);
+return AttributeComponent != nullptr && AttributeComponent->SetStateTagsByCategory(InStateCategoryTag, InStateTags);
 }
 
 bool ULxCharacterDataTransferComponent::AddCharacterStateTag(FGameplayTag InStateCategoryTag, FGameplayTag InStateTag)
 {
-	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->AddStateTag(InStateCategoryTag, InStateTag);
+return AttributeComponent != nullptr && AttributeComponent->AddStateTag(InStateCategoryTag, InStateTag);
 }
 
 bool ULxCharacterDataTransferComponent::RemoveCharacterStateTag(FGameplayTag InStateCategoryTag, FGameplayTag InStateTag)
 {
-	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->RemoveStateTag(InStateCategoryTag, InStateTag);
+return AttributeComponent != nullptr && AttributeComponent->RemoveStateTag(InStateCategoryTag, InStateTag);
 }
 
 bool ULxCharacterDataTransferComponent::HasCharacterStateTag(FGameplayTag InStateTag) const
 {
-	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->HasStateTag(InStateTag);
+return AttributeComponent != nullptr && AttributeComponent->HasStateTag(InStateTag);
 }
 
 void ULxCharacterDataTransferComponent::GetAllCharacterStateTags(FGameplayTagContainer& OutStateTags) const
 {
 	OutStateTags.Reset();
-	if (SpecialAttributeComponent == nullptr)
+if (AttributeComponent == nullptr)
 	{
 		return;
 	}
 
-	SpecialAttributeComponent->GetAllStateTags(OutStateTags);
+AttributeComponent->GetAllStateTags(OutStateTags);
 }
 
 bool ULxCharacterDataTransferComponent::ClearCharacterStateTagsByCategory(FGameplayTag InStateCategoryTag)
 {
-	return SpecialAttributeComponent != nullptr && SpecialAttributeComponent->ClearStateTagsByCategory(InStateCategoryTag);
+return AttributeComponent != nullptr && AttributeComponent->ClearStateTagsByCategory(InStateCategoryTag);
 }
 
 void ULxCharacterDataTransferComponent::ReceiveEntryPackage(const FLxCharacterEntryPackage& InEntryPackage)
@@ -402,23 +401,23 @@ void ULxCharacterDataTransferComponent::ApplyEffectPackage(const FLxEffectPackag
 bool ULxCharacterDataTransferComponent::SendEffectPackageToTarget(const FLxEffectPackage& InEffectPackage, AActor* TargetActor)
 {
 	EnsureOwnerComponentsCached();
-	if (EffectTransferComponent == nullptr)
+	if (EffectTransferModule == nullptr)
 	{
 		return false;
 	}
 
-	return EffectTransferComponent->SendEffectPackageToTarget(InEffectPackage, TargetActor);
+	return EffectTransferModule->SendEffectPackageToTarget(InEffectPackage, TargetActor);
 }
 
 void ULxCharacterDataTransferComponent::SendEffectPackageToTargets(const FLxEffectPackage& InEffectPackage, const TArray<AActor*>& TargetActors)
 {
 	EnsureOwnerComponentsCached();
-	if (EffectTransferComponent == nullptr)
+	if (EffectTransferModule == nullptr)
 	{
 		return;
 	}
 
-	EffectTransferComponent->SendEffectPackageToTargets(InEffectPackage, TargetActors);
+	EffectTransferModule->SendEffectPackageToTargets(InEffectPackage, TargetActors);
 }
 
 void ULxCharacterDataTransferComponent::SortBackpackItems()
@@ -466,9 +465,8 @@ void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 	BuffComponent = OwnerCharacter->GetCharacterBuffComponent();
 	StateComponent = OwnerCharacter->GetCharacterStateComponent();
 	LifecycleComponent = OwnerCharacter->GetCharacterLifecycleComponent();
-	SpecialAttributeComponent = OwnerCharacter->GetCharacterSpecialAttributeComponent();
-	EffectCacheComponent = OwnerCharacter->GetCharacterEffectCacheComponent();
-	EffectTransferComponent = OwnerCharacter->GetCharacterEffectTransferComponent();
+	EffectCacheModule = OwnerCharacter->GetCharacterEffectCacheComponent();
+	EffectTransferModule = OwnerCharacter->GetCharacterEffectTransferComponent();
 }
 
 void ULxCharacterDataTransferComponent::EnsureOwnerComponentsCached()
@@ -479,8 +477,8 @@ void ULxCharacterDataTransferComponent::EnsureOwnerComponentsCached()
 		return;
 	}
 
-	if (AttributeComponent == nullptr || StateComponent == nullptr || EffectCacheComponent == nullptr
-		|| EffectTransferComponent == nullptr)
+	if (AttributeComponent == nullptr || StateComponent == nullptr || EffectCacheModule == nullptr
+		|| EffectTransferModule == nullptr)
 	{
 		CacheOwnerComponents();
 	}
@@ -660,18 +658,18 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 	}
 
 	bool bAttributeModifierEffectsHandledByEffectCache = false;
-	if (EffectCacheComponent != nullptr
+	if (EffectCacheModule != nullptr
 		&& ShouldRouteAttributeModifierEffectsToEffectCache(RuntimeEffectPackage.SourceContext.SourceType)
 		&& RuntimeEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource)
 	{
-		const FName EffectCacheHandle = ULxCharacterEffectCacheComponent::MakeEffectCacheHandle(RuntimeEffectPackage.SourceContext);
+		const FName EffectCacheHandle = ULxCharacterEffectCacheModule::MakeEffectCacheHandle(RuntimeEffectPackage.SourceContext);
 		if (RuntimeEffectPackage.AttributeModifierEffects.IsEmpty())
 		{
-			EffectCacheComponent->RemoveCachedEffectPackage(EffectCacheHandle);
+			EffectCacheModule->RemoveCachedEffectPackage(EffectCacheHandle);
 		}
 		else
 		{
-			EffectCacheComponent->ApplyOrUpdateCachedEffectPackage(EffectCacheHandle, RuntimeEffectPackage);
+			EffectCacheModule->ApplyOrUpdateCachedEffectPackage(EffectCacheHandle, RuntimeEffectPackage);
 		}
 		RuntimeEffectPackage.AttributeModifierEffects.Reset();
 		bAttributeModifierEffectsHandledByEffectCache = true;
@@ -764,6 +762,7 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 
 	if (SkillBackpackComponent != nullptr)
 	{
+		TArray<FGameplayTag> SkillItemIDTags;
 		for (const FLxSkillGrantEffect& SkillGrantEffect : RuntimeEffectPackage.SkillGrantEffects)
 		{
 			if (!SkillGrantEffect.SkillItemIDTag.IsValid())
@@ -771,7 +770,12 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 				continue;
 			}
 
-			SkillBackpackComponent->AddSkillItemByTagID(SkillGrantEffect.SkillItemIDTag);
+			SkillItemIDTags.AddUnique(SkillGrantEffect.SkillItemIDTag);
+		}
+
+		if (!SkillItemIDTags.IsEmpty())
+		{
+			SkillBackpackComponent->AddSkillItemsByTagID(SkillItemIDTags);
 		}
 	}
 
@@ -918,11 +922,11 @@ void ULxCharacterDataTransferComponent::RefreshProfessionEffectPackages()
 {
 	if (ProfessionComponent == nullptr)
 	{
-		if (EffectCacheComponent != nullptr)
+		if (EffectCacheModule != nullptr)
 		{
 			for (const FName CachedProfessionEffectHandle : CachedProfessionEffectHandles)
 			{
-				EffectCacheComponent->RemoveCachedEffectPackage(CachedProfessionEffectHandle);
+				EffectCacheModule->RemoveCachedEffectPackage(CachedProfessionEffectHandle);
 			}
 		}
 		CachedProfessionEffectHandles.Reset();
@@ -939,20 +943,20 @@ void ULxCharacterDataTransferComponent::RefreshProfessionEffectPackages()
 	{
 		if (!EffectPackage.AttributeModifierEffects.IsEmpty())
 		{
-			NewCachedProfessionEffectHandles.Add(ULxCharacterEffectCacheComponent::MakeEffectCacheHandle(EffectPackage.SourceContext));
+			NewCachedProfessionEffectHandles.Add(ULxCharacterEffectCacheModule::MakeEffectCacheHandle(EffectPackage.SourceContext));
 		}
 		ProfessionBuffGrantEffects.Append(EffectPackage.BuffGrantEffects);
 		EffectPackage.BuffGrantEffects.Reset();
 		DispatchEffectPackageByType(EffectPackage);
 	}
 
-	if (EffectCacheComponent != nullptr)
+	if (EffectCacheModule != nullptr)
 	{
 		for (const FName CachedProfessionEffectHandle : CachedProfessionEffectHandles)
 		{
 			if (!NewCachedProfessionEffectHandles.Contains(CachedProfessionEffectHandle))
 			{
-				EffectCacheComponent->RemoveCachedEffectPackage(CachedProfessionEffectHandle);
+				EffectCacheModule->RemoveCachedEffectPackage(CachedProfessionEffectHandle);
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-﻿#include "LxItemGridWidget.h"
+#include "LxItemGridWidget.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Input/Reply.h"
@@ -33,7 +33,7 @@ namespace
 
 	/** 为技能释放构建上下文；玩家角色优先使用准星瞄准结果，其他角色保持原有通用上下文。 */
 	FLxSkillCastContext MakeSkillCastContextForWidget(const ULxItemGridWidget* Widget,
-		ULxSkillCastComponent* SkillCastComponent, UObject* SourceObject)
+		ULxSkillCastModule* SkillCastComponent, UObject* SourceObject)
 	{
 		if (const ALxPlayerCharacter* PlayerCharacter = Widget
 			? Cast<ALxPlayerCharacter>(Widget->GetOwningPlayerPawn())
@@ -609,7 +609,7 @@ ULxCharacterDataTransferComponent* ULxItemGridWidget::GetCharacterDataTransferCo
 	return OwnerCharacter ? OwnerCharacter->GetCharacterDataTransferComponent() : nullptr;
 }
 
-ULxSkillCastComponent* ULxItemGridWidget::GetSkillCastComponent() const
+ULxSkillCastModule* ULxItemGridWidget::GetSkillCastComponent() const
 {
 	const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwningPlayerPawn());
 	return OwnerCharacter ? OwnerCharacter->GetSkillCastComponent() : nullptr;
@@ -618,7 +618,7 @@ ULxSkillCastComponent* ULxItemGridWidget::GetSkillCastComponent() const
 bool ULxItemGridWidget::TryReleaseSkillItemDirectly() const
 {
 	ULxSkillItem* SkillItem = GetCurrentSkillItem();
-	ULxSkillCastComponent* SkillCastComponent = GetSkillCastComponent();
+	ULxSkillCastModule* SkillCastComponent = GetSkillCastComponent();
 	if (!SkillItem || !SkillCastComponent)
 	{
 		return false;
@@ -639,7 +639,7 @@ bool ULxItemGridWidget::TryReleaseSkillItemDirectly() const
 bool ULxItemGridWidget::TryStartUseSkillItem() const
 {
 	ULxSkillItem* SkillItem = GetCurrentSkillItem();
-	ULxSkillCastComponent* SkillCastComponent = GetSkillCastComponent();
+	ULxSkillCastModule* SkillCastComponent = GetSkillCastComponent();
 	if (!SkillItem || !SkillCastComponent)
 	{
 		return false;
@@ -660,7 +660,7 @@ bool ULxItemGridWidget::TryStartUseSkillItem() const
 bool ULxItemGridWidget::TryEndUseSkillItem() const
 {
 	ULxSkillItem* SkillItem = GetCurrentSkillItem();
-	ULxSkillCastComponent* SkillCastComponent = GetSkillCastComponent();
+	ULxSkillCastModule* SkillCastComponent = GetSkillCastComponent();
 	if (!SkillItem || !SkillCastComponent)
 	{
 		return false;

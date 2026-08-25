@@ -4,10 +4,10 @@
 #include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
-#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "Net/UnrealNetwork.h"
 
 ULxCharacterLifecycleAttributeObject::ULxCharacterLifecycleAttributeObject()
 {
@@ -15,7 +15,7 @@ ULxCharacterLifecycleAttributeObject::ULxCharacterLifecycleAttributeObject()
 	DeadStateTag = LxTag_CharacterState_Lifecycle_Dead;
 }
 
-void ULxCharacterLifecycleAttributeObject::InitializeSpecialAttributeObject(ULxCharacterSpecialAttributeComponent* InOwnerComponent)
+void ULxCharacterLifecycleAttributeObject::InitializeSpecialAttributeObject(ULxCharacterAttributeComponent* InOwnerComponent)
 {
 	Super::InitializeSpecialAttributeObject(InOwnerComponent);
 	if (ALxBaseCharacter* OwnerCharacter = GetCharacterOwner())
@@ -27,6 +27,32 @@ void ULxCharacterLifecycleAttributeObject::InitializeSpecialAttributeObject(ULxC
 		}
 	}
 	EvaluateDeathFromCurrentAttributes();
+}
+
+void ULxCharacterLifecycleAttributeObject::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ULxCharacterLifecycleAttributeObject, bIsAlive);
+}
+
+void ULxCharacterLifecycleAttributeObject::SetCharacterAliveState(const bool bInAlive)
+{
+	const bool bStateChanged = bIsAlive != bInAlive;
+	bIsAlive = bInAlive;
+	ApplyLifecycleState(bIsAlive);
+	if (bStateChanged && OwnerComponent != nullptr)
+	{
+		OwnerComponent->HandleLifecycleAttributeChanged(bIsAlive);
+	}
+}
+
+void ULxCharacterLifecycleAttributeObject::OnRep_IsAlive()
+{
+	ApplyLifecycleState(bIsAlive);
+	if (OwnerComponent != nullptr)
+	{
+		OwnerComponent->HandleLifecycleAttributeChanged(bIsAlive);
+	}
 }
 
 void ULxCharacterLifecycleAttributeObject::DeinitializeSpecialAttributeObject()
@@ -91,7 +117,7 @@ void ULxCharacterLifecycleAttributeObject::HandleCharacterAttributesChanged(cons
 void ULxCharacterLifecycleAttributeObject::EvaluateDeathFromAttributeSnapshot(const FLxTypedAttributeSnapshot& AttributeSnapshot) const
 {
 	ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
-	if (OwnerCharacter == nullptr || !OwnerCharacter->HasAuthority() || OwnerComponent == nullptr || !OwnerComponent->IsCharacterAlive())
+	if (OwnerCharacter == nullptr || !OwnerCharacter->HasAuthority() || OwnerComponent == nullptr || !bIsAlive)
 	{
 		return;
 	}

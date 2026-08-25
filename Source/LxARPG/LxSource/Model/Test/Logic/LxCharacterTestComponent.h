@@ -15,7 +15,7 @@ class AController;
 class APawn;
 class ALxAIController;
 class ULxCharacterDataTransferComponent;
-class ULxCharacterEffectProcessComponent;
+class ULxCharacterEffectProcessModule;
 
 /** 测试受伤最终伤害数字输出事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTestReceivedDamageValueOutput, float, FinalDamageValue);
@@ -57,10 +57,6 @@ public:
 	/** 添加一组不限类型的测试物品，会按物品类型自动分发到普通背包或技能背包。 */
 	UFUNCTION(BlueprintCallable, Category="角色测试|物品", DisplayName="添加测试物品列表", meta=(AutoCreateRefTerm="InItemList"))
 	bool AddTestItemList(const TArray<FLxItemQuote>& InItemList);
-
-	/** 添加一个测试技能物品到角色技能背包。 */
-	UFUNCTION(BlueprintCallable, Category="角色测试|技能", DisplayName="添加测试技能到技能背包", meta=(Categories="物品"))
-	bool AddTestSkillItemToSkillBackpack(FGameplayTag InSkillItemIDTag);
 
 	/** 检查角色是否可以学习测试职业。 */
 	UFUNCTION(BlueprintCallable, Category="角色测试|职业", DisplayName="检查能否学习测试职业", meta=(Categories="职业"))
@@ -104,8 +100,8 @@ private:
 	/** 获取当前角色的数据中转组件。 */
 	ULxCharacterDataTransferComponent* GetDataTransferComponent() const;
 
-	/** 获取当前角色的效果处理组件。 */
-	ULxCharacterEffectProcessComponent* GetEffectProcessComponent() const;
+	/** 获取当前角色的效果处理模块。 */
+	ULxCharacterEffectProcessModule* GetEffectProcessComponent() const;
 
 	/** 从最终承伤结果中汇总 UI 显示用的伤害数值。 */
 	static float CalculateFinalDamageValueFromReceiveResult(const FLxDamageReceiveResult& InDamageReceiveResult);

@@ -13,20 +13,19 @@
 
 class ULxBuff;
 class ULxCharacterAttributeComponent;
-class ULxCharacterBackpackComponent;
-class ULxCharacterBuffComponent;
-class ULxCharacterEquipmentComponent;
-class ULxCharacterEffectCacheComponent;
-class ULxCharacterEffectTransferComponent;
+class ULxCharacterBackpackModule;
+class ULxCharacterBuffModule;
+class ULxCharacterEquipmentModule;
+class ULxCharacterEffectCacheModule;
+class ULxCharacterEffectTransferModule;
 class ULxCharacterLifecycleComponent;
-class ULxCharacterProfessionComponent;
-class ULxCharacterSpecialAttributeComponent;
+class ULxCharacterProfessionModule;
 class ULxCharacterStateComponent;
 class ULxEquipmentSlotData;
 class ULxItemBase;
 class ULxItemSlotData;
 class ULxProfessionDefinition;
-class ULxSkillBackpackComponent;
+class ULxSkillBackpackModule;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeSnapshotChanged, const FLxTypedAttributeSnapshot&, AttributeSnapshot);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBackpackItemListChanged, const TArray<ULxItemSlotData*>&, BackpackItems);
@@ -96,9 +95,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="按标签筛选技能背包槽位", meta=(Categories="物品"))
 	void QuerySkillBackpackSlotsByTag(FGameplayTag InSkillTag, TArray<ULxItemSlotData*>& OutSkillSlots) const;
 
-	/** 通过数据中转组件向技能背包添加技能物品。 */
-	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="添加技能物品到技能背包", meta=(Categories="物品"))
-	bool AddSkillItemToSkillBackpack(FGameplayTag InSkillItemIDTag);
+	/** 通过数据中转组件向技能背包批量添加技能物品。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|技能背包", DisplayName="批量添加技能物品到技能背包", meta=(Categories="物品"))
+	bool AddSkillItemsToSkillBackpack(const TArray<FGameplayTag>& InSkillItemIDTags);
 
 	/** 通过数据中转组件检查角色是否可以学习指定职业，可选择跳过全部学习需求。 */
 	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="检查能否学习职业", meta=(Categories="职业"))
@@ -152,7 +151,7 @@ public:
 
 	/** 获取角色特殊属性组件。 */
 	UFUNCTION(BlueprintPure, Category="角色数据中转|特殊属性", DisplayName="获取角色特殊属性组件")
-	ULxCharacterSpecialAttributeComponent* GetCharacterSpecialAttributeComponent() const { return SpecialAttributeComponent; }
+	ULxCharacterAttributeComponent* GetCharacterSpecialAttributeComponent() const { return AttributeComponent; }
 
 	/** 判断角色当前是否存活。 */
 	UFUNCTION(BlueprintPure, Category="角色数据中转|生命周期", DisplayName="角色是否存活")
@@ -261,27 +260,27 @@ protected:
 
 	/** 当前角色背包组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色背包组件")
-	TObjectPtr<ULxCharacterBackpackComponent> BackpackComponent = nullptr;
+	TObjectPtr<ULxCharacterBackpackModule> BackpackComponent = nullptr;
 
 	/** 当前角色装备组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色装备组件")
-	TObjectPtr<ULxCharacterEquipmentComponent> EquipmentComponent = nullptr;
+	TObjectPtr<ULxCharacterEquipmentModule> EquipmentComponent = nullptr;
 
-	/** 当前角色效果缓存组件，用于接入可按来源撤回和重算的持续增益。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|效果", DisplayName="角色效果缓存组件")
-	TObjectPtr<ULxCharacterEffectCacheComponent> EffectCacheComponent = nullptr;
+	/** 当前角色效果缓存模块，用于接入可按来源撤回和重算的持续增益。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|效果", DisplayName="角色效果缓存模块")
+	TObjectPtr<ULxCharacterEffectCacheModule> EffectCacheModule = nullptr;
 
 	/** 当前角色技能背包组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色技能背包组件")
-	TObjectPtr<ULxSkillBackpackComponent> SkillBackpackComponent = nullptr;
+	TObjectPtr<ULxSkillBackpackModule> SkillBackpackComponent = nullptr;
 
 	/** 当前角色职业组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|职业", DisplayName="角色职业组件")
-	TObjectPtr<ULxCharacterProfessionComponent> ProfessionComponent = nullptr;
+	TObjectPtr<ULxCharacterProfessionModule> ProfessionComponent = nullptr;
 
 	/** 当前角色 Buff 组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色Buff组件")
-	TObjectPtr<ULxCharacterBuffComponent> BuffComponent = nullptr;
+	TObjectPtr<ULxCharacterBuffModule> BuffComponent = nullptr;
 
 	/** 当前角色状态组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|状态", DisplayName="角色状态组件")
@@ -291,13 +290,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|生命周期", DisplayName="角色生命周期组件")
 	TObjectPtr<ULxCharacterLifecycleComponent> LifecycleComponent = nullptr;
 
-	/** 当前角色特殊属性组件，作为状态与生命周期业务的新统一入口。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|特殊属性", DisplayName="角色特殊属性组件")
-	TObjectPtr<ULxCharacterSpecialAttributeComponent> SpecialAttributeComponent = nullptr;
-
-	/** 当前角色效果传递组件，用于向其他角色发送最终效果包。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|效果", DisplayName="效果传递组件")
-	TObjectPtr<ULxCharacterEffectTransferComponent> EffectTransferComponent = nullptr;
+	/** 当前角色效果传递模块，用于向其他角色发送最终效果包。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|效果", DisplayName="效果传递模块")
+	TObjectPtr<ULxCharacterEffectTransferModule> EffectTransferModule = nullptr;
 
 private:
 	void CacheOwnerComponents();

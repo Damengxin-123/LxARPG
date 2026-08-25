@@ -6,11 +6,13 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationProcessComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
-#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
 #include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/CloseCombat/Logic/LxCharacterCloseCombatComponent.h"
+#include "LxARPG/LxSource/Model/Combat/Logic/LxCharacterCombatComponent.h"
+#include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentComponent.h"
 #include "LxARPG/LxSource/Model/CharacterPoint/Logic/LxCharacterAnchorPointComponent.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectTransferComponent.h"
@@ -36,20 +38,16 @@ ALxBaseCharacter::ALxBaseCharacter()
 	CharacterNameIDTag = LxTag_UnitNaming_DefaultNaming;
 	m_pCharacterBehaviorControlComponent = CreateDefaultSubobject<ULxCharacterBehaviorControlComponent>(TEXT("角色行为控制组件"));
 	m_pCharacterAnimationProcessComponent = CreateDefaultSubobject<ULxCharacterAnimationProcessComponent>(TEXT("CharacterAnimationProcessComponent"));
-	m_pCharacterBackpackComponent = CreateDefaultSubobject<ULxCharacterBackpackComponent>(TEXT("CharacterBackpackComponent"));
-	m_pCharacterEquipmentComponent = CreateDefaultSubobject<ULxCharacterEquipmentComponent>(TEXT("CharacterEquipmentComponent"));
-	m_pCharacterBuffComponent = CreateDefaultSubobject<ULxCharacterBuffComponent>(TEXT("CharacterBuffComponent"));
+	m_pCharacterContentComponent = CreateDefaultSubobject<ULxCharacterContentComponent>(TEXT("角色内容组件"));
 	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
-	m_pCharacterSpecialAttributeComponent = CreateDefaultSubobject<ULxCharacterSpecialAttributeComponent>(TEXT("CharacterSpecialAttributeComponent"));
-	m_pCharacterEffectProcessComponent = CreateDefaultSubobject<ULxCharacterEffectProcessComponent>(TEXT("CharacterEffectProcessComponent"));
-	m_pCharacterEffectCacheComponent = CreateDefaultSubobject<ULxCharacterEffectCacheComponent>(TEXT("CharacterEffectCacheComponent"));
-	m_pCharacterEffectTransferComponent = CreateDefaultSubobject<ULxCharacterEffectTransferComponent>(TEXT("CharacterEffectTransferComponent"));
-	m_pSkillBackpackComponent = CreateDefaultSubobject<ULxSkillBackpackComponent>(TEXT("SkillBackpackComponent"));
-	m_pCharacterProfessionComponent = CreateDefaultSubobject<ULxCharacterProfessionComponent>(TEXT("CharacterProfessionComponent"));
+	m_pCharacterSpecialAttributeComponent = m_pCharacterAttributeComponent;
+	m_pCharacterEffectComponent = CreateDefaultSubobject<ULxCharacterEffectComponent>(TEXT("角色效果组件"));
+	m_pCharacterEffectProcessComponent = m_pCharacterEffectComponent;
 	m_pCharacterDataTransferComponent = CreateDefaultSubobject<ULxCharacterDataTransferComponent>(TEXT("CharacterDataTransferComponent"));
 	m_pCharacterTestComponent = CreateDefaultSubobject<ULxCharacterTestComponent>(TEXT("CharacterTestComponent"));
-	m_pSkillCastComponent = CreateDefaultSubobject<ULxSkillCastComponent>(TEXT("SkillCastComponent"));
-	m_pCharacterCloseCombatComponent = CreateDefaultSubobject<ULxCharacterCloseCombatComponent>(TEXT("CharacterCloseCombatComponent"));
+	m_pCharacterCombatComponent = CreateDefaultSubobject<ULxCharacterCombatComponent>(TEXT("角色战斗组件"));
+	m_pSkillCastComponent = m_pCharacterCombatComponent;
+	m_pCharacterCloseCombatComponent = m_pCharacterCombatComponent;
 	m_pSkillReleaseAnchorPoint = CreateDefaultSubobject<ULxCharacterAnchorPointComponent>(TEXT("SkillReleaseAnchorPoint"));
 	m_pSkillReleaseAnchorPoint->SetupAttachment(GetRootComponent());
 	m_pSkillReleaseAnchorPoint->SetRelativeLocation(FVector(80.f, 0.f, 60.f));
@@ -62,6 +60,56 @@ ALxBaseCharacter::ALxBaseCharacter()
 FTransform ALxBaseCharacter::GetSkillReleaseAnchorTransform() const
 {
 	return m_pSkillReleaseAnchorPoint->GetComponentTransform();
+}
+
+ULxCharacterBackpackModule* ALxBaseCharacter::GetCharacterBackpackComponent() const
+{
+	return m_pCharacterContentComponent ? m_pCharacterContentComponent->GetBackpackModule() : nullptr;
+}
+
+ULxCharacterBuffModule* ALxBaseCharacter::GetCharacterBuffComponent() const
+{
+	return m_pCharacterContentComponent ? m_pCharacterContentComponent->GetBuffModule() : nullptr;
+}
+
+ULxCharacterEquipmentModule* ALxBaseCharacter::GetCharacterEquipmentComponent() const
+{
+	return m_pCharacterContentComponent ? m_pCharacterContentComponent->GetEquipmentModule() : nullptr;
+}
+
+ULxSkillBackpackModule* ALxBaseCharacter::GetSkillBackpackComponent() const
+{
+	return m_pCharacterContentComponent ? m_pCharacterContentComponent->GetSkillBackpackModule() : nullptr;
+}
+
+ULxCharacterProfessionModule* ALxBaseCharacter::GetCharacterProfessionComponent() const
+{
+	return m_pCharacterContentComponent ? m_pCharacterContentComponent->GetProfessionModule() : nullptr;
+}
+
+ULxCharacterEffectProcessModule* ALxBaseCharacter::GetCharacterEffectProcessComponent() const
+{
+	return m_pCharacterEffectComponent ? m_pCharacterEffectComponent->GetProcessModule() : nullptr;
+}
+
+ULxCharacterEffectCacheModule* ALxBaseCharacter::GetCharacterEffectCacheComponent() const
+{
+	return m_pCharacterEffectComponent ? m_pCharacterEffectComponent->GetCacheModule() : nullptr;
+}
+
+ULxCharacterEffectTransferModule* ALxBaseCharacter::GetCharacterEffectTransferComponent() const
+{
+	return m_pCharacterEffectComponent ? m_pCharacterEffectComponent->GetTransferModule() : nullptr;
+}
+
+ULxSkillCastModule* ALxBaseCharacter::GetSkillCastComponent() const
+{
+	return m_pCharacterCombatComponent ? m_pCharacterCombatComponent->GetSkillCastModule() : nullptr;
+}
+
+ULxCharacterCloseCombatModule* ALxBaseCharacter::GetCharacterCloseCombatComponent() const
+{
+	return m_pCharacterCombatComponent ? m_pCharacterCombatComponent->GetCloseCombatModule() : nullptr;
 }
 
 FGameplayTag ALxBaseCharacter::GetCharacterIDTag() const
@@ -89,19 +137,9 @@ void ALxBaseCharacter::InitialCharacterInformation()
 		m_pCharacterBehaviorControlComponent->BaseComponentInitialize();
 	}
 
-	if (m_pCharacterBackpackComponent)
+	if (m_pCharacterContentComponent)
 	{
-		m_pCharacterBackpackComponent->BaseComponentInitialize();
-	}
-
-	if (m_pCharacterEquipmentComponent)
-	{
-		m_pCharacterEquipmentComponent->BaseComponentInitialize();
-	}
-
-	if (m_pCharacterBuffComponent)
-	{
-		m_pCharacterBuffComponent->BaseComponentInitialize();
+		m_pCharacterContentComponent->BaseComponentInitialize();
 	}
 
 	if (m_pCharacterAttributeComponent)
@@ -109,36 +147,11 @@ void ALxBaseCharacter::InitialCharacterInformation()
 		m_pCharacterAttributeComponent->BaseComponentInitialize();
 	}
 
-	if (m_pCharacterSpecialAttributeComponent)
+	if (m_pCharacterEffectComponent)
 	{
-		m_pCharacterSpecialAttributeComponent->BaseComponentInitialize();
+		m_pCharacterEffectComponent->BaseComponentInitialize();
 	}
 
-	if (m_pCharacterEffectProcessComponent)
-	{
-		m_pCharacterEffectProcessComponent->BaseComponentInitialize();
-	}
-
-	if (m_pCharacterEffectCacheComponent)
-	{
-		m_pCharacterEffectCacheComponent->BaseComponentInitialize();
-	}
-
-	if (m_pCharacterEffectTransferComponent)
-	{
-		m_pCharacterEffectTransferComponent->BaseComponentInitialize();
-	}
-
-	if (m_pSkillBackpackComponent)
-	{
-		m_pSkillBackpackComponent->BaseComponentInitialize();
-	}
-
-	if (m_pCharacterProfessionComponent)
-	{
-		m_pCharacterProfessionComponent->BaseComponentInitialize();
-	}
-	
 	if (m_pCharacterDataTransferComponent)
 	{
 		m_pCharacterDataTransferComponent->BaseComponentInitialize();
@@ -150,14 +163,9 @@ void ALxBaseCharacter::InitialCharacterInformation()
 		m_pCharacterTestComponent->BaseComponentInitialize();
 	}
 
-	if (m_pSkillCastComponent)
+	if (m_pCharacterCombatComponent)
 	{
-		m_pSkillCastComponent->BaseComponentInitialize();
-	}
-
-	if (m_pCharacterCloseCombatComponent)
-	{
-		m_pCharacterCloseCombatComponent->BaseComponentInitialize();
+		m_pCharacterCombatComponent->BaseComponentInitialize();
 	}
 	IsInitialized  = true;
 }

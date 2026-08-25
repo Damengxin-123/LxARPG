@@ -2,6 +2,8 @@
 
 #include "LxCharacterLifecycleAttributeObject.h"
 #include "LxCharacterSpecialAttributeObject.h"
+#include "LxCharacterAttributeComponent.h"
+#include "LxCharacterFactionAttributeObject.h"
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "Net/UnrealNetwork.h"
@@ -195,11 +197,13 @@ ELxCharacterFactionRelation ULxCharacterSpecialAttributeComponent::GetCharacterF
 		return ELxCharacterFactionRelation::Friendly;
 	}
 
-	const ULxCharacterSpecialAttributeComponent* TargetSpecialAttributeComponent =
-		InTargetCharacter->GetCharacterSpecialAttributeComponent();
-	return TargetSpecialAttributeComponent ?
-		GetFactionRelation(TargetSpecialAttributeComponent->CharacterFaction.FriendlyTags) :
-		ELxCharacterFactionRelation::Neutral;
+	const ULxCharacterAttributeComponent* TargetAttributeComponent = InTargetCharacter->GetCharacterAttributeComponent();
+	const ULxCharacterFactionAttributeObject* TargetFactionObject = TargetAttributeComponent != nullptr
+		? TargetAttributeComponent->GetFactionAttributeObject()
+		: nullptr;
+	return TargetFactionObject != nullptr
+		? GetFactionRelation(TargetFactionObject->GetFriendlyTags())
+		: ELxCharacterFactionRelation::Neutral;
 }
 
 ULxCharacterSpecialAttributeObject* ULxCharacterSpecialAttributeComponent::FindSpecialAttributeObject(const TSubclassOf<ULxCharacterSpecialAttributeObject> InObjectClass) const
@@ -238,7 +242,10 @@ void ULxCharacterSpecialAttributeComponent::CreateRuntimeSpecialAttributeObjects
 		}
 
 		ULxCharacterSpecialAttributeObject* RuntimeObject = NewObject<ULxCharacterSpecialAttributeObject>(this, ObjectClass);
-		RuntimeObject->InitializeSpecialAttributeObject(this);
+		ULxCharacterAttributeComponent* UnifiedAttributeComponent = GetOwner() != nullptr
+			? GetOwner()->FindComponentByClass<ULxCharacterAttributeComponent>()
+			: nullptr;
+		RuntimeObject->InitializeSpecialAttributeObject(UnifiedAttributeComponent);
 		RuntimeSpecialAttributeObjects.Add(RuntimeObject);
 	}
 }

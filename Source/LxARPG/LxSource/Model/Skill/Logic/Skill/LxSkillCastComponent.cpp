@@ -7,6 +7,7 @@
 #include "LxARPG/LxSource/Model/Aim/LxPlayerAimComponent.h"
 #include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
 #include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
+#include "LxARPG/LxSource/Model/Combat/Logic/LxCharacterCombatComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
@@ -15,30 +16,28 @@
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxSkill.h"
 
-ULxSkillCastComponent::ULxSkillCastComponent()
+ULxSkillCastModule::ULxSkillCastModule()
 {
-	PrimaryComponentTick.bCanEverTick = false;
-	SetIsReplicatedByDefault(true);
 }
 
-void ULxSkillCastComponent::BaseComponentInitialize()
+void ULxSkillCastModule::InitializeModule(ULxCharacterCombatComponent* InOwnerComponent)
 {
-	Super::BaseComponentInitialize();
+	Super::InitializeModule(InOwnerComponent);
 	CurrentCastContext = MakeSkillCastContext(this);
 }
 
-void ULxSkillCastComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void ULxSkillCastModule::ShutdownModule()
 {
 	CancelCurrentSkillRelease();
 	EndSustainedAimTracking();
-	Super::EndPlay(EndPlayReason);
+	Super::ShutdownModule();
 }
 
-FLxSkillCastContext ULxSkillCastComponent::MakeSkillCastContext(UObject* SourceObject, AActor* TargetActor,
+FLxSkillCastContext ULxSkillCastModule::MakeSkillCastContext(UObject* SourceObject, AActor* TargetActor,
 	FVector AimLocation, bool bHasAimLocation, FVector AimDirection, bool bHasAimDirection) const
 {
 	FLxSkillCastContext CastContext;
-	CastContext.WorldContextObject = const_cast<ULxSkillCastComponent*>(this);
+	CastContext.WorldContextObject = const_cast<ULxSkillCastModule*>(this);
 	CastContext.CasterActor = GetOwner();
 	CastContext.TargetActor = TargetActor;
 	CastContext.SourceObject = SourceObject;
@@ -69,7 +68,7 @@ FLxSkillCastContext ULxSkillCastComponent::MakeSkillCastContext(UObject* SourceO
 	return CastContext;
 }
 
-bool ULxSkillCastComponent::InitializeSkillForCast(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
+bool ULxSkillCastModule::InitializeSkillForCast(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
 {
 	if (!InSkill)
 	{
@@ -77,19 +76,20 @@ bool ULxSkillCastComponent::InitializeSkillForCast(ULxSkill* InSkill, const FLxS
 	}
 
 	CurrentCastContext = NormalizeCastContext(InCastContext);
-	InSkill->OnSkillHitEntriesReady.RemoveDynamic(this, &ULxSkillCastComponent::HandleSkillHitEntriesReady);
-	InSkill->OnSkillHitEntriesReady.AddDynamic(this, &ULxSkillCastComponent::HandleSkillHitEntriesReady);
-	InSkill->OnPersistentSkillHitEntriesReady.RemoveDynamic(this, &ULxSkillCastComponent::HandlePersistentSkillHitEntriesReady);
-	InSkill->OnPersistentSkillHitEntriesReady.AddDynamic(this, &ULxSkillCastComponent::HandlePersistentSkillHitEntriesReady);
-	InSkill->OnSkillEffectsRemoved.RemoveDynamic(this, &ULxSkillCastComponent::HandleSkillEffectsRemoved);
-	InSkill->OnSkillEffectsRemoved.AddDynamic(this, &ULxSkillCastComponent::HandleSkillEffectsRemoved);
+	InSkill->OnSkillHitEntriesReady.RemoveDynamic(this, &ULxSkillCastModule::HandleSkillHitEntriesReady);
+	InSkill->OnSkillHitEntriesReady.AddDynamic(this, &ULxSkillCastModule::HandleSkillHitEntriesReady);
+	InSkill->OnPersistentSkillHitEntriesReady.RemoveDynamic(this, &ULxSkillCastModule::HandlePersistentSkillHitEntriesReady);
+	InSkill->OnPersistentSkillHitEntriesReady.AddDynamic(this, &ULxSkillCastModule::HandlePersistentSkillHitEntriesReady);
+	InSkill->OnSkillEffectsRemoved.RemoveDynamic(this, &ULxSkillCastModule::HandleSkillEffectsRemoved);
+	InSkill->OnSkillEffectsRemoved.AddDynamic(this, &ULxSkillCastModule::HandleSkillEffectsRemoved);
 	InSkill->PrepareSkillForCast(CurrentCastContext);
 	return true;
 }
 
-bool ULxSkillCastComponent::ReleaseSkillDirectly(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
+bool ULxSkillCastModule::ReleaseSkillDirectly(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
 {
-	if (!IsSkillCastIdle() || !InSkill || !InitializeSkillForCast(InSkill, InCastContext))
+	if (!IsSkillCastIdle() || OwnerComponent == nullptr || !OwnerComponent->CanStartSkillCast()
+		|| !InSkill || !InitializeSkillForCast(InSkill, InCastContext))
 	{
 		return false;
 	}
@@ -106,9 +106,10 @@ bool ULxSkillCastComponent::ReleaseSkillDirectly(ULxSkill* InSkill, const FLxSki
 	return true;
 }
 
-bool ULxSkillCastComponent::StartSkillCharge(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
+bool ULxSkillCastModule::StartSkillCharge(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
 {
-	if (!IsSkillCastIdle() || !InSkill || !InitializeSkillForCast(InSkill, InCastContext))
+	if (!IsSkillCastIdle() || OwnerComponent == nullptr || !OwnerComponent->CanStartSkillCast()
+		|| !InSkill || !InitializeSkillForCast(InSkill, InCastContext))
 	{
 		return false;
 	}
@@ -126,7 +127,7 @@ bool ULxSkillCastComponent::StartSkillCharge(ULxSkill* InSkill, const FLxSkillCa
 	return true;
 }
 
-bool ULxSkillCastComponent::EndSkillCharge(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
+bool ULxSkillCastModule::EndSkillCharge(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
 {
 	ULxSkill* SkillToEnd = InSkill ? InSkill : ChargingSkill.Get();
 	if (SkillCastState != ELxSkillCastState::Charging || SkillToEnd == nullptr
@@ -143,9 +144,10 @@ bool ULxSkillCastComponent::EndSkillCharge(ULxSkill* InSkill, const FLxSkillCast
 	return true;
 }
 
-bool ULxSkillCastComponent::StartSustainedRelease(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
+bool ULxSkillCastModule::StartSustainedRelease(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
 {
-	if (!IsSkillCastIdle() || !InSkill || !InitializeSkillForCast(InSkill, InCastContext))
+	if (!IsSkillCastIdle() || OwnerComponent == nullptr || !OwnerComponent->CanStartSkillCast()
+		|| !InSkill || !InitializeSkillForCast(InSkill, InCastContext))
 	{
 		return false;
 	}
@@ -164,7 +166,7 @@ bool ULxSkillCastComponent::StartSustainedRelease(ULxSkill* InSkill, const FLxSk
 	return true;
 }
 
-bool ULxSkillCastComponent::StopSustainedRelease(ULxSkill* InSkill)
+bool ULxSkillCastModule::StopSustainedRelease(ULxSkill* InSkill)
 {
 	ULxSkill* SkillToStop = InSkill ? InSkill : SustainedSkill.Get();
 	if (SkillCastState != ELxSkillCastState::SustainedReleasing || !SkillToStop
@@ -175,13 +177,13 @@ bool ULxSkillCastComponent::StopSustainedRelease(ULxSkill* InSkill)
 
 	ClearTimedSkillRelease(true);
 	const bool bStopped = SkillToStop->TryStopSustainedRelease();
-	MulticastStopSkillActionAnimation();
+	if (OwnerComponent) OwnerComponent->RequestStopSkillActionAnimation();
 	EndSustainedAimTracking();
 	ResetSkillCastState();
 	return bStopped;
 }
 
-bool ULxSkillCastComponent::CancelSustainedRelease(ULxSkill* InSkill)
+bool ULxSkillCastModule::CancelSustainedRelease(ULxSkill* InSkill)
 {
 	ULxSkill* SkillToCancel = InSkill ? InSkill : SustainedSkill.Get();
 	if (SkillCastState != ELxSkillCastState::SustainedReleasing || !SkillToCancel
@@ -192,13 +194,13 @@ bool ULxSkillCastComponent::CancelSustainedRelease(ULxSkill* InSkill)
 
 	ClearTimedSkillRelease(true);
 	const bool bCancelled = SkillToCancel->TryCancelSustainedRelease();
-	MulticastStopSkillActionAnimation();
+	if (OwnerComponent) OwnerComponent->RequestStopSkillActionAnimation();
 	EndSustainedAimTracking();
 	ResetSkillCastState();
 	return bCancelled;
 }
 
-bool ULxSkillCastComponent::CancelCurrentSkillRelease()
+bool ULxSkillCastModule::CancelCurrentSkillRelease()
 {
 	if (IsSkillCastIdle())
 	{
@@ -213,7 +215,7 @@ bool ULxSkillCastComponent::CancelCurrentSkillRelease()
 		bCancelled = SkillCastState == ELxSkillCastState::SustainedReleasing
 			? SkillToCancel->TryCancelSustainedRelease()
 			: SkillToCancel->TryCancelSkillRelease();
-		MulticastStopSkillActionAnimation();
+		if (OwnerComponent) OwnerComponent->RequestStopSkillActionAnimation();
 	}
 
 	EndSustainedAimTracking();
@@ -221,7 +223,7 @@ bool ULxSkillCastComponent::CancelCurrentSkillRelease()
 	return bCancelled;
 }
 
-bool ULxSkillCastComponent::FinishCurrentSkillRelease(ULxSkill* InSkill)
+bool ULxSkillCastModule::FinishCurrentSkillRelease(ULxSkill* InSkill)
 {
 	if (IsSkillCastIdle() || InSkill == nullptr || InSkill != CurrentCastingSkill
 		|| PendingSkillReleaseExecution != ELxPendingSkillReleaseExecution::None)
@@ -234,7 +236,7 @@ bool ULxSkillCastComponent::FinishCurrentSkillRelease(ULxSkill* InSkill)
 	return true;
 }
 
-bool ULxSkillCastComponent::HandleSkillReleaseInput(ULxSkill* InSkill, ELxSkillReleaseInputState InInputState, const FLxSkillCastContext& InCastContext)
+bool ULxSkillCastModule::HandleSkillReleaseInput(ULxSkill* InSkill, ELxSkillReleaseInputState InInputState, const FLxSkillCastContext& InCastContext)
 {
 	if (!InSkill || InInputState == ELxSkillReleaseInputState::None)
 	{
@@ -250,7 +252,8 @@ bool ULxSkillCastComponent::HandleSkillReleaseInput(ULxSkill* InSkill, ELxSkillR
 		}
 
 		const FLxSkillCastContext SkillContext = NormalizeCastContext(InCastContext);
-		ServerHandleSkillItemReleaseInput(SkillItemIDTag, InInputState, SkillContext.TargetActor,
+		if (OwnerComponent == nullptr) return false;
+		OwnerComponent->ServerHandleSkillItemReleaseInput(SkillItemIDTag, InInputState, SkillContext.TargetActor,
 			SkillContext.AimLocation, SkillContext.bHasAimLocation,
 			SkillContext.AimDirection, SkillContext.bHasAimDirection);
 		return true;
@@ -259,7 +262,7 @@ bool ULxSkillCastComponent::HandleSkillReleaseInput(ULxSkill* InSkill, ELxSkillR
 	return HandleSkillReleaseInputAuthority(InSkill, InInputState, InCastContext);
 }
 
-bool ULxSkillCastComponent::HandleSkillReleaseInputAuthority(ULxSkill* InSkill,
+bool ULxSkillCastModule::HandleSkillReleaseInputAuthority(ULxSkill* InSkill,
 	ELxSkillReleaseInputState InInputState, const FLxSkillCastContext& InCastContext)
 {
 	if (!InSkill || InInputState == ELxSkillReleaseInputState::None)
@@ -315,12 +318,12 @@ bool ULxSkillCastComponent::HandleSkillReleaseInputAuthority(ULxSkill* InSkill,
 	return false;
 }
 
-void ULxSkillCastComponent::ServerHandleSkillItemReleaseInput_Implementation(FGameplayTag InSkillItemIDTag,
+void ULxSkillCastModule::HandleSkillItemReleaseInputFromServer(FGameplayTag InSkillItemIDTag,
 	ELxSkillReleaseInputState InInputState, AActor* InTargetActor, FVector_NetQuantize InAimLocation,
 	bool bInHasAimLocation, FVector_NetQuantizeNormal InAimDirection, bool bInHasAimDirection)
 {
 	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
-	ULxSkillBackpackComponent* SkillBackpack = OwnerCharacter ? OwnerCharacter->GetSkillBackpackComponent() : nullptr;
+	ULxSkillBackpackModule* SkillBackpack = OwnerCharacter ? OwnerCharacter->GetSkillBackpackComponent() : nullptr;
 	ULxSkillItem* SkillItem = SkillBackpack ? SkillBackpack->FindSkillItemByTagID(InSkillItemIDTag) : nullptr;
 	ULxSkill* Skill = SkillItem ? SkillItem->GetOrCreateSkillObject() : nullptr;
 	if (!Skill)
@@ -333,7 +336,7 @@ void ULxSkillCastComponent::ServerHandleSkillItemReleaseInput_Implementation(FGa
 	HandleSkillReleaseInputAuthority(Skill, InInputState, ServerContext);
 }
 
-void ULxSkillCastComponent::MulticastPlaySkillActionAnimation_Implementation(float InSkillReleaseDuration)
+void ULxSkillCastModule::PlaySkillActionAnimation(float InSkillReleaseDuration)
 {
 	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
 	ULxCharacterBehaviorControlComponent* BehaviorControlComponent = OwnerCharacter
@@ -352,7 +355,7 @@ void ULxSkillCastComponent::MulticastPlaySkillActionAnimation_Implementation(flo
 	BehaviorControlComponent->SendActionAnimationMotionSignal(ActionMotionSignal);
 }
 
-void ULxSkillCastComponent::MulticastStopSkillActionAnimation_Implementation()
+void ULxSkillCastModule::StopSkillActionAnimation()
 {
 	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
 	ULxCharacterBehaviorControlComponent* BehaviorControlComponent = OwnerCharacter
@@ -370,7 +373,7 @@ void ULxSkillCastComponent::MulticastStopSkillActionAnimation_Implementation()
 	BehaviorControlComponent->SendActionAnimationMotionSignal(ActionMotionSignal);
 }
 
-void ULxSkillCastComponent::BeginTimedSkillRelease(ULxSkill* InSkill,
+void ULxSkillCastModule::BeginTimedSkillRelease(ULxSkill* InSkill,
 	ELxPendingSkillReleaseExecution InExecutionType)
 {
 	if (!InSkill || !GetWorld())
@@ -386,15 +389,15 @@ void ULxSkillCastComponent::BeginTimedSkillRelease(ULxSkill* InSkill,
 	ClearTimedSkillRelease(false);
 	PendingSkillReleaseExecution = InExecutionType;
 	const float ReleaseDuration = InSkill->GetSkillReleaseDuration();
-	MulticastPlaySkillActionAnimation(ReleaseDuration);
+	if (OwnerComponent) OwnerComponent->RequestPlaySkillActionAnimation(ReleaseDuration);
 
 	GetWorld()->GetTimerManager().SetTimer(SkillReleaseExecutionTimerHandle, this,
-		&ULxSkillCastComponent::ExecuteTimedSkillRelease, ReleaseDuration * 0.5f, false);
+		&ULxSkillCastModule::ExecuteTimedSkillRelease, ReleaseDuration * 0.5f, false);
 	GetWorld()->GetTimerManager().SetTimer(SkillReleaseCompletionTimerHandle, this,
-		&ULxSkillCastComponent::CompleteTimedSkillRelease, ReleaseDuration, false);
+		&ULxSkillCastModule::CompleteTimedSkillRelease, ReleaseDuration, false);
 }
 
-void ULxSkillCastComponent::ExecuteTimedSkillRelease()
+void ULxSkillCastModule::ExecuteTimedSkillRelease()
 {
 	ULxSkill* Skill = CurrentCastingSkill.Get();
 	if (!Skill)
@@ -420,7 +423,7 @@ void ULxSkillCastComponent::ExecuteTimedSkillRelease()
 	}
 }
 
-void ULxSkillCastComponent::CompleteTimedSkillRelease()
+void ULxSkillCastModule::CompleteTimedSkillRelease()
 {
 	ULxSkill* Skill = CurrentCastingSkill.Get();
 	const ELxPendingSkillReleaseExecution CompletedExecution = PendingSkillReleaseExecution;
@@ -432,7 +435,7 @@ void ULxSkillCastComponent::CompleteTimedSkillRelease()
 	}
 
 	Skill->CompleteSkillReleaseTiming();
-	MulticastStopSkillActionAnimation();
+	if (OwnerComponent) OwnerComponent->RequestStopSkillActionAnimation();
 	if (CompletedExecution != ELxPendingSkillReleaseExecution::Sustained
 		&& !Skill->ShouldHoldReleaseStateUntilExplicitFinish())
 	{
@@ -440,7 +443,7 @@ void ULxSkillCastComponent::CompleteTimedSkillRelease()
 	}
 }
 
-void ULxSkillCastComponent::ClearTimedSkillRelease(bool bCancelSkillTiming)
+void ULxSkillCastModule::ClearTimedSkillRelease(bool bCancelSkillTiming)
 {
 	if (UWorld* World = GetWorld())
 	{
@@ -455,13 +458,13 @@ void ULxSkillCastComponent::ClearTimedSkillRelease(bool bCancelSkillTiming)
 	PendingSkillReleaseExecution = ELxPendingSkillReleaseExecution::None;
 }
 
-FGameplayTag ULxSkillCastComponent::ResolveSkillItemIDTag(const ULxSkill* InSkill) const
+FGameplayTag ULxSkillCastModule::ResolveSkillItemIDTag(const ULxSkill* InSkill) const
 {
 	ULxSkillItem* SkillItem = InSkill ? Cast<ULxSkillItem>(InSkill->GetOuter()) : nullptr;
 	return SkillItem && SkillItem->ItemIsValid() ? SkillItem->ItemIDTag() : FGameplayTag();
 }
 
-bool ULxSkillCastComponent::ReleaseSkillItemDirectly(ULxSkillItem* InSkillItem, const FLxSkillCastContext& InCastContext)
+bool ULxSkillCastModule::ReleaseSkillItemDirectly(ULxSkillItem* InSkillItem, const FLxSkillCastContext& InCastContext)
 {
 	if (!InSkillItem || !InSkillItem->ItemIsValid())
 	{
@@ -478,7 +481,7 @@ bool ULxSkillCastComponent::ReleaseSkillItemDirectly(ULxSkillItem* InSkillItem, 
 	return HandleSkillReleaseInput(Skill, Skill->GetDirectReleaseInputState(), SkillContext);
 }
 
-bool ULxSkillCastComponent::StartUseSkillItem(ULxSkillItem* InSkillItem, const FLxSkillCastContext& InCastContext)
+bool ULxSkillCastModule::StartUseSkillItem(ULxSkillItem* InSkillItem, const FLxSkillCastContext& InCastContext)
 {
 	if (!InSkillItem || !InSkillItem->ItemIsValid())
 	{
@@ -504,7 +507,7 @@ bool ULxSkillCastComponent::StartUseSkillItem(ULxSkillItem* InSkillItem, const F
 	return bHandled;
 }
 
-bool ULxSkillCastComponent::EndUseSkillItem(ULxSkillItem* InSkillItem, const FLxSkillCastContext& InCastContext)
+bool ULxSkillCastModule::EndUseSkillItem(ULxSkillItem* InSkillItem, const FLxSkillCastContext& InCastContext)
 {
 	ULxSkillItem* SkillItemToEnd = InSkillItem
 		? InSkillItem
@@ -523,12 +526,12 @@ bool ULxSkillCastComponent::EndUseSkillItem(ULxSkillItem* InSkillItem, const FLx
 	return HandleSkillReleaseInput(Skill, ELxSkillReleaseInputState::End, NormalizeCastContext(InCastContext, SkillItemToEnd));
 }
 
-FLxSkillCastContext ULxSkillCastComponent::NormalizeCastContext(const FLxSkillCastContext& InCastContext, UObject* SourceObject) const
+FLxSkillCastContext ULxSkillCastModule::NormalizeCastContext(const FLxSkillCastContext& InCastContext, UObject* SourceObject) const
 {
 	FLxSkillCastContext Result = InCastContext;
 	if (!Result.WorldContextObject)
 	{
-		Result.WorldContextObject = const_cast<ULxSkillCastComponent*>(this);
+		Result.WorldContextObject = const_cast<ULxSkillCastModule*>(this);
 	}
 
 	if (!Result.CasterActor)
@@ -550,7 +553,7 @@ FLxSkillCastContext ULxSkillCastComponent::NormalizeCastContext(const FLxSkillCa
 
 	if (!Result.SourceObject)
 	{
-		Result.SourceObject = SourceObject ? SourceObject : const_cast<ULxSkillCastComponent*>(this);
+		Result.SourceObject = SourceObject ? SourceObject : const_cast<ULxSkillCastModule*>(this);
 	}
 
 	if (!Result.bOverrideSpawnTransform && Result.CasterActor)
@@ -572,7 +575,7 @@ FLxSkillCastContext ULxSkillCastComponent::NormalizeCastContext(const FLxSkillCa
 
 	return Result;
 }
-void ULxSkillCastComponent::ResetSkillCastState()
+void ULxSkillCastModule::ResetSkillCastState()
 {
 	ClearTimedSkillRelease(false);
 	SetSkillCastState(ELxSkillCastState::Idle);
@@ -583,7 +586,7 @@ void ULxSkillCastComponent::ResetSkillCastState()
 	SustainedSkillItem = nullptr;
 }
 
-void ULxSkillCastComponent::SetSkillCastState(const ELxSkillCastState InNewState)
+void ULxSkillCastModule::SetSkillCastState(const ELxSkillCastState InNewState)
 {
 	if (SkillCastState == InNewState)
 	{
@@ -619,6 +622,7 @@ void ULxSkillCastComponent::SetSkillCastState(const ELxSkillCastState InNewState
 	SkillCastState = InNewState;
 	if (!BehaviorControlComponent)
 	{
+		BroadcastModuleDataChanged();
 		return;
 	}
 
@@ -647,9 +651,10 @@ void ULxSkillCastComponent::SetSkillCastState(const ELxSkillCastState InNewState
 	{
 		BehaviorControlComponent->RemoveFacingControlRequest();
 	}
+	BroadcastModuleDataChanged();
 }
 
-void ULxSkillCastComponent::BeginSustainedAimTracking()
+void ULxSkillCastModule::BeginSustainedAimTracking()
 {
 	ALxPlayerCharacter* PlayerCharacter = Cast<ALxPlayerCharacter>(GetOwner());
 	SustainedAimComponent = PlayerCharacter ? PlayerCharacter->GetPlayerAimComponent() : nullptr;
@@ -658,23 +663,23 @@ void ULxSkillCastComponent::BeginSustainedAimTracking()
 		return;
 	}
 
-	SustainedAimComponent->OnAimResultChanged.AddUniqueDynamic(this, &ULxSkillCastComponent::HandleAimResultChanged);
+	SustainedAimComponent->OnAimResultChanged.AddUniqueDynamic(this, &ULxSkillCastModule::HandleAimResultChanged);
 	SustainedAimComponent->AddAimResultUpdateRequest();
 }
 
-void ULxSkillCastComponent::EndSustainedAimTracking()
+void ULxSkillCastModule::EndSustainedAimTracking()
 {
 	if (!SustainedAimComponent)
 	{
 		return;
 	}
 
-	SustainedAimComponent->OnAimResultChanged.RemoveDynamic(this, &ULxSkillCastComponent::HandleAimResultChanged);
+	SustainedAimComponent->OnAimResultChanged.RemoveDynamic(this, &ULxSkillCastModule::HandleAimResultChanged);
 	SustainedAimComponent->RemoveAimResultUpdateRequest();
 	SustainedAimComponent = nullptr;
 }
 
-void ULxSkillCastComponent::HandleAimResultChanged(const FLxPlayerAimResult& AimResult)
+void ULxSkillCastModule::HandleAimResultChanged(const FLxPlayerAimResult& AimResult)
 {
 	if (!SustainedSkill || AimResult.SkillDirection.IsNearlyZero())
 	{
@@ -698,7 +703,7 @@ void ULxSkillCastComponent::HandleAimResultChanged(const FLxPlayerAimResult& Aim
 	SustainedSkill->TryUpdateSustainedReleaseTransform(CurrentCastContext.SpawnTransform);
 }
 
-void ULxSkillCastComponent::HandleSkillHitEntriesReady(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& SkillEntryPackages, const TArray<AActor*>& HitTargets)
+void ULxSkillCastModule::HandleSkillHitEntriesReady(ULxSkill* SourceSkill, const TArray<FLxSkillEntryPackage>& SkillEntryPackages, const TArray<AActor*>& HitTargets)
 {
 	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
 	if (OwnerCharacter == nullptr)
@@ -706,7 +711,7 @@ void ULxSkillCastComponent::HandleSkillHitEntriesReady(ULxSkill* SourceSkill, co
 		return;
 	}
 
-	ULxCharacterEffectProcessComponent* EffectProcessComponent = OwnerCharacter->GetCharacterEffectProcessComponent();
+	ULxCharacterEffectProcessModule* EffectProcessComponent = OwnerCharacter->GetCharacterEffectProcessComponent();
 	if (EffectProcessComponent == nullptr)
 	{
 		return;
@@ -715,7 +720,7 @@ void ULxSkillCastComponent::HandleSkillHitEntriesReady(ULxSkill* SourceSkill, co
 	EffectProcessComponent->ProcessSkillHitEffects(SourceSkill, SkillEntryPackages, HitTargets);
 }
 
-void ULxSkillCastComponent::HandlePersistentSkillHitEntriesReady(ULxSkill* SourceSkill,
+void ULxSkillCastModule::HandlePersistentSkillHitEntriesReady(ULxSkill* SourceSkill,
 	ALxSkillUnitActor* SourceSkillUnit, const TArray<FLxSkillEntryPackage>& SkillEntryPackages,
 	const TArray<AActor*>& HitTargets)
 {
@@ -728,7 +733,7 @@ void ULxSkillCastComponent::HandlePersistentSkillHitEntriesReady(ULxSkill* Sourc
 		SkillEntryPackages, HitTargets, true, SourceSkillUnit);
 }
 
-void ULxSkillCastComponent::HandleSkillEffectsRemoved(ULxSkill* SourceSkill,
+void ULxSkillCastModule::HandleSkillEffectsRemoved(ULxSkill* SourceSkill,
 	ALxSkillUnitActor* SourceSkillUnit, const TArray<AActor*>& EffectTargets)
 {
 	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());

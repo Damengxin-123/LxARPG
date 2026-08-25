@@ -5,7 +5,7 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxWarehouseInteractionComponent.generated.h"
 
-class ULxCharacterBackpackComponent;
+class ULxCharacterBackpackModule;
 class ULxItemBase;
 class ULxItemSlotData;
 
@@ -41,8 +41,8 @@ public:
 
 	ULxItemSlotData* GetWarehouseSlotAt(int32 SlotIndex) const;
 
-	bool MoveBackpackSlotToWarehouse(ULxCharacterBackpackComponent* BackpackComponent, int32 BackpackSlotIndex, int32 WarehouseSlotIndex);
-	bool MoveWarehouseSlotToBackpack(ULxCharacterBackpackComponent* BackpackComponent, int32 WarehouseSlotIndex, int32 BackpackSlotIndex);
+	bool MoveBackpackSlotToWarehouse(ULxCharacterBackpackModule* BackpackComponent, int32 BackpackSlotIndex, int32 WarehouseSlotIndex);
+	bool MoveWarehouseSlotToBackpack(ULxCharacterBackpackModule* BackpackComponent, int32 WarehouseSlotIndex, int32 BackpackSlotIndex);
 	bool MoveWarehouseSlot(int32 SourceWarehouseSlotIndex, int32 TargetWarehouseSlotIndex);
 
 	/** 刷新仓库物品缓存，并广播槽位列表变化事件。 */

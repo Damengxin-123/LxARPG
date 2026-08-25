@@ -87,13 +87,11 @@ namespace
 	}
 }
 
-ULxCharacterBuffComponent::ULxCharacterBuffComponent()
+ULxCharacterBuffModule::ULxCharacterBuffModule()
 {
-	PrimaryComponentTick.bCanEverTick = false;
-	SetIsReplicatedByDefault(true);
 }
 
-void ULxCharacterBuffComponent::BaseComponentInitialize()
+void ULxCharacterBuffModule::OnModuleInitialize()
 {
 	if (m_bBuffInitialized)
 	{
@@ -108,19 +106,18 @@ void ULxCharacterBuffComponent::BaseComponentInitialize()
 	m_bBuffInitialized = true;
 }
 
-void ULxCharacterBuffComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+void ULxCharacterBuffModule::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ULxCharacterBuffComponent, ReplicatedBuffList);
+	DOREPLIFETIME(ULxCharacterBuffModule, ReplicatedBuffList);
 }
 
-void ULxCharacterBuffComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void ULxCharacterBuffModule::OnModuleShutdown()
 {
 	ClearBuffs();
-	Super::EndPlay(EndPlayReason);
 }
 
-ULxBuff* ULxCharacterBuffComponent::AddBuff(FGameplayTag InBuffIDTag, float InEffectProportion, float InDurationOverride, ELxCharacterEntrySource InEntrySource)
+ULxBuff* ULxCharacterBuffModule::AddBuff(FGameplayTag InBuffIDTag, float InEffectProportion, float InDurationOverride, ELxCharacterEntrySource InEntrySource)
 {
 	FLxEffectSourceContext SourceContext;
 	SourceContext.SourceType = ConvertEntrySourceToEffectSource(InEntrySource);
@@ -128,7 +125,7 @@ ULxBuff* ULxCharacterBuffComponent::AddBuff(FGameplayTag InBuffIDTag, float InEf
 	return AddBuffFromSourceContext(InBuffIDTag, InEffectProportion, InDurationOverride, SourceContext);
 }
 
-ULxBuff* ULxCharacterBuffComponent::AddBuffFromSourceContext(FGameplayTag InBuffIDTag, float InEffectProportion,
+ULxBuff* ULxCharacterBuffModule::AddBuffFromSourceContext(FGameplayTag InBuffIDTag, float InEffectProportion,
 	float InDurationOverride, const FLxEffectSourceContext& InSourceContext)
 {
 	if (!InBuffIDTag.IsValid())
@@ -141,7 +138,7 @@ ULxBuff* ULxCharacterBuffComponent::AddBuffFromSourceContext(FGameplayTag InBuff
 
 	if (!m_bBuffInitialized)
 	{
-		BaseComponentInitialize();
+		InitializeModule(GetContentComponent());
 	}
 
 	if (FLxBuffRuntimeInfo* ExistingRuntimeInfo = FindFirstRuntimeInfoByTagID(InBuffIDTag))
@@ -190,7 +187,7 @@ ULxBuff* ULxCharacterBuffComponent::AddBuffFromSourceContext(FGameplayTag InBuff
 	return NewBuffLogic;
 }
 
-bool ULxCharacterBuffComponent::RemoveBuff(ULxBuff* InBuffLogic)
+bool ULxCharacterBuffModule::RemoveBuff(ULxBuff* InBuffLogic)
 {
 	if (InBuffLogic == nullptr)
 	{
@@ -216,34 +213,7 @@ bool ULxCharacterBuffComponent::RemoveBuff(ULxBuff* InBuffLogic)
 	return false;
 }
 
-int32 ULxCharacterBuffComponent::RemoveBuffByTagID(FGameplayTag InBuffIDTag)
-{
-	int32 RemovedCount = 0;
-	for (int32 Index = m_vBuffRuntimeInfos.Num() - 1; Index >= 0; --Index)
-	{
-		FLxBuffRuntimeInfo& RuntimeInfo = m_vBuffRuntimeInfos[Index];
-		if (RuntimeInfo.BuffIDTag != InBuffIDTag)
-		{
-			continue;
-		}
-
-		ULxBuff* BuffLogic = RuntimeInfo.BuffLogic;
-		m_vBuffRuntimeInfos.RemoveAt(Index);
-		OnBuffRemoved.Broadcast(BuffLogic);
-		++RemovedCount;
-	}
-
-	if (RemovedCount > 0)
-	{
-		SyncReplicatedBuffList();
-		OnDataChange.Broadcast();
-		StopBuffTimerIfNeeded();
-	}
-
-	return RemovedCount;
-}
-
-int32 ULxCharacterBuffComponent::RemoveBuffSourceReferenceByTagID(FGameplayTag InBuffIDTag, ELxCharacterEntrySource InEntrySource, int32 InReferenceCount)
+int32 ULxCharacterBuffModule::RemoveBuffSourceReferenceByTagID(FGameplayTag InBuffIDTag, ELxCharacterEntrySource InEntrySource, int32 InReferenceCount)
 {
 	if (!InBuffIDTag.IsValid() || InReferenceCount <= 0)
 	{
@@ -294,7 +264,7 @@ int32 ULxCharacterBuffComponent::RemoveBuffSourceReferenceByTagID(FGameplayTag I
 	return RemovedCount;
 }
 
-int32 ULxCharacterBuffComponent::RemoveBuffSourceReferencesBySourceContext(const FLxEffectSourceContext& InSourceContext)
+int32 ULxCharacterBuffModule::RemoveBuffSourceReferencesBySourceContext(const FLxEffectSourceContext& InSourceContext)
 {
 	const FName SourceKey = MakeBuffSourceKey(InSourceContext);
 	if (SourceKey.IsNone())
@@ -342,7 +312,7 @@ int32 ULxCharacterBuffComponent::RemoveBuffSourceReferencesBySourceContext(const
 	return RemovedCount;
 }
 
-void ULxCharacterBuffComponent::ClearBuffs()
+void ULxCharacterBuffModule::ClearBuffs()
 {
 	if (m_vBuffRuntimeInfos.IsEmpty())
 	{
@@ -366,7 +336,7 @@ void ULxCharacterBuffComponent::ClearBuffs()
 	OnDataChange.Broadcast();
 }
 
-void ULxCharacterBuffComponent::GetActiveBuffs(TArray<ULxBuff*>& OutBuffList) const
+void ULxCharacterBuffModule::GetActiveBuffs(TArray<ULxBuff*>& OutBuffList) const
 {
 	OutBuffList.Reset();
 	for (const FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
@@ -378,18 +348,13 @@ void ULxCharacterBuffComponent::GetActiveBuffs(TArray<ULxBuff*>& OutBuffList) co
 	}
 }
 
-void ULxCharacterBuffComponent::GetDisplayBuffs(TArray<ULxBuff*>& OutBuffList) const
-{
-	GetActiveBuffs(OutBuffList);
-}
-
-float ULxCharacterBuffComponent::GetBuffEffectProportion(ULxBuff* InBuffLogic) const
+float ULxCharacterBuffModule::GetBuffEffectProportion(ULxBuff* InBuffLogic) const
 {
 	const FLxBuffRuntimeInfo* RuntimeInfo = FindRuntimeInfo(InBuffLogic);
 	return RuntimeInfo != nullptr ? RuntimeInfo->EffectProportion : 1.f;
 }
 
-void ULxCharacterBuffComponent::SyncReplicatedBuffList()
+void ULxCharacterBuffModule::SyncReplicatedBuffList()
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
@@ -412,7 +377,7 @@ void ULxCharacterBuffComponent::SyncReplicatedBuffList()
 	}
 }
 
-void ULxCharacterBuffComponent::ApplyReplicatedBuffList()
+void ULxCharacterBuffModule::ApplyReplicatedBuffList()
 {
 	m_vBuffRuntimeInfos.Reset();
 
@@ -443,12 +408,12 @@ void ULxCharacterBuffComponent::ApplyReplicatedBuffList()
 	OnDataChange.Broadcast();
 }
 
-void ULxCharacterBuffComponent::OnRep_ReplicatedBuffList()
+void ULxCharacterBuffModule::OnRep_ReplicatedBuffList()
 {
 	ApplyReplicatedBuffList();
 }
 
-FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindRuntimeInfo(ULxBuff* InBuffLogic)
+FLxBuffRuntimeInfo* ULxCharacterBuffModule::FindRuntimeInfo(ULxBuff* InBuffLogic)
 {
 	for (FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
 	{
@@ -460,7 +425,7 @@ FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindRuntimeInfo(ULxBuff* InBuffLo
 	return nullptr;
 }
 
-const FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindRuntimeInfo(ULxBuff* InBuffLogic) const
+const FLxBuffRuntimeInfo* ULxCharacterBuffModule::FindRuntimeInfo(ULxBuff* InBuffLogic) const
 {
 	for (const FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
 	{
@@ -472,7 +437,7 @@ const FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindRuntimeInfo(ULxBuff* In
 	return nullptr;
 }
 
-FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindFirstRuntimeInfoByTagID(FGameplayTag InBuffIDTag)
+FLxBuffRuntimeInfo* ULxCharacterBuffModule::FindFirstRuntimeInfoByTagID(FGameplayTag InBuffIDTag)
 {
 	for (FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
 	{
@@ -484,7 +449,7 @@ FLxBuffRuntimeInfo* ULxCharacterBuffComponent::FindFirstRuntimeInfoByTagID(FGame
 	return nullptr;
 }
 
-int32 ULxCharacterBuffComponent::GetTotalSourceReferenceCount(const FLxBuffRuntimeInfo& InRuntimeInfo) const
+int32 ULxCharacterBuffModule::GetTotalSourceReferenceCount(const FLxBuffRuntimeInfo& InRuntimeInfo) const
 {
 	int32 TotalReferenceCount = 0;
 	for (const TPair<ELxCharacterEntrySource, int32>& SourceReferencePair : InRuntimeInfo.SourceReferenceCounts)
@@ -494,7 +459,7 @@ int32 ULxCharacterBuffComponent::GetTotalSourceReferenceCount(const FLxBuffRunti
 	return TotalReferenceCount;
 }
 
-void ULxCharacterBuffComponent::StartBuffTimer()
+void ULxCharacterBuffModule::StartBuffTimer()
 {
 	if (GetWorld() == nullptr || m_vBuffRuntimeInfos.IsEmpty())
 	{
@@ -507,13 +472,13 @@ void ULxCharacterBuffComponent::StartBuffTimer()
 		TimerManager.SetTimer(
 			m_BuffTimerHandle,
 			this,
-			&ULxCharacterBuffComponent::HandleBuffTimerTick,
+			&ULxCharacterBuffModule::HandleBuffTimerTick,
 			BUFF_COMPONENT_TIMER_INTERVAL,
 			true);
 	}
 }
 
-void ULxCharacterBuffComponent::StopBuffTimerIfNeeded()
+void ULxCharacterBuffModule::StopBuffTimerIfNeeded()
 {
 	if (GetWorld() == nullptr)
 	{
@@ -526,7 +491,7 @@ void ULxCharacterBuffComponent::StopBuffTimerIfNeeded()
 	}
 }
 
-void ULxCharacterBuffComponent::HandleBuffTimerTick()
+void ULxCharacterBuffModule::HandleBuffTimerTick()
 {
 	TArray<TObjectPtr<ULxBuff>> ExpiredBuffs;
 	bool bRemovedInvalidBuff = false;
@@ -580,7 +545,7 @@ void ULxCharacterBuffComponent::HandleBuffTimerTick()
 	}
 }
 
-void ULxCharacterBuffComponent::ActivateBuffEntries(ULxBuff* InBuffLogic)
+void ULxCharacterBuffModule::ActivateBuffEntries(ULxBuff* InBuffLogic)
 {
 	if (FindRuntimeInfo(InBuffLogic) == nullptr || InBuffLogic == nullptr || !InBuffLogic->ItemIsValid())
 	{

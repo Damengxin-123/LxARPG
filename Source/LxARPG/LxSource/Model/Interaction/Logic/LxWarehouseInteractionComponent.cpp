@@ -136,7 +136,7 @@ ULxItemSlotData* ULxWarehouseInteractionComponent::GetWarehouseSlotAt(int32 Slot
 	return WarehouseItemSlotList.IsValidIndex(SlotIndex) ? WarehouseItemSlotList[SlotIndex] : nullptr;
 }
 
-bool ULxWarehouseInteractionComponent::MoveBackpackSlotToWarehouse(ULxCharacterBackpackComponent* BackpackComponent, int32 BackpackSlotIndex, int32 WarehouseSlotIndex)
+bool ULxWarehouseInteractionComponent::MoveBackpackSlotToWarehouse(ULxCharacterBackpackModule* BackpackComponent, int32 BackpackSlotIndex, int32 WarehouseSlotIndex)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority() || !BackpackComponent)
 	{
@@ -165,7 +165,7 @@ bool ULxWarehouseInteractionComponent::MoveBackpackSlotToWarehouse(ULxCharacterB
 	return true;
 }
 
-bool ULxWarehouseInteractionComponent::MoveWarehouseSlotToBackpack(ULxCharacterBackpackComponent* BackpackComponent, int32 WarehouseSlotIndex, int32 BackpackSlotIndex)
+bool ULxWarehouseInteractionComponent::MoveWarehouseSlotToBackpack(ULxCharacterBackpackModule* BackpackComponent, int32 WarehouseSlotIndex, int32 BackpackSlotIndex)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority() || !BackpackComponent)
 	{

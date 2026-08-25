@@ -6,7 +6,8 @@
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
-#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkill.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitActor.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -18,7 +19,7 @@ namespace
 	/** 根据效果包来源生成持续效果缓存句柄。 */
 	FName MakePersistentEffectCacheHandle(const FLxEffectPackage& EffectPackage)
 	{
-		return ULxCharacterEffectCacheComponent::MakeEffectCacheHandle(EffectPackage.SourceContext);
+		return ULxCharacterEffectCacheModule::MakeEffectCacheHandle(EffectPackage.SourceContext);
 	}
 
 	/** 构建持续效果中的即时结算部分，属性修饰交给效果缓存组件统一刷新。 */
@@ -30,18 +31,15 @@ namespace
 	}
 }
 
-ULxCharacterEffectProcessComponent::ULxCharacterEffectProcessComponent()
-{
-	PrimaryComponentTick.bCanEverTick = false;
-}
+ULxCharacterEffectProcessModule::ULxCharacterEffectProcessModule() = default;
 
-void ULxCharacterEffectProcessComponent::BaseComponentInitialize()
+void ULxCharacterEffectProcessModule::OnModuleInitialize()
 {
 	CacheOwnerComponents();
 	EnsureDamageCalculationFlow();
 }
 
-void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* SourceSkill,
+void ULxCharacterEffectProcessModule::ProcessSkillHitEffects(ULxSkill* SourceSkill,
 	const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets,
 	bool bPersistentEffect, ALxSkillUnitActor* PersistentSourceSkillUnit)
 {
@@ -73,18 +71,22 @@ void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* Source
 			{
 				if (bPersistentEffect)
 				{
-					if (ULxCharacterEffectCacheComponent* TargetEffectCacheComponent =
-						HitTarget->FindComponentByClass<ULxCharacterEffectCacheComponent>())
+					if (const ULxCharacterEffectComponent* TargetEffectComponent =
+						HitTarget->FindComponentByClass<ULxCharacterEffectComponent>())
 					{
-						const FName EffectCacheHandle = MakePersistentEffectCacheHandle(OutgoingEffectPackage);
-						TargetEffectCacheComponent->ApplyOrUpdateCachedEffectPackage(EffectCacheHandle, OutgoingEffectPackage);
-
-						const FLxEffectPackage ImmediatePackage = MakePersistentEffectImmediatePackage(OutgoingEffectPackage);
-						if (!ImmediatePackage.IsEmpty())
+						ULxCharacterEffectCacheModule* TargetEffectCacheModule = TargetEffectComponent->GetCacheModule();
+						if (TargetEffectCacheModule != nullptr)
 						{
-							DataTransferComponent->SendEffectPackageToTarget(ImmediatePackage, HitTarget);
+							const FName EffectCacheHandle = MakePersistentEffectCacheHandle(OutgoingEffectPackage);
+							TargetEffectCacheModule->ApplyOrUpdateCachedEffectPackage(EffectCacheHandle, OutgoingEffectPackage);
+
+							const FLxEffectPackage ImmediatePackage = MakePersistentEffectImmediatePackage(OutgoingEffectPackage);
+							if (!ImmediatePackage.IsEmpty())
+							{
+								DataTransferComponent->SendEffectPackageToTarget(ImmediatePackage, HitTarget);
+							}
+							continue;
 						}
-						continue;
 					}
 				}
 
@@ -94,7 +96,7 @@ void ULxCharacterEffectProcessComponent::ProcessSkillHitEffects(ULxSkill* Source
 	}
 }
 
-void ULxCharacterEffectProcessComponent::RemovePersistentSkillEffects(ALxSkillUnitActor* SourceSkillUnit,
+void ULxCharacterEffectProcessModule::RemovePersistentSkillEffects(ALxSkillUnitActor* SourceSkillUnit,
 	const TArray<AActor*>& EffectTargets)
 {
 	CacheOwnerComponents();
@@ -114,17 +116,20 @@ void ULxCharacterEffectProcessComponent::RemovePersistentSkillEffects(ALxSkillUn
 		RemovalPackage.SourceContext.SourceObject = SourceSkillUnit;
 		RemovalPackage.TargetActor = EffectTarget;
 		RemovalPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::ReplaceSameSource;
-		if (ULxCharacterEffectCacheComponent* TargetEffectCacheComponent =
-			EffectTarget->FindComponentByClass<ULxCharacterEffectCacheComponent>())
+		if (const ULxCharacterEffectComponent* TargetEffectComponent =
+			EffectTarget->FindComponentByClass<ULxCharacterEffectComponent>())
 		{
-			TargetEffectCacheComponent->RemoveCachedEffectPackage(MakePersistentEffectCacheHandle(RemovalPackage));
+			if (ULxCharacterEffectCacheModule* TargetEffectCacheModule = TargetEffectComponent->GetCacheModule())
+			{
+				TargetEffectCacheModule->RemoveCachedEffectPackage(MakePersistentEffectCacheHandle(RemovalPackage));
+			}
 		}
 
 		DataTransferComponent->SendEffectPackageToTarget(RemovalPackage, EffectTarget);
 	}
 }
 
-bool ULxCharacterEffectProcessComponent::BuildOutgoingEffectPackage(const FLxEffectPackage& InSourceEffectPackage, AActor* TargetActor, FLxEffectPackage& OutEffectPackage)
+bool ULxCharacterEffectProcessModule::BuildOutgoingEffectPackage(const FLxEffectPackage& InSourceEffectPackage, AActor* TargetActor, FLxEffectPackage& OutEffectPackage)
 {
 	OutEffectPackage = FLxEffectPackage();
 	CacheOwnerComponents();
@@ -184,7 +189,7 @@ bool ULxCharacterEffectProcessComponent::BuildOutgoingEffectPackage(const FLxEff
 	return !OutEffectPackage.IsEmpty() || OutEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource;
 }
 
-bool ULxCharacterEffectProcessComponent::ReceiveIncomingEffectPackage(const FLxEffectPackage& InEffectPackage, FLxDamageReceiveResult& OutDamageReceiveResult, bool bApplyResult)
+bool ULxCharacterEffectProcessModule::ReceiveIncomingEffectPackage(const FLxEffectPackage& InEffectPackage, FLxDamageReceiveResult& OutDamageReceiveResult, bool bApplyResult)
 {
 	OutDamageReceiveResult = FLxDamageReceiveResult();
 	CacheOwnerComponents();
@@ -235,7 +240,7 @@ bool ULxCharacterEffectProcessComponent::ReceiveIncomingEffectPackage(const FLxE
 	return true;
 }
 
-void ULxCharacterEffectProcessComponent::CacheOwnerComponents()
+void ULxCharacterEffectProcessModule::CacheOwnerComponents()
 {
 	const ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
 	if (OwnerCharacter == nullptr)
@@ -247,7 +252,7 @@ void ULxCharacterEffectProcessComponent::CacheOwnerComponents()
 	SpecialAttributeComponent = OwnerCharacter->GetCharacterSpecialAttributeComponent();
 }
 
-void ULxCharacterEffectProcessComponent::EnsureDamageCalculationFlow()
+void ULxCharacterEffectProcessModule::EnsureDamageCalculationFlow()
 {
 	if (DamageCalculationFlow == nullptr)
 	{
@@ -264,7 +269,7 @@ void ULxCharacterEffectProcessComponent::EnsureDamageCalculationFlow()
 	}
 }
 
-void ULxCharacterEffectProcessComponent::BuildEffectPackagesFromSkillEntries(ULxSkill* SourceSkill,
+void ULxCharacterEffectProcessModule::BuildEffectPackagesFromSkillEntries(ULxSkill* SourceSkill,
 	const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, TArray<FLxEffectPackage>& OutEffectPackages,
 	bool bPersistentEffect, ALxSkillUnitActor* PersistentSourceSkillUnit) const
 {
@@ -338,7 +343,7 @@ void ULxCharacterEffectProcessComponent::BuildEffectPackagesFromSkillEntries(ULx
 	}
 }
 
-void ULxCharacterEffectProcessComponent::ApplyDamageReceiveResultToTarget(const FLxDamageReceiveResult& InDamageReceiveResult)
+void ULxCharacterEffectProcessModule::ApplyDamageReceiveResultToTarget(const FLxDamageReceiveResult& InDamageReceiveResult)
 {
 	if (DataTransferComponent == nullptr || InDamageReceiveResult.IsEmpty())
 	{

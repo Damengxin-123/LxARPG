@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/IUserObjectListEntry.h"
@@ -16,7 +16,7 @@ class ULxItemDragInfo;
 class ULxItemDragIconWidget;
 class ULxUIManager;
 class ULxCharacterDataTransferComponent;
-class ULxSkillCastComponent;
+class ULxSkillCastModule;
 class ULxSkillItem;
 class ULxTradeContainerInteractionComponent;
 class UTexture2D;
@@ -280,7 +280,7 @@ private:
 
 	ULxCharacterDataTransferComponent* GetCharacterDataTransferComponentForTrade() const;
 
-	ULxSkillCastComponent* GetSkillCastComponent() const;
+	ULxSkillCastModule* GetSkillCastComponent() const;
 
 	bool TryReleaseSkillItemDirectly() const;
 

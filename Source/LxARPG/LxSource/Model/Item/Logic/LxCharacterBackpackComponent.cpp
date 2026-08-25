@@ -3,6 +3,7 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
+#include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "Algo/Sort.h"
 #include "GameFramework/Actor.h"
@@ -48,27 +49,24 @@ namespace
 	}
 }
 
-ULxCharacterBackpackComponent::ULxCharacterBackpackComponent()
+ULxCharacterBackpackModule::ULxCharacterBackpackModule()
 {
-	PrimaryComponentTick.bCanEverTick = false;
-	SetIsReplicatedByDefault(true);
 }
 
-void ULxCharacterBackpackComponent::BaseComponentInitialize()
+void ULxCharacterBackpackModule::OnModuleInitialize()
 {
-	Super::BaseComponentInitialize();
 	m_pOwnerCharacter = GetCharacterOwner();
 	InitializeBackpack();
 }
 
-void ULxCharacterBackpackComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+void ULxCharacterBackpackModule::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(ULxCharacterBackpackComponent, ReplicatedBackpackSlots);
+	DOREPLIFETIME(ULxCharacterBackpackModule, ReplicatedBackpackSlots);
 }
 
-bool ULxCharacterBackpackComponent::AddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount)
+bool ULxCharacterBackpackModule::AddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount)
 {
 	if (!InItemIDTag.IsValid() || InItemCount <= 0)
 	{
@@ -77,7 +75,10 @@ bool ULxCharacterBackpackComponent::AddItemByTagID(FGameplayTag InItemIDTag, int
 
 	if (AActor* OwnerActor = GetOwner(); OwnerActor && !OwnerActor->HasAuthority())
 	{
-		ServerAddItemByTagID(InItemIDTag, InItemCount);
+		if (ULxCharacterContentComponent* OwnerContentComponent = GetContentComponent())
+		{
+			OwnerContentComponent->ServerAddBackpackItems({FLxItemQuote(InItemIDTag, InItemCount)});
+		}
 		return true;
 	}
 
@@ -192,12 +193,7 @@ bool ULxCharacterBackpackComponent::AddItemByTagID(FGameplayTag InItemIDTag, int
 	return RemainingCount <= 0;
 }
 
-void ULxCharacterBackpackComponent::ServerAddItemByTagID_Implementation(FGameplayTag InItemIDTag, int32 InItemCount)
-{
-	AddItemByTagID(InItemIDTag, InItemCount);
-}
-
-bool ULxCharacterBackpackComponent::CanAddItemList(const TArray<FLxItemQuote>& InItemList) const
+bool ULxCharacterBackpackModule::CanAddItemList(const TArray<FLxItemQuote>& InItemList) const
 {
 	if (InItemList.IsEmpty())
 	{
@@ -265,7 +261,7 @@ bool ULxCharacterBackpackComponent::CanAddItemList(const TArray<FLxItemQuote>& I
 	return RequiredEmptySlotCount <= EmptySlotCount;
 }
 
-bool ULxCharacterBackpackComponent::AddItemList(const TArray<FLxItemQuote>& InItemList)
+bool ULxCharacterBackpackModule::AddItemList(const TArray<FLxItemQuote>& InItemList)
 {
 	if (!CanAddItemList(InItemList))
 	{
@@ -282,7 +278,7 @@ bool ULxCharacterBackpackComponent::AddItemList(const TArray<FLxItemQuote>& InIt
 	return true;
 }
 
-bool ULxCharacterBackpackComponent::CheckHaveItemList(const TArray<FLxItemQuote>& InItemList) const
+bool ULxCharacterBackpackModule::CheckHaveItemList(const TArray<FLxItemQuote>& InItemList) const
 {
 	if (InItemList.IsEmpty())
 	{
@@ -310,7 +306,7 @@ bool ULxCharacterBackpackComponent::CheckHaveItemList(const TArray<FLxItemQuote>
 	return true;
 }
 
-bool ULxCharacterBackpackComponent::RemoveItemList(const TArray<FLxItemQuote>& InItemList)
+bool ULxCharacterBackpackModule::RemoveItemList(const TArray<FLxItemQuote>& InItemList)
 {
 	if (!CheckHaveItemList(InItemList))
 	{
@@ -333,7 +329,7 @@ bool ULxCharacterBackpackComponent::RemoveItemList(const TArray<FLxItemQuote>& I
 	return true;
 }
 
-bool ULxCharacterBackpackComponent::RemoveItemAt(FGameplayTag InItemIDTag, int32 InItemCount)
+bool ULxCharacterBackpackModule::RemoveItemAt(FGameplayTag InItemIDTag, int32 InItemCount)
 {
 	if (!CheckHaveItem(InItemIDTag, InItemCount))
 	{
@@ -381,7 +377,7 @@ bool ULxCharacterBackpackComponent::RemoveItemAt(FGameplayTag InItemIDTag, int32
 	return true;
 }
 
-bool ULxCharacterBackpackComponent::CheckHaveItem(FGameplayTag InItemIDTag, int32 InItemCount) const
+bool ULxCharacterBackpackModule::CheckHaveItem(FGameplayTag InItemIDTag, int32 InItemCount) const
 {
 	if (!InItemIDTag.IsValid() || InItemCount <= 0)
 	{
@@ -403,7 +399,7 @@ bool ULxCharacterBackpackComponent::CheckHaveItem(FGameplayTag InItemIDTag, int3
 	return false;
 }
 
-void ULxCharacterBackpackComponent::SortingOfItems()
+void ULxCharacterBackpackModule::SortingOfItems()
 {
 	CleanupInvalidItems();
 
@@ -437,17 +433,17 @@ void ULxCharacterBackpackComponent::SortingOfItems()
 	SyncReplicatedBackpackSlots();
 }
 
-TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterBackpackComponent::GetAllItems()
+TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterBackpackModule::GetAllItems()
 {
 	return m_vBackpackSlots;
 }
 
-ULxItemSlotData* ULxCharacterBackpackComponent::GetBackpackSlotAt(int32 SlotIndex) const
+ULxItemSlotData* ULxCharacterBackpackModule::GetBackpackSlotAt(int32 SlotIndex) const
 {
 	return m_vBackpackSlots.IsValidIndex(SlotIndex) ? m_vBackpackSlots[SlotIndex] : nullptr;
 }
 
-bool ULxCharacterBackpackComponent::MoveBackpackSlot(int32 SourceSlotIndex, int32 TargetSlotIndex)
+bool ULxCharacterBackpackModule::MoveBackpackSlot(int32 SourceSlotIndex, int32 TargetSlotIndex)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
@@ -475,7 +471,7 @@ bool ULxCharacterBackpackComponent::MoveBackpackSlot(int32 SourceSlotIndex, int3
 	return true;
 }
 
-void ULxCharacterBackpackComponent::SyncReplicatedBackpackSlots()
+void ULxCharacterBackpackModule::SyncReplicatedBackpackSlots()
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
@@ -490,20 +486,7 @@ void ULxCharacterBackpackComponent::SyncReplicatedBackpackSlots()
 	}
 }
 
-TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterBackpackComponent::QueryItemsOnItemType(ELxItemType InItemType)
-{
-	m_vFilteringCache.Empty();
-	for (ULxItemSlotData* Slot : m_vBackpackSlots)
-	{
-		if (Slot != nullptr && Slot->GetItem() != nullptr && Slot->GetItem()->ItemType() == InItemType)
-		{
-			m_vFilteringCache.Add(Slot);
-		}
-	}
-	return m_vFilteringCache;
-}
-
-void ULxCharacterBackpackComponent::NotifyItemUsedFromSlot(ULxItemBase* UsedItem)
+void ULxCharacterBackpackModule::NotifyItemUsedFromSlot(ULxItemBase* UsedItem)
 {
 	if (UsedItem == nullptr)
 	{
@@ -514,7 +497,7 @@ void ULxCharacterBackpackComponent::NotifyItemUsedFromSlot(ULxItemBase* UsedItem
 	OnDataChange.Broadcast();
 }
 
-void ULxCharacterBackpackComponent::HandleTrackedItemCountChanged(ULxItemBase* Item)
+void ULxCharacterBackpackModule::HandleTrackedItemCountChanged(ULxItemBase* Item)
 {
 	NotifyItemUsedFromSlot(Item);
 	CleanupInvalidItems();
@@ -523,7 +506,7 @@ void ULxCharacterBackpackComponent::HandleTrackedItemCountChanged(ULxItemBase* I
 	SyncReplicatedBackpackSlots();
 }
 
-void ULxCharacterBackpackComponent::HandleBackpackSlotChanged(ULxItemBase* InItemData)
+void ULxCharacterBackpackModule::HandleBackpackSlotChanged(ULxItemBase* InItemData)
 {
 	CleanupInvalidItems();
 	RefreshTrackedBindings();
@@ -531,7 +514,7 @@ void ULxCharacterBackpackComponent::HandleBackpackSlotChanged(ULxItemBase* InIte
 	SyncReplicatedBackpackSlots();
 }
 
-void ULxCharacterBackpackComponent::RefreshTrackedBindings()
+void ULxCharacterBackpackModule::RefreshTrackedBindings()
 {
 	for (ULxItemSlotData* Slot : m_vBackpackSlots)
 	{
@@ -540,18 +523,18 @@ void ULxCharacterBackpackComponent::RefreshTrackedBindings()
 			continue;
 		}
 
-		Slot->OnItemDataChanged.RemoveDynamic(this, &ULxCharacterBackpackComponent::HandleBackpackSlotChanged);
-		Slot->OnItemDataChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleBackpackSlotChanged);
+		Slot->OnItemDataChanged.RemoveDynamic(this, &ULxCharacterBackpackModule::HandleBackpackSlotChanged);
+		Slot->OnItemDataChanged.AddDynamic(this, &ULxCharacterBackpackModule::HandleBackpackSlotChanged);
 
 		if (Slot->GetItem() != nullptr)
 		{
-			Slot->GetItem()->OnItemCountChanged.RemoveDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemCountChanged);
-			Slot->GetItem()->OnItemCountChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleTrackedItemCountChanged);
+			Slot->GetItem()->OnItemCountChanged.RemoveDynamic(this, &ULxCharacterBackpackModule::HandleTrackedItemCountChanged);
+			Slot->GetItem()->OnItemCountChanged.AddDynamic(this, &ULxCharacterBackpackModule::HandleTrackedItemCountChanged);
 		}
 	}
 }
 
-bool ULxCharacterBackpackComponent::CleanupInvalidItems()
+bool ULxCharacterBackpackModule::CleanupInvalidItems()
 {
 	bool bChanged = false;
 
@@ -576,9 +559,8 @@ bool ULxCharacterBackpackComponent::CleanupInvalidItems()
 	return bChanged;
 }
 
-void ULxCharacterBackpackComponent::InitializeBackpack()
+void ULxCharacterBackpackModule::InitializeBackpack()
 {
-	m_vFilteringCache.Empty();
 	m_vBackpackSlots.Empty();
 	m_vItemList.Empty();
 
@@ -587,12 +569,12 @@ void ULxCharacterBackpackComponent::InitializeBackpack()
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
 		NewSlot->SetSlotIndex(Index);
 		NewSlot->InitItemSlot(ELxItemSlotType::Backpack, LxTag_Item, nullptr);
-		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxCharacterBackpackComponent::HandleBackpackSlotChanged);
+		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxCharacterBackpackModule::HandleBackpackSlotChanged);
 		m_vBackpackSlots.Add(NewSlot);
 	}
 }
 
-void ULxCharacterBackpackComponent::ApplyReplicatedBackpackSlots()
+void ULxCharacterBackpackModule::ApplyReplicatedBackpackSlots()
 {
 	const int32 DesiredSlotCount = FMath::Max(BackpackSlotCount, ReplicatedBackpackSlots.Num());
 	if (m_vBackpackSlots.Num() != DesiredSlotCount)
@@ -634,7 +616,7 @@ void ULxCharacterBackpackComponent::ApplyReplicatedBackpackSlots()
 	OnDataChange.Broadcast();
 }
 
-FLxItemQuote ULxCharacterBackpackComponent::BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const
+FLxItemQuote ULxCharacterBackpackModule::BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const
 {
 	if (!SlotData || !SlotData->IsValid() || !SlotData->GetItem())
 	{
@@ -644,7 +626,7 @@ FLxItemQuote ULxCharacterBackpackComponent::BuildItemQuoteFromSlot(ULxItemSlotDa
 	return FLxItemQuote(SlotData->GetItem()->ItemIDTag(), SlotData->GetItem()->ItemCount());
 }
 
-void ULxCharacterBackpackComponent::OnRep_BackpackSlots()
+void ULxCharacterBackpackModule::OnRep_BackpackSlots()
 {
 	ApplyReplicatedBackpackSlots();
 }

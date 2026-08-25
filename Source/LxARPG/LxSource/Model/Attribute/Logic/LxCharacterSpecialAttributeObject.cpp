@@ -1,8 +1,8 @@
 #include "LxCharacterSpecialAttributeObject.h"
 
-#include "LxCharacterSpecialAttributeComponent.h"
+#include "LxCharacterAttributeComponent.h"
 
-void ULxCharacterSpecialAttributeObject::InitializeSpecialAttributeObject(ULxCharacterSpecialAttributeComponent* InOwnerComponent)
+void ULxCharacterSpecialAttributeObject::InitializeSpecialAttributeObject(ULxCharacterAttributeComponent* InOwnerComponent)
 {
 	OwnerComponent = InOwnerComponent;
 }

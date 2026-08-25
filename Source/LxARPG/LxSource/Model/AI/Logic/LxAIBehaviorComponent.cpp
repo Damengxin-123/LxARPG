@@ -129,7 +129,7 @@ bool ULxAIBehaviorComponent::CanExecuteAttack(const FLxAIBattleSnapshot& InBattl
 		return false;
 	}
 	const FLxAIControlConfig& Config = OwnerAICharacter->GetAIControlConfig();
-	const ULxSkillBackpackComponent* SkillBackpack = OwnerAICharacter->GetSkillBackpackComponent();
+	const ULxSkillBackpackModule* SkillBackpack = OwnerAICharacter->GetSkillBackpackComponent();
 	return Config.AttackSkillItemId.IsValid() && SkillBackpack && OwnerAICharacter->GetSkillCastComponent() &&
 		SkillBackpack->FindSkillItemByTagID(Config.AttackSkillItemId);
 }
@@ -146,7 +146,7 @@ bool ULxAIBehaviorComponent::CanExecuteHeal(const FLxAIBattleSnapshot& InBattleS
 		return false;
 	}
 	const FLxAIControlConfig& Config = OwnerAICharacter->GetAIControlConfig();
-	const ULxSkillBackpackComponent* SkillBackpack = OwnerAICharacter->GetSkillBackpackComponent();
+	const ULxSkillBackpackModule* SkillBackpack = OwnerAICharacter->GetSkillBackpackComponent();
 	return Config.HealSkillItemId.IsValid() && SkillBackpack && OwnerAICharacter->GetSkillCastComponent() &&
 		SkillBackpack->FindSkillItemByTagID(Config.HealSkillItemId);
 }
@@ -319,8 +319,8 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteAttack(const FLxAIBa
 	}
 
 	CharacterBehaviorControlComponent->StopActiveMovement();
-	ULxSkillBackpackComponent* SkillBackpack = OwnerAICharacter->GetSkillBackpackComponent();
-	ULxSkillCastComponent* SkillCast = OwnerAICharacter->GetSkillCastComponent();
+	ULxSkillBackpackModule* SkillBackpack = OwnerAICharacter->GetSkillBackpackComponent();
+	ULxSkillCastModule* SkillCast = OwnerAICharacter->GetSkillCastComponent();
 	if (!SkillBackpack || !SkillCast)
 	{
 		return ELxAIBehaviorExecutionResult::Failed;
@@ -381,8 +381,8 @@ ELxAIBehaviorExecutionResult ULxAIBehaviorComponent::ExecuteHeal(const FLxAIBatt
 	}
 
 	CharacterBehaviorControlComponent->StopActiveMovement();
-	ULxSkillBackpackComponent* SkillBackpack = OwnerAICharacter->GetSkillBackpackComponent();
-	ULxSkillCastComponent* SkillCast = OwnerAICharacter->GetSkillCastComponent();
+	ULxSkillBackpackModule* SkillBackpack = OwnerAICharacter->GetSkillBackpackComponent();
+	ULxSkillCastModule* SkillCast = OwnerAICharacter->GetSkillCastComponent();
 	if (!SkillBackpack || !SkillCast)
 	{
 		return ELxAIBehaviorExecutionResult::Failed;

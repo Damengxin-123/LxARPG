@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
+#include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentModuleBase.h"
 #include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterEntryPackage.h"
 #include "LxCharacterBuffComponent.generated.h"
@@ -65,21 +65,16 @@ struct FLxReplicatedBuffRuntimeInfo
  * 当前组件使用新的物品对象体系创建 Buff：Buff 本身是 ULxBuff，
  * 创建 Buff 的来源由通用效果包传入，并在组件内按来源记录引用次数。
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色Buff组件")
-class LXARPG_API ULxCharacterBuffComponent : public ULxCharacterComponentBase
+UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="角色Buff模块")
+class LXARPG_API ULxCharacterBuffModule : public ULxCharacterContentModuleBase
 {
 	GENERATED_BODY()
 
 public:
 	/** 创建 Buff 组件，并关闭 Tick。 */
-	ULxCharacterBuffComponent();
+	ULxCharacterBuffModule();
 
-	/** 初始化 Buff 组件。 */
-	virtual void BaseComponentInitialize() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-	/** 组件结束时清空运行时 Buff。 */
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/**
 	 * 添加指定 ID 的 Buff。
@@ -99,10 +94,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="移除Buff")
 	bool RemoveBuff(ULxBuff* InBuffLogic);
 
-	/** 按 Buff 标签 ID 移除 Buff。 */
-	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="移除指定标签ID的Buff", meta=(Categories="物品"))
-	int32 RemoveBuffByTagID(FGameplayTag InBuffIDTag);
-
 	/** 移除指定来源对 Buff 的引用；该 Buff 没有任何来源引用后才会真正移除。 */
 	int32 RemoveBuffSourceReferenceByTagID(FGameplayTag InBuffIDTag, ELxCharacterEntrySource InEntrySource, int32 InReferenceCount = 1);
 
@@ -116,10 +107,6 @@ public:
 	/** 获取当前所有有效 Buff。 */
 	UFUNCTION(BlueprintPure, Category="Buff", DisplayName="获取全部Buff")
 	void GetActiveBuffs(TArray<ULxBuff*>& OutBuffList) const;
-
-	/** 获取需要显示的 Buff，目前与有效 Buff 列表一致。 */
-	UFUNCTION(BlueprintPure, Category="Buff", DisplayName="获取显示Buff")
-	void GetDisplayBuffs(TArray<ULxBuff*>& OutBuffList) const;
 
 	/** 获取指定运行时 Buff 的效果比例；Buff 不存在时返回默认比例 1。 */
 	float GetBuffEffectProportion(ULxBuff* InBuffLogic) const;
@@ -137,6 +124,12 @@ public:
 	FOnBuffPeriodActivated OnBuffPeriodActivated;
 
 private:
+	/** 初始化 Buff 模块。 */
+	virtual void OnModuleInitialize() override;
+
+	/** 模块关闭时清理全部 Buff 和计时器。 */
+	virtual void OnModuleShutdown() override;
+
 	/** 根据 Buff 对象查找运行时缓存。 */
 	FLxBuffRuntimeInfo* FindRuntimeInfo(ULxBuff* InBuffLogic);
 

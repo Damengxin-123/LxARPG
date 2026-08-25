@@ -17,10 +17,10 @@ void ULxCharacterTestComponent::BaseComponentInitialize()
 {
 	Super::BaseComponentInitialize();
 
-	if (ULxCharacterEffectProcessComponent* EffectProcessComponent = GetEffectProcessComponent())
+	if (ULxCharacterEffectProcessModule* EffectProcessModule = GetEffectProcessComponent())
 	{
-		EffectProcessComponent->OnCharacterDamageReceived.RemoveDynamic(this, &ULxCharacterTestComponent::HandleCharacterDamageReceived);
-		EffectProcessComponent->OnCharacterDamageReceived.AddDynamic(this, &ULxCharacterTestComponent::HandleCharacterDamageReceived);
+		EffectProcessModule->OnCharacterDamageReceived.RemoveDynamic(this, &ULxCharacterTestComponent::HandleCharacterDamageReceived);
+		EffectProcessModule->OnCharacterDamageReceived.AddDynamic(this, &ULxCharacterTestComponent::HandleCharacterDamageReceived);
 	}
 
 	if (ALxBaseCharacter* OwnerCharacter = GetCharacterOwner())
@@ -104,26 +104,12 @@ bool ULxCharacterTestComponent::AddTestItemList(const TArray<FLxItemQuote>& InIt
 		return false;
 	}
 
-	for (const FGameplayTag SkillItemIDTag : SkillItemIDTags)
-	{
-		if (!DataTransferComponent->AddSkillItemToSkillBackpack(SkillItemIDTag))
-		{
-			return false;
-		}
-	}
-
-	return BackpackItemList.IsEmpty() || DataTransferComponent->AddItemListToBackpack(BackpackItemList);
-}
-
-bool ULxCharacterTestComponent::AddTestSkillItemToSkillBackpack(FGameplayTag InSkillItemIDTag)
-{
-	if (!InSkillItemIDTag.IsValid())
+	if (!SkillItemIDTags.IsEmpty() && !DataTransferComponent->AddSkillItemsToSkillBackpack(SkillItemIDTags))
 	{
 		return false;
 	}
 
-	ULxCharacterDataTransferComponent* DataTransferComponent = GetDataTransferComponent();
-	return DataTransferComponent != nullptr && DataTransferComponent->AddSkillItemToSkillBackpack(InSkillItemIDTag);
+	return BackpackItemList.IsEmpty() || DataTransferComponent->AddItemListToBackpack(BackpackItemList);
 }
 
 bool ULxCharacterTestComponent::CanLearnTestProfession(FGameplayTag InProfessionIDTag, FLxProfessionLearnCheckResult& OutCheckResult)
@@ -169,8 +155,8 @@ bool ULxCharacterTestComponent::ApplyTestDamageFromAttacker(AActor* InAttackerAc
 		return false;
 	}
 
-	ULxCharacterEffectProcessComponent* AttackerEffectProcessComponent = AttackerCharacter->GetCharacterEffectProcessComponent();
-	ULxCharacterEffectProcessComponent* TargetEffectProcessComponent = GetEffectProcessComponent();
+	ULxCharacterEffectProcessModule* AttackerEffectProcessComponent = AttackerCharacter->GetCharacterEffectProcessComponent();
+	ULxCharacterEffectProcessModule* TargetEffectProcessComponent = GetEffectProcessComponent();
 	if (AttackerEffectProcessComponent == nullptr || TargetEffectProcessComponent == nullptr)
 	{
 		return false;
@@ -258,7 +244,7 @@ ULxCharacterDataTransferComponent* ULxCharacterTestComponent::GetDataTransferCom
 	return OwnerCharacter != nullptr ? OwnerCharacter->GetCharacterDataTransferComponent() : nullptr;
 }
 
-ULxCharacterEffectProcessComponent* ULxCharacterTestComponent::GetEffectProcessComponent() const
+ULxCharacterEffectProcessModule* ULxCharacterTestComponent::GetEffectProcessComponent() const
 {
 	const ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
 	return OwnerCharacter != nullptr ? OwnerCharacter->GetCharacterEffectProcessComponent() : nullptr;

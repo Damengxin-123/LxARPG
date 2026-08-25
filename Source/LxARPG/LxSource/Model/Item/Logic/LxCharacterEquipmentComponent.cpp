@@ -4,34 +4,27 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
-ULxCharacterEquipmentComponent::ULxCharacterEquipmentComponent()
+ULxCharacterEquipmentModule::ULxCharacterEquipmentModule()
 {
 }
 
-void ULxCharacterEquipmentComponent::BaseComponentInitialize()
+void ULxCharacterEquipmentModule::OnModuleInitialize()
 {
-	Super::BaseComponentInitialize();
-
 	if (m_pOwnerCharacter == nullptr)
 	{
-		m_pOwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
+		m_pOwnerCharacter = GetCharacterOwner();
 	}
 
 	InitializeEquipmentSlots();
 	RefreshEquipmentList();
 }
 
-TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterEquipmentComponent::GetEquipmentSlots()
+TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterEquipmentModule::GetEquipmentSlots()
 {
 	return m_vEquipmentSlots;
 }
 
-const TArray<TObjectPtr<ULxItemSlotData>>& ULxCharacterEquipmentComponent::GetEquipmentSlots() const
-{
-	return m_vEquipmentSlots;
-}
-
-void ULxCharacterEquipmentComponent::InitializeEquipmentSlots()
+void ULxCharacterEquipmentModule::InitializeEquipmentSlots()
 {
 	if (!m_vEquipmentSlots.IsEmpty())
 	{
@@ -47,12 +40,12 @@ void ULxCharacterEquipmentComponent::InitializeEquipmentSlots()
 	{
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
 		NewSlot->InitItemSlot(ELxItemSlotType::Equipment, EquipmentSlotsConfig[Index], nullptr);
-		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxCharacterEquipmentComponent::HandleEquipmentSlotChanged);
+		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxCharacterEquipmentModule::HandleEquipmentSlotChanged);
 		m_vEquipmentSlots.Add(NewSlot);
 	}
 }
 
-void ULxCharacterEquipmentComponent::SetDefauitEquipmentSlotsConfig()
+void ULxCharacterEquipmentModule::SetDefauitEquipmentSlotsConfig()
 {
 	EquipmentSlotsConfig.Empty();
 	EquipmentSlotsConfig.Add(LxTag_Item_Equipment_Weapon);
@@ -71,17 +64,17 @@ void ULxCharacterEquipmentComponent::SetDefauitEquipmentSlotsConfig()
 	// }
 }
 
-void ULxCharacterEquipmentComponent::BroadcastEquipmentChanged()
+void ULxCharacterEquipmentModule::BroadcastEquipmentChanged()
 {
 	OnDataChange.Broadcast();
 }
 
-void ULxCharacterEquipmentComponent::HandleEquipmentSlotChanged(ULxItemBase*)
+void ULxCharacterEquipmentModule::HandleEquipmentSlotChanged(ULxItemBase*)
 {
 	RefreshEquipmentList();
 }
 
-void ULxCharacterEquipmentComponent::RefreshEquipmentList()
+void ULxCharacterEquipmentModule::RefreshEquipmentList()
 {
 	m_vEquipmentList.Empty();
 

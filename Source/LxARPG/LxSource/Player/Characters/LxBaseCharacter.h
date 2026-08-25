@@ -12,22 +12,25 @@ class UDataTable;
 class ULxCharacterAnimationProcessComponent;
 class ULxCharacterAttributeComponent;
 class ULxCharacterAnchorPointComponent;
-class ULxCharacterBackpackComponent;
-class ULxCharacterBuffComponent;
-class ULxCharacterCloseCombatComponent;
+class ULxCharacterBackpackModule;
+class ULxCharacterBuffModule;
+class ULxCharacterCloseCombatModule;
+class ULxCharacterCombatComponent;
+class ULxCharacterContentComponent;
 class ULxCharacterDataTransferComponent;
-class ULxCharacterEffectProcessComponent;
-class ULxCharacterEffectCacheComponent;
-class ULxCharacterEffectTransferComponent;
-class ULxCharacterEquipmentComponent;
+class ULxCharacterEffectComponent;
+class ULxCharacterEffectProcessModule;
+class ULxCharacterEffectCacheModule;
+class ULxCharacterEffectTransferModule;
+class ULxCharacterEquipmentModule;
 class ULxCharacterLifecycleComponent;
-class ULxCharacterProfessionComponent;
+class ULxCharacterProfessionModule;
 class ULxCharacterTestComponent;
 class ULxCharacterBehaviorControlComponent;
 class ULxCharacterStateComponent;
 class ULxCharacterSpecialAttributeComponent;
-class ULxSkillBackpackComponent;
-class ULxSkillCastComponent;
+class ULxSkillBackpackModule;
+class ULxSkillCastModule;
 
 /** 角色状态变化事件。 */
 /** 角色命名数据表行，用于通过单位命名标签查询角色显示名称。 */
@@ -104,17 +107,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色属性组件")
 	ULxCharacterAttributeComponent* GetCharacterAttributeComponent() const { return m_pCharacterAttributeComponent; }
 
-	/** 获取集中管理状态和轻量业务对象的角色特殊属性组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色特殊属性组件")
-	ULxCharacterSpecialAttributeComponent* GetCharacterSpecialAttributeComponent() const { return m_pCharacterSpecialAttributeComponent; }
+	/** 获取统一角色属性组件；保留旧函数名兼容现有调用。 */
+	UFUNCTION(BlueprintCallable, Category="组件|旧版兼容", DisplayName="获取角色特殊属性组件（兼容）", meta=(DeprecatedFunction, DeprecationMessage="请改用获取角色属性组件"))
+	ULxCharacterAttributeComponent* GetCharacterSpecialAttributeComponent() const { return m_pCharacterAttributeComponent; }
 
 	/** 获取角色背包组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色背包组件")
-	ULxCharacterBackpackComponent* GetCharacterBackpackComponent() const { return m_pCharacterBackpackComponent; }
+	ULxCharacterBackpackModule* GetCharacterBackpackComponent() const;
 
 	/** 获取角色 Buff 组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色Buff组件")
-	ULxCharacterBuffComponent* GetCharacterBuffComponent() const { return m_pCharacterBuffComponent; }
+	ULxCharacterBuffModule* GetCharacterBuffComponent() const;
+
+	/** 获取统一持有角色内容模块的角色内容组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色内容", DisplayName="获取角色内容组件")
+	ULxCharacterContentComponent* GetCharacterContentComponent() const { return m_pCharacterContentComponent; }
 
 	/** 获取角色状态组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件|旧版兼容", DisplayName="获取旧版角色状态组件", meta=(DeprecatedFunction, DeprecationMessage="请改用获取角色特殊属性组件"))
@@ -124,33 +129,40 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色数据中转组件")
 	ULxCharacterDataTransferComponent* GetCharacterDataTransferComponent() const { return m_pCharacterDataTransferComponent; }
 
-	/** 获取角色效果处理组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色效果处理组件")
-	ULxCharacterEffectProcessComponent* GetCharacterEffectProcessComponent() const { return m_pCharacterEffectProcessComponent; }
+	/** 获取统一持有效果处理、缓存和传递模块的角色效果组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色效果", DisplayName="获取角色效果组件")
+	ULxCharacterEffectComponent* GetCharacterEffectComponent() const { return m_pCharacterEffectComponent; }
 
-	/** 获取角色效果缓存组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色效果缓存组件")
-	ULxCharacterEffectCacheComponent* GetCharacterEffectCacheComponent() const { return m_pCharacterEffectCacheComponent; }
+	/** 获取角色效果处理模块；保留旧函数名以兼容现有调用。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色效果", DisplayName="获取角色效果处理模块")
+	ULxCharacterEffectProcessModule* GetCharacterEffectProcessComponent() const;
 
-	/** 获取角色效果传递组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色效果传递组件")
-	ULxCharacterEffectTransferComponent* GetCharacterEffectTransferComponent() const { return m_pCharacterEffectTransferComponent; }
+	/** 获取角色效果缓存模块；保留旧函数名以兼容现有调用。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色效果", DisplayName="获取角色效果缓存模块")
+	ULxCharacterEffectCacheModule* GetCharacterEffectCacheComponent() const;
+
+	/** 获取角色效果传递模块；保留旧函数名以兼容现有调用。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色效果", DisplayName="获取角色效果传递模块")
+	ULxCharacterEffectTransferModule* GetCharacterEffectTransferComponent() const;
 
 	/** 获取角色生命周期组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件|旧版兼容", DisplayName="获取旧版角色生命周期组件", meta=(DeprecatedFunction, DeprecationMessage="请改用获取角色特殊属性组件"))
 	ULxCharacterLifecycleComponent* GetCharacterLifecycleComponent() const { return m_pCharacterLifecycleComponent; }
 
 	/** 获取角色装备组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色装备组件")
-	ULxCharacterEquipmentComponent* GetCharacterEquipmentComponent() const { return m_pCharacterEquipmentComponent; }
+	ULxCharacterEquipmentModule* GetCharacterEquipmentComponent() const;
 
-	/** 获取角色技能释放组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取技能释放组件")
-	ULxSkillCastComponent* GetSkillCastComponent() const { return m_pSkillCastComponent; }
+	/** 获取统一持有技能释放和近身战斗模块的角色战斗组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色战斗", DisplayName="获取角色战斗组件")
+	ULxCharacterCombatComponent* GetCharacterCombatComponent() const { return m_pCharacterCombatComponent; }
 
-	/** 获取角色近身战斗组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色近身战斗组件")
-	ULxCharacterCloseCombatComponent* GetCharacterCloseCombatComponent() const { return m_pCharacterCloseCombatComponent; }
+	/** 获取技能释放模块；保留旧函数名兼容现有调用。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色战斗", DisplayName="获取技能释放模块")
+	ULxSkillCastModule* GetSkillCastComponent() const;
+
+	/** 获取角色近身战斗模块；保留旧函数名兼容现有调用。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色战斗", DisplayName="获取角色近身战斗模块")
+	ULxCharacterCloseCombatModule* GetCharacterCloseCombatComponent() const;
 
 	/** 获取角色蓝图中可调整的技能释放锚点。 */
 	UFUNCTION(BlueprintPure, Category="角色|锚点", DisplayName="获取技能释放锚点")
@@ -165,12 +177,10 @@ public:
 	FTransform GetSkillReleaseAnchorTransform() const;
 
 	/** 获取角色技能背包组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取技能背包组件")
-	ULxSkillBackpackComponent* GetSkillBackpackComponent() const { return m_pSkillBackpackComponent; }
+	ULxSkillBackpackModule* GetSkillBackpackComponent() const;
 
 	/** 获取角色职业组件。 */
-	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色职业组件")
-	ULxCharacterProfessionComponent* GetCharacterProfessionComponent() const { return m_pCharacterProfessionComponent; }
+	ULxCharacterProfessionModule* GetCharacterProfessionComponent() const;
 
 	/** 获取角色测试组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色测试组件")
@@ -218,21 +228,13 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色属性组件")
 	TObjectPtr<ULxCharacterAttributeComponent> m_pCharacterAttributeComponent;
 
-	/** 角色特殊属性组件，用于集中管理状态、生命周期和轻量业务对象。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色特殊属性组件")
-	TObjectPtr<ULxCharacterSpecialAttributeComponent> m_pCharacterSpecialAttributeComponent;
+	/** 旧特殊属性组件成员名兼容别名，不会创建第二个挂载组件。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxCharacterAttributeComponent> m_pCharacterSpecialAttributeComponent;
 
-	/** 角色背包组件，用于管理背包槽位和背包物品。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|物品模块", DisplayName="角色背包组件")
-	TObjectPtr<ULxCharacterBackpackComponent> m_pCharacterBackpackComponent;
-	
-	/** 角色装备组件，用于管理装备槽位和已装备物品。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|物品模块", DisplayName="角色装备组件")
-	TObjectPtr<ULxCharacterEquipmentComponent> m_pCharacterEquipmentComponent;
-	
-	/** 角色 Buff 组件，用于管理运行时 Buff。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色Buff组件")
-	TObjectPtr<ULxCharacterBuffComponent> m_pCharacterBuffComponent;
+	/** 角色内容组件，统一持有背包、装备、技能背包、Buff 和职业模块。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色内容", DisplayName="角色内容组件")
+	TObjectPtr<ULxCharacterContentComponent> m_pCharacterContentComponent;
 
 	/** 角色状态组件，用于按分类保存角色当前拥有的状态标签。 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category="组件|旧版兼容", DisplayName="旧版角色状态组件")
@@ -242,17 +244,13 @@ protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色数据中转组件")
 	TObjectPtr<ULxCharacterDataTransferComponent> m_pCharacterDataTransferComponent;
 
-	/** 角色效果处理组件，用于解析词条、计算伤害并生成最终效果包。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色效果处理组件")
-	TObjectPtr<ULxCharacterEffectProcessComponent> m_pCharacterEffectProcessComponent;
+	/** 角色效果组件，统一持有效果处理、缓存和传递模块。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色效果", DisplayName="角色效果组件")
+	TObjectPtr<ULxCharacterEffectComponent> m_pCharacterEffectComponent;
 
-	/** 角色效果缓存组件，用于缓存可撤回的持续效果包并刷新已接入的角色增益模块。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色效果缓存组件")
-	TObjectPtr<ULxCharacterEffectCacheComponent> m_pCharacterEffectCacheComponent;
-
-	/** 角色效果传递组件，用于处理角色之间的效果包发送和接收。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色效果传递组件")
-	TObjectPtr<ULxCharacterEffectTransferComponent> m_pCharacterEffectTransferComponent;
+	/** 旧效果处理组件成员名兼容别名，仅供已保存的蓝图组件事件绑定查找，不会创建第二个挂载组件。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxCharacterEffectComponent> m_pCharacterEffectProcessComponent;
 
 	/** 角色生命周期组件，用于管理存活、死亡等生命周期状态。 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category="组件|旧版兼容", DisplayName="旧版角色生命周期组件")
@@ -260,13 +258,17 @@ protected:
 
 
 
-	/** 技能释放组件，用于统一处理玩家和 AI 的技能释放、蓄力和释放上下文。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="技能释放组件")
-	TObjectPtr<ULxSkillCastComponent> m_pSkillCastComponent;
+	/** 角色战斗组件，统一持有技能释放和近身战斗模块。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色战斗", DisplayName="角色战斗组件")
+	TObjectPtr<ULxCharacterCombatComponent> m_pCharacterCombatComponent;
 
-	/** 角色近身战斗组件，用于执行近战攻击、格挡及武器盾牌碰撞判定。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色近身战斗组件")
-	TObjectPtr<ULxCharacterCloseCombatComponent> m_pCharacterCloseCombatComponent;
+	/** 旧技能释放组件成员名兼容别名，不会创建第二个挂载组件。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxCharacterCombatComponent> m_pSkillCastComponent;
+
+	/** 旧近身战斗组件成员名兼容别名，不会创建第二个挂载组件。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxCharacterCombatComponent> m_pCharacterCloseCombatComponent;
 
 	/** 技能单元创建和持续更新时使用的释放点，可在角色蓝图视口中调整。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色锚点", DisplayName="技能释放锚点")
@@ -275,14 +277,6 @@ protected:
 	/** 光环效果单元固定依附的角色点位，可在角色蓝图视口中调整。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色锚点", DisplayName="光环效果锚点")
 	TObjectPtr<ULxCharacterAnchorPointComponent> m_pAuraEffectAnchorPoint;
-
-	/** 技能背包组件，用于保存角色已拥有的技能物品和技能背包槽位。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="技能背包组件")
-	TObjectPtr<ULxSkillBackpackComponent> m_pSkillBackpackComponent;
-
-	/** 角色职业组件，用于管理角色已学习职业、职业等级经验和职业效果。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色职业组件")
-	TObjectPtr<ULxCharacterProfessionComponent> m_pCharacterProfessionComponent;
 
 	/** 角色测试组件，用于集中提供物品、技能、职业等测试接口。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件", DisplayName="角色测试组件")

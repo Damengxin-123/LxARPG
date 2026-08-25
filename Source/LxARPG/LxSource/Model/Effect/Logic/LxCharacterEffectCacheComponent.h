@@ -1,23 +1,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
+#include "LxCharacterEffectModuleBase.h"
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxCharacterEffectCacheComponent.generated.h"
 
 class ULxCharacterAttributeComponent;
 
-/** 角色效果缓存组件，负责保存可撤回的持续效果包，并把缓存结果刷新到各个实际生效模块。 */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色效果缓存组件")
-class LXARPG_API ULxCharacterEffectCacheComponent : public ULxCharacterComponentBase
+/** 角色效果缓存模块，负责保存可撤回的持续效果包，并把缓存结果刷新到各个实际生效模块。 */
+UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="角色效果缓存模块")
+class LXARPG_API ULxCharacterEffectCacheModule : public ULxCharacterEffectModuleBase
 {
 	GENERATED_BODY()
 
 public:
-	/** 创建角色效果缓存组件。 */
-	ULxCharacterEffectCacheComponent();
-
-	virtual void BaseComponentInitialize() override;
+	/** 创建角色效果缓存模块。 */
+	ULxCharacterEffectCacheModule();
 
 	/** 使用指定缓存句柄添加或替换一个持续效果包，并刷新已接入的缓存效果模块。 */
 	UFUNCTION(BlueprintCallable, Category="角色效果缓存", DisplayName="应用或更新缓存效果包")
@@ -40,6 +38,9 @@ public:
 	int32 GetCachedEffectPackageCount() const { return CachedEffectPackages.Num(); }
 
 protected:
+	/** 初始化效果缓存模块依赖并刷新缓存。 */
+	virtual void OnModuleInitialize() override;
+
 	/** 当前角色身上按唯一句柄保存的持续效果包缓存。 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category="角色效果缓存", DisplayName="缓存效果包")
 	TMap<FName, FLxEffectPackage> CachedEffectPackages;

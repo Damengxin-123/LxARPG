@@ -5,7 +5,7 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxTreasureChestInteractionComponent.generated.h"
 
-class ULxCharacterBackpackComponent;
+class ULxCharacterBackpackModule;
 class ULxItemBase;
 class ULxItemSlotData;
 
@@ -40,7 +40,7 @@ public:
 
 	ULxItemSlotData* GetTreasureChestSlotAt(int32 SlotIndex) const;
 
-	bool MoveTreasureChestSlotToBackpack(ULxCharacterBackpackComponent* BackpackComponent, int32 TreasureChestSlotIndex, int32 BackpackSlotIndex);
+	bool MoveTreasureChestSlotToBackpack(ULxCharacterBackpackModule* BackpackComponent, int32 TreasureChestSlotIndex, int32 BackpackSlotIndex);
 
 	/** 刷新宝箱物品缓存，并广播槽位列表变化。 */
 	UFUNCTION(BlueprintCallable, Category="交互|宝箱", DisplayName="刷新宝箱槽位")

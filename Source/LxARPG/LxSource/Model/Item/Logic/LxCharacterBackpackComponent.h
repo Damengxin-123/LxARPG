@@ -1,7 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
-#include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
+#include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentModuleBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxCharacterBackpackComponent.generated.h"
@@ -19,36 +19,21 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBackpackItemUsed, ULxItemBase*, U
  * 当前背包组件只使用新的 ULxItemBase 物品体系：物品通过 FLxItemQuote 创建，
  * 槽位保存 ULxItemBase 指针，词条通过物品对象自身的 GetItemEntryList 访问。
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Category = "物品模块", Blueprintable, DisplayName="角色背包组件")
-class LXARPG_API ULxCharacterBackpackComponent : public ULxCharacterComponentBase
+UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="角色背包模块")
+class LXARPG_API ULxCharacterBackpackModule : public ULxCharacterContentModuleBase
 {
 	GENERATED_BODY()
 
 public:
 	/** 创建背包组件，并关闭 Tick。 */
-	ULxCharacterBackpackComponent();
+	ULxCharacterBackpackModule();
 
 	/** 背包物品使用事件。 */
 	UPROPERTY(BlueprintAssignable, DisplayName="背包物品使用事件")
 	FOnBackpackItemUsed OnItemUsed;
 
-	/** 初始化背包槽位和组件缓存。 */
-	virtual void BaseComponentInitialize() override;
+	/** 注册背包网络复制属性。 */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-	/**
-	 * 按物品标签 ID 添加物品到背包。
-	 *
-	 * @param InItemIDTag 物品标签 ID。
-	 * @param InItemCount 添加数量。
-	 * @return 添加成功返回 true。
-	 */
-	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="添加物品到背包-标签ID", meta=(Categories="物品"))
-	bool AddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount = 1);
-
-	/** 服务端RPC，按物品标签ID添加物品到背包。 */
-	UFUNCTION(Server, Reliable)
-	void ServerAddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount);
 
 	/** 检查背包能否容纳指定的物品列表。 */
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="检查能否添加物品列表")
@@ -66,24 +51,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Backpack", DisplayName="移除物品列表")
 	bool RemoveItemList(const TArray<FLxItemQuote>& InItemList);
 
-	/**
-	 * 从背包中移除指定数量的物品。
-	 *
-	 * @param InItemIDTag 物品标签 ID。
-	 * @param InItemCount 移除数量。
-	 * @return 移除成功返回 true。
-	 */
-	bool RemoveItemAt(FGameplayTag InItemIDTag, int32 InItemCount);
-
-	/**
-	 * 检查背包中是否拥有指定数量的物品。
-	 *
-	 * @param InItemIDTag 物品标签 ID。
-	 * @param InItemCount 需要检查的数量。
-	 * @return 数量满足时返回 true。
-	 */
-	bool CheckHaveItem(FGameplayTag InItemIDTag, int32 InItemCount = 1) const;
-
 	/** 按物品类型和稀有度对背包物品重新排序。 */
 	void SortingOfItems();
 
@@ -99,18 +66,27 @@ public:
 	/** 将本地背包槽位数据同步到复制数组，用于网络同步。 */
 	void SyncReplicatedBackpackSlots();
 
-	/** 按物品类型查询背包槽位，结果缓存在组件内部数组中。 */
-	TArray<TObjectPtr<ULxItemSlotData>>& QueryItemsOnItemType(ELxItemType InItemType);
-
-	/** 背包槽位使用物品成功后调用，由背包组件统一广播给数据中转组件。 */
-	void NotifyItemUsedFromSlot(ULxItemBase* UsedItem);
-
 protected:
+	/** 初始化背包槽位和角色缓存。 */
+	virtual void OnModuleInitialize() override;
+
 	/** 默认背包槽位数量。 */
 	UPROPERTY(Blueprintable, BlueprintReadWrite, DisplayName="背包槽位数量")
 	int32 BackpackSlotCount = 100;
 
 private:
+	/** 向背包添加一类物品，仅作为批量添加接口的内部步骤。 */
+	bool AddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount);
+
+	/** 从背包移除一类物品，仅作为批量移除接口的内部步骤。 */
+	bool RemoveItemAt(FGameplayTag InItemIDTag, int32 InItemCount);
+
+	/** 检查背包中是否拥有指定数量的一类物品。 */
+	bool CheckHaveItem(FGameplayTag InItemIDTag, int32 InItemCount) const;
+
+	/** 背包槽位使用物品成功后统一广播使用事件。 */
+	void NotifyItemUsedFromSlot(ULxItemBase* UsedItem);
+
 	/** 物品数量变化时刷新背包状态。 */
 	UFUNCTION()
 	void HandleTrackedItemCountChanged(ULxItemBase* Item);
@@ -133,10 +109,6 @@ private:
 
 	/** 从槽位数据构建物品引用结构体。 */
 	FLxItemQuote BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const;
-
-	/** 背包过滤查询缓存数组。 */
-	UPROPERTY()
-	TArray<TObjectPtr<ULxItemSlotData>> m_vFilteringCache;
 
 	/** 背包槽位数组。 */
 	UPROPERTY()

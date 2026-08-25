@@ -5,7 +5,6 @@
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
-#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
 #include "LxARPG/LxSource/Player/Controllers/LxAIController.h"
 #include "LxARPG/LxSource/UI/WorldSpace/AICharacterInfo/LxAICharacterInfoWidget.h"
 
@@ -91,7 +90,7 @@ ELxAITargetRelation ALxAICharacter::ResolveBaseTargetRelation(const ALxBaseChara
 		return ELxAITargetRelation::Ignore;
 	}
 
-	const ULxCharacterSpecialAttributeComponent* SpecialAttributeComponent = GetCharacterSpecialAttributeComponent();
+	const ULxCharacterAttributeComponent* SpecialAttributeComponent = GetCharacterAttributeComponent();
 	if (!SpecialAttributeComponent)
 	{
 		return ELxAITargetRelation::Ignore;

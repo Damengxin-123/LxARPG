@@ -2,22 +2,22 @@
 
 #include "Components/PrimitiveComponent.h"
 #include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
+#include "LxARPG/LxSource/Model/Combat/Logic/LxCharacterCombatComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitGroup.h"
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
-ULxCharacterCloseCombatComponent::ULxCharacterCloseCombatComponent()
+ULxCharacterCloseCombatModule::ULxCharacterCloseCombatModule()
 {
-	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void ULxCharacterCloseCombatComponent::BaseComponentInitialize()
+void ULxCharacterCloseCombatModule::InitializeModule(ULxCharacterCombatComponent* InOwnerComponent)
 {
-	Super::BaseComponentInitialize();
+	Super::InitializeModule(InOwnerComponent);
 	OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
 }
 
-void ULxCharacterCloseCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void ULxCharacterCloseCombatModule::ShutdownModule()
 {
 	if (CloseCombatState == ELxCloseCombatState::Attacking)
 	{
@@ -28,12 +28,14 @@ void ULxCharacterCloseCombatComponent::EndPlay(const EEndPlayReason::Type EndPla
 		FinishBlock();
 	}
 
-	Super::EndPlay(EndPlayReason);
+	OwnerCharacter = nullptr;
+	Super::ShutdownModule();
 }
 
-bool ULxCharacterCloseCombatComponent::StartAttack(const FLxMeleeAttackRequest& InAttackRequest)
+bool ULxCharacterCloseCombatModule::StartAttack(const FLxMeleeAttackRequest& InAttackRequest)
 {
-	if (!IsCloseCombatIdle() || !InAttackRequest.IsValid())
+	if (!IsCloseCombatIdle() || OwnerComponent == nullptr || !OwnerComponent->CanStartCloseCombat()
+		|| !InAttackRequest.IsValid())
 	{
 		return false;
 	}
@@ -58,18 +60,18 @@ bool ULxCharacterCloseCombatComponent::StartAttack(const FLxMeleeAttackRequest& 
 		}
 	}
 
-	CurrentAttackRequest.WeaponCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatComponent::HandleWeaponBeginOverlap);
-	CurrentAttackRequest.WeaponCollision->OnComponentBeginOverlap.AddDynamic(this, &ULxCharacterCloseCombatComponent::HandleWeaponBeginOverlap);
+	CurrentAttackRequest.WeaponCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatModule::HandleWeaponBeginOverlap);
+	CurrentAttackRequest.WeaponCollision->OnComponentBeginOverlap.AddDynamic(this, &ULxCharacterCloseCombatModule::HandleWeaponBeginOverlap);
 	if (OwnerCharacter && CurrentAttackRequest.AttackMontage)
 	{
 		OwnerCharacter->PlayAnimMontage(CurrentAttackRequest.AttackMontage);
 	}
 
-	OnDataChange.Broadcast();
+	BroadcastModuleDataChanged();
 	return true;
 }
 
-bool ULxCharacterCloseCombatComponent::EndAttack(ULxSkillUnitGroup* InSourceSkillUnitGroup)
+bool ULxCharacterCloseCombatModule::EndAttack(ULxSkillUnitGroup* InSourceSkillUnitGroup)
 {
 	if (CloseCombatState != ELxCloseCombatState::Attacking || !MatchesCurrentAttackSource(InSourceSkillUnitGroup))
 	{
@@ -80,9 +82,10 @@ bool ULxCharacterCloseCombatComponent::EndAttack(ULxSkillUnitGroup* InSourceSkil
 	return true;
 }
 
-bool ULxCharacterCloseCombatComponent::StartBlock(const FLxBlockRequest& InBlockRequest)
+bool ULxCharacterCloseCombatModule::StartBlock(const FLxBlockRequest& InBlockRequest)
 {
-	if (!IsCloseCombatIdle() || !InBlockRequest.IsValid())
+	if (!IsCloseCombatIdle() || OwnerComponent == nullptr || !OwnerComponent->CanStartCloseCombat()
+		|| !InBlockRequest.IsValid())
 	{
 		return false;
 	}
@@ -103,18 +106,18 @@ bool ULxCharacterCloseCombatComponent::StartBlock(const FLxBlockRequest& InBlock
 			BehaviorControlComponent->AddFacingControlRequest();
 		}
 	}
-	CurrentBlockRequest.ShieldCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatComponent::HandleShieldBeginOverlap);
-	CurrentBlockRequest.ShieldCollision->OnComponentBeginOverlap.AddDynamic(this, &ULxCharacterCloseCombatComponent::HandleShieldBeginOverlap);
+	CurrentBlockRequest.ShieldCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatModule::HandleShieldBeginOverlap);
+	CurrentBlockRequest.ShieldCollision->OnComponentBeginOverlap.AddDynamic(this, &ULxCharacterCloseCombatModule::HandleShieldBeginOverlap);
 	if (OwnerCharacter && CurrentBlockRequest.BlockMontage)
 	{
 		OwnerCharacter->PlayAnimMontage(CurrentBlockRequest.BlockMontage);
 	}
 
-	OnDataChange.Broadcast();
+	BroadcastModuleDataChanged();
 	return true;
 }
 
-bool ULxCharacterCloseCombatComponent::EndBlock()
+bool ULxCharacterCloseCombatModule::EndBlock()
 {
 	if (CloseCombatState != ELxCloseCombatState::Blocking)
 	{
@@ -125,12 +128,12 @@ bool ULxCharacterCloseCombatComponent::EndBlock()
 	return true;
 }
 
-bool ULxCharacterCloseCombatComponent::EvaluateBlockHit_Implementation(const FLxBlockHitResult&) const
+bool ULxCharacterCloseCombatModule::EvaluateBlockHit_Implementation(const FLxBlockHitResult&) const
 {
 	return true;
 }
 
-void ULxCharacterCloseCombatComponent::HandleWeaponBeginOverlap(UPrimitiveComponent*, AActor* OtherActor,
+void ULxCharacterCloseCombatModule::HandleWeaponBeginOverlap(UPrimitiveComponent*, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (CloseCombatState != ELxCloseCombatState::Attacking || !IsValid(OtherActor) || OtherActor == GetOwner() || !IsValid(OtherComp))
@@ -138,7 +141,9 @@ void ULxCharacterCloseCombatComponent::HandleWeaponBeginOverlap(UPrimitiveCompon
 		return;
 	}
 
-	if (ULxCharacterCloseCombatComponent* TargetCloseCombat = OtherActor->FindComponentByClass<ULxCharacterCloseCombatComponent>())
+	ULxCharacterCombatComponent* TargetCombatComponent = OtherActor->FindComponentByClass<ULxCharacterCombatComponent>();
+	if (ULxCharacterCloseCombatModule* TargetCloseCombat = TargetCombatComponent != nullptr
+		? TargetCombatComponent->GetCloseCombatModule() : nullptr)
 	{
 		if (TargetCloseCombat->CloseCombatState == ELxCloseCombatState::Blocking
 			&& TargetCloseCombat->CurrentBlockRequest.ShieldCollision == OtherComp)
@@ -177,7 +182,7 @@ void ULxCharacterCloseCombatComponent::HandleWeaponBeginOverlap(UPrimitiveCompon
 	OnMeleeAttackHit.Broadcast(HitResult);
 }
 
-void ULxCharacterCloseCombatComponent::HandleShieldBeginOverlap(UPrimitiveComponent*, AActor* OtherActor,
+void ULxCharacterCloseCombatModule::HandleShieldBeginOverlap(UPrimitiveComponent*, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (CloseCombatState != ELxCloseCombatState::Blocking || !IsValid(OtherActor) || OtherActor == GetOwner() || !IsValid(OtherComp))
@@ -185,7 +190,9 @@ void ULxCharacterCloseCombatComponent::HandleShieldBeginOverlap(UPrimitiveCompon
 		return;
 	}
 
-	ULxCharacterCloseCombatComponent* AttackerCloseCombat = OtherActor->FindComponentByClass<ULxCharacterCloseCombatComponent>();
+	ULxCharacterCombatComponent* AttackerCombatComponent = OtherActor->FindComponentByClass<ULxCharacterCombatComponent>();
+	ULxCharacterCloseCombatModule* AttackerCloseCombat = AttackerCombatComponent != nullptr
+		? AttackerCombatComponent->GetCloseCombatModule() : nullptr;
 	if (!AttackerCloseCombat || AttackerCloseCombat->CloseCombatState != ELxCloseCombatState::Attacking
 		|| AttackerCloseCombat->CurrentAttackRequest.WeaponCollision != OtherComp)
 	{
@@ -210,12 +217,12 @@ void ULxCharacterCloseCombatComponent::HandleShieldBeginOverlap(UPrimitiveCompon
 	}
 }
 
-bool ULxCharacterCloseCombatComponent::MatchesCurrentAttackSource(const ULxSkillUnitGroup* InSourceSkillUnitGroup) const
+bool ULxCharacterCloseCombatModule::MatchesCurrentAttackSource(const ULxSkillUnitGroup* InSourceSkillUnitGroup) const
 {
 	return InSourceSkillUnitGroup == nullptr || CurrentAttackRequest.SourceSkillUnitGroup == InSourceSkillUnitGroup;
 }
 
-void ULxCharacterCloseCombatComponent::InterruptCurrentAttackByBlock()
+void ULxCharacterCloseCombatModule::InterruptCurrentAttackByBlock()
 {
 	if (CloseCombatState == ELxCloseCombatState::Attacking)
 	{
@@ -223,7 +230,7 @@ void ULxCharacterCloseCombatComponent::InterruptCurrentAttackByBlock()
 	}
 }
 
-void ULxCharacterCloseCombatComponent::FinishAttack()
+void ULxCharacterCloseCombatModule::FinishAttack()
 {
 	if (OwnerCharacter)
 	{
@@ -236,7 +243,7 @@ void ULxCharacterCloseCombatComponent::FinishAttack()
 	}
 	if (CurrentAttackRequest.WeaponCollision)
 	{
-		CurrentAttackRequest.WeaponCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatComponent::HandleWeaponBeginOverlap);
+		CurrentAttackRequest.WeaponCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatModule::HandleWeaponBeginOverlap);
 	}
 	if (OwnerCharacter && CurrentAttackRequest.AttackMontage)
 	{
@@ -249,10 +256,10 @@ void ULxCharacterCloseCombatComponent::FinishAttack()
 	CloseCombatState = ELxCloseCombatState::Idle;
 	FLxMeleeAttackEndContext EndContext;
 	OnMeleeAttackEnded.Broadcast(EndContext);
-	OnDataChange.Broadcast();
+	BroadcastModuleDataChanged();
 }
 
-void ULxCharacterCloseCombatComponent::FinishBlock()
+void ULxCharacterCloseCombatModule::FinishBlock()
 {
 	if (OwnerCharacter)
 	{
@@ -265,7 +272,7 @@ void ULxCharacterCloseCombatComponent::FinishBlock()
 	}
 	if (CurrentBlockRequest.ShieldCollision)
 	{
-		CurrentBlockRequest.ShieldCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatComponent::HandleShieldBeginOverlap);
+		CurrentBlockRequest.ShieldCollision->OnComponentBeginOverlap.RemoveDynamic(this, &ULxCharacterCloseCombatModule::HandleShieldBeginOverlap);
 	}
 	if (OwnerCharacter && CurrentBlockRequest.BlockMontage)
 	{
@@ -276,5 +283,5 @@ void ULxCharacterCloseCombatComponent::FinishBlock()
 	CloseCombatState = ELxCloseCombatState::Idle;
 	FLxBlockEndContext EndContext;
 	OnBlockEnded.Broadcast(EndContext);
-	OnDataChange.Broadcast();
+	BroadcastModuleDataChanged();
 }

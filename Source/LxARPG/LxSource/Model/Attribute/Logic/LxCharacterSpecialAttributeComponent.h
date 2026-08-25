@@ -4,44 +4,15 @@
 #include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxSpecialAttributeTypes.h"
 #include "LxCharacterSpecialAttributeComponent.generated.h"
 
 class ULxCharacterLifecycleAttributeObject;
 class ULxCharacterSpecialAttributeObject;
 class ALxBaseCharacter;
 
-/** 角色特殊属性组件根据双方阵营标签计算出的关系。 */
-UENUM(BlueprintType, DisplayName="角色阵营关系")
-enum class ELxCharacterFactionRelation : uint8
-{
-	Friendly UMETA(DisplayName="友方"),
-	Neutral UMETA(DisplayName="中立"),
-	Hostile UMETA(DisplayName="敌方")
-};
-
-/** 角色阵营标签数据，用于描述当前角色认可的我方阵营和敌对阵营。 */
-USTRUCT(BlueprintType, DisplayName="角色阵营标签数据")
-struct LXARPG_API FLxCharacterFactionData
-{
-	GENERATED_BODY()
-
-	/** 当前角色所属或认可为我方的阵营标签。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|特殊属性|阵营", DisplayName="我方标签")
-	FGameplayTagContainer FriendlyTags;
-
-	/** 当前角色会视为敌方的阵营标签。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色|特殊属性|阵营", DisplayName="敌对标签")
-	FGameplayTagContainer HostileTags;
-};
-
-/** 特殊属性状态标签变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSpecialAttributeStateTagsChanged, FGameplayTag, StateCategoryTag, const FGameplayTagContainer&, StateTags);
-
-/** 特殊属性生命周期状态变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSpecialAttributeLifecycleChanged, bool, bIsAlive, FGameplayTag, LifecycleStateTag);
-
-/** 角色特殊属性组件，用一个容器组件管理状态数据和轻量 UObject 业务对象。 */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色特殊属性组件")
+/** 旧版角色特殊属性组件，仅为已保存资产保留；新角色统一使用角色属性组件。 */
+UCLASS(ClassGroup=(Custom), NotBlueprintable, DisplayName="旧版角色特殊属性组件")
 class LXARPG_API ULxCharacterSpecialAttributeComponent : public ULxCharacterComponentBase
 {
 	GENERATED_BODY()

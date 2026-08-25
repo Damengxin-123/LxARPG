@@ -6,44 +6,23 @@
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
-ULxCharacterProfessionComponent::ULxCharacterProfessionComponent()
+ULxCharacterProfessionModule::ULxCharacterProfessionModule()
 {
-	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void ULxCharacterProfessionComponent::BaseComponentInitialize()
+void ULxCharacterProfessionModule::OnModuleInitialize()
 {
-	Super::BaseComponentInitialize();
-
 	CacheProfessionDefinitions();
 	ResolveLearnedProfessionClasses();
 	OnProfessionChanged.Broadcast();
 }
 
-bool ULxCharacterProfessionComponent::HasProfession(FGameplayTag InProfessionIDTag) const
+bool ULxCharacterProfessionModule::HasProfession(FGameplayTag InProfessionIDTag) const
 {
 	return FindProfessionRuntimeData(InProfessionIDTag) != nullptr;
 }
 
-int32 ULxCharacterProfessionComponent::GetProfessionLevel(FGameplayTag InProfessionIDTag) const
-{
-	const FLxProfessionRuntimeData* ProfessionData = FindProfessionRuntimeData(InProfessionIDTag);
-	return ProfessionData != nullptr ? ProfessionData->Level : 0;
-}
-
-float ULxCharacterProfessionComponent::GetProfessionExperience(FGameplayTag InProfessionIDTag) const
-{
-	const FLxProfessionRuntimeData* ProfessionData = FindProfessionRuntimeData(InProfessionIDTag);
-	return ProfessionData != nullptr ? ProfessionData->Experience : 0.f;
-}
-
-bool ULxCharacterProfessionComponent::CanProfessionUpgrade(FGameplayTag InProfessionIDTag) const
-{
-	const FLxProfessionRuntimeData* ProfessionData = FindProfessionRuntimeData(InProfessionIDTag);
-	return ProfessionData != nullptr && ProfessionData->bCanUpgrade;
-}
-
-bool ULxCharacterProfessionComponent::CanLearnProfession(FGameplayTag InProfessionIDTag,
+bool ULxCharacterProfessionModule::CanLearnProfession(FGameplayTag InProfessionIDTag,
 	FLxProfessionLearnCheckResult& OutCheckResult, bool bCheckRequirements)
 {
 	OutCheckResult = FLxProfessionLearnCheckResult();
@@ -82,7 +61,7 @@ bool ULxCharacterProfessionComponent::CanLearnProfession(FGameplayTag InProfessi
 	return true;
 }
 
-bool ULxCharacterProfessionComponent::LearnProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel,
+bool ULxCharacterProfessionModule::LearnProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel,
 	bool bInCanUpgrade, bool bCheckRequirements)
 {
 	FLxProfessionLearnCheckResult CheckResult;
@@ -110,7 +89,7 @@ bool ULxCharacterProfessionComponent::LearnProfession(FGameplayTag InProfessionI
 	return true;
 }
 
-bool ULxCharacterProfessionComponent::GrantProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel,
+bool ULxCharacterProfessionModule::GrantProfession(FGameplayTag InProfessionIDTag, int32 InInitialLevel,
 	bool bInCanUpgrade)
 {
 	ULxProfessionDefinition* ProfessionDefinition = FindProfessionDefinition(InProfessionIDTag);
@@ -146,7 +125,7 @@ bool ULxCharacterProfessionComponent::GrantProfession(FGameplayTag InProfessionI
 	return LearnProfession(InProfessionIDTag, GrantedLevel, bInCanUpgrade, false);
 }
 
-void ULxCharacterProfessionComponent::AddProfessionExperienceByType(ELxProfessionType InProfessionType, float InExperience)
+void ULxCharacterProfessionModule::AddProfessionExperienceByType(ELxProfessionType InProfessionType, float InExperience)
 {
 	if (InProfessionType == ELxProfessionType::None || InExperience <= 0.f)
 	{
@@ -188,7 +167,7 @@ void ULxCharacterProfessionComponent::AddProfessionExperienceByType(ELxProfessio
 	}
 }
 
-void ULxCharacterProfessionComponent::BuildAllProfessionEffectPackages(TArray<FLxEffectPackage>& OutEffectPackages)
+void ULxCharacterProfessionModule::BuildAllProfessionEffectPackages(TArray<FLxEffectPackage>& OutEffectPackages)
 {
 	OutEffectPackages.Reset();
 
@@ -221,12 +200,12 @@ void ULxCharacterProfessionComponent::BuildAllProfessionEffectPackages(TArray<FL
 	}
 }
 
-void ULxCharacterProfessionComponent::GetLearnedProfessions(TArray<FLxProfessionRuntimeData>& OutProfessionList) const
+void ULxCharacterProfessionModule::GetLearnedProfessions(TArray<FLxProfessionRuntimeData>& OutProfessionList) const
 {
 	OutProfessionList = LearnedProfessions;
 }
 
-void ULxCharacterProfessionComponent::GetAllProfessionDefinitions(TArray<ULxProfessionDefinition*>& OutProfessionDefinitions) const
+void ULxCharacterProfessionModule::GetAllProfessionDefinitions(TArray<ULxProfessionDefinition*>& OutProfessionDefinitions) const
 {
 	OutProfessionDefinitions.Reset();
 	OutProfessionDefinitions.Reserve(ProfessionDefinitionMap.Num());
@@ -239,12 +218,12 @@ void ULxCharacterProfessionComponent::GetAllProfessionDefinitions(TArray<ULxProf
 	}
 }
 
-ULxProfessionDefinition* ULxCharacterProfessionComponent::GetProfessionDefinition(FGameplayTag InProfessionIDTag) const
+ULxProfessionDefinition* ULxCharacterProfessionModule::GetProfessionDefinition(FGameplayTag InProfessionIDTag) const
 {
 	return FindProfessionDefinition(InProfessionIDTag);
 }
 
-bool ULxCharacterProfessionComponent::GetProfessionRuntimeData(FGameplayTag InProfessionIDTag, FLxProfessionRuntimeData& OutProfessionData) const
+bool ULxCharacterProfessionModule::GetProfessionRuntimeData(FGameplayTag InProfessionIDTag, FLxProfessionRuntimeData& OutProfessionData) const
 {
 	const FLxProfessionRuntimeData* ProfessionData = FindProfessionRuntimeData(InProfessionIDTag);
 	if (ProfessionData == nullptr)
@@ -257,7 +236,7 @@ bool ULxCharacterProfessionComponent::GetProfessionRuntimeData(FGameplayTag InPr
 	return true;
 }
 
-void ULxCharacterProfessionComponent::CacheProfessionDefinitions()
+void ULxCharacterProfessionModule::CacheProfessionDefinitions()
 {
 	ProfessionDefinitionMap.Reset();
 
@@ -297,7 +276,7 @@ void ULxCharacterProfessionComponent::CacheProfessionDefinitions()
 	}
 }
 
-ULxProfessionDefinition* ULxCharacterProfessionComponent::FindProfessionDefinition(FGameplayTag InProfessionIDTag) const
+ULxProfessionDefinition* ULxCharacterProfessionModule::FindProfessionDefinition(FGameplayTag InProfessionIDTag) const
 {
 	if (!InProfessionIDTag.IsValid())
 	{
@@ -312,7 +291,7 @@ ULxProfessionDefinition* ULxCharacterProfessionComponent::FindProfessionDefiniti
 	return nullptr;
 }
 
-FLxProfessionRuntimeData* ULxCharacterProfessionComponent::FindProfessionRuntimeData(FGameplayTag InProfessionIDTag)
+FLxProfessionRuntimeData* ULxCharacterProfessionModule::FindProfessionRuntimeData(FGameplayTag InProfessionIDTag)
 {
 	if (!InProfessionIDTag.IsValid())
 	{
@@ -330,7 +309,7 @@ FLxProfessionRuntimeData* ULxCharacterProfessionComponent::FindProfessionRuntime
 	return nullptr;
 }
 
-const FLxProfessionRuntimeData* ULxCharacterProfessionComponent::FindProfessionRuntimeData(FGameplayTag InProfessionIDTag) const
+const FLxProfessionRuntimeData* ULxCharacterProfessionModule::FindProfessionRuntimeData(FGameplayTag InProfessionIDTag) const
 {
 	if (!InProfessionIDTag.IsValid())
 	{
@@ -348,7 +327,7 @@ const FLxProfessionRuntimeData* ULxCharacterProfessionComponent::FindProfessionR
 	return nullptr;
 }
 
-void ULxCharacterProfessionComponent::ResolveLearnedProfessionClasses()
+void ULxCharacterProfessionModule::ResolveLearnedProfessionClasses()
 {
 	for (FLxProfessionRuntimeData& ProfessionData : LearnedProfessions)
 	{
@@ -370,7 +349,7 @@ void ULxCharacterProfessionComponent::ResolveLearnedProfessionClasses()
 	}
 }
 
-bool ULxCharacterProfessionComponent::AddExperienceToProfession(FLxProfessionRuntimeData& InOutProfessionData, ULxProfessionDefinition* ProfessionDefinition, float InExperience)
+bool ULxCharacterProfessionModule::AddExperienceToProfession(FLxProfessionRuntimeData& InOutProfessionData, ULxProfessionDefinition* ProfessionDefinition, float InExperience)
 {
 	if (!InOutProfessionData.bCanUpgrade || ProfessionDefinition == nullptr || InExperience <= 0.f)
 	{
@@ -418,7 +397,7 @@ bool ULxCharacterProfessionComponent::AddExperienceToProfession(FLxProfessionRun
 	return bChanged;
 }
 
-bool ULxCharacterProfessionComponent::CheckDependencyRules(ULxProfessionDefinition* ProfessionDefinition, FLxProfessionLearnCheckResult& OutCheckResult) const
+bool ULxCharacterProfessionModule::CheckDependencyRules(ULxProfessionDefinition* ProfessionDefinition, FLxProfessionLearnCheckResult& OutCheckResult) const
 {
 	if (ProfessionDefinition == nullptr)
 	{
@@ -450,7 +429,7 @@ bool ULxCharacterProfessionComponent::CheckDependencyRules(ULxProfessionDefiniti
 	return true;
 }
 
-bool ULxCharacterProfessionComponent::CheckAttributeRequirements(ULxProfessionDefinition* ProfessionDefinition, FLxProfessionLearnCheckResult& OutCheckResult) const
+bool ULxCharacterProfessionModule::CheckAttributeRequirements(ULxProfessionDefinition* ProfessionDefinition, FLxProfessionLearnCheckResult& OutCheckResult) const
 {
 	if (ProfessionDefinition == nullptr)
 	{
@@ -479,7 +458,7 @@ bool ULxCharacterProfessionComponent::CheckAttributeRequirements(ULxProfessionDe
 	return true;
 }
 
-bool ULxCharacterProfessionComponent::CheckStateRequirements(ULxProfessionDefinition* ProfessionDefinition, FLxProfessionLearnCheckResult& OutCheckResult) const
+bool ULxCharacterProfessionModule::CheckStateRequirements(ULxProfessionDefinition* ProfessionDefinition, FLxProfessionLearnCheckResult& OutCheckResult) const
 {
 	if (ProfessionDefinition == nullptr)
 	{
@@ -508,7 +487,7 @@ bool ULxCharacterProfessionComponent::CheckStateRequirements(ULxProfessionDefini
 	return true;
 }
 
-void ULxCharacterProfessionComponent::BuildInfluenceResults(ULxProfessionDefinition* ProfessionDefinition, TArray<FLxProfessionInfluenceResult>& OutInfluenceResults) const
+void ULxCharacterProfessionModule::BuildInfluenceResults(ULxProfessionDefinition* ProfessionDefinition, TArray<FLxProfessionInfluenceResult>& OutInfluenceResults) const
 {
 	OutInfluenceResults.Reset();
 	if (ProfessionDefinition == nullptr)
@@ -531,7 +510,7 @@ void ULxCharacterProfessionComponent::BuildInfluenceResults(ULxProfessionDefinit
 	}
 }
 
-float ULxCharacterProfessionComponent::CalculateTotalEffectScale(const TArray<FLxProfessionInfluenceResult>& InfluenceResults)
+float ULxCharacterProfessionModule::CalculateTotalEffectScale(const TArray<FLxProfessionInfluenceResult>& InfluenceResults)
 {
 	float TotalEffectScale = 1.f;
 	for (const FLxProfessionInfluenceResult& InfluenceResult : InfluenceResults)

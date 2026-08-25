@@ -1,13 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
+#include "LxCharacterEffectModuleBase.h"
 #include "LxARPG/LxSource/Model/Damage/DataType/LxDamageCalculationTypes.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEntryPackage.h"
 #include "LxCharacterEffectProcessComponent.generated.h"
 
 class ULxCharacterDataTransferComponent;
-class ULxCharacterSpecialAttributeComponent;
+class ULxCharacterAttributeComponent;
 class ULxDamageCalculationFlow;
 class ULxSkill;
 class ALxSkillUnitActor;
@@ -15,17 +15,15 @@ class ALxSkillUnitActor;
 /** 角色受到伤害后的实际承受结果事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterEffectProcessDamageReceived, const FLxDamageReceiveResult&, DamageReceiveResult, AActor*, AttackerActor);
 
-/** 角色效果处理组件，负责解析技能词条、计算伤害并生成最终可传递的效果数据包。 */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色效果处理组件")
-class LXARPG_API ULxCharacterEffectProcessComponent : public ULxCharacterComponentBase
+/** 角色效果处理模块，负责解析技能词条、计算伤害并生成最终可传递的效果数据包。 */
+UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="角色效果处理模块")
+class LXARPG_API ULxCharacterEffectProcessModule : public ULxCharacterEffectModuleBase
 {
 	GENERATED_BODY()
 
 public:
-	/** 创建角色效果处理组件。 */
-	ULxCharacterEffectProcessComponent();
-
-	virtual void BaseComponentInitialize() override;
+	/** 创建角色效果处理模块。 */
+	ULxCharacterEffectProcessModule();
 
 	/** 处理技能命中结果，将技能词条和有效目标转换为最终效果包并交给数据中转组件发送。 */
 	UFUNCTION(BlueprintCallable, Category="角色效果处理", DisplayName="处理技能命中效果")
@@ -54,6 +52,9 @@ public:
 	FOnLxCharacterEffectProcessDamageReceived OnCharacterDamageReceived;
 
 protected:
+	/** 初始化效果处理模块依赖。 */
+	virtual void OnModuleInitialize() override;
+
 	/** 当前角色运行时使用的效果计算流程实例，由游戏设置中的全局流程类型创建。 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category="角色效果处理", DisplayName="运行时效果计算流程")
 	TObjectPtr<ULxDamageCalculationFlow> DamageCalculationFlow;
@@ -77,5 +78,5 @@ private:
 	TObjectPtr<ULxCharacterDataTransferComponent> DataTransferComponent = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<ULxCharacterSpecialAttributeComponent> SpecialAttributeComponent = nullptr;
+	TObjectPtr<ULxCharacterAttributeComponent> SpecialAttributeComponent = nullptr;
 };

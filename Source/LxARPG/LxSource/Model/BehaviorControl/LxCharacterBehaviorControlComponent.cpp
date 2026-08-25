@@ -5,7 +5,7 @@
 #include "GameFramework/Controller.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "Net/UnrealNetwork.h"
-#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterSpecialAttributeComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
@@ -66,7 +66,7 @@ void ULxCharacterBehaviorControlComponent::HandleMoveInput(const FVector2D& InMo
 		return;
 	}
 
-	const ULxCharacterSpecialAttributeComponent* SpecialAttributeComponent =
+	const ULxCharacterAttributeComponent* SpecialAttributeComponent =
 		OwnerCharacter->GetCharacterSpecialAttributeComponent();
 	if (SpecialAttributeComponent && !SpecialAttributeComponent->IsCharacterAlive())
 	{
@@ -95,7 +95,7 @@ void ULxCharacterBehaviorControlComponent::HandleJumpInput(const bool bPressed)
 		return;
 	}
 
-	const ULxCharacterSpecialAttributeComponent* SpecialAttributeComponent =
+	const ULxCharacterAttributeComponent* SpecialAttributeComponent =
 		OwnerCharacter->GetCharacterSpecialAttributeComponent();
 	if (SpecialAttributeComponent && !SpecialAttributeComponent->IsCharacterAlive())
 	{
@@ -315,7 +315,7 @@ bool ULxCharacterBehaviorControlComponent::CanRotateByMoveInput() const
 void ULxCharacterBehaviorControlComponent::RefreshBaseBehaviorState()
 {
 	CacheOwnerCharacter();
-	const ULxCharacterSpecialAttributeComponent* SpecialAttributeComponent = OwnerCharacter
+	const ULxCharacterAttributeComponent* SpecialAttributeComponent = OwnerCharacter
 		? OwnerCharacter->GetCharacterSpecialAttributeComponent()
 		: nullptr;
 	if (SpecialAttributeComponent && !SpecialAttributeComponent->IsCharacterAlive())

@@ -84,7 +84,7 @@ void ALxPlayerController::ServerMoveItemBetweenBackpackAndWarehouse_Implementati
 
 	ULxWarehouseInteractionComponent* WarehouseComponent = WarehouseOwner->FindComponentByClass<ULxWarehouseInteractionComponent>();
 	const ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
-	ULxCharacterBackpackComponent* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
+	ULxCharacterBackpackModule* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
 	if (WarehouseComponent == nullptr || BackpackComponent == nullptr)
 	{
 		return;
@@ -102,7 +102,7 @@ void ALxPlayerController::ServerMoveItemBetweenBackpackAndWarehouse_Implementati
 void ALxPlayerController::ServerMoveBackpackSlot_Implementation(int32 SourceSlotIndex, int32 TargetSlotIndex)
 {
 	const ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
-	ULxCharacterBackpackComponent* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
+	ULxCharacterBackpackModule* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
 	if (BackpackComponent)
 	{
 		BackpackComponent->MoveBackpackSlot(SourceSlotIndex, TargetSlotIndex);
@@ -131,7 +131,7 @@ void ALxPlayerController::ServerMoveTreasureChestSlotToBackpack_Implementation(A
 
 	ULxTreasureChestInteractionComponent* TreasureChestComponent = TreasureChestOwner->FindComponentByClass<ULxTreasureChestInteractionComponent>();
 	const ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
-	ULxCharacterBackpackComponent* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
+	ULxCharacterBackpackModule* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
 	if (TreasureChestComponent && BackpackComponent)
 	{
 		TreasureChestComponent->MoveTreasureChestSlotToBackpack(BackpackComponent, TreasureChestSlotIndex, BackpackSlotIndex);
@@ -164,7 +164,7 @@ void ALxPlayerController::ServerBuyTradeSlotToBackpackSlot_Implementation(AActor
 	ULxTradeContainerInteractionComponent* TradeComponent = TradeOwner->FindComponentByClass<ULxTradeContainerInteractionComponent>();
 	const ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
 	ULxCharacterDataTransferComponent* DataTransferComponent = CurrentCharacter ? CurrentCharacter->GetCharacterDataTransferComponent() : nullptr;
-	ULxCharacterBackpackComponent* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
+	ULxCharacterBackpackModule* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
 	if (TradeComponent && DataTransferComponent && BackpackComponent)
 	{
 		TradeComponent->BuyTradeSlotToBackpackSlot(
@@ -184,7 +184,7 @@ void ALxPlayerController::ServerSellBackpackSlot_Implementation(AActor* TradeOwn
 	ULxTradeContainerInteractionComponent* TradeComponent = TradeOwner->FindComponentByClass<ULxTradeContainerInteractionComponent>();
 	const ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
 	ULxCharacterDataTransferComponent* DataTransferComponent = CurrentCharacter ? CurrentCharacter->GetCharacterDataTransferComponent() : nullptr;
-	ULxCharacterBackpackComponent* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
+	ULxCharacterBackpackModule* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
 	if (TradeComponent && DataTransferComponent && BackpackComponent)
 	{
 		TradeComponent->SellBackpackSlot(BackpackComponent->GetBackpackSlotAt(BackpackSlotIndex), DataTransferComponent);

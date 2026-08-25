@@ -1,7 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxARPG/LxSource/Core/Database/LxComponentBase.h"
+#include "GameplayTagContainer.h"
+#include "LxARPG/LxSource/Model/Combat/Logic/LxCharacterCombatModuleBase.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillCastContext.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEnum.h"
 #include "LxSkillCastComponent.generated.h"
@@ -21,17 +22,21 @@ enum class ELxPendingSkillReleaseExecution : uint8
 	Sustained
 };
 
-/** 技能释放组件。挂载在角色身上，统一解释开始、结束、取消等释放输入，并调用对应技能流程。 */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="技能释放组件")
-class LXARPG_API ULxSkillCastComponent : public ULxComponentBase
+/** 技能释放模块，解释开始、结束、取消等释放输入并调用对应技能流程。 */
+UCLASS(BlueprintType, Blueprintable, EditInlineNew, DefaultToInstanced, DisplayName="技能释放模块")
+class LXARPG_API ULxSkillCastModule : public ULxCharacterCombatModuleBase
 {
 	GENERATED_BODY()
 
 public:
-	/** 创建可复制的技能释放组件。 */
-	ULxSkillCastComponent();
+	/** 创建技能释放模块。 */
+	ULxSkillCastModule();
 
-	virtual void BaseComponentInitialize() override;
+	/** 绑定统一战斗组件并建立初始释放上下文。 */
+	virtual void InitializeModule(ULxCharacterCombatComponent* InOwnerComponent) override;
+
+	/** 取消当前技能并解除瞄准事件。 */
+	virtual void ShutdownModule() override;
 
 	/** 构建技能释放上下文。没有传入释放者时默认使用组件拥有者。 */
 	UFUNCTION(BlueprintCallable, Category="技能|释放组件", DisplayName="构建技能释放上下文")
@@ -115,24 +120,17 @@ public:
 	UFUNCTION(BlueprintPure, Category="技能|释放组件", DisplayName="获取当前释放上下文")
 	FLxSkillCastContext GetCurrentCastContext() const { return CurrentCastContext; }
 
-protected:
-	/** 组件结束运行时取消尚未结束的持续技能并解除瞄准事件。 */
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
 private:
-	/** 将客户端技能物品输入提交到服务端，由服务端校验技能所有权并执行释放。 */
-	UFUNCTION(Server, Reliable, Category="技能|释放组件|网络", DisplayName="服务端处理技能释放输入")
-	void ServerHandleSkillItemReleaseInput(FGameplayTag InSkillItemIDTag, ELxSkillReleaseInputState InInputState,
+	/** 执行已经到达服务端的技能物品释放输入。 */
+	void HandleSkillItemReleaseInputFromServer(FGameplayTag InSkillItemIDTag, ELxSkillReleaseInputState InInputState,
 		AActor* InTargetActor, FVector_NetQuantize InAimLocation, bool bInHasAimLocation,
 		FVector_NetQuantizeNormal InAimDirection, bool bInHasAimDirection);
 
-	/** 向服务器和所有客户端广播一次技能动作动画播放请求，并按照技能释放时间计算播放速率。 */
-	UFUNCTION(NetMulticast, Reliable, Category="技能|释放组件|网络", DisplayName="广播技能动作动画")
-	void MulticastPlaySkillActionAnimation(float InSkillReleaseDuration);
+	/** 在本机播放技能动作动画。 */
+	void PlaySkillActionAnimation(float InSkillReleaseDuration);
 
-	/** 向服务器和所有客户端广播技能动作动画结束信号，用空动作资产重置动画融合堆栈。 */
-	UFUNCTION(NetMulticast, Reliable, Category="技能|释放组件|网络", DisplayName="广播技能动作动画结束")
-	void MulticastStopSkillActionAnimation();
+	/** 在本机停止技能动作动画。 */
+	void StopSkillActionAnimation();
 
 	/** 根据技能对象反查所属技能物品标签，避免通过网络传递不可复制的 UObject。 */
 	FGameplayTag ResolveSkillItemIDTag(const ULxSkill* InSkill) const;
@@ -221,4 +219,7 @@ private:
 
 	/** 技能释放时间轴结束点定时器。 */
 	FTimerHandle SkillReleaseCompletionTimerHandle;
+
+	/** 允许统一战斗组件调用模块的网络入口与本机动画处理。 */
+	friend class ULxCharacterCombatComponent;
 };

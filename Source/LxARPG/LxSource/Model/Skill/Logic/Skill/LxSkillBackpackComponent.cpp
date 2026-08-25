@@ -6,25 +6,33 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "Net/UnrealNetwork.h"
 
-ULxSkillBackpackComponent::ULxSkillBackpackComponent()
+ULxSkillBackpackModule::ULxSkillBackpackModule()
 {
-	PrimaryComponentTick.bCanEverTick = false;
-	SetIsReplicatedByDefault(true);
 }
 
-void ULxSkillBackpackComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+void ULxSkillBackpackModule::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ULxSkillBackpackComponent, ReplicatedSkillItemIDTags);
+	DOREPLIFETIME(ULxSkillBackpackModule, ReplicatedSkillItemIDTags);
 }
 
-void ULxSkillBackpackComponent::BaseComponentInitialize()
+void ULxSkillBackpackModule::OnModuleInitialize()
 {
 	RebuildSkillItemSlots();
 	SyncReplicatedSkillItemIDTags();
 }
 
-bool ULxSkillBackpackComponent::AddSkillItemByTagID(FGameplayTag InSkillItemIDTag)
+bool ULxSkillBackpackModule::AddSkillItemsByTagID(const TArray<FGameplayTag>& InSkillItemIDTags)
+{
+	bool bAllSucceeded = !InSkillItemIDTags.IsEmpty();
+	for (const FGameplayTag SkillItemIDTag : InSkillItemIDTags)
+	{
+		bAllSucceeded = AddSkillItemByTagID(SkillItemIDTag) && bAllSucceeded;
+	}
+	return bAllSucceeded;
+}
+
+bool ULxSkillBackpackModule::AddSkillItemByTagID(FGameplayTag InSkillItemIDTag)
 {
 	if (!InSkillItemIDTag.IsValid())
 	{
@@ -40,7 +48,7 @@ bool ULxSkillBackpackComponent::AddSkillItemByTagID(FGameplayTag InSkillItemIDTa
 	return AddSkillItemObject(SkillItem);
 }
 
-bool ULxSkillBackpackComponent::AddSkillItemObject(ULxSkillItem* InSkillItem)
+bool ULxSkillBackpackModule::AddSkillItemObject(ULxSkillItem* InSkillItem)
 {
 	if (!InSkillItem || !InSkillItem->ItemIsValid() || InSkillItem->ItemType() != ELxItemType::Skill)
 	{
@@ -59,7 +67,7 @@ bool ULxSkillBackpackComponent::AddSkillItemObject(ULxSkillItem* InSkillItem)
 	return true;
 }
 
-void ULxSkillBackpackComponent::GetAllSkillItemSlots(TArray<ULxItemSlotData*>& OutSkillItemSlots) const
+void ULxSkillBackpackModule::GetAllSkillItemSlots(TArray<ULxItemSlotData*>& OutSkillItemSlots) const
 {
 	OutSkillItemSlots.Reset();
 	for (ULxItemSlotData* SlotData : SkillItemSlotList)
@@ -68,7 +76,7 @@ void ULxSkillBackpackComponent::GetAllSkillItemSlots(TArray<ULxItemSlotData*>& O
 	}
 }
 
-void ULxSkillBackpackComponent::QuerySkillItemSlotsByTag(FGameplayTag InSkillTag, TArray<ULxItemSlotData*>& OutSkillItemSlots) const
+void ULxSkillBackpackModule::QuerySkillItemSlotsByTag(FGameplayTag InSkillTag, TArray<ULxItemSlotData*>& OutSkillItemSlots) const
 {
 	OutSkillItemSlots.Reset();
 	if (!InSkillTag.IsValid())
@@ -91,21 +99,7 @@ void ULxSkillBackpackComponent::QuerySkillItemSlotsByTag(FGameplayTag InSkillTag
 	}
 }
 
-void ULxSkillBackpackComponent::GetAllSkillItems(TArray<ULxSkillItem*>& OutSkillItems) const
-{
-	OutSkillItems.Reset();
-	for (ULxSkillItem* SkillItem : SkillItemList)
-	{
-		OutSkillItems.Add(SkillItem);
-	}
-}
-
-ULxItemSlotData* ULxSkillBackpackComponent::GetSkillItemSlotAt(int32 SlotIndex) const
-{
-	return SkillItemSlotList.IsValidIndex(SlotIndex) ? SkillItemSlotList[SlotIndex] : nullptr;
-}
-
-ULxSkillItem* ULxSkillBackpackComponent::FindSkillItemByTagID(FGameplayTag InSkillItemIDTag) const
+ULxSkillItem* ULxSkillBackpackModule::FindSkillItemByTagID(FGameplayTag InSkillItemIDTag) const
 {
 	if (!InSkillItemIDTag.IsValid())
 	{
@@ -122,13 +116,13 @@ ULxSkillItem* ULxSkillBackpackComponent::FindSkillItemByTagID(FGameplayTag InSki
 	return nullptr;
 }
 
-void ULxSkillBackpackComponent::RebuildSkillItemSlots()
+void ULxSkillBackpackModule::RebuildSkillItemSlots()
 {
 	for (ULxItemSlotData* SlotData : SkillItemSlotList)
 	{
 		if (SlotData)
 		{
-			SlotData->OnItemDataChanged.RemoveDynamic(this, &ULxSkillBackpackComponent::HandleSkillSlotChanged);
+			SlotData->OnItemDataChanged.RemoveDynamic(this, &ULxSkillBackpackModule::HandleSkillSlotChanged);
 		}
 	}
 
@@ -146,12 +140,12 @@ void ULxSkillBackpackComponent::RebuildSkillItemSlots()
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
 		NewSlot->InitItemSlot(ELxItemSlotType::SkillDisplay, LxTag_Item_Skill, SkillItem);
 		NewSlot->SetSlotIndex(SkillItemSlotList.Num());
-		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxSkillBackpackComponent::HandleSkillSlotChanged);
+		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxSkillBackpackModule::HandleSkillSlotChanged);
 		SkillItemSlotList.Add(NewSlot);
 	}
 }
 
-bool ULxSkillBackpackComponent::ContainsSkillItem(FGameplayTag InSkillItemIDTag) const
+bool ULxSkillBackpackModule::ContainsSkillItem(FGameplayTag InSkillItemIDTag) const
 {
 	if (!InSkillItemIDTag.IsValid())
 	{
@@ -169,13 +163,13 @@ bool ULxSkillBackpackComponent::ContainsSkillItem(FGameplayTag InSkillItemIDTag)
 	return false;
 }
 
-void ULxSkillBackpackComponent::HandleSkillSlotChanged(ULxItemBase* InItemData)
+void ULxSkillBackpackModule::HandleSkillSlotChanged(ULxItemBase* InItemData)
 {
 	OnDataChange.Broadcast();
 	SyncReplicatedSkillItemIDTags();
 }
 
-void ULxSkillBackpackComponent::SyncReplicatedSkillItemIDTags()
+void ULxSkillBackpackModule::SyncReplicatedSkillItemIDTags()
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
@@ -192,7 +186,7 @@ void ULxSkillBackpackComponent::SyncReplicatedSkillItemIDTags()
 	}
 }
 
-void ULxSkillBackpackComponent::OnRep_ReplicatedSkillItemIDTags()
+void ULxSkillBackpackModule::OnRep_ReplicatedSkillItemIDTags()
 {
 	SkillItemList.Reset();
 	for (const FGameplayTag SkillItemIDTag : ReplicatedSkillItemIDTags)

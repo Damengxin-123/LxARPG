@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
+#include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentModuleBase.h"
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
 #include "LxCharacterProfessionComponent.generated.h"
 
@@ -15,33 +15,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxCharacterProfessionChanged);
  *
  * 负责维护角色已学习职业、职业等级经验、职业学习检查，并按当前职业关系构建职业效果包。
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色职业组件")
-class LXARPG_API ULxCharacterProfessionComponent : public ULxCharacterComponentBase
+UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="角色职业模块")
+class LXARPG_API ULxCharacterProfessionModule : public ULxCharacterContentModuleBase
 {
 	GENERATED_BODY()
 
 public:
 	/** 创建角色职业组件。 */
-	ULxCharacterProfessionComponent();
-
-	/** 初始化职业定义缓存和已学习职业实例。 */
-	virtual void BaseComponentInitialize() override;
-
-	/** 检查角色是否已经学习指定职业。 */
-	UFUNCTION(BlueprintPure, Category="职业|角色职业", DisplayName="是否已学习职业", meta=(Categories="职业"))
-	bool HasProfession(FGameplayTag InProfessionIDTag) const;
-
-	/** 获取指定职业当前等级。 */
-	UFUNCTION(BlueprintPure, Category="职业|角色职业", DisplayName="获取职业等级", meta=(Categories="职业"))
-	int32 GetProfessionLevel(FGameplayTag InProfessionIDTag) const;
-
-	/** 获取指定职业当前经验。 */
-	UFUNCTION(BlueprintPure, Category="职业|角色职业", DisplayName="获取职业经验", meta=(Categories="职业"))
-	float GetProfessionExperience(FGameplayTag InProfessionIDTag) const;
-
-	/** 检查指定职业是否允许通过经验继续升级。 */
-	UFUNCTION(BlueprintPure, Category="职业|角色职业", DisplayName="职业是否可以升级", meta=(Categories="职业"))
-	bool CanProfessionUpgrade(FGameplayTag InProfessionIDTag) const;
+	ULxCharacterProfessionModule();
 
 	/** 检查角色是否可以学习指定职业，可选择跳过前置职业、属性和状态需求。 */
 	UFUNCTION(BlueprintCallable, Category="职业|角色职业", DisplayName="检查能否学习职业", meta=(Categories="职业"))
@@ -88,6 +69,9 @@ public:
 	FOnLxCharacterProfessionChanged OnProfessionChanged;
 
 protected:
+	/** 初始化职业定义缓存和已学习职业实例。 */
+	virtual void OnModuleInitialize() override;
+
 	/** 当前角色可学习的职业定义类列表。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="职业|配置", DisplayName="可学习职业定义列表")
 	TArray<TSubclassOf<ULxProfessionDefinition>> ProfessionClasses;
@@ -97,6 +81,9 @@ protected:
 	TArray<FLxProfessionRuntimeData> LearnedProfessions;
 
 private:
+	/** 检查角色是否已经学习指定职业。 */
+	bool HasProfession(FGameplayTag InProfessionIDTag) const;
+
 	/** 缓存可学习职业定义实例。 */
 	void CacheProfessionDefinitions();
 

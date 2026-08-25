@@ -1,20 +1,18 @@
 #include "LxCharacterEffectTransferComponent.h"
 
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectProcessComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
-ULxCharacterEffectTransferComponent::ULxCharacterEffectTransferComponent()
-{
-	PrimaryComponentTick.bCanEverTick = false;
-}
+ULxCharacterEffectTransferModule::ULxCharacterEffectTransferModule() = default;
 
-void ULxCharacterEffectTransferComponent::BaseComponentInitialize()
+void ULxCharacterEffectTransferModule::OnModuleInitialize()
 {
 	CacheOwnerComponents();
 }
 
-bool ULxCharacterEffectTransferComponent::SendEffectPackageToTarget(const FLxEffectPackage& InEffectPackage, AActor* TargetActor)
+bool ULxCharacterEffectTransferModule::SendEffectPackageToTarget(const FLxEffectPackage& InEffectPackage, AActor* TargetActor)
 {
 	if (TargetActor == nullptr)
 	{
@@ -33,15 +31,18 @@ bool ULxCharacterEffectTransferComponent::SendEffectPackageToTarget(const FLxEff
 	}
 
 	OutgoingEffectPackage.TargetActor = TargetActor;
-	if (ULxCharacterEffectTransferComponent* TargetEffectTransferComponent = TargetActor->FindComponentByClass<ULxCharacterEffectTransferComponent>())
+	if (const ULxCharacterEffectComponent* TargetEffectComponent = TargetActor->FindComponentByClass<ULxCharacterEffectComponent>())
 	{
-		return TargetEffectTransferComponent->ReceiveEffectPackage(OutgoingEffectPackage);
+		if (ULxCharacterEffectTransferModule* TargetTransferModule = TargetEffectComponent->GetTransferModule())
+		{
+			return TargetTransferModule->ReceiveEffectPackage(OutgoingEffectPackage);
+		}
 	}
 
 	return false;
 }
 
-void ULxCharacterEffectTransferComponent::SendEffectPackageToTargets(const FLxEffectPackage& InEffectPackage, const TArray<AActor*>& TargetActors)
+void ULxCharacterEffectTransferModule::SendEffectPackageToTargets(const FLxEffectPackage& InEffectPackage, const TArray<AActor*>& TargetActors)
 {
 	for (AActor* TargetActor : TargetActors)
 	{
@@ -54,7 +55,7 @@ void ULxCharacterEffectTransferComponent::SendEffectPackageToTargets(const FLxEf
 	}
 }
 
-bool ULxCharacterEffectTransferComponent::ReceiveEffectPackage(const FLxEffectPackage& InEffectPackage)
+bool ULxCharacterEffectTransferModule::ReceiveEffectPackage(const FLxEffectPackage& InEffectPackage)
 {
 	FLxEffectPackage IncomingEffectPackage = InEffectPackage;
 	if (IncomingEffectPackage.TargetActor == nullptr)
@@ -69,8 +70,8 @@ bool ULxCharacterEffectTransferComponent::ReceiveEffectPackage(const FLxEffectPa
 	}
 
 	DataTransferComponent = OwnerCharacter->GetCharacterDataTransferComponent();
-	EffectProcessComponent = OwnerCharacter->GetCharacterEffectProcessComponent();
-	if (DataTransferComponent == nullptr || EffectProcessComponent == nullptr)
+	EffectProcessModule = OwnerCharacter->GetCharacterEffectProcessComponent();
+	if (DataTransferComponent == nullptr || EffectProcessModule == nullptr)
 	{
 		return false;
 	}
@@ -78,7 +79,7 @@ bool ULxCharacterEffectTransferComponent::ReceiveEffectPackage(const FLxEffectPa
 	if (!IncomingEffectPackage.DamageEffects.IsEmpty())
 	{
 		FLxDamageReceiveResult DamageReceiveResult;
-		EffectProcessComponent->ReceiveIncomingEffectPackage(IncomingEffectPackage, DamageReceiveResult);
+		EffectProcessModule->ReceiveIncomingEffectPackage(IncomingEffectPackage, DamageReceiveResult);
 		IncomingEffectPackage.DamageEffects.Reset();
 	}
 
@@ -91,7 +92,7 @@ bool ULxCharacterEffectTransferComponent::ReceiveEffectPackage(const FLxEffectPa
 	return true;
 }
 
-void ULxCharacterEffectTransferComponent::CacheOwnerComponents()
+void ULxCharacterEffectTransferModule::CacheOwnerComponents()
 {
 	const ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
 	if (OwnerCharacter == nullptr)
@@ -100,5 +101,5 @@ void ULxCharacterEffectTransferComponent::CacheOwnerComponents()
 	}
 
 	DataTransferComponent = OwnerCharacter->GetCharacterDataTransferComponent();
-	EffectProcessComponent = OwnerCharacter->GetCharacterEffectProcessComponent();
+	EffectProcessModule = OwnerCharacter->GetCharacterEffectProcessComponent();
 }

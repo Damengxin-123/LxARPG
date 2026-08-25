@@ -3,18 +3,15 @@
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
-ULxCharacterEffectCacheComponent::ULxCharacterEffectCacheComponent()
-{
-	PrimaryComponentTick.bCanEverTick = false;
-}
+ULxCharacterEffectCacheModule::ULxCharacterEffectCacheModule() = default;
 
-void ULxCharacterEffectCacheComponent::BaseComponentInitialize()
+void ULxCharacterEffectCacheModule::OnModuleInitialize()
 {
 	CacheOwnerComponents();
 	RefreshCachedEffects();
 }
 
-bool ULxCharacterEffectCacheComponent::ApplyOrUpdateCachedEffectPackage(FName EffectCacheHandle,
+bool ULxCharacterEffectCacheModule::ApplyOrUpdateCachedEffectPackage(FName EffectCacheHandle,
 	const FLxEffectPackage& InEffectPackage)
 {
 	if (EffectCacheHandle.IsNone() || InEffectPackage.IsEmpty())
@@ -27,7 +24,7 @@ bool ULxCharacterEffectCacheComponent::ApplyOrUpdateCachedEffectPackage(FName Ef
 	return true;
 }
 
-bool ULxCharacterEffectCacheComponent::RemoveCachedEffectPackage(FName EffectCacheHandle)
+bool ULxCharacterEffectCacheModule::RemoveCachedEffectPackage(FName EffectCacheHandle)
 {
 	if (EffectCacheHandle.IsNone())
 	{
@@ -44,7 +41,7 @@ bool ULxCharacterEffectCacheComponent::RemoveCachedEffectPackage(FName EffectCac
 	return true;
 }
 
-void ULxCharacterEffectCacheComponent::ClearCachedEffectPackages()
+void ULxCharacterEffectCacheModule::ClearCachedEffectPackages()
 {
 	if (CachedEffectPackages.IsEmpty() && AppliedAttributeEffectHandles.IsEmpty())
 	{
@@ -55,12 +52,12 @@ void ULxCharacterEffectCacheComponent::ClearCachedEffectPackages()
 	RefreshCachedEffects();
 }
 
-FName ULxCharacterEffectCacheComponent::MakeEffectCacheHandle(const FLxEffectSourceContext& SourceContext)
+FName ULxCharacterEffectCacheModule::MakeEffectCacheHandle(const FLxEffectSourceContext& SourceContext)
 {
 	return SourceContext.MakeSourceKey();
 }
 
-void ULxCharacterEffectCacheComponent::CacheOwnerComponents()
+void ULxCharacterEffectCacheModule::CacheOwnerComponents()
 {
 	const ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
 	if (OwnerCharacter == nullptr)
@@ -71,7 +68,7 @@ void ULxCharacterEffectCacheComponent::CacheOwnerComponents()
 	AttributeComponent = OwnerCharacter->GetCharacterAttributeComponent();
 }
 
-void ULxCharacterEffectCacheComponent::RefreshCachedEffects()
+void ULxCharacterEffectCacheModule::RefreshCachedEffects()
 {
 	CacheOwnerComponents();
 	if (AttributeComponent == nullptr)
@@ -111,7 +108,7 @@ void ULxCharacterEffectCacheComponent::RefreshCachedEffects()
 	AppliedAttributeEffectHandles = MoveTemp(NewAttributeEffectHandles);
 }
 
-FLxEffectSourceContext ULxCharacterEffectCacheComponent::MakeCacheSourceContext(FName EffectCacheHandle,
+FLxEffectSourceContext ULxCharacterEffectCacheModule::MakeCacheSourceContext(FName EffectCacheHandle,
 	const FLxEffectSourceContext& SourceContext)
 {
 	FLxEffectSourceContext CacheSourceContext = SourceContext;

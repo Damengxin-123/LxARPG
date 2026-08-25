@@ -15,13 +15,22 @@ class LXARPG_API ULxCharacterLifecycleAttributeObject : public ULxCharacterSpeci
 
 public:
 	/** 绑定角色属性变化事件并检查初始生命值。 */
-	virtual void InitializeSpecialAttributeObject(ULxCharacterSpecialAttributeComponent* InOwnerComponent) override;
+	virtual void InitializeSpecialAttributeObject(ULxCharacterAttributeComponent* InOwnerComponent) override;
 
 	/** 解除角色属性变化事件。 */
 	virtual void DeinitializeSpecialAttributeObject() override;
 
 	/** 根据当前存活状态应用移动控制、倒地动画和延迟销毁逻辑。 */
 	void ApplyLifecycleState(bool bInAlive);
+
+	/** 判断角色当前是否存活。 */
+	bool IsCharacterAlive() const { return bIsAlive; }
+
+	/** 设置角色当前存活状态，并通知统一属性组件。 */
+	void SetCharacterAliveState(bool bInAlive);
+
+	/** 注册存活状态网络复制字段。 */
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** 获取存活状态标签。 */
 	FGameplayTag GetAliveStateTag() const { return AliveStateTag; }
@@ -55,6 +64,10 @@ protected:
 	FGameplayTag DeadStateTag;
 
 private:
+	/** 存活状态复制回调。 */
+	UFUNCTION(Category="角色|属性|生命周期|网络", DisplayName="同步角色存活状态")
+	void OnRep_IsAlive();
+
 	/** 角色属性变化时检查生命值是否已经归零。 */
 	UFUNCTION(Category="角色|特殊属性|生命周期", DisplayName="处理生命周期属性变化")
 	void HandleCharacterAttributesChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot);
@@ -70,6 +83,10 @@ private:
 
 	/** 当前死亡表现和销毁倒计时是否已经启动。 */
 	bool bDeathSequenceStarted = false;
+
+	/** 当前角色是否存活。 */
+	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_IsAlive, Category="角色|属性|生命周期", DisplayName="角色是否存活")
+	bool bIsAlive = true;
 
 public:
 	/** 创建生命周期特殊属性并设置默认状态标签。 */

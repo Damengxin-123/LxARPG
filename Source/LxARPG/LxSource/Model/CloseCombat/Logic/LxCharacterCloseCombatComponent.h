@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxARPG/LxSource/Core/Database/LxComponentBase.h"
+#include "LxARPG/LxSource/Model/Combat/Logic/LxCharacterCombatModuleBase.h"
 #include "LxARPG/LxSource/Model/CloseCombat/DataType/LxCloseCombatTypes.h"
 #include "LxCharacterCloseCombatComponent.generated.h"
 
@@ -20,18 +20,21 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBlockHit, const FLxBlockHitResu
 /** 格挡行为结束时广播。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBlockEnded, const FLxBlockEndContext&, EndContext);
 
-/** 角色近身战斗组件，负责攻击与格挡的互斥状态、动画、碰撞判定和结果广播。 */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色近身战斗组件")
-class LXARPG_API ULxCharacterCloseCombatComponent : public ULxComponentBase
+/** 角色近身战斗模块，负责攻击与格挡的互斥状态、碰撞判定和结果广播。 */
+UCLASS(BlueprintType, Blueprintable, EditInlineNew, DefaultToInstanced, DisplayName="角色近身战斗模块")
+class LXARPG_API ULxCharacterCloseCombatModule : public ULxCharacterCombatModuleBase
 {
 	GENERATED_BODY()
 
 public:
-	/** 创建角色近身战斗组件。 */
-	ULxCharacterCloseCombatComponent();
+	/** 创建角色近身战斗模块。 */
+	ULxCharacterCloseCombatModule();
 
-	/** 初始化并缓存组件所属角色。 */
-	virtual void BaseComponentInitialize() override;
+	/** 绑定统一战斗组件并缓存所属角色。 */
+	virtual void InitializeModule(ULxCharacterCombatComponent* InOwnerComponent) override;
+
+	/** 解绑碰撞事件并清理当前行为。 */
+	virtual void ShutdownModule() override;
 
 	/** 在空闲状态下开始一次近战攻击；请求无效或组件正忙时返回 false。 */
 	UFUNCTION(BlueprintCallable, Category="角色|近身战斗|攻击", DisplayName="开始近战攻击")
@@ -85,10 +88,6 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="角色|近身战斗|格挡", DisplayName="判定格挡是否成功")
 	bool EvaluateBlockHit(const FLxBlockHitResult& InBlockHit) const;
 	virtual bool EvaluateBlockHit_Implementation(const FLxBlockHitResult& InBlockHit) const;
-
-protected:
-	/** 组件结束运行时解绑碰撞事件并清理当前行为。 */
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
 	/** 接收当前武器碰撞体产生的开始重叠事件。 */
