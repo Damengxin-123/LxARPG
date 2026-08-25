@@ -2,7 +2,7 @@
 
 #include "GameFramework/PlayerController.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionNode.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTreasureChestInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
@@ -23,7 +23,7 @@ void ULxTreasureChestWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void ULxTreasureChestWidget::SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent)
+void ULxTreasureChestWidget::SetPlayerInteractionComponent(ULxPlayerInteractionModule* InPlayerInteractionComponent)
 {
 	if (PlayerInteractionComponent == InPlayerInteractionComponent)
 	{

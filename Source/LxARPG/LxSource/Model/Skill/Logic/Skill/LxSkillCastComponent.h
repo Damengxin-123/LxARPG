@@ -7,7 +7,7 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEnum.h"
 #include "LxSkillCastComponent.generated.h"
 
-class ULxPlayerAimComponent;
+class ULxPlayerAimModule;
 class ULxSkill;
 struct FLxPlayerAimResult;
 struct FLxSkillEntryPackage;
@@ -205,7 +205,7 @@ private:
 
 	/** 当前提供持续技能起点和方向变化的玩家瞄准组件。 */
 	UPROPERTY(Transient)
-	TObjectPtr<ULxPlayerAimComponent> SustainedAimComponent = nullptr;
+	TObjectPtr<ULxPlayerAimModule> SustainedAimComponent = nullptr;
 
 	/** 最近一次释放上下文。 */
 	UPROPERTY(Transient)

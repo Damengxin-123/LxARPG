@@ -2,7 +2,7 @@
 
 #include "GameFramework/PlayerController.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionNode.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTradeContainerInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
@@ -23,7 +23,7 @@ void ULxTradeContainerWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void ULxTradeContainerWidget::SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent)
+void ULxTradeContainerWidget::SetPlayerInteractionComponent(ULxPlayerInteractionModule* InPlayerInteractionComponent)
 {
 	if (PlayerInteractionComponent == InPlayerInteractionComponent)
 	{

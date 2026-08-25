@@ -3,7 +3,7 @@
 #include "LxDialogueInteractionWidget.h"
 #include "LxInteractionEntranceWidget.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/UI/Trade/LxTradeContainerWidget.h"
 #include "LxARPG/LxSource/UI/TreasureChest/LxTreasureChestWidget.h"
@@ -18,7 +18,7 @@ namespace
 	}
 }
 
-void ULxInteractionUIManager::SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent)
+void ULxInteractionUIManager::SetPlayerInteractionComponent(ULxPlayerInteractionModule* InPlayerInteractionComponent)
 {
 	PlayerInteractionComponent = InPlayerInteractionComponent;
 	RefreshInteractionUI();

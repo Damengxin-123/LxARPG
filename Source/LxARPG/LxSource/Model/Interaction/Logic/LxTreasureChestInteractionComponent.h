@@ -29,7 +29,7 @@ public:
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	/** 宝箱被交互时进入交互中状态，并通知外部 UI 打开。 */
-	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) override;
+	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
 
 	/** 获取当前宝箱内物品槽位列表，宝箱 UI 使用该列表生成格子。 */
 	UFUNCTION(BlueprintCallable, Category="交互|宝箱", DisplayName="获取宝箱内物品槽位列表")

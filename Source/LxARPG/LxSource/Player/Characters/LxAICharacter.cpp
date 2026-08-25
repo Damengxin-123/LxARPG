@@ -1,7 +1,8 @@
 #include "LxAICharacter.h"
 
 #include "Components/WidgetComponent.h"
-#include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorComponent.h"
+#include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorModule.h"
+#include "LxARPG/LxSource/Model/AI/Logic/LxAIControlComponent.h"
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
@@ -25,7 +26,7 @@ ALxAICharacter::ALxAICharacter()
 {
 	AIControllerClass = ALxAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-	AIBehaviorComponent = CreateDefaultSubobject<ULxAIBehaviorComponent>(TEXT("AIBehaviorComponent"));
+	AIControlComponent = CreateDefaultSubobject<ULxAIControlComponent>(TEXT("AI操控组件"));
 
 	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::NoThreat,
 		{ELxAIActionType::Patrol, ELxAIActionType::Alert}));
@@ -39,13 +40,18 @@ ALxAICharacter::ALxAICharacter()
 		{ELxAIActionType::Retreat, ELxAIActionType::Defend}));
 }
 
+ULxAIBehaviorModule* ALxAICharacter::GetAIBehaviorComponent() const
+{
+	return AIControlComponent ? AIControlComponent->GetBehaviorModule() : nullptr;
+}
+
 void ALxAICharacter::InitialCharacterInformation()
 {
 	Super::InitialCharacterInformation();
 	BindCharacterInfoWidgets();
-	if (AIBehaviorComponent)
+	if (AIControlComponent)
 	{
-		AIBehaviorComponent->BaseComponentInitialize();
+		AIControlComponent->BaseComponentInitialize();
 	}
 }
 

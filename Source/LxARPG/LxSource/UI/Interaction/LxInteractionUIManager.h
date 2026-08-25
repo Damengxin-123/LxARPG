@@ -7,7 +7,7 @@
 class ALxPlayerCharacter;
 class ULxDialogueInteractionWidget;
 class ULxInteractionEntranceWidget;
-class ULxPlayerInteractionComponent;
+class ULxPlayerInteractionModule;
 class ULxTradeContainerWidget;
 class ULxTreasureChestWidget;
 class ULxWarehouseWidget;
@@ -21,7 +21,7 @@ class LXARPG_API ULxInteractionUIManager : public ULxUIManagementObject
 public:
 	/** 设置玩家交互组件，并同步给所有已注册的交互 UI。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="设置玩家交互组件")
-	void SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent);
+	void SetPlayerInteractionComponent(ULxPlayerInteractionModule* InPlayerInteractionComponent);
 
 	/** 从玩家角色读取玩家交互组件。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="设置玩家角色")
@@ -64,7 +64,7 @@ private:
 private:
 	/** 当前玩家交互组件。 */
 	UPROPERTY(Transient)
-	TObjectPtr<ULxPlayerInteractionComponent> PlayerInteractionComponent = nullptr;
+	TObjectPtr<ULxPlayerInteractionModule> PlayerInteractionComponent = nullptr;
 
 	/** 交互入口界面。 */
 	UPROPERTY(Transient)

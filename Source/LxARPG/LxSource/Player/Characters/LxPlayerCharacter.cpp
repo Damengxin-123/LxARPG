@@ -2,10 +2,10 @@
 
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "LxARPG/LxSource/Model/Aim/LxPlayerAimComponent.h"
-#include "LxARPG/LxSource/Model/ControlMove/LxPlayerControlMoveComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerAimModule.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractableComponent.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerControlComponent.h"
 
 ALxPlayerCharacter::ALxPlayerCharacter()
 {
@@ -13,9 +13,7 @@ ALxPlayerCharacter::ALxPlayerCharacter()
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	m_pPlayerControlMoveComponent = CreateDefaultSubobject<ULxPlayerControlMoveComponent>(TEXT("PlayerControlMoveComponent"));
-	m_pPlayerInteractionComponent = CreateDefaultSubobject<ULxPlayerInteractionComponent>(TEXT("PlayerInteractionComponent"));
-	m_pPlayerAimComponent = CreateDefaultSubobject<ULxPlayerAimComponent>(TEXT("m_pPlayerAimComponent"));
+	m_pPlayerControlComponent = CreateDefaultSubobject<ULxPlayerControlComponent>(TEXT("玩家操控组件"));
 
 	m_pCameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("相机弹簧臂"));
 	m_pCameraBoom->SetupAttachment(RootComponent);
@@ -30,38 +28,38 @@ ALxPlayerCharacter::ALxPlayerCharacter()
 	m_pFollowCamera->bUsePawnControlRotation = false;
 }
 
+ULxPlayerInteractionModule* ALxPlayerCharacter::GetPlayerInteractionComponent() const
+{
+	return m_pPlayerControlComponent ? m_pPlayerControlComponent->GetInteractionModule() : nullptr;
+}
+
+ULxPlayerAimModule* ALxPlayerCharacter::GetPlayerAimComponent() const
+{
+	return m_pPlayerControlComponent ? m_pPlayerControlComponent->GetAimModule() : nullptr;
+}
+
 void ALxPlayerCharacter::InitialCharacterInformation()
 {
 	Super::InitialCharacterInformation();
 
-	if (m_pPlayerControlMoveComponent)
+	if (m_pPlayerControlComponent)
 	{
-		m_pPlayerControlMoveComponent->BaseComponentInitialize();
-	}
-
-	if (m_pPlayerInteractionComponent)
-	{
-		m_pPlayerInteractionComponent->BaseComponentInitialize();
-	}
-
-	if (m_pPlayerAimComponent)
-	{
-		m_pPlayerAimComponent->BaseComponentInitialize();
+		m_pPlayerControlComponent->BaseComponentInitialize();
 	}
 }
 
 void ALxPlayerCharacter::ReceiveInteractableComponent_Implementation(ULxInteractableComponent* InInteractableComponent)
 {
-	if (m_pPlayerInteractionComponent)
+	if (ULxPlayerInteractionModule* PlayerInteractionModule = GetPlayerInteractionComponent())
 	{
-		m_pPlayerInteractionComponent->AddInteractableComponent(InInteractableComponent);
+		PlayerInteractionModule->AddInteractableComponent(InInteractableComponent);
 	}
 }
 
 void ALxPlayerCharacter::RemoveInteractableComponent_Implementation(ULxInteractableComponent* InInteractableComponent)
 {
-	if (m_pPlayerInteractionComponent)
+	if (ULxPlayerInteractionModule* PlayerInteractionModule = GetPlayerInteractionComponent())
 	{
-		m_pPlayerInteractionComponent->RemoveInteractableComponent(InInteractableComponent);
+		PlayerInteractionModule->RemoveInteractableComponent(InInteractableComponent);
 	}
 }

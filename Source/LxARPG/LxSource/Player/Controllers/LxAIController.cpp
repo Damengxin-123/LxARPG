@@ -7,7 +7,7 @@
 #include "Perception/AISense_Damage.h"
 #include "Perception/AISense_Sight.h"
 #include "TimerManager.h"
-#include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorComponent.h"
+#include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorModule.h"
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
@@ -86,7 +86,7 @@ void ALxAIController::OnUnPossess()
 	GetWorldTimerManager().ClearTimer(AutomaticDecisionTimer);
 	if (ALxAICharacter* AICharacter = GetAICharacter())
 	{
-		if (ULxAIBehaviorComponent* BehaviorComponent = AICharacter->GetAIBehaviorComponent())
+		if (ULxAIBehaviorModule* BehaviorComponent = AICharacter->GetAIBehaviorComponent())
 		{
 			BehaviorComponent->StopBehavior();
 		}
@@ -370,7 +370,7 @@ ELxAIActionType ALxAIController::SelectFirstExecutableAction(const FLxAIBattleSn
 	const ELxAISituationLevel InSituation, const TSet<ELxAIActionType>& InExcludedActions) const
 {
 	const ALxAICharacter* AICharacter = GetAICharacter();
-	const ULxAIBehaviorComponent* BehaviorComponent = AICharacter ? AICharacter->GetAIBehaviorComponent() : nullptr;
+	const ULxAIBehaviorModule* BehaviorComponent = AICharacter ? AICharacter->GetAIBehaviorComponent() : nullptr;
 	if (!AICharacter || !BehaviorComponent)
 	{
 		return ELxAIActionType::None;
@@ -402,7 +402,7 @@ ELxAIActionType ALxAIController::SelectFirstExecutableAction(const FLxAIBattleSn
 void ALxAIController::SelectAndExecuteAction(const ELxAISituationLevel InSituation)
 {
 	ALxAICharacter* AICharacter = GetAICharacter();
-	ULxAIBehaviorComponent* BehaviorComponent = AICharacter ? AICharacter->GetAIBehaviorComponent() : nullptr;
+	ULxAIBehaviorModule* BehaviorComponent = AICharacter ? AICharacter->GetAIBehaviorComponent() : nullptr;
 	if (!BehaviorComponent)
 	{
 		ChangeAction(InSituation, ELxAIActionType::None);

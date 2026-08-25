@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Model/Interaction/Interface/LxInteractionReceiverInterface.h"
@@ -7,9 +7,9 @@
 
 class UCameraComponent;
 class ULxInteractableComponent;
-class ULxPlayerAimComponent;
-class ULxPlayerControlMoveComponent;
-class ULxPlayerInteractionComponent;
+class ULxPlayerAimModule;
+class ULxPlayerControlComponent;
+class ULxPlayerInteractionModule;
 class USpringArmComponent;
 
 /** 玩家角色，持有玩家移动、相机和交互管理组件。 */
@@ -32,27 +32,23 @@ public:
 	UCameraComponent* GetFollowCamera() const { return m_pFollowCamera; }
 
 	UFUNCTION(BlueprintCallable, Category="组件|交互", DisplayName="获取玩家交互组件")
-	ULxPlayerInteractionComponent* GetPlayerInteractionComponent() const { return m_pPlayerInteractionComponent; }
+	ULxPlayerInteractionModule* GetPlayerInteractionComponent() const;
 
 	/** 获取玩家瞄准组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件|瞄准", DisplayName="获取玩家瞄准组件")
-	ULxPlayerAimComponent* GetPlayerAimComponent() const { return m_pPlayerAimComponent; }
+	ULxPlayerAimModule* GetPlayerAimComponent() const;
+
+	/** 获取统一管理玩家移动、瞄准和交互模块的玩家操控组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件|玩家操控", DisplayName="获取玩家操控组件")
+	ULxPlayerControlComponent* GetPlayerControlComponent() const { return m_pPlayerControlComponent; }
 
 	virtual void ReceiveInteractableComponent_Implementation(ULxInteractableComponent* InInteractableComponent) override;
 	virtual void RemoveInteractableComponent_Implementation(ULxInteractableComponent* InInteractableComponent) override;
 
 protected:
-	/** 玩家移动控制组件，用于处理本地玩家输入驱动的移动。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|输入", DisplayName="玩家移动控制组件")
-	TObjectPtr<ULxPlayerControlMoveComponent> m_pPlayerControlMoveComponent;
-
-	/** 玩家交互组件，用于收集和处理当前可交互对象。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|交互", DisplayName="玩家交互组件")
-	TObjectPtr<ULxPlayerInteractionComponent> m_pPlayerInteractionComponent;
-
-	/** 玩家瞄准组件，用于处理准星检测、瞄准相机和瞄准时角色转向。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|瞄准", DisplayName="玩家瞄准组件")
-	TObjectPtr<ULxPlayerAimComponent> m_pPlayerAimComponent;
+	/** 玩家操控组件，统一持有移动输入、瞄准和交互模块。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|玩家操控", DisplayName="玩家操控组件")
+	TObjectPtr<ULxPlayerControlComponent> m_pPlayerControlComponent;
 
 	/** 相机弹簧臂组件，用于控制跟随相机距离和旋转继承。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|相机", DisplayName="相机弹簧臂")

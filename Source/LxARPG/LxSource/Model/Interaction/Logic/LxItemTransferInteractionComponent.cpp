@@ -2,7 +2,7 @@
 
 #include "GameFramework/Actor.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
-#include "LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 
@@ -11,7 +11,7 @@ ULxItemTransferInteractionComponent::ULxItemTransferInteractionComponent()
 	InteractionActionType = ELxInteractionActionType::ItemTransfer;
 }
 
-bool ULxItemTransferInteractionComponent::CheckInteractionRequirement_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) const
+bool ULxItemTransferInteractionComponent::CheckInteractionRequirement_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) const
 {
 	if (!Super::CheckInteractionRequirement_Implementation(PlayerInteractionComponent) || ItemTransferList.IsEmpty())
 	{
@@ -30,7 +30,7 @@ bool ULxItemTransferInteractionComponent::CheckInteractionRequirement_Implementa
 		: DataTransferComponent->CheckHaveBackpackItemList(ItemTransferList);
 }
 
-bool ULxItemTransferInteractionComponent::ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent)
+bool ULxItemTransferInteractionComponent::ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent)
 {
 	if (!Super::ExecuteInteraction_Implementation(PlayerInteractionComponent))
 	{

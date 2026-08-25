@@ -20,8 +20,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Interaction|Item Transfer", DisplayName="获取物品传递清单")
 	void GetItemTransferList(TArray<FLxItemQuote>& OutItemTransferList) const { OutItemTransferList = ItemTransferList; }
 
-	virtual bool CheckInteractionRequirement_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) const override;
-	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) override;
+	virtual bool CheckInteractionRequirement_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) const override;
+	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
 
 	UPROPERTY(BlueprintAssignable, Category="Interaction|Item Transfer", DisplayName="物品传递完成")
 	FOnLxItemTransferCompleted OnItemTransferCompleted;

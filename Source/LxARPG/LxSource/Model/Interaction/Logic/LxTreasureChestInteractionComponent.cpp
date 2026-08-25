@@ -38,7 +38,7 @@ void ULxTreasureChestInteractionComponent::GetLifetimeReplicatedProps(TArray<FLi
 	DOREPLIFETIME(ULxTreasureChestInteractionComponent, ReplicatedTreasureChestSlots);
 }
 
-bool ULxTreasureChestInteractionComponent::ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent)
+bool ULxTreasureChestInteractionComponent::ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent)
 {
 	if (!Super::ExecuteInteraction_Implementation(PlayerInteractionComponent))
 	{

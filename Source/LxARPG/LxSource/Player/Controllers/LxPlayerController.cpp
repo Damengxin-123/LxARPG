@@ -6,7 +6,7 @@
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Input/Logic/LxInputComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxItemTransferInteractionComponent.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTradeContainerInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTriggerMechanismInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTreasureChestInteractionComponent.h"
@@ -14,6 +14,7 @@
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Chat/Logic/LxPlayerChatComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/Model/SystemOperate/LxPlayerSystemOperateComponent.h"
 #include "LxARPG/LxSource/Systems/GameMode/LxARPGGameMode.h"
 #include "GameFramework/Actor.h"
@@ -200,7 +201,8 @@ void ALxPlayerController::ServerExecuteItemTransfer_Implementation(AActor* ItemT
 
 	ULxItemTransferInteractionComponent* ItemTransferComponent = ItemTransferOwner->FindComponentByClass<ULxItemTransferInteractionComponent>();
 	ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
-	ULxPlayerInteractionComponent* PlayerInteractionComponent = CurrentCharacter ? CurrentCharacter->FindComponentByClass<ULxPlayerInteractionComponent>() : nullptr;
+	const ALxPlayerCharacter* PlayerCharacter = Cast<ALxPlayerCharacter>(CurrentCharacter);
+	ULxPlayerInteractionModule* PlayerInteractionComponent = PlayerCharacter ? PlayerCharacter->GetPlayerInteractionComponent() : nullptr;
 	if (ItemTransferComponent && PlayerInteractionComponent)
 	{
 		ItemTransferComponent->ExecuteInteraction(PlayerInteractionComponent);
@@ -216,7 +218,8 @@ void ALxPlayerController::ServerTriggerMechanism_Implementation(AActor* Mechanis
 
 	ULxTriggerMechanismInteractionComponent* TriggerMechanismComponent = MechanismOwner->FindComponentByClass<ULxTriggerMechanismInteractionComponent>();
 	ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
-	ULxPlayerInteractionComponent* PlayerInteractionComponent = CurrentCharacter ? CurrentCharacter->FindComponentByClass<ULxPlayerInteractionComponent>() : nullptr;
+	const ALxPlayerCharacter* PlayerCharacter = Cast<ALxPlayerCharacter>(CurrentCharacter);
+	ULxPlayerInteractionModule* PlayerInteractionComponent = PlayerCharacter ? PlayerCharacter->GetPlayerInteractionComponent() : nullptr;
 	if (TriggerMechanismComponent && PlayerInteractionComponent)
 	{
 		TriggerMechanismComponent->TriggerMechanism(PlayerInteractionComponent);

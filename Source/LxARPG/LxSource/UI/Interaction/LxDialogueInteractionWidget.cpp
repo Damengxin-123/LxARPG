@@ -1,7 +1,7 @@
 #include "LxDialogueInteractionWidget.h"
 
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionNode.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
 #include "GameFramework/PlayerController.h"
@@ -19,7 +19,7 @@ void ULxDialogueInteractionWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void ULxDialogueInteractionWidget::SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent)
+void ULxDialogueInteractionWidget::SetPlayerInteractionComponent(ULxPlayerInteractionModule* InPlayerInteractionComponent)
 {
 	if (PlayerInteractionComponent == InPlayerInteractionComponent)
 	{

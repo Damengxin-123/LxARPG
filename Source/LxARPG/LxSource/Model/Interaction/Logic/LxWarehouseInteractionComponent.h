@@ -30,7 +30,7 @@ public:
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	/** 仓库交互被触发时调用，进入交互中状态并通知外部表现。 */
-	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) override;
+	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
 
 	/** 获取当前仓库持有的全部物品槽位列表，仓库 UI 使用该列表生成物品格子。 */
 	UFUNCTION(BlueprintCallable, Category="交互|仓库", DisplayName="获取仓库物品槽位列表")

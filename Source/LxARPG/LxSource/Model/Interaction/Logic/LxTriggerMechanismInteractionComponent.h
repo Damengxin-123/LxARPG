@@ -1,10 +1,10 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "LxInteractionActionComponentBase.h"
 #include "LxTriggerMechanismInteractionComponent.generated.h"
 
-class ULxPlayerInteractionComponent;
+class ULxPlayerInteractionModule;
 
 /** 鏈哄叧鐘舵€佹敼鍙樹簨浠躲€?*/
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxMechanismStateChanged, ELxMechanismState, NewState);
@@ -23,8 +23,8 @@ public:
 
 	/** 瑙﹀彂鏈哄叧銆傞粯璁や細鍦ㄥ叧闂拰寮€鍚姸鎬佷箣闂村垏鎹紝涓嶅彲寮€鍚姸鎬佷笉浼氳Е鍙戞垚鍔熴€?*/
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Interaction|Mechanism", DisplayName="Trigger Mechanism")
-	bool TriggerMechanism(ULxPlayerInteractionComponent* PlayerInteractionComponent);
-	virtual bool TriggerMechanism_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent);
+	bool TriggerMechanism(ULxPlayerInteractionModule* PlayerInteractionComponent);
+	virtual bool TriggerMechanism_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent);
 
 	/** 璁剧疆鏈哄叧鐘舵€侊紝骞跺箍鎾満鍏崇姸鎬佹敼鍙樹簨浠躲€?*/
 	UFUNCTION(BlueprintCallable, Category="Interaction|Mechanism", DisplayName="Set Mechanism State")
@@ -35,7 +35,7 @@ public:
 	ELxMechanismState GetMechanismState() const { return MechanismState; }
 
 	virtual FGameplayTag GetPromptTextTag() const override;
-	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) override;
+	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
 
 	/** 鏈哄叧鐘舵€佹敼鍙樻椂瑙﹀彂锛屼緵钃濆浘鍝嶅簲闂ㄣ€佸紑鍏崇瓑琛ㄧ幇銆?*/
 	UPROPERTY(BlueprintAssignable, Category="Interaction|Mechanism", DisplayName="Mechanism State Changed")

@@ -1,7 +1,7 @@
 #include "LxTradeContainerInteractionComponent.h"
 
 #include "GameFramework/Actor.h"
-#include "LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
@@ -54,7 +54,7 @@ void ULxTradeContainerInteractionComponent::EndPlay(const EEndPlayReason::Type E
 	Super::EndPlay(EndPlayReason);
 }
 
-bool ULxTradeContainerInteractionComponent::ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent)
+bool ULxTradeContainerInteractionComponent::ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent)
 {
 	if (!Super::ExecuteInteraction_Implementation(PlayerInteractionComponent))
 	{

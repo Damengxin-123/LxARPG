@@ -6,7 +6,8 @@
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxAICharacter.generated.h"
 
-class ULxAIBehaviorComponent;
+class ULxAIBehaviorModule;
+class ULxAIControlComponent;
 
 /** 由配置驱动的AI角色类型，继承角色通用属性、技能和战斗组件。 */
 UCLASS(Blueprintable, DisplayName="AI控制角色")
@@ -23,7 +24,11 @@ public:
 
 	/** 获取负责组合调用角色通用组件的AI行为组件。 */
 	UFUNCTION(BlueprintPure, Category="AI|行为", DisplayName="获取AI行为组件")
-	ULxAIBehaviorComponent* GetAIBehaviorComponent() const { return AIBehaviorComponent; }
+	ULxAIBehaviorModule* GetAIBehaviorComponent() const;
+
+	/** 获取统一管理 AI 行为模块的 AI 操控组件。 */
+	UFUNCTION(BlueprintPure, Category="AI|操控", DisplayName="获取AI操控组件")
+	ULxAIControlComponent* GetAIControlComponent() const { return AIControlComponent; }
 
 	/** 获取无需连接蓝图节点即可运行的AI控制参数。 */
 	UFUNCTION(BlueprintPure, Category="角色配置|AI", DisplayName="获取AI控制配置")
@@ -52,9 +57,9 @@ protected:
 	/** 将当前生命比例推送给角色身上的全部AI角色信息界面。 */
 	void RefreshCharacterInfoWidgetsHealth() const;
 
-	/** 将AI决策结果转换为角色通用移动、近战和技能组件调用。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|行为", DisplayName="AI行为组件")
-	TObjectPtr<ULxAIBehaviorComponent> AIBehaviorComponent;
+	/** AI 操控组件，统一持有 AI 行为执行模块。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|操控", DisplayName="AI操控组件")
+	TObjectPtr<ULxAIControlComponent> AIControlComponent;
 
 	/** 当前角色独立感知、数值对比、行为匹配和执行使用的参数。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|AI", DisplayName="AI控制配置")

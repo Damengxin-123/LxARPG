@@ -2,7 +2,7 @@
 
 #include "LxARPG/LxSource/Core/Tools/LxString.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionNode.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 
 void ULxInteractionEntranceWidget::NativeConstruct()
 {
@@ -33,7 +33,7 @@ bool ULxInteractionEntranceWidget::HandleInputEvent(ELxInputActionID InputID, co
 	return true;
 }
 
-void ULxInteractionEntranceWidget::SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent)
+void ULxInteractionEntranceWidget::SetPlayerInteractionComponent(ULxPlayerInteractionModule* InPlayerInteractionComponent)
 {
 	if (PlayerInteractionComponent == InPlayerInteractionComponent)
 	{

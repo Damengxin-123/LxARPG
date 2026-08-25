@@ -6,7 +6,7 @@
 #include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionOption.h"
 #include "LxDialogueInteractionWidget.generated.h"
 
-class ULxPlayerInteractionComponent;
+class ULxPlayerInteractionModule;
 
 /** 对话交互UI，负责显示已经触发的入口/对话节点内容，并把选项选择回传给玩家交互组件。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="对话交互UI")
@@ -20,7 +20,7 @@ public:
 
 	/** 设置当前UI绑定的玩家交互组件，并监听当前交互节点和选项变化。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="设置玩家交互组件")
-	void SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent);
+	void SetPlayerInteractionComponent(ULxPlayerInteractionModule* InPlayerInteractionComponent);
 
 	/** 获取当前可供玩家选择的对话选项数量。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取对话选项数量")
@@ -58,7 +58,7 @@ private:
 
 	/** 当前绑定的玩家交互组件。 */
 	UPROPERTY(Transient)
-	TObjectPtr<ULxPlayerInteractionComponent> PlayerInteractionComponent = nullptr;
+	TObjectPtr<ULxPlayerInteractionModule> PlayerInteractionComponent = nullptr;
 
 	/** 当前节点的子选项缓存，已过滤返回上级选项。 */
 	UPROPERTY(Transient)

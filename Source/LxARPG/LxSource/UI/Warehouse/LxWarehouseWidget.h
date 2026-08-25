@@ -6,7 +6,7 @@
 #include "LxWarehouseWidget.generated.h"
 
 class ULxItemSlotData;
-class ULxPlayerInteractionComponent;
+class ULxPlayerInteractionModule;
 class ULxWarehouseInteractionComponent;
 
 /** 仓库界面基类。监听玩家交互组件，并在仓库节点被激活后显示当前仓库槽位。 */
@@ -21,7 +21,7 @@ public:
 
 	/** 设置玩家交互组件，仓库界面通过它接收仓库交互节点激活事件。 */
 	UFUNCTION(BlueprintCallable, Category="仓库UI", DisplayName="设置玩家交互组件")
-	void SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent);
+	void SetPlayerInteractionComponent(ULxPlayerInteractionModule* InPlayerInteractionComponent);
 
 	/** 设置当前界面持有的仓库组件，通常由交互节点激活事件自动传入。 */
 	UFUNCTION(BlueprintCallable, Category="仓库UI", DisplayName="设置仓库组件")
@@ -77,7 +77,7 @@ private:
 
 	/** 当前玩家交互组件。 */
 	UPROPERTY(Transient)
-	TObjectPtr<ULxPlayerInteractionComponent> PlayerInteractionComponent = nullptr;
+	TObjectPtr<ULxPlayerInteractionModule> PlayerInteractionComponent = nullptr;
 
 	/** 当前仓库界面正在展示的仓库组件。 */
 	UPROPERTY(Transient)

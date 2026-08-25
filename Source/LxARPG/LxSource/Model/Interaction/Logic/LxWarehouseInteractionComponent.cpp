@@ -35,7 +35,7 @@ void ULxWarehouseInteractionComponent::GetLifetimeReplicatedProps(TArray<FLifeti
 	DOREPLIFETIME(ULxWarehouseInteractionComponent, ReplicatedWarehouseSlots);
 }
 
-bool ULxWarehouseInteractionComponent::ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent)
+bool ULxWarehouseInteractionComponent::ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent)
 {
 	if (!Super::ExecuteInteraction_Implementation(PlayerInteractionComponent))
 	{

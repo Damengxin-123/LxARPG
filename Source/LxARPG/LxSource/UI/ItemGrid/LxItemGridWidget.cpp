@@ -11,7 +11,7 @@
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTradeContainerInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTreasureChestInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxWarehouseInteractionComponent.h"
-#include "LxARPG/LxSource/Model/Aim/LxPlayerAimComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerAimModule.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkill.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -39,7 +39,7 @@ namespace
 			? Cast<ALxPlayerCharacter>(Widget->GetOwningPlayerPawn())
 			: nullptr)
 		{
-			if (ULxPlayerAimComponent* PlayerAimComponent = PlayerCharacter->GetPlayerAimComponent())
+			if (ULxPlayerAimModule* PlayerAimComponent = PlayerCharacter->GetPlayerAimComponent())
 			{
 				return PlayerAimComponent->MakeAimSkillCastContext(SourceObject);
 			}

@@ -4,7 +4,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "TimerManager.h"
-#include "LxARPG/LxSource/Model/Aim/LxPlayerAimComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerAimModule.h"
 #include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
 #include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/Combat/Logic/LxCharacterCombatComponent.h"

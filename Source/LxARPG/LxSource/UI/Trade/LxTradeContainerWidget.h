@@ -6,7 +6,7 @@
 #include "LxTradeContainerWidget.generated.h"
 
 class ULxItemSlotData;
-class ULxPlayerInteractionComponent;
+class ULxPlayerInteractionModule;
 class ULxTradeContainerInteractionComponent;
 
 UCLASS(Blueprintable, BlueprintType, DisplayName="交易容器界面")
@@ -19,7 +19,7 @@ public:
 	virtual void NativeDestruct() override;
 
 	UFUNCTION(BlueprintCallable, Category="Trade UI", DisplayName="设置玩家交互组件")
-	void SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent);
+	void SetPlayerInteractionComponent(ULxPlayerInteractionModule* InPlayerInteractionComponent);
 
 	UFUNCTION(BlueprintCallable, Category="Trade UI", DisplayName="设置交易容器组件")
 	void SetTradeContainerComponent(ULxTradeContainerInteractionComponent* InTradeContainerComponent);
@@ -59,7 +59,7 @@ private:
 	void HandleTradeSlotListChanged(const TArray<ULxItemSlotData*>& TradeSlots);
 
 	UPROPERTY(Transient)
-	TObjectPtr<ULxPlayerInteractionComponent> PlayerInteractionComponent = nullptr;
+	TObjectPtr<ULxPlayerInteractionModule> PlayerInteractionComponent = nullptr;
 
 	UPROPERTY(Transient)
 	TObjectPtr<ULxTradeContainerInteractionComponent> TradeContainerComponent = nullptr;

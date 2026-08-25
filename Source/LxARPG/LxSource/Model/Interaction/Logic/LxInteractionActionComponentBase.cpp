@@ -28,12 +28,12 @@ bool ULxInteractionActionComponentBase::IsInteractionValid_Implementation() cons
 	return InteractionState == ELxInteractionDataState::Interactable;
 }
 
-bool ULxInteractionActionComponentBase::CheckInteractionRequirement_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) const
+bool ULxInteractionActionComponentBase::CheckInteractionRequirement_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) const
 {
 	return PlayerInteractionComponent != nullptr;
 }
 
-bool ULxInteractionActionComponentBase::ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent)
+bool ULxInteractionActionComponentBase::ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent)
 {
 	return IsInteractionValid() && CheckInteractionRequirement(PlayerInteractionComponent);
 }

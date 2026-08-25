@@ -19,7 +19,7 @@
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSingleRaySkillUnitActor.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxStraightProjectileSkillUnitActor.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitSpec.h"
-#include "LxARPG/LxSource/Model/Aim/LxPlayerAimComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerAimModule.h"
 #include "LxARPG/LxSource/Model/CharacterPoint/Logic/LxCharacterAnchorPointComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
@@ -501,7 +501,7 @@ FTransform ULxSkill::GetSkillSpawnTransform() const
 		// 玩家首技能单元在真正创建的瞬间重新检测准星，彻底避免复用上一次释放缓存的位置与方向。
 		if (const ALxPlayerCharacter* PlayerCharacter = Cast<ALxPlayerCharacter>(CurrentCastContext.CasterActor))
 		{
-			if (const ULxPlayerAimComponent* AimComponent = PlayerCharacter->GetPlayerAimComponent())
+			if (const ULxPlayerAimModule* AimComponent = PlayerCharacter->GetPlayerAimComponent())
 			{
 				FLxPlayerAimResult LiveAimResult;
 				if (AimComponent->CalculateAimResult(LiveAimResult))

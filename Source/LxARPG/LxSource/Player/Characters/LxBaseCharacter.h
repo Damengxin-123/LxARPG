@@ -27,6 +27,7 @@ class ULxCharacterLifecycleComponent;
 class ULxCharacterProfessionModule;
 class ULxCharacterTestComponent;
 class ULxCharacterBehaviorControlComponent;
+class ULxCharacterLocomotionComponent;
 class ULxCharacterStateComponent;
 class ULxCharacterSpecialAttributeComponent;
 class ULxSkillBackpackModule;
@@ -97,7 +98,11 @@ public:
 
 	/** 获取统一管理移动、跳跃、朝向和即时状态的角色行为控制组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件|角色行为", DisplayName="获取角色行为控制组件")
-	ULxCharacterBehaviorControlComponent* GetCharacterBehaviorControlComponent() const { return m_pCharacterBehaviorControlComponent; }
+	ULxCharacterBehaviorControlComponent* GetCharacterBehaviorControlComponent() const;
+
+	/** 获取玩家与 AI 共用的角色运动组件。 */
+	UFUNCTION(BlueprintCallable, Category="组件|角色运动", DisplayName="获取角色运动组件")
+	ULxCharacterLocomotionComponent* GetCharacterLocomotionComponent() const { return m_pCharacterLocomotionComponent; }
 
 	/** 获取角色动画处理组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件|角色动画", DisplayName="获取角色动画处理组件")
@@ -216,9 +221,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|默认词条", DisplayName="默认词条配置")
 	TArray<FLxEntryQuote> DefaultEntryConfig;
 
-	/** 角色行为控制组件，统一管理移动、跳跃、朝向、即时行为状态和动画运动信号。 */
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色行为", DisplayName="角色行为控制组件")
-	TObjectPtr<ULxCharacterBehaviorControlComponent> m_pCharacterBehaviorControlComponent;
+	/** 角色运动组件，统一管理移动、跳跃、导航、朝向、即时行为状态和动画运动信号。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色运动", DisplayName="角色运动组件")
+	TObjectPtr<ULxCharacterLocomotionComponent> m_pCharacterLocomotionComponent;
 
 	/** 角色动画处理组件，用于将运动信号转换为动画播放信号。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|角色动画", DisplayName="角色动画处理组件")

@@ -6,7 +6,7 @@
 #include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionData.h"
 #include "LxInteractionActionComponentBase.generated.h"
 
-class ULxPlayerInteractionComponent;
+class ULxPlayerInteractionModule;
 
 /** 交互行为状态变化事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxInteractionActionStateChanged, ELxInteractionDataState, NewState);
@@ -48,13 +48,13 @@ public:
 
 	/** 检查玩家是否满足此交互行为的需求。 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="交互", DisplayName="检测交互需求")
-	bool CheckInteractionRequirement(ULxPlayerInteractionComponent* PlayerInteractionComponent) const;
-	virtual bool CheckInteractionRequirement_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) const;
+	bool CheckInteractionRequirement(ULxPlayerInteractionModule* PlayerInteractionComponent) const;
+	virtual bool CheckInteractionRequirement_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) const;
 
 	/** 执行交互行为。子类应重写此函数处理实际业务。 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="交互", DisplayName="执行交互")
-	bool ExecuteInteraction(ULxPlayerInteractionComponent* PlayerInteractionComponent);
-	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent);
+	bool ExecuteInteraction(ULxPlayerInteractionModule* PlayerInteractionComponent);
+	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent);
 
 	UPROPERTY(BlueprintAssignable, Category="交互", DisplayName="交互状态变化事件")
 	FOnLxInteractionActionStateChanged OnInteractionStateChanged;

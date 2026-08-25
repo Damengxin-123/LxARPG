@@ -22,7 +22,7 @@ public:
 	virtual void BaseComponentInitialize() override;
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionComponent* PlayerInteractionComponent) override;
+	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
 
 	UFUNCTION(BlueprintCallable, Category="Interaction|Trade", DisplayName="获取交易物品槽位列表")
 	void GetTradeItemSlotList(TArray<ULxItemSlotData*>& OutTradeSlots) const;

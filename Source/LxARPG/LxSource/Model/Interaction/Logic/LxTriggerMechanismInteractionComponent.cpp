@@ -1,7 +1,7 @@
 #include "LxTriggerMechanismInteractionComponent.h"
 
 #include "GameFramework/Actor.h"
-#include "LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 #include "Net/UnrealNetwork.h"
@@ -29,7 +29,7 @@ void ULxTriggerMechanismInteractionComponent::GetLifetimeReplicatedProps(TArray<
 }
 
 bool ULxTriggerMechanismInteractionComponent::TriggerMechanism_Implementation(
-	ULxPlayerInteractionComponent* PlayerInteractionComponent)
+	ULxPlayerInteractionModule* PlayerInteractionComponent)
 {
 	if (!Super::ExecuteInteraction_Implementation(PlayerInteractionComponent))
 	{
@@ -92,7 +92,7 @@ FGameplayTag ULxTriggerMechanismInteractionComponent::GetPromptTextTag() const
 }
 
 bool ULxTriggerMechanismInteractionComponent::ExecuteInteraction_Implementation(
-	ULxPlayerInteractionComponent* PlayerInteractionComponent)
+	ULxPlayerInteractionModule* PlayerInteractionComponent)
 {
 	return TriggerMechanism(PlayerInteractionComponent);
 }

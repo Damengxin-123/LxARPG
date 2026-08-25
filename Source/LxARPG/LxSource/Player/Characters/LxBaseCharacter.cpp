@@ -8,6 +8,7 @@
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
 #include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterLocomotionComponent.h"
 #include "LxARPG/LxSource/Model/CloseCombat/Logic/LxCharacterCloseCombatComponent.h"
 #include "LxARPG/LxSource/Model/Combat/Logic/LxCharacterCombatComponent.h"
 #include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentComponent.h"
@@ -36,7 +37,7 @@ ALxBaseCharacter::ALxBaseCharacter()
 	SetReplicateMovement(true);
 	CharacterIDTag = LxTag_CharacterID_DefaultCharacter;
 	CharacterNameIDTag = LxTag_UnitNaming_DefaultNaming;
-	m_pCharacterBehaviorControlComponent = CreateDefaultSubobject<ULxCharacterBehaviorControlComponent>(TEXT("角色行为控制组件"));
+	m_pCharacterLocomotionComponent = CreateDefaultSubobject<ULxCharacterLocomotionComponent>(TEXT("角色运动组件"));
 	m_pCharacterAnimationProcessComponent = CreateDefaultSubobject<ULxCharacterAnimationProcessComponent>(TEXT("CharacterAnimationProcessComponent"));
 	m_pCharacterContentComponent = CreateDefaultSubobject<ULxCharacterContentComponent>(TEXT("角色内容组件"));
 	m_pCharacterAttributeComponent = CreateDefaultSubobject<ULxCharacterAttributeComponent>(TEXT("CharacterAttributeComponent"));
@@ -60,6 +61,11 @@ ALxBaseCharacter::ALxBaseCharacter()
 FTransform ALxBaseCharacter::GetSkillReleaseAnchorTransform() const
 {
 	return m_pSkillReleaseAnchorPoint->GetComponentTransform();
+}
+
+ULxCharacterBehaviorControlComponent* ALxBaseCharacter::GetCharacterBehaviorControlComponent() const
+{
+	return m_pCharacterLocomotionComponent;
 }
 
 ULxCharacterBackpackModule* ALxBaseCharacter::GetCharacterBackpackComponent() const
@@ -132,9 +138,9 @@ void ALxBaseCharacter::InitialCharacterInformation()
 	}
 
 	// 动画处理组件先绑定行为事件，避免行为组件初始化时发送的首个基础运动信号丢失。
-	if (m_pCharacterBehaviorControlComponent)
+	if (m_pCharacterLocomotionComponent)
 	{
-		m_pCharacterBehaviorControlComponent->BaseComponentInitialize();
+		m_pCharacterLocomotionComponent->BaseComponentInitialize();
 	}
 
 	if (m_pCharacterContentComponent)

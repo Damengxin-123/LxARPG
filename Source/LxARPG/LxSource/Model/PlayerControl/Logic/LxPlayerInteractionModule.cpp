@@ -1,16 +1,17 @@
-#include "LxPlayerInteractionComponent.h"
+#include "LxPlayerInteractionModule.h"
 
-#include "LxInteractableComponent.h"
-#include "LxInteractionActionComponentBase.h"
-#include "LxItemTransferInteractionComponent.h"
-#include "LxInteractionNode.h"
-#include "LxTriggerMechanismInteractionComponent.h"
-#include "LxTradeContainerInteractionComponent.h"
-#include "LxTreasureChestInteractionComponent.h"
-#include "LxWarehouseInteractionComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractableComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionActionComponentBase.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxItemTransferInteractionComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionNode.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxTriggerMechanismInteractionComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxTradeContainerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxTreasureChestInteractionComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxWarehouseInteractionComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 
 namespace
 {
@@ -23,10 +24,10 @@ namespace
 	}
 }
 
-void ULxPlayerInteractionComponent::BaseComponentInitialize()
+void ULxPlayerInteractionModule::InitializeModule(ULxPlayerControlComponent* InOwnerComponent)
 {
-	Super::BaseComponentInitialize();
-	ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
+	Super::InitializeModule(InOwnerComponent);
+	ALxBaseCharacter* OwnerCharacter = GetPlayerCharacter();
 	if (!IsInteractionControlledByLocalPlayer(OwnerCharacter))
 	{
 		UnregisterAllInputActionReceives();
@@ -36,15 +37,15 @@ void ULxPlayerInteractionComponent::BaseComponentInitialize()
 	InitMonitorRegistration();
 }
 
-void ULxPlayerInteractionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void ULxPlayerInteractionModule::ShutdownModule()
 {
 	ClearInteractableComponents();
-	Super::EndPlay(EndPlayReason);
+	Super::ShutdownModule();
 }
 
-void ULxPlayerInteractionComponent::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
+void ULxPlayerInteractionModule::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
 {
-	ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
+	ALxBaseCharacter* OwnerCharacter = GetPlayerCharacter();
 	if (!IsInteractionControlledByLocalPlayer(OwnerCharacter))
 	{
 		return;
@@ -65,13 +66,13 @@ void ULxPlayerInteractionComponent::HandleInputValue(ELxInputActionID InInputAct
 	}
 }
 
-void ULxPlayerInteractionComponent::InitMonitorRegistration()
+void ULxPlayerInteractionModule::InitMonitorRegistration()
 {
 	RegisterInputActionReceive(ELxInputActionID::InteractionBack);
 	RegisterInputActionReceive(ELxInputActionID::InteractionCancel);
 }
 
-void ULxPlayerInteractionComponent::AddInteractableComponent(ULxInteractableComponent* InInteractableComponent)
+void ULxPlayerInteractionModule::AddInteractableComponent(ULxInteractableComponent* InInteractableComponent)
 {
 	// 只有存在有效入口节点的对象才进入待交互队列。
 	if (!InInteractableComponent || InteractableQueue.Contains(InInteractableComponent) || !InInteractableComponent->HasValidInteraction())
@@ -84,7 +85,7 @@ void ULxPlayerInteractionComponent::AddInteractableComponent(ULxInteractableComp
 	RefreshEntranceOptions();
 }
 
-void ULxPlayerInteractionComponent::RemoveInteractableComponent(ULxInteractableComponent* InInteractableComponent)
+void ULxPlayerInteractionModule::RemoveInteractableComponent(ULxInteractableComponent* InInteractableComponent)
 {
 	if (!InInteractableComponent)
 	{
@@ -102,7 +103,7 @@ void ULxPlayerInteractionComponent::RemoveInteractableComponent(ULxInteractableC
 	RefreshEntranceOptions();
 }
 
-void ULxPlayerInteractionComponent::ClearInteractableComponents()
+void ULxPlayerInteractionModule::ClearInteractableComponents()
 {
 	for (ULxInteractableComponent* InteractableComponent : InteractableQueue)
 	{
@@ -114,7 +115,7 @@ void ULxPlayerInteractionComponent::ClearInteractableComponents()
 	RefreshEntranceOptions();
 }
 
-TArray<ULxInteractableComponent*> ULxPlayerInteractionComponent::GetInteractableQueue() const
+TArray<ULxInteractableComponent*> ULxPlayerInteractionModule::GetInteractableQueue() const
 {
 	TArray<ULxInteractableComponent*> Result;
 	for (ULxInteractableComponent* InteractableComponent : InteractableQueue)
@@ -124,7 +125,7 @@ TArray<ULxInteractableComponent*> ULxPlayerInteractionComponent::GetInteractable
 	return Result;
 }
 
-void ULxPlayerInteractionComponent::RefreshEntranceOptions()
+void ULxPlayerInteractionModule::RefreshEntranceOptions()
 {
 	// 入口选项按照可交互对象进入队列的先后顺序展开。
 	RemoveInvalidInteractables();
@@ -149,7 +150,7 @@ void ULxPlayerInteractionComponent::RefreshEntranceOptions()
 	OnEntranceOptionsUpdated.Broadcast(CachedEntranceOptions);
 }
 
-void ULxPlayerInteractionComponent::RefreshCurrentInteractionOptions()
+void ULxPlayerInteractionModule::RefreshCurrentInteractionOptions()
 {
 	CachedCurrentOptions.Reset();
 
@@ -180,7 +181,7 @@ void ULxPlayerInteractionComponent::RefreshCurrentInteractionOptions()
 	OnCurrentInteractionOptionsUpdated.Broadcast(CachedCurrentOptions);
 }
 
-void ULxPlayerInteractionComponent::SelectEntranceOptionByIndex(int32 OptionIndex)
+void ULxPlayerInteractionModule::SelectEntranceOptionByIndex(int32 OptionIndex)
 {
 	if (!CachedEntranceOptions.IsValidIndex(OptionIndex))
 	{
@@ -190,12 +191,12 @@ void ULxPlayerInteractionComponent::SelectEntranceOptionByIndex(int32 OptionInde
 	ActivateInteractionOption(CachedEntranceOptions[OptionIndex]);
 }
 
-void ULxPlayerInteractionComponent::SelectInteractionOption(const FLxInteractionOption& Option)
+void ULxPlayerInteractionModule::SelectInteractionOption(const FLxInteractionOption& Option)
 {
 	ActivateInteractionOption(Option);
 }
 
-bool ULxPlayerInteractionComponent::ActivateInteractionOption(const FLxInteractionOption& Option)
+bool ULxPlayerInteractionModule::ActivateInteractionOption(const FLxInteractionOption& Option)
 {
 	if (!Option.IsValid())
 	{
@@ -247,7 +248,7 @@ bool ULxPlayerInteractionComponent::ActivateInteractionOption(const FLxInteracti
 	{
 		ULxTriggerMechanismInteractionComponent* TriggerMechanismComponent =
 			Cast<ULxTriggerMechanismInteractionComponent>(CurrentInteractionNode->GetActionComponent());
-		if (!TriggerMechanismComponent)
+		if (!TriggerMechanismComponent || !TriggerMechanismComponent->TriggerMechanism(this))
 		{
 			return false;
 		}
@@ -265,7 +266,7 @@ bool ULxPlayerInteractionComponent::ActivateInteractionOption(const FLxInteracti
 	{
 		ULxItemTransferInteractionComponent* ItemTransferComponent =
 			Cast<ULxItemTransferInteractionComponent>(CurrentInteractionNode->GetActionComponent());
-		if (!ItemTransferComponent)
+		if (!ItemTransferComponent || !ItemTransferComponent->ExecuteInteraction(this))
 		{
 			return false;
 		}
@@ -283,7 +284,7 @@ bool ULxPlayerInteractionComponent::ActivateInteractionOption(const FLxInteracti
 	{
 		ULxWarehouseInteractionComponent* WarehouseComponent =
 			Cast<ULxWarehouseInteractionComponent>(CurrentInteractionNode->GetActionComponent());
-		if (!WarehouseComponent)
+		if (!WarehouseComponent || !WarehouseComponent->ExecuteInteraction(this))
 		{
 			return false;
 		}
@@ -293,7 +294,7 @@ bool ULxPlayerInteractionComponent::ActivateInteractionOption(const FLxInteracti
 	{
 		ULxTreasureChestInteractionComponent* TreasureChestComponent =
 			Cast<ULxTreasureChestInteractionComponent>(CurrentInteractionNode->GetActionComponent());
-		if (!TreasureChestComponent)
+		if (!TreasureChestComponent || !TreasureChestComponent->ExecuteInteraction(this))
 		{
 			return false;
 		}
@@ -303,7 +304,7 @@ bool ULxPlayerInteractionComponent::ActivateInteractionOption(const FLxInteracti
 	{
 		ULxTradeContainerInteractionComponent* TradeContainerComponent =
 			Cast<ULxTradeContainerInteractionComponent>(CurrentInteractionNode->GetActionComponent());
-		if (!TradeContainerComponent)
+		if (!TradeContainerComponent || !TradeContainerComponent->ExecuteInteraction(this))
 		{
 			return false;
 		}
@@ -314,7 +315,7 @@ bool ULxPlayerInteractionComponent::ActivateInteractionOption(const FLxInteracti
 	return true;
 }
 
-void ULxPlayerInteractionComponent::BackToParentInteractionNode()
+void ULxPlayerInteractionModule::BackToParentInteractionNode()
 {
 	if (!CurrentInteractionNode)
 	{
@@ -332,7 +333,7 @@ void ULxPlayerInteractionComponent::BackToParentInteractionNode()
 	ActivateInteractionOption(BuildOption(CurrentInteractableComponent, ParentNode));
 }
 
-void ULxPlayerInteractionComponent::CancelInteraction()
+void ULxPlayerInteractionModule::CancelInteraction()
 {
 	CurrentInteractableComponent = nullptr;
 	CurrentInteractionNode = nullptr;
@@ -341,7 +342,7 @@ void ULxPlayerInteractionComponent::CancelInteraction()
 	OnInteractionCancelled.Broadcast();
 }
 
-FLxInteractionOption ULxPlayerInteractionComponent::BuildOption(ULxInteractableComponent* SourceComponent, ULxInteractionNode* Node, bool bIsBackOption) const
+FLxInteractionOption ULxPlayerInteractionModule::BuildOption(ULxInteractableComponent* SourceComponent, ULxInteractionNode* Node, bool bIsBackOption) const
 {
 	FLxInteractionOption Option;
 	Option.SourceInteractionComponent = SourceComponent;
@@ -358,7 +359,7 @@ FLxInteractionOption ULxPlayerInteractionComponent::BuildOption(ULxInteractableC
 	return Option;
 }
 
-bool ULxPlayerInteractionComponent::ShouldShowInEntranceOptions(const ULxInteractionNode* Node) const
+bool ULxPlayerInteractionModule::ShouldShowInEntranceOptions(const ULxInteractionNode* Node) const
 {
 	if (!Node)
 	{
@@ -369,7 +370,7 @@ bool ULxPlayerInteractionComponent::ShouldShowInEntranceOptions(const ULxInterac
 	return Node->GetInteractionActionType() == ELxInteractionActionType::Entrance || !Node->GetParentNode();
 }
 
-bool ULxPlayerInteractionComponent::ValidateInteractionNodePlacement(const ULxInteractionNode* Node) const
+bool ULxPlayerInteractionModule::ValidateInteractionNodePlacement(const ULxInteractionNode* Node) const
 {
 	if (!Node)
 	{
@@ -385,24 +386,24 @@ bool ULxPlayerInteractionComponent::ValidateInteractionNodePlacement(const ULxIn
 	return true;
 }
 
-void ULxPlayerInteractionComponent::BindInteractableComponent(ULxInteractableComponent* InInteractableComponent)
+void ULxPlayerInteractionModule::BindInteractableComponent(ULxInteractableComponent* InInteractableComponent)
 {
 	if (InInteractableComponent)
 	{
-		InInteractableComponent->OnInteractableOptionsChanged.RemoveDynamic(this, &ULxPlayerInteractionComponent::HandleInteractableOptionsChanged);
-		InInteractableComponent->OnInteractableOptionsChanged.AddDynamic(this, &ULxPlayerInteractionComponent::HandleInteractableOptionsChanged);
+		InInteractableComponent->OnInteractableOptionsChanged.RemoveDynamic(this, &ULxPlayerInteractionModule::HandleInteractableOptionsChanged);
+		InInteractableComponent->OnInteractableOptionsChanged.AddDynamic(this, &ULxPlayerInteractionModule::HandleInteractableOptionsChanged);
 	}
 }
 
-void ULxPlayerInteractionComponent::UnbindInteractableComponent(ULxInteractableComponent* InInteractableComponent)
+void ULxPlayerInteractionModule::UnbindInteractableComponent(ULxInteractableComponent* InInteractableComponent)
 {
 	if (InInteractableComponent)
 	{
-		InInteractableComponent->OnInteractableOptionsChanged.RemoveDynamic(this, &ULxPlayerInteractionComponent::HandleInteractableOptionsChanged);
+		InInteractableComponent->OnInteractableOptionsChanged.RemoveDynamic(this, &ULxPlayerInteractionModule::HandleInteractableOptionsChanged);
 	}
 }
 
-void ULxPlayerInteractionComponent::RemoveInvalidInteractables()
+void ULxPlayerInteractionModule::RemoveInvalidInteractables()
 {
 	for (int32 Index = InteractableQueue.Num() - 1; Index >= 0; --Index)
 	{
@@ -415,7 +416,7 @@ void ULxPlayerInteractionComponent::RemoveInvalidInteractables()
 	}
 }
 
-void ULxPlayerInteractionComponent::HandleInteractableOptionsChanged()
+void ULxPlayerInteractionModule::HandleInteractableOptionsChanged()
 {
 	RefreshEntranceOptions();
 	RefreshCurrentInteractionOptions();

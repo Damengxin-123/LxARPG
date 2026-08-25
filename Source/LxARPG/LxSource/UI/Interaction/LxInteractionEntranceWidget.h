@@ -6,7 +6,7 @@
 #include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionOption.h"
 #include "LxInteractionEntranceWidget.generated.h"
 
-class ULxPlayerInteractionComponent;
+class ULxPlayerInteractionModule;
 
 /** 交互入口UI，负责显示可交互入口选项，并把触发输入提交到当前选中的入口选项。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="交互入口UI")
@@ -21,7 +21,7 @@ public:
 
 	/** 设置当前UI使用的玩家交互组件，并刷新入口选项。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="设置玩家交互组件")
-	void SetPlayerInteractionComponent(ULxPlayerInteractionComponent* InPlayerInteractionComponent);
+	void SetPlayerInteractionComponent(ULxPlayerInteractionModule* InPlayerInteractionComponent);
 
 	/** 获取当前缓存的入口选项数量。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取入口选项数量")
@@ -89,7 +89,7 @@ private:
 
 	/** 当前绑定的玩家交互组件。 */
 	UPROPERTY(Transient)
-	TObjectPtr<ULxPlayerInteractionComponent> PlayerInteractionComponent = nullptr;
+	TObjectPtr<ULxPlayerInteractionModule> PlayerInteractionComponent = nullptr;
 
 	/** 当前入口选项完整缓存，用于通过下标执行真实交互。 */
 	UPROPERTY(Transient)
