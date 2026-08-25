@@ -77,10 +77,10 @@ FLxCharacterBaseAttributeConfig::FLxCharacterBaseAttributeConfig()
 }
 
 bool ULxCharacterBaseAttributeConfigFunctionLibrary::GetCharacterBaseAttributeConfig(
-	const FGameplayTag InCharacterTag, FLxCharacterBaseAttributeConfig& OutAttributeConfig)
+	const FGameplayTag InCharacterIDTag, FLxCharacterBaseAttributeConfig& OutAttributeConfig)
 {
 	OutAttributeConfig = FLxCharacterBaseAttributeConfig();
-	if (!InCharacterTag.IsValid())
+	if (!InCharacterIDTag.IsValid())
 	{
 		return false;
 	}
@@ -93,23 +93,30 @@ bool ULxCharacterBaseAttributeConfigFunctionLibrary::GetCharacterBaseAttributeCo
 	}
 
 	const FString ContextString = TEXT("ULxCharacterBaseAttributeConfigFunctionLibrary::GetCharacterBaseAttributeConfig");
-	const FLxCharacterBaseAttributeConfig* AttributeConfig =
-		AttributeTable->FindRow<FLxCharacterBaseAttributeConfig>(InCharacterTag.GetTagName(), ContextString, false);
-	if (AttributeConfig != nullptr && AttributeConfig->CharacterTag == InCharacterTag)
-	{
-		OutAttributeConfig = *AttributeConfig;
-		return true;
-	}
-
 	TArray<FLxCharacterBaseAttributeConfig*> AttributeConfigs;
 	AttributeTable->GetAllRows<FLxCharacterBaseAttributeConfig>(ContextString, AttributeConfigs);
+	const FLxCharacterBaseAttributeConfig* MatchedConfig = nullptr;
 	for (const FLxCharacterBaseAttributeConfig* CurrentConfig : AttributeConfigs)
 	{
-		if (CurrentConfig != nullptr && CurrentConfig->CharacterTag == InCharacterTag)
+		if (CurrentConfig == nullptr || CurrentConfig->CharacterTag != InCharacterIDTag)
 		{
-			OutAttributeConfig = *CurrentConfig;
-			return true;
+			continue;
 		}
+
+		if (MatchedConfig != nullptr)
+		{
+			UE_LOG(LogTemp, Error, TEXT("角色基础属性表存在重复角色ID：%s。角色ID必须唯一。"),
+				*InCharacterIDTag.ToString());
+			return false;
+		}
+
+		MatchedConfig = CurrentConfig;
+	}
+
+	if (MatchedConfig != nullptr)
+	{
+		OutAttributeConfig = *MatchedConfig;
+		return true;
 	}
 
 	return false;

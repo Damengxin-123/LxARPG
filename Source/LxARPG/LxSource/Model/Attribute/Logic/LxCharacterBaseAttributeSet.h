@@ -5,6 +5,8 @@
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxCharacterBaseAttributeSet.generated.h"
 
+struct FLxCharacterBaseAttributeConfig;
+
 /** 角色属性配置与运行时数据对象，按标量、资源和区间三种数值结构建立索引。 */
 UCLASS(BlueprintType, Blueprintable, EditInlineNew, DefaultToInstanced, DisplayName="角色属性配置")
 class LXARPG_API ULxCharacterBaseAttributeSet : public UObject
@@ -14,6 +16,9 @@ class LXARPG_API ULxCharacterBaseAttributeSet : public UObject
 public:
 	/** 创建属性对象并注册全部固定属性。 */
 	ULxCharacterBaseAttributeSet();
+
+	/** 使用统一角色属性表中的一行配置覆盖全部基础属性。 */
+	void ApplyBaseAttributeConfig(const FLxCharacterBaseAttributeConfig& InAttributeConfig);
 
 	/** 查询标量属性。 */
 	UFUNCTION(BlueprintPure, Category="角色|属性|查询", DisplayName="获取标量属性")

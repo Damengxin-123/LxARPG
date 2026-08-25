@@ -897,9 +897,21 @@ void ULxCharacterDataTransferComponent::RefreshEquipmentEntryPackage()
 
 void ULxCharacterDataTransferComponent::RefreshBuffEntryPackage()
 {
-	TArray<TObjectPtr<ULxEntryObjectBase>> EntryList;
-	CollectBuffEntries(EntryList);
-	DispatchEntryList(ELxCharacterEntrySource::Buff, EntryList);
+	FLxEffectPackage EffectPackage;
+	EffectPackage.SourceContext.SourceType = ELxEffectPackageSource::Buff;
+	EffectPackage.SourceContext.SourceName = FName(*StaticEnum<ELxCharacterEntrySource>()->GetNameStringByValue(
+		static_cast<int64>(ELxCharacterEntrySource::Buff)));
+	EffectPackage.TargetActor = GetOwner();
+	EffectPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::ReplaceSameSource;
+
+	TArray<ULxBuff*> BuffList;
+	GetAllBuffs(BuffList);
+	for (ULxBuff* BuffLogic : BuffList)
+	{
+		AppendBuffEntriesToEffectPackage(BuffLogic, EffectPackage);
+	}
+
+	DispatchEffectPackageByType(EffectPackage);
 }
 
 void ULxCharacterDataTransferComponent::RefreshProfessionEffectPackages()
@@ -1027,20 +1039,25 @@ void ULxCharacterDataTransferComponent::CollectEquipmentEntries(TArray<TObjectPt
 	}
 }
 
-void ULxCharacterDataTransferComponent::CollectBuffEntries(TArray<TObjectPtr<ULxEntryObjectBase>>& OutEntryList) const
+void ULxCharacterDataTransferComponent::AppendBuffEntriesToEffectPackage(ULxBuff* InBuffLogic,
+	FLxEffectPackage& InOutEffectPackage) const
 {
-	OutEntryList.Reset();
-
-	TArray<ULxBuff*> BuffList;
-	GetAllBuffs(BuffList);
-	for (ULxBuff* BuffLogic : BuffList)
+	if (InBuffLogic == nullptr || !InBuffLogic->ItemIsValid())
 	{
-		if (BuffLogic == nullptr || !BuffLogic->ItemIsValid())
+		return;
+	}
+
+	const float EffectProportion = BuffComponent != nullptr
+		? BuffComponent->GetBuffEffectProportion(InBuffLogic)
+		: 1.f;
+	for (ULxEntryObjectBase* EntryObject : InBuffLogic->GetItemEntryList())
+	{
+		if (EntryObject == nullptr || EntryObject->GetEntryBase() == nullptr)
 		{
 			continue;
 		}
 
-		OutEntryList.Append(BuffLogic->GetItemEntryList());
+		EntryObject->AppendEffectsToPackage(InOutEffectPackage, EffectProportion);
 	}
 }
 
@@ -1094,11 +1111,13 @@ void ULxCharacterDataTransferComponent::HandleBuffPeriodActivated(ULxBuff* BuffL
 		return;
 	}
 
-	FLxCharacterEntryPackage EntryPackage;
-	BuildEntryPackage(ELxCharacterEntrySource::Buff, BuffLogic->GetItemEntryList(), EntryPackage);
 	FLxEffectPackage EffectPackage;
-	BuildEffectPackageFromEntryPackage(EntryPackage, EffectPackage);
+	EffectPackage.SourceContext.SourceType = ELxEffectPackageSource::Buff;
+	EffectPackage.SourceContext.SourceName = FName(*StaticEnum<ELxCharacterEntrySource>()->GetNameStringByValue(
+		static_cast<int64>(ELxCharacterEntrySource::Buff)));
+	EffectPackage.TargetActor = GetOwner();
 	EffectPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::Instant;
+	AppendBuffEntriesToEffectPackage(BuffLogic, EffectPackage);
 	EffectPackage.AttributeModifierEffects.Reset();
 	DispatchEffectPackageByType(EffectPackage);
 	BroadcastBuffData();

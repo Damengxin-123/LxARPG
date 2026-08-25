@@ -1,5 +1,6 @@
 #include "LxBaseCharacter.h"
 
+#include "LxCharacterIDTags.h"
 #include "LxCharacterNameTags.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
@@ -31,6 +32,7 @@ ALxBaseCharacter::ALxBaseCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
 	SetReplicateMovement(true);
+	CharacterIDTag = LxTag_CharacterID_DefaultCharacter;
 	CharacterNameIDTag = LxTag_UnitNaming_DefaultNaming;
 	m_pCharacterBehaviorControlComponent = CreateDefaultSubobject<ULxCharacterBehaviorControlComponent>(TEXT("角色行为控制组件"));
 	m_pCharacterAnimationProcessComponent = CreateDefaultSubobject<ULxCharacterAnimationProcessComponent>(TEXT("CharacterAnimationProcessComponent"));
@@ -60,6 +62,12 @@ ALxBaseCharacter::ALxBaseCharacter()
 FTransform ALxBaseCharacter::GetSkillReleaseAnchorTransform() const
 {
 	return m_pSkillReleaseAnchorPoint->GetComponentTransform();
+}
+
+FGameplayTag ALxBaseCharacter::GetCharacterIDTag() const
+{
+	// 原生标签可能晚于角色类默认对象完成注册，因此未配置时在运行期返回已注册的默认角色标签。
+	return CharacterIDTag.IsValid() ? CharacterIDTag : LxTag_CharacterID_DefaultCharacter.GetTag();
 }
 
 void ALxBaseCharacter::InitialCharacterInformation()

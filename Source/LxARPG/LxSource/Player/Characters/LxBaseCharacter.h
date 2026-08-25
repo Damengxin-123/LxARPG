@@ -11,7 +11,6 @@
 class UDataTable;
 class ULxCharacterAnimationProcessComponent;
 class ULxCharacterAttributeComponent;
-class ULxCharacterBaseAttributeSet;
 class ULxCharacterAnchorPointComponent;
 class ULxCharacterBackpackComponent;
 class ULxCharacterBuffComponent;
@@ -177,9 +176,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="组件", DisplayName="获取角色测试组件")
 	ULxCharacterTestComponent* GetCharacterTestComponent() const { return m_pCharacterTestComponent; }
 
-	/** 获取创建角色运行时基础属性对象所使用的配置类型。 */
-	UFUNCTION(BlueprintPure, Category="角色配置|基础属性", DisplayName="获取基础属性配置类型")
-	TSubclassOf<ULxCharacterBaseAttributeSet> GetCharacterBaseAttributeSetClass() const { return CharacterBaseAttributeSetClass; }
+	/** 获取角色属性配置表查询使用的唯一角色ID标签。 */
+	UFUNCTION(BlueprintPure, Category="角色配置|基础属性", DisplayName="获取角色ID标签")
+	FGameplayTag GetCharacterIDTag() const;
 
 	/** 获取角色初始化时自动应用的默认词条配置。 */
 	UFUNCTION(BlueprintPure, Category="角色配置|默认词条", DisplayName="获取默认词条配置")
@@ -191,12 +190,9 @@ public:
 	FText GetCharacterNamingText() const { return CharacterNamingText; }
 
 protected:
-	/**
-	 * 角色基础属性配置类型；具体角色通过继承配置类型覆盖默认值。
-	 * 未配置时使用原生基础属性配置类型。
-	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|基础属性", DisplayName="基础属性配置类型")
-	TSubclassOf<ULxCharacterBaseAttributeSet> CharacterBaseAttributeSetClass;
+	/** 角色属性配置表查询使用的唯一ID标签，由具体角色类型配置。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|基础属性", DisplayName="角色ID标签", meta=(Categories="角色"))
+	FGameplayTag CharacterIDTag;
 
 	/** 当前角色使用的命名ID标签，初始化时会用它从名称数据表查询显示文本。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|命名", DisplayName="名称ID标签", meta=(Categories="单位命名"))

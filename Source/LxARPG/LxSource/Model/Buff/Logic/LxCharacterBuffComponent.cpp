@@ -383,6 +383,12 @@ void ULxCharacterBuffComponent::GetDisplayBuffs(TArray<ULxBuff*>& OutBuffList) c
 	GetActiveBuffs(OutBuffList);
 }
 
+float ULxCharacterBuffComponent::GetBuffEffectProportion(ULxBuff* InBuffLogic) const
+{
+	const FLxBuffRuntimeInfo* RuntimeInfo = FindRuntimeInfo(InBuffLogic);
+	return RuntimeInfo != nullptr ? RuntimeInfo->EffectProportion : 1.f;
+}
+
 void ULxCharacterBuffComponent::SyncReplicatedBuffList()
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())

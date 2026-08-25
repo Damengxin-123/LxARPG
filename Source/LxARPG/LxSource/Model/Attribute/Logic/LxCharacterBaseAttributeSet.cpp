@@ -1,5 +1,6 @@
 #include "LxCharacterBaseAttributeSet.h"
 
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxCharacterBaseAttributeConfig.h"
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 
 namespace
@@ -94,6 +95,44 @@ ULxCharacterBaseAttributeSet::ULxCharacterBaseAttributeSet()
 	BlockDamageReduction.ScalarRule.MaximumValue = 1.f;
 	BlockDamageReduction.ScalarRule.DisplayFormat = ELxScalarAttributeDisplayFormat::Percentage;
 	MovementSpeedBonus.ScalarRule.DisplayFormat = ELxScalarAttributeDisplayFormat::Percentage;
+}
+
+void ULxCharacterBaseAttributeSet::ApplyBaseAttributeConfig(const FLxCharacterBaseAttributeConfig& InAttributeConfig)
+{
+	const TArray<FLxScalarAttributeData> ScalarAttributes =
+	{
+		InAttributeConfig.Strength,
+		InAttributeConfig.Wisdom,
+		InAttributeConfig.Agility,
+		InAttributeConfig.Constitution,
+		InAttributeConfig.CriticalChance,
+		InAttributeConfig.CriticalDamage,
+		InAttributeConfig.BlockDamageReduction,
+		InAttributeConfig.Armor,
+		InAttributeConfig.AttackSpeed,
+		InAttributeConfig.MovementSpeedBonus,
+		InAttributeConfig.CarryWeight,
+		InAttributeConfig.BaseMovementSpeed,
+		InAttributeConfig.Luck,
+		InAttributeConfig.FireAffinity,
+		InAttributeConfig.WaterAffinity,
+		InAttributeConfig.ElectricAffinity,
+		InAttributeConfig.LightGodFaith,
+		InAttributeConfig.NatureFaith
+	};
+	const TArray<FLxResourceAttributeData> ResourceAttributes =
+	{
+		InAttributeConfig.Health,
+		InAttributeConfig.Mana,
+		InAttributeConfig.Stamina,
+		InAttributeConfig.Shield
+	};
+	const TArray<FLxRangeAttributeData> RangeAttributes =
+	{
+		InAttributeConfig.AttackPower
+	};
+
+	ApplyTypedSnapshots(ScalarAttributes, ResourceAttributes, RangeAttributes);
 }
 
 bool ULxCharacterBaseAttributeSet::GetScalarAttribute(const FGameplayTag InAttributeIDTag, FLxScalarAttributeData& OutAttribute) const { return CopyIndexedAttribute(ScalarAttributeIndex, InAttributeIDTag, OutAttribute); }

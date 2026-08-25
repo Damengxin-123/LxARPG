@@ -20,8 +20,8 @@ struct LXARPG_API FLxCharacterBaseAttributeConfig : public FTableRowBase
 	/** 创建配置并初始化各属性固定的标签、业务分类和数值类型。 */
 	FLxCharacterBaseAttributeConfig();
 
-	/** 标识该行配置所属角色的唯一标签。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="角色|基础属性配置", DisplayName="角色标签")
+	/** 标识该行配置所属角色的唯一ID标签；数据表行名称不参与查询。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="角色|基础属性配置", DisplayName="角色ID标签", meta=(Categories="角色"))
 	FGameplayTag CharacterTag;
 
 	/** 力量能力值。 */
@@ -125,12 +125,12 @@ class LXARPG_API ULxCharacterBaseAttributeConfigFunctionLibrary : public UBluepr
 
 public:
 	/**
-	 * 根据角色标签从游戏设置中的角色基础属性表查询配置。
+	 * 根据角色ID标签遍历游戏设置中的角色基础属性表查询配置，不使用数据表行名称。
 	 *
-	 * @param InCharacterTag 需要查询的角色标签。
+	 * @param InCharacterIDTag 需要查询的角色ID标签。
 	 * @param OutAttributeConfig 查询成功时返回的角色基础属性配置副本。
 	 * @return 游戏设置、数据表、角色标签和对应表行均有效时返回 true。
 	 */
 	UFUNCTION(BlueprintPure, Category="角色|基础属性配置", DisplayName="获取角色基础属性配置")
-	static bool GetCharacterBaseAttributeConfig(FGameplayTag InCharacterTag, FLxCharacterBaseAttributeConfig& OutAttributeConfig);
+	static bool GetCharacterBaseAttributeConfig(FGameplayTag InCharacterIDTag, FLxCharacterBaseAttributeConfig& OutAttributeConfig);
 };

@@ -1,6 +1,7 @@
 #include "LxCharacterAttributeComponent.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxCharacterBaseAttributeConfig.h"
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -59,13 +60,21 @@ void ULxCharacterAttributeComponent::InitializeRuntimeAttributeSet()
 	AttributeConfigurationTemplate = nullptr;
 	RuntimeAttributeSet = nullptr;
 	const ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
-	const TSubclassOf<ULxCharacterBaseAttributeSet> ConfigurationClass = OwnerCharacter != nullptr
-		? OwnerCharacter->GetCharacterBaseAttributeSetClass()
-		: nullptr;
+	AttributeConfigurationTemplate = NewObject<ULxCharacterBaseAttributeSet>(this);
 
-	const TSubclassOf<ULxCharacterBaseAttributeSet> EffectiveConfigurationClass(
-		ConfigurationClass != nullptr ? ConfigurationClass.Get() : ULxCharacterBaseAttributeSet::StaticClass());
-	AttributeConfigurationTemplate = DuplicateObject<ULxCharacterBaseAttributeSet>(EffectiveConfigurationClass->GetDefaultObject<ULxCharacterBaseAttributeSet>(), this);
+	FLxCharacterBaseAttributeConfig AttributeConfig;
+	if (OwnerCharacter != nullptr
+		&& ULxCharacterBaseAttributeConfigFunctionLibrary::GetCharacterBaseAttributeConfig(
+			OwnerCharacter->GetCharacterIDTag(), AttributeConfig))
+	{
+		AttributeConfigurationTemplate->ApplyBaseAttributeConfig(AttributeConfig);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("角色属性初始化未找到配置，角色=%s，角色ID=%s，将使用原生默认属性。"),
+			*GetNameSafe(OwnerCharacter),
+			OwnerCharacter != nullptr ? *OwnerCharacter->GetCharacterIDTag().ToString() : TEXT("无效角色"));
+	}
 
 	ResetRuntimeAttributeSetFromConfiguration();
 }

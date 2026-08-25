@@ -121,6 +121,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="Buff", DisplayName="获取显示Buff")
 	void GetDisplayBuffs(TArray<ULxBuff*>& OutBuffList) const;
 
+	/** 获取指定运行时 Buff 的效果比例；Buff 不存在时返回默认比例 1。 */
+	float GetBuffEffectProportion(ULxBuff* InBuffLogic) const;
+
 	/** Buff 添加事件。 */
 	UPROPERTY(BlueprintAssignable, DisplayName="Buff添加事件")
 	FOnBuffLogicChanged OnBuffAdded;
