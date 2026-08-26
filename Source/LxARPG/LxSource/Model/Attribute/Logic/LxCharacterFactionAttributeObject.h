@@ -21,6 +21,16 @@ public:
 	/** 获取当前角色的我方阵营标签。 */
 	const FGameplayTagContainer& GetFriendlyTags() const { return CharacterFaction.FriendlyTags; }
 
+	/** 判断当前是否尚未配置任何我方或敌对阵营标签。 */
+	bool IsFactionConfigurationEmpty() const
+	{
+		return CharacterFaction.FriendlyTags.IsEmpty() && CharacterFaction.HostileTags.IsEmpty();
+	}
+
+	/** 设置完整角色阵营数据，供角色类型写入合理的默认阵营。 */
+	UFUNCTION(BlueprintCallable, Category="角色|属性|阵营", DisplayName="设置角色阵营")
+	void SetCharacterFactionData(const FLxCharacterFactionData& InCharacterFaction);
+
 private:
 	/** 当前角色用于判断友方、敌对方和中立方的阵营标签配置。 */
 	UPROPERTY(EditAnywhere, Replicated, Category="角色|属性|阵营", DisplayName="角色阵营")

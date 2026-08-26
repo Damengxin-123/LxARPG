@@ -14,3 +14,9 @@ ELxCharacterFactionRelation ULxCharacterFactionAttributeObject::GetFactionRelati
 	if (CharacterFaction.HostileTags.HasAny(InTargetFactionTags)) return ELxCharacterFactionRelation::Hostile;
 	return ELxCharacterFactionRelation::Neutral;
 }
+
+void ULxCharacterFactionAttributeObject::SetCharacterFactionData(
+	const FLxCharacterFactionData& InCharacterFaction)
+{
+	CharacterFaction = InCharacterFaction;
+}

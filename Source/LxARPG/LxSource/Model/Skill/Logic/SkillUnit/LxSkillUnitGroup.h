@@ -18,9 +18,9 @@ struct FLxAuraTargetEffectRemoveResult;
 /** 技能单元组命中事件，仅转发组内技能单元本次产生的命中结果，避免重复结算历史目标。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitGroupHit, ULxSkillUnitGroup*, SkillUnitGroup, const FLxSkillUnitResult&, SkillUnitResult);
 
-/** 技能单元组生命周期事件，用于通知技能对象释放运行时缓存。 */
+/** 技能单元组生命周期事件，提供整组累计的命中与失效位置结果。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitGroupLifecycle, ULxSkillUnitGroup*, SkillUnitGroup,
-	const TArray<FVector>&, DestroyedLocations);
+	const FLxSkillUnitResult&, SkillUnitResult);
 
 /** 技能单元组持续效果解除事件，将依附或光环单元需要解除效果的目标统一为目标列表。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillUnitGroupEffectsRemoved, ULxSkillUnitGroup*, SkillUnitGroup,
@@ -109,7 +109,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="技能单元组|事件", DisplayName="技能单元组命中事件")
 	FOnLxSkillUnitGroupHit OnSkillUnitGroupHit;
 
-	/** 组内所有技能单元都销毁后触发，并携带每个技能单元销毁时的世界位置。 */
+	/** 组内所有技能单元都销毁后触发，并携带整组累计技能单元结果。 */
 	UPROPERTY(BlueprintAssignable, Category="技能单元组|事件", DisplayName="技能单元组完成事件")
 	FOnLxSkillUnitGroupLifecycle OnSkillUnitGroupFinished;
 
@@ -164,9 +164,11 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<ALxSkillUnitActor>> ManagedSkillUnits;
 
-	/** 记录本组所有技能单元失效销毁时的世界位置，供完成事件创建后续技能单元。 */
-	UPROPERTY(Transient)
-	TArray<FVector> DestroyedSkillUnitLocations;
+	/** 已经产生过有效目标命中的技能单元，用于排除其自然结束位置。 */
+	TSet<TWeakObjectPtr<ALxSkillUnitActor>> HitSkillUnits;
+
+	/** 已经上报完成结果的技能单元，用于避免销毁回调重复记录失效位置。 */
+	TSet<TWeakObjectPtr<ALxSkillUnitActor>> FinishedSkillUnits;
 
 	/** 技能单元结束时是否自动销毁；持久技能单元组会关闭此选项以便重复启停。 */
 	bool bDestroyUnitsWhenFinished = true;

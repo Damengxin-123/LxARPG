@@ -27,7 +27,8 @@ bool ALxMeleeSkillUnitActor::ReceiveWeaponHit(const FLxMeleeHitContext& InHitCon
 
 	FLxSkillUnitResult HitResult = MakeSkillUnitResult(ELxSkillUnitResultType::Hit, true);
 	HitResult.HitTargets.Add(InHitContext.HitTarget);
-	HitResult.HitLocations.Add(InHitContext.HitLocation);
+	HitResult.HitTargetLocations.Add(InHitContext.HitTarget->GetActorLocation());
+	HitResult.HitLocations.Add(GetActorLocation());
 	HitResult.SourceToTargetDirections.Add(
 		(InHitContext.HitTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal());
 	HitResult.TriggeredCount = CurrentHitCount;

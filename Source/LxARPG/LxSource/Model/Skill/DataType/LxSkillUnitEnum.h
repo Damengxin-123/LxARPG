@@ -59,6 +59,16 @@ enum class ELxSkillResultDirectionType : uint8
 	TargetToSource		UMETA(DisplayName="目标位置朝向来源位置")
 };
 
+/** 使用技能单元结果继续创建后续单元时采用的位置来源。 */
+UENUM(BlueprintType, DisplayName="单元创建位置")
+enum class ELxSkillUnitResultSpawnLocationType : uint8
+{
+	CasterLocation UMETA(DisplayName="释放者位置"),
+	TargetLocation UMETA(DisplayName="目标位置"),
+	HitLocation UMETA(DisplayName="命中位置"),
+	InvalidLocation UMETA(DisplayName="失效位置")
+};
+
 /** 技能单元创建后是否依附到某个对象。 */
 UENUM(BlueprintType, DisplayName="技能单元依附目标类型")
 enum class ELxSkillUnitAttachTargetType : uint8

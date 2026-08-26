@@ -6,6 +6,8 @@
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractableComponent.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerControlComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterFactionAttributeObject.h"
 
 ALxPlayerCharacter::ALxPlayerCharacter()
 {
@@ -41,6 +43,22 @@ ULxPlayerAimModule* ALxPlayerCharacter::GetPlayerAimComponent() const
 void ALxPlayerCharacter::InitialCharacterInformation()
 {
 	Super::InitialCharacterInformation();
+
+	// 旧玩家蓝图没有保存阵营标签时补齐默认市民阵营，确保敌方过滤可以识别怪物角色。
+	if (m_pCharacterAttributeComponent)
+	{
+		ULxCharacterFactionAttributeObject* FactionObject =
+			m_pCharacterAttributeComponent->GetFactionAttributeObject();
+		if (FactionObject && FactionObject->IsFactionConfigurationEmpty())
+		{
+			FLxCharacterFactionData DefaultPlayerFaction;
+			DefaultPlayerFaction.FriendlyTags.AddTag(
+				FGameplayTag::RequestGameplayTag(FName(TEXT("阵营.种类.市民"))));
+			DefaultPlayerFaction.HostileTags.AddTag(
+				FGameplayTag::RequestGameplayTag(FName(TEXT("阵营.种类.怪物"))));
+			FactionObject->SetCharacterFactionData(DefaultPlayerFaction);
+		}
+	}
 
 	if (m_pPlayerControlComponent)
 	{

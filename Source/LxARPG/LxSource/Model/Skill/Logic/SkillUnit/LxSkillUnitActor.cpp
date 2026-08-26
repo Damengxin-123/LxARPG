@@ -253,7 +253,10 @@ FLxSkillUnitResult ALxSkillUnitActor::MakeSkillUnitResult(ELxSkillUnitResultType
 }
 void ALxSkillUnitActor::PublishSkillUnitHitResult(const FLxSkillUnitResult& HitResult)
 {
-	if (HasAuthority() && HitResult.bSuccess && HitResult.ResultType == ELxSkillUnitResultType::Hit && !HitResult.HitTargets.IsEmpty())
+	const bool bIsHitResult = HitResult.ResultType == ELxSkillUnitResultType::Hit
+		|| HitResult.ResultType == ELxSkillUnitResultType::Blocked;
+	if (HasAuthority() && HitResult.bSuccess && bIsHitResult
+		&& (!HitResult.HitTargets.IsEmpty() || !HitResult.HitLocations.IsEmpty()))
 	{
 		OnSkillUnitHit.Broadcast(this, HitResult);
 	}
@@ -287,7 +290,8 @@ void ALxSkillUnitActor::HandleSkillTriggered(const FLxSkillTriggerResult& Trigge
 			}
 			const FVector TargetLocation = TriggeredTarget->GetActorLocation();
 			HitResult.HitTargets.Add(TriggeredTarget);
-			HitResult.HitLocations.Add(TargetLocation);
+			HitResult.HitTargetLocations.Add(TargetLocation);
+			HitResult.HitLocations.Add(GetActorLocation());
 			HitResult.HitNormals.Add(TriggerResult.DetectionResult.HitNormal);
 			HitResult.SourceToTargetDirections.Add((TargetLocation - GetActorLocation()).GetSafeNormal());
 		}

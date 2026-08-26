@@ -225,10 +225,12 @@ public:
 
 	/** 根据通用技能单元结果中的目标和位置创建直线投射物；输入为空时使用技能释放锚点。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|投射物", DisplayName="创建直线投射物",
-		meta=(AutoCreateRefTerm="InSourceResult", AdvancedDisplay="bActivateAfterCreate"))
+		meta=(AutoCreateRefTerm="InSourceResult,TargetFilterSpec,HitLimitSpec", AdvancedDisplay="bActivateAfterCreate"))
 	ULxSkillUnitGroup* CreateStraightProjectileUnits(const FLxSkillUnitResult& InSourceResult,
 		TSubclassOf<ALxStraightProjectileSkillUnitActor> SkillUnitClass,
-		const FLxProjectileSkillUnitCreateParams& CreateParams, bool bActivateAfterCreate = true);
+		const FLxProjectileSkillUnitCreateParams& CreateParams, const FLxSkillTargetFilterSpec& TargetFilterSpec,
+		const FLxSkillHitLimitSpec& HitLimitSpec, ELxSkillUnitResultSpawnLocationType SpawnLocationType,
+		bool bActivateAfterCreate = true);
 
 	/** 根据通用技能单元结果中的目标和位置创建地面弹跳投射物。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|投射物", DisplayName="创建弹跳投射物",
@@ -260,10 +262,12 @@ public:
 
 	/** 在通用技能单元结果的每个位置分别创建一个缩放型范围效果。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|范围效果", DisplayName="创建缩放型范围效果",
-		meta=(AutoCreateRefTerm="InSourceResult", AdvancedDisplay="bActivateAfterCreate"))
+		meta=(AutoCreateRefTerm="InSourceResult,TargetFilterSpec,HitLimitSpec", AdvancedDisplay="bActivateAfterCreate"))
 	ULxSkillUnitGroup* CreateScalingAreaEffects(const FLxSkillUnitResult& InSourceResult,
 		TSubclassOf<ALxScalingAreaSkillUnitActor> SkillUnitClass,
-		const FLxScalingAreaEffectCreateParams& CreateParams, bool bActivateAfterCreate = true);
+		const FLxScalingAreaEffectCreateParams& CreateParams, const FLxSkillTargetFilterSpec& TargetFilterSpec,
+		const FLxSkillHitLimitSpec& HitLimitSpec, ELxSkillUnitResultSpawnLocationType SpawnLocationType,
+		bool bActivateAfterCreate = true);
 
 	/** 创建技能内唯一的近战效果；持久化时重复调用将返回原有中间层。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|近战", DisplayName="创建近战效果")
@@ -363,6 +367,7 @@ public:
 protected:
 	/** 将通用技能单元结果转换为逐项对齐的生成变换，并按选择应用前置结果方向。 */
 	TArray<FTransform> BuildSpawnTransforms(const FLxSkillUnitResult& InSourceResult,
+		ELxSkillUnitResultSpawnLocationType SpawnLocationType,
 		ELxSkillResultDirectionType DirectionType = ELxSkillResultDirectionType::KeepSourceRotation) const;
 
 	/** 获取前置结果中指定目标的生成方向，无法解析时返回零向量。 */
@@ -371,7 +376,7 @@ protected:
 
 	UFUNCTION()
 	void HandleCachedSkillUnitGroupFinished(ULxSkillUnitGroup* InSkillUnitGroup,
-		const TArray<FVector>& InDestroyedLocations);
+		const FLxSkillUnitResult& InSkillUnitResult);
 
 	/** 接收中间层转发的通用技能单元结果，并将其中的目标列表交给技能效果传递链路。 */
 	UFUNCTION()

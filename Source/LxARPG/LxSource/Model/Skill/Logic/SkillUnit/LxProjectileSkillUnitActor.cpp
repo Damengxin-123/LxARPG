@@ -2,6 +2,7 @@
 
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
+#include "Engine/World.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillDetectionComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillLifeComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillMovementComponent.h"
@@ -111,17 +112,18 @@ void ALxProjectileSkillUnitActor::HandleProjectileDetectionResult(const FLxSkill
 		HitTarget = DetectionResult.CandidateTargets[0];
 	}
 
-	if (!HitTarget || HasTriggeredTarget(HitTarget))
+	if (!HitTarget || !CanTriggerTarget(HitTarget))
 	{
 		return;
 	}
 
-	TriggeredTargets.Add(HitTarget);
+	RecordTriggeredTarget(HitTarget);
 	OnProjectileTriggered.Broadcast(this, MakeProjectileTriggerContext(DetectionResult));
 
 	FLxSkillUnitResult HitResult = MakeSkillUnitResult(ELxSkillUnitResultType::Hit, true);
 	HitResult.HitTargets.Add(HitTarget);
-	HitResult.HitLocations.Add(DetectionResult.HitLocation);
+	HitResult.HitTargetLocations.Add(HitTarget->GetActorLocation());
+	HitResult.HitLocations.Add(GetActorLocation());
 	HitResult.HitNormals.Add(DetectionResult.HitNormal);
 	HitResult.SourceToTargetDirections.Add((HitTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal());
 	HitResult.TriggeredCount = TriggeredTargets.Num();
@@ -146,11 +148,18 @@ void ALxProjectileSkillUnitActor::ResetProjectileRuntimeState()
 	RemainingPierceCount = FMath::Max(ProjectileSpec.MaxPierceCount, 0);
 	bProjectileInvalidated = false;
 	TriggeredTargets.Reset();
+	TargetHitCounts.Reset();
+	TargetLastHitTimes.Reset();
 }
 
 void ALxProjectileSkillUnitActor::HandleProjectileWorldHit(const FLxSkillDetectionResult& DetectionResult)
 {
-	InvalidateProjectile(MakeSpawnTransformFromDetectionResult(DetectionResult));
+	// 障碍物碰撞属于技能命中，统一把障碍表面的碰撞点写入命中位置列表。
+	FLxSkillUnitResult ObstacleHitResult = MakeSkillUnitResult(ELxSkillUnitResultType::Blocked, true);
+	ObstacleHitResult.HitLocations.Add(DetectionResult.HitLocation);
+	ObstacleHitResult.HitNormals.Add(DetectionResult.HitNormal);
+	PublishSkillUnitHitResult(ObstacleHitResult);
+	InvalidateProjectile(MakeSpawnTransformFromDetectionResult(DetectionResult), true);
 }
 
 FLxProjectileTriggerContext ALxProjectileSkillUnitActor::MakeProjectileTriggerContext(const FLxSkillDetectionResult& DetectionResult) const
@@ -172,7 +181,7 @@ FLxProjectileInvalidationContext ALxProjectileSkillUnitActor::MakeProjectileInva
 	return InvalidationContext;
 }
 
-void ALxProjectileSkillUnitActor::InvalidateProjectile(const FTransform& InvalidationTransform)
+void ALxProjectileSkillUnitActor::InvalidateProjectile(const FTransform& InvalidationTransform, bool bHitObstacle)
 {
 	if (bProjectileInvalidated)
 	{
@@ -197,12 +206,12 @@ void ALxProjectileSkillUnitActor::InvalidateProjectile(const FTransform& Invalid
 	}
 
 	OnProjectileInvalidated.Broadcast(this, MakeProjectileInvalidationContext(InvalidationTransform));
-	FinishSkillUnit(MakeSkillUnitResult(ELxSkillUnitResultType::Expired, true));
+	FLxSkillUnitResult InvalidationResult = MakeSkillUnitResult(
+		bHitObstacle ? ELxSkillUnitResultType::Blocked : ELxSkillUnitResultType::Expired, true);
+	FinishSkillUnit(InvalidationResult);
 
-	if (ProjectileSpec.bDestroyAfterInvalidated)
-	{
-		Destroy();
-	}
+	// 临时投射物失效后统一销毁，创建节点不再暴露重复的生命周期开关。
+	Destroy();
 }
 
 FTransform ALxProjectileSkillUnitActor::MakeSpawnTransformFromDetectionResult(const FLxSkillDetectionResult& DetectionResult) const
@@ -223,15 +232,55 @@ FTransform ALxProjectileSkillUnitActor::MakeSpawnTransformFromDetectionResult(co
 	return FTransform(GetActorRotation(), SpawnLocation);
 }
 
-bool ALxProjectileSkillUnitActor::HasTriggeredTarget(AActor* InTarget) const
+bool ALxProjectileSkillUnitActor::CanTriggerTarget(AActor* InTarget) const
 {
-	for (AActor* TriggeredTarget : TriggeredTargets)
+	if (!IsValid(InTarget))
 	{
-		if (TriggeredTarget == InTarget)
-		{
-			return true;
-		}
+		return false;
 	}
 
-	return false;
+	if (SkillUnitSpec.HitLimitSpec.MaxTotalHitCount > 0
+		&& TriggeredTargets.Num() >= SkillUnitSpec.HitLimitSpec.MaxTotalHitCount)
+	{
+		return false;
+	}
+
+	const TWeakObjectPtr<AActor> TargetKey(InTarget);
+	const int32 CurrentHitCount = TargetHitCounts.FindRef(TargetKey);
+	if ((SkillUnitSpec.HitLimitSpec.bIgnoreAlreadyHitTargets
+		|| !SkillUnitSpec.HitLimitSpec.bCanHitSameTargetAgain) && CurrentHitCount > 0)
+	{
+		return false;
+	}
+	if (SkillUnitSpec.HitLimitSpec.MaxHitCountPerTarget > 0
+		&& CurrentHitCount >= SkillUnitSpec.HitLimitSpec.MaxHitCountPerTarget)
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	const float* LastHitTime = TargetLastHitTimes.Find(TargetKey);
+	if (World && LastHitTime && SkillUnitSpec.HitLimitSpec.HitIntervalPerTarget > 0.0f
+		&& World->GetTimeSeconds() - *LastHitTime < SkillUnitSpec.HitLimitSpec.HitIntervalPerTarget)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void ALxProjectileSkillUnitActor::RecordTriggeredTarget(AActor* InTarget)
+{
+	if (!IsValid(InTarget))
+	{
+		return;
+	}
+
+	TriggeredTargets.Add(InTarget);
+	const TWeakObjectPtr<AActor> TargetKey(InTarget);
+	TargetHitCounts.FindOrAdd(TargetKey) += 1;
+	if (const UWorld* World = GetWorld())
+	{
+		TargetLastHitTimes.FindOrAdd(TargetKey) = World->GetTimeSeconds();
+	}
 }

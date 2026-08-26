@@ -62,14 +62,17 @@ protected:
 	/** 构造投射物失效上下文。 */
 	FLxProjectileInvalidationContext MakeProjectileInvalidationContext(const FTransform& InvalidationTransform) const;
 
-	/** 按指定位置使投射物失效。 */
-	void InvalidateProjectile(const FTransform& InvalidationTransform);
+	/** 按指定位置使投射物失效，并标记本次失效是否由命中场景障碍物引起。 */
+	void InvalidateProjectile(const FTransform& InvalidationTransform, bool bHitObstacle = false);
 
 	/** 从检测结果提取后续子单元可使用的创建变换。 */
 	FTransform MakeSpawnTransformFromDetectionResult(const FLxSkillDetectionResult& DetectionResult) const;
 
-	/** 判断目标是否已经被该投射物触发过。 */
-	bool HasTriggeredTarget(AActor* InTarget) const;
+	/** 根据通用命中限制判断目标当前是否可以被投射物触发。 */
+	bool CanTriggerTarget(AActor* InTarget) const;
+
+	/** 记录一次有效目标命中，供后续命中限制判断使用。 */
+	void RecordTriggeredTarget(AActor* InTarget);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="技能单元|组件", DisplayName="碰撞体")
 	TObjectPtr<USphereComponent> ProjectileCollisionComponent;
@@ -95,4 +98,10 @@ protected:
 	/** 已经触发过的有效目标列表。 */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<AActor>> TriggeredTargets;
+
+	/** 每个目标已经被当前投射物命中的次数。 */
+	TMap<TWeakObjectPtr<AActor>, int32> TargetHitCounts;
+
+	/** 每个目标最近一次被当前投射物命中的世界时间。 */
+	TMap<TWeakObjectPtr<AActor>, float> TargetLastHitTimes;
 };

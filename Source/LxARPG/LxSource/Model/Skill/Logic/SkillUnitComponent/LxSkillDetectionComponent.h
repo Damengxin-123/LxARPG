@@ -67,6 +67,12 @@ private:
 
 	bool IsBasicActorValid(AActor* InActor) const;
 	bool IsTargetCandidateValid(AActor* InActor) const;
+	/** 获取技能单元所属的技能释放角色，作为阵营关系判断来源。 */
+	ALxBaseCharacter* ResolveSourceCharacter() const;
+	/** 判断候选角色与释放者之间的关系是否被筛选参数允许。 */
+	bool IsTargetRelationAllowed(const ALxBaseCharacter* InTargetCharacter) const;
+	/** 判断候选角色是否满足状态标签、存活状态和视线要求。 */
+	bool MatchesTargetStateFilter(const ALxBaseCharacter* InTargetCharacter) const;
 	bool ShouldIgnoreActor(AActor* InActor) const;
 	void PublishSingleActorResult(ELxSkillDetectionEventType EventType, AActor* InActor,
 		UPrimitiveComponent* InTriggerCollision, const FVector& HitLocation, const FVector& HitNormal, bool bHitWorld);

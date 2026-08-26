@@ -1,5 +1,10 @@
 #include "LxSkillDetectionComponent.h"
 
+#include "Engine/World.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitActor.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitActor.h"
@@ -154,6 +159,11 @@ void ULxSkillDetectionComponent::HandleBeginOverlap(UPrimitiveComponent* Overlap
 
 	if (bPublishWorldHit)
 	{
+		// 被目标规则过滤掉的角色默认不视为场景障碍，避免友方意外让投射物失效。
+		if (OtherActor && OtherActor->IsA<ALxBaseCharacter>())
+		{
+			return;
+		}
 		PublishSingleActorResult(ELxSkillDetectionEventType::HitWorld, OtherActor, OverlappedComponent,
 			HitLocation, HitNormal, true);
 	}
@@ -195,6 +205,11 @@ void ULxSkillDetectionComponent::HandleComponentHit(UPrimitiveComponent* HitComp
 
 	if (bPublishWorldHit)
 	{
+		// 被目标规则过滤掉的角色默认不视为场景障碍，避免友方意外让投射物失效。
+		if (OtherActor && OtherActor->IsA<ALxBaseCharacter>())
+		{
+			return;
+		}
 		PublishSingleActorResult(ELxSkillDetectionEventType::HitWorld, OtherActor, HitComponent,
 			Hit.ImpactPoint, Hit.ImpactNormal, true);
 	}
@@ -207,7 +222,112 @@ bool ULxSkillDetectionComponent::IsBasicActorValid(AActor* InActor) const
 
 bool ULxSkillDetectionComponent::IsTargetCandidateValid(AActor* InActor) const
 {
-	return IsBasicActorValid(InActor) && InActor->IsA<ALxBaseCharacter>();
+	const ALxBaseCharacter* TargetCharacter = Cast<ALxBaseCharacter>(InActor);
+	return IsBasicActorValid(InActor) && TargetCharacter
+		&& IsTargetRelationAllowed(TargetCharacter)
+		&& MatchesTargetStateFilter(TargetCharacter);
+}
+
+ALxBaseCharacter* ULxSkillDetectionComponent::ResolveSourceCharacter() const
+{
+	const ALxSkillUnitActor* SourceSkillUnit = Cast<ALxSkillUnitActor>(GetOwner());
+	if (!SourceSkillUnit)
+	{
+		return nullptr;
+	}
+
+	if (ALxBaseCharacter* SourceCharacter = Cast<ALxBaseCharacter>(SourceSkillUnit->GetOwner()))
+	{
+		return SourceCharacter;
+	}
+	return Cast<ALxBaseCharacter>(SourceSkillUnit->GetInstigator());
+}
+
+bool ULxSkillDetectionComponent::IsTargetRelationAllowed(const ALxBaseCharacter* InTargetCharacter) const
+{
+	const ALxBaseCharacter* SourceCharacter = ResolveSourceCharacter();
+	if (!SourceCharacter || !InTargetCharacter)
+	{
+		return false;
+	}
+
+	ELxSkillTargetRelation TargetRelation = ELxSkillTargetRelation::Neutral;
+	if (SourceCharacter == InTargetCharacter)
+	{
+		TargetRelation = ELxSkillTargetRelation::Self;
+	}
+	else if (const ULxCharacterAttributeComponent* SourceAttributeComponent =
+		SourceCharacter->GetCharacterAttributeComponent())
+	{
+		switch (SourceAttributeComponent->GetCharacterFactionRelation(InTargetCharacter))
+		{
+		case ELxCharacterFactionRelation::Friendly:
+			TargetRelation = ELxSkillTargetRelation::Friendly;
+			break;
+		case ELxCharacterFactionRelation::Hostile:
+			TargetRelation = ELxSkillTargetRelation::Hostile;
+			break;
+		default:
+			TargetRelation = ELxSkillTargetRelation::Neutral;
+			break;
+		}
+	}
+
+	return (TargetFilterSpec.AllowedRelations & static_cast<int32>(TargetRelation)) != 0;
+}
+
+bool ULxSkillDetectionComponent::MatchesTargetStateFilter(const ALxBaseCharacter* InTargetCharacter) const
+{
+	if (!InTargetCharacter)
+	{
+		return false;
+	}
+
+	const ULxCharacterAttributeComponent* TargetAttributeComponent =
+		InTargetCharacter->GetCharacterAttributeComponent();
+	if (!TargetAttributeComponent)
+	{
+		return TargetFilterSpec.RequiredTags.IsEmpty();
+	}
+
+	if (!TargetFilterSpec.bIncludeDead && !TargetAttributeComponent->IsCharacterAlive())
+	{
+		return false;
+	}
+
+	FGameplayTagContainer TargetStateTags;
+	TargetAttributeComponent->GetAllStateTags(TargetStateTags);
+	if (!TargetFilterSpec.RequiredTags.IsEmpty() && !TargetStateTags.HasAll(TargetFilterSpec.RequiredTags))
+	{
+		return false;
+	}
+	if (!TargetFilterSpec.BlockedTags.IsEmpty() && TargetStateTags.HasAny(TargetFilterSpec.BlockedTags))
+	{
+		return false;
+	}
+
+	if (TargetFilterSpec.bRequireLineOfSight)
+	{
+		const ALxBaseCharacter* SourceCharacter = ResolveSourceCharacter();
+		const UWorld* World = GetWorld();
+		if (!SourceCharacter || !World)
+		{
+			return false;
+		}
+
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(LxSkillTargetLineOfSight), false);
+		QueryParams.AddIgnoredActor(GetOwner());
+		QueryParams.AddIgnoredActor(SourceCharacter);
+		FHitResult SightHit;
+		if (World->LineTraceSingleByChannel(SightHit, SourceCharacter->GetActorLocation(),
+			InTargetCharacter->GetActorLocation(), ECC_Visibility, QueryParams)
+			&& SightHit.GetActor() != InTargetCharacter)
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 bool ULxSkillDetectionComponent::ShouldIgnoreActor(AActor* InActor) const

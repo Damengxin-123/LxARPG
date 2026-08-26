@@ -128,7 +128,8 @@ void ULxSkillUnitGroup::ClearSkillUnits()
 	}
 
 	ManagedSkillUnits.Reset();
-	DestroyedSkillUnitLocations.Reset();
+	HitSkillUnits.Reset();
+	FinishedSkillUnits.Reset();
 	bFinishedBroadcasted = false;
 }
 
@@ -169,7 +170,10 @@ void ULxSkillUnitGroup::BeginDestroy()
 
 void ULxSkillUnitGroup::MergeSkillUnitHitResult(const FLxSkillUnitResult& InSkillUnitResult)
 {
-	if (!InSkillUnitResult.bSuccess || InSkillUnitResult.ResultType != ELxSkillUnitResultType::Hit)
+	const bool bIsHitResult = InSkillUnitResult.ResultType == ELxSkillUnitResultType::Hit
+		|| InSkillUnitResult.ResultType == ELxSkillUnitResultType::Blocked;
+	if (!InSkillUnitResult.bSuccess || !bIsHitResult
+		|| (InSkillUnitResult.HitTargets.IsEmpty() && InSkillUnitResult.HitLocations.IsEmpty()))
 	{
 		return;
 	}
@@ -180,6 +184,7 @@ void ULxSkillUnitGroup::MergeSkillUnitHitResult(const FLxSkillUnitResult& InSkil
 	AccumulatedHitResult.EndLocation = InSkillUnitResult.EndLocation;
 	AccumulatedHitResult.EndRotation = InSkillUnitResult.EndRotation;
 	AccumulatedHitResult.HitTargets.Append(InSkillUnitResult.HitTargets);
+	AccumulatedHitResult.HitTargetLocations.Append(InSkillUnitResult.HitTargetLocations);
 	AccumulatedHitResult.HitLocations.Append(InSkillUnitResult.HitLocations);
 	AccumulatedHitResult.HitNormals.Append(InSkillUnitResult.HitNormals);
 	AccumulatedHitResult.SourceToTargetDirections.Append(InSkillUnitResult.SourceToTargetDirections);
@@ -253,9 +258,9 @@ void ULxSkillUnitGroup::BroadcastFinishedIfEmpty()
 	if (!bFinishedBroadcasted && ManagedSkillUnits.IsEmpty())
 	{
 		bFinishedBroadcasted = true;
-		// 使用快照避免技能对象在首个回调中释放本组并清空成员，导致后续蓝图监听者收到空数组。
-		const TArray<FVector> DestroyedLocationsSnapshot = DestroyedSkillUnitLocations;
-		OnSkillUnitGroupFinished.Broadcast(this, DestroyedLocationsSnapshot);
+		// 使用快照避免技能对象在首个回调中释放本组并清空成员，导致后续蓝图监听者收到空结果。
+		const FLxSkillUnitResult ResultSnapshot = AccumulatedHitResult;
+		OnSkillUnitGroupFinished.Broadcast(this, ResultSnapshot);
 	}
 }
 
@@ -285,6 +290,7 @@ void ULxSkillUnitGroup::HandleManagedSkillUnitHit(ALxSkillUnitActor* InSkillUnit
 	}
 
 	MergeSkillUnitHitResult(InSkillUnitResult);
+	HitSkillUnits.Add(InSkillUnit);
 	OnSkillUnitGroupHit.Broadcast(this, InSkillUnitResult);
 }
 
@@ -296,6 +302,13 @@ void ULxSkillUnitGroup::HandleManagedSkillUnitFinished(ALxSkillUnitActor* InSkil
 		return;
 	}
 
+	FinishedSkillUnits.Add(InSkillUnit);
+	AccumulatedHitResult.InvalidLocations.Append(InSkillUnitResult.InvalidLocations);
+	if (!HitSkillUnits.Contains(InSkillUnit) && InSkillUnitResult.InvalidLocations.IsEmpty())
+	{
+		AccumulatedHitResult.InvalidLocations.Add(InSkillUnitResult.EndLocation);
+	}
+
 	if (!InSkillUnit->Destroy())
 	{
 		RemoveManagedSkillUnit(InSkillUnit);
@@ -304,11 +317,13 @@ void ULxSkillUnitGroup::HandleManagedSkillUnitFinished(ALxSkillUnitActor* InSkil
 
 void ULxSkillUnitGroup::HandleManagedSkillUnitDestroyed(AActor* DestroyedActor)
 {
-	if (ContainsSkillUnit(Cast<ALxSkillUnitActor>(DestroyedActor)))
+	ALxSkillUnitActor* DestroyedSkillUnit = Cast<ALxSkillUnitActor>(DestroyedActor);
+	if (ContainsSkillUnit(DestroyedSkillUnit) && !FinishedSkillUnits.Contains(DestroyedSkillUnit)
+		&& !HitSkillUnits.Contains(DestroyedSkillUnit))
 	{
-		DestroyedSkillUnitLocations.Add(DestroyedActor->GetActorLocation());
+		AccumulatedHitResult.InvalidLocations.Add(DestroyedActor->GetActorLocation());
 	}
-	RemoveManagedSkillUnit(Cast<ALxSkillUnitActor>(DestroyedActor));
+	RemoveManagedSkillUnit(DestroyedSkillUnit);
 }
 
 void ULxSkillUnitGroup::HandleAttachEffectEnded(ALxAttachEffectSkillUnitActor* SkillUnit,

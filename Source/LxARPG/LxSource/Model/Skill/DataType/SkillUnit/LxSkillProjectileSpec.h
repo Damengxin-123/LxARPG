@@ -64,7 +64,4 @@ struct FLxSkillProjectileSpec
 	/** 获取供 UE 世界坐标使用的创建间隔，单位为厘米。 */
 	float GetLaunchSpacingInUnrealUnits() const { return FMath::Max(LaunchSpacing, 0.0f) * 100.0f; }
 
-	/** 投射物失效后是否自动销毁。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|投射物|生命周期", DisplayName="失效后销毁")
-	bool bDestroyAfterInvalidated = true;
 };

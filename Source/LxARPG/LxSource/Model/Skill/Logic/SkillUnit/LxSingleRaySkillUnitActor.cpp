@@ -30,7 +30,14 @@ void ALxSingleRaySkillUnitActor::ActivateSkillUnit_Implementation()
 		ResultType = ELxSkillUnitResultType::Blocked;
 	}
 
-	FLxSkillUnitResult UnitResult = MakeSkillUnitResult(ResultType, ResultType == ELxSkillUnitResultType::Hit);
+	FLxSkillUnitResult UnitResult = MakeSkillUnitResult(ResultType,
+		ResultType == ELxSkillUnitResultType::Hit || ResultType == ELxSkillUnitResultType::Blocked);
+	if (ResultType == ELxSkillUnitResultType::Blocked)
+	{
+		// 射线命中障碍物时，将障碍表面的碰撞点作为统一命中位置上报。
+		UnitResult.HitLocations.Add(DetectionResult.HitLocation);
+		UnitResult.HitNormals.Add(DetectionResult.HitNormal);
+	}
 	for (AActor* HitTarget : DetectionResult.CandidateTargets)
 	{
 		if (!IsValid(HitTarget))
@@ -39,14 +46,10 @@ void ALxSingleRaySkillUnitActor::ActivateSkillUnit_Implementation()
 		}
 		const FVector TargetLocation = HitTarget->GetActorLocation();
 		UnitResult.HitTargets.Add(HitTarget);
-		UnitResult.HitLocations.Add(TargetLocation);
+		UnitResult.HitTargetLocations.Add(TargetLocation);
+		UnitResult.HitLocations.Add(GetActorLocation());
 		UnitResult.HitNormals.Add((GetActorLocation() - TargetLocation).GetSafeNormal());
 		UnitResult.SourceToTargetDirections.Add((TargetLocation - GetActorLocation()).GetSafeNormal());
-	}
-	if (UnitResult.HitTargets.IsEmpty())
-	{
-		UnitResult.HitLocations.Add(DetectionResult.HitLocation);
-		UnitResult.HitNormals.Add(DetectionResult.HitNormal);
 	}
 	PublishSkillUnitHitResult(UnitResult);
 	FinishSkillUnit(UnitResult);

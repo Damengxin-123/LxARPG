@@ -28,13 +28,17 @@
 namespace LxSkillCreateInternal
 {
 	/** 根据投射物创建参数生成通用技能单元限制参数。 */
-	FLxSkillUnitSpec MakeProjectileSpec(const FLxProjectileSkillUnitCreateParams& CreateParams)
+	FLxSkillUnitSpec MakeProjectileSpec(const FLxProjectileSkillUnitCreateParams& CreateParams,
+		const FLxSkillTargetFilterSpec& TargetFilterSpec = FLxSkillTargetFilterSpec(),
+		const FLxSkillHitLimitSpec& HitLimitSpec = FLxSkillHitLimitSpec())
 	{
 		FLxSkillUnitSpec Result;
 		Result.SkillUnitType = ELxSkillUnitType::Projectile;
 		Result.MovementSpec.Speed = CreateParams.ProjectileSpec.FlightSpeed;
 		Result.MovementSpec.Acceleration = CreateParams.ProjectileSpec.FlightAcceleration;
 		Result.MovementSpec.MaxDistance = CreateParams.ProjectileSpec.MaxFlightDistance;
+		Result.TargetFilterSpec = TargetFilterSpec;
+		Result.HitLimitSpec = HitLimitSpec;
 		return Result;
 	}
 
@@ -538,36 +542,57 @@ FTransform ULxSkill::GetSkillSpawnTransform() const
 }
 
 TArray<FTransform> ULxSkill::BuildSpawnTransforms(const FLxSkillUnitResult& InSourceResult,
-	ELxSkillResultDirectionType DirectionType) const
+	ELxSkillUnitResultSpawnLocationType SpawnLocationType, ELxSkillResultDirectionType DirectionType) const
 {
 	TArray<FTransform> Result;
-	const int32 ItemCount = FMath::Max(InSourceResult.HitTargets.Num(), InSourceResult.HitLocations.Num());
-	if (ItemCount <= 0)
+	int32 ResultItemCount = 0;
+	switch (SpawnLocationType)
 	{
-		Result.Add(GetSkillSpawnTransform());
-		return Result;
+	case ELxSkillUnitResultSpawnLocationType::TargetLocation:
+		ResultItemCount = FMath::Max(InSourceResult.HitTargets.Num(), InSourceResult.HitTargetLocations.Num());
+		break;
+	case ELxSkillUnitResultSpawnLocationType::HitLocation:
+		ResultItemCount = InSourceResult.HitLocations.Num();
+		break;
+	case ELxSkillUnitResultSpawnLocationType::InvalidLocation:
+		ResultItemCount = InSourceResult.InvalidLocations.Num();
+		break;
+	default:
+		ResultItemCount = FMath::Max3(InSourceResult.HitTargets.Num(),
+			InSourceResult.HitTargetLocations.Num(), InSourceResult.HitLocations.Num());
+		ResultItemCount = FMath::Max(ResultItemCount, InSourceResult.InvalidLocations.Num());
+		break;
 	}
+	const int32 ItemCount = FMath::Max(ResultItemCount, 1);
+	const FTransform CasterTransform = GetSkillSpawnTransform();
 
 	Result.Reserve(ItemCount);
 	for (int32 ItemIndex = 0; ItemIndex < ItemCount; ++ItemIndex)
 	{
-		FTransform ItemTransform(InSourceResult.EndRotation, InSourceResult.EndLocation);
+		FTransform ItemTransform = CasterTransform;
 		const bool bHasValidTarget = InSourceResult.HitTargets.IsValidIndex(ItemIndex)
 			&& IsValid(InSourceResult.HitTargets[ItemIndex]);
-		if (bHasValidTarget)
+		const FVector TargetLocation = InSourceResult.HitTargetLocations.IsValidIndex(ItemIndex)
+			? InSourceResult.HitTargetLocations[ItemIndex]
+			: (bHasValidTarget ? InSourceResult.HitTargets[ItemIndex]->GetActorLocation() : CasterTransform.GetLocation());
+
+		switch (SpawnLocationType)
 		{
-			ItemTransform = InSourceResult.HitTargets[ItemIndex]->GetActorTransform();
+		case ELxSkillUnitResultSpawnLocationType::TargetLocation:
+			ItemTransform.SetLocation(TargetLocation);
+			break;
+		case ELxSkillUnitResultSpawnLocationType::HitLocation:
+			ItemTransform.SetLocation(InSourceResult.HitLocations.IsValidIndex(ItemIndex)
+				? InSourceResult.HitLocations[ItemIndex] : TargetLocation);
+			break;
+		case ELxSkillUnitResultSpawnLocationType::InvalidLocation:
+			ItemTransform.SetLocation(InSourceResult.InvalidLocations.IsValidIndex(ItemIndex)
+				? InSourceResult.InvalidLocations[ItemIndex] : CasterTransform.GetLocation());
+			break;
+		default:
+			break;
 		}
-		if (InSourceResult.HitLocations.IsValidIndex(ItemIndex))
-		{
-			const FVector HitLocation = InSourceResult.HitLocations[ItemIndex];
-			// 有有效目标但位置为零时视为旧检测结果缺少 ImpactPoint，保留目标位置作为回退。
-			if (!bHasValidTarget || !HitLocation.IsNearlyZero())
-			{
-				ItemTransform.SetLocation(HitLocation);
-				ItemTransform.SetRotation(InSourceResult.EndRotation.Quaternion());
-			}
-		}
+
 		const FVector ResultDirection = ResolveResultDirection(InSourceResult, ItemIndex, DirectionType);
 		if (!ResultDirection.IsNearlyZero())
 		{
@@ -588,11 +613,16 @@ FVector ULxSkill::ResolveResultDirection(const FLxSkillUnitResult& InSourceResul
 
 	FVector SourceToTargetDirection = InSourceResult.SourceToTargetDirections.IsValidIndex(TargetIndex)
 		? InSourceResult.SourceToTargetDirections[TargetIndex].GetSafeNormal() : FVector::ZeroVector;
-	if (SourceToTargetDirection.IsNearlyZero() && InSourceResult.HitTargets.IsValidIndex(TargetIndex)
-		&& IsValid(InSourceResult.HitTargets[TargetIndex]))
+	if (SourceToTargetDirection.IsNearlyZero())
 	{
-		SourceToTargetDirection = (InSourceResult.HitTargets[TargetIndex]->GetActorLocation()
-			- InSourceResult.EndLocation).GetSafeNormal();
+		const bool bHasValidTarget = InSourceResult.HitTargets.IsValidIndex(TargetIndex)
+			&& IsValid(InSourceResult.HitTargets[TargetIndex]);
+		const FVector TargetLocation = InSourceResult.HitTargetLocations.IsValidIndex(TargetIndex)
+			? InSourceResult.HitTargetLocations[TargetIndex]
+			: (bHasValidTarget ? InSourceResult.HitTargets[TargetIndex]->GetActorLocation() : FVector::ZeroVector);
+		const FVector SourceLocation = InSourceResult.HitLocations.IsValidIndex(TargetIndex)
+			? InSourceResult.HitLocations[TargetIndex] : GetSkillSpawnTransform().GetLocation();
+		SourceToTargetDirection = (TargetLocation - SourceLocation).GetSafeNormal();
 	}
 
 	return DirectionType == ELxSkillResultDirectionType::TargetToSource
@@ -601,12 +631,16 @@ FVector ULxSkill::ResolveResultDirection(const FLxSkillUnitResult& InSourceResul
 
 ULxSkillUnitGroup* ULxSkill::CreateStraightProjectileUnits(const FLxSkillUnitResult& InSourceResult,
 	TSubclassOf<ALxStraightProjectileSkillUnitActor> SkillUnitClass,
-	const FLxProjectileSkillUnitCreateParams& CreateParams, bool bActivateAfterCreate)
+	const FLxProjectileSkillUnitCreateParams& CreateParams, const FLxSkillTargetFilterSpec& TargetFilterSpec,
+	const FLxSkillHitLimitSpec& HitLimitSpec, ELxSkillUnitResultSpawnLocationType SpawnLocationType,
+	bool bActivateAfterCreate)
 {
 	TArray<ALxStraightProjectileSkillUnitActor*> SkillUnits;
 	const int32 LaunchCount = FMath::Max(CreateParams.ProjectileSpec.LaunchCount, 1);
-	const FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeProjectileSpec(CreateParams);
-	for (const FTransform& BaseTransform : BuildSpawnTransforms(InSourceResult, CreateParams.ResultDirectionType))
+	const FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeProjectileSpec(
+		CreateParams, TargetFilterSpec, HitLimitSpec);
+	for (const FTransform& BaseTransform : BuildSpawnTransforms(
+		InSourceResult, SpawnLocationType, CreateParams.ResultDirectionType))
 	{
 		for (int32 LaunchIndex = 0; LaunchIndex < LaunchCount; ++LaunchIndex)
 		{
@@ -634,7 +668,8 @@ ULxSkillUnitGroup* ULxSkill::CreateGroundBounceProjectileUnits(const FLxSkillUni
 	ProjectileParams.ProjectileSpec = CreateParams.ProjectileSpec;
 	FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeProjectileSpec(ProjectileParams);
 	SkillUnitSpec.MovementSpec.GravityScale = FMath::Max(CreateParams.GroundBounceSpec.GravityScale, 0.0f);
-	for (const FTransform& BaseTransform : BuildSpawnTransforms(InSourceResult, CreateParams.ResultDirectionType))
+	for (const FTransform& BaseTransform : BuildSpawnTransforms(InSourceResult,
+		ELxSkillUnitResultSpawnLocationType::HitLocation, CreateParams.ResultDirectionType))
 	{
 		for (int32 LaunchIndex = 0; LaunchIndex < LaunchCount; ++LaunchIndex)
 		{
@@ -663,7 +698,8 @@ ULxSkillUnitGroup* ULxSkill::CreateLobProjectileUnits(const FLxSkillUnitResult& 
 	ProjectileParams.ProjectileSpec = CreateParams.ProjectileSpec;
 	FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeProjectileSpec(ProjectileParams);
 	SkillUnitSpec.MovementSpec.GravityScale = FMath::Max(CreateParams.LobSpec.GravityScale, 0.0f);
-	for (const FTransform& BaseTransform : BuildSpawnTransforms(InSourceResult, CreateParams.ResultDirectionType))
+	for (const FTransform& BaseTransform : BuildSpawnTransforms(InSourceResult,
+		ELxSkillUnitResultSpawnLocationType::HitLocation, CreateParams.ResultDirectionType))
 	{
 		for (int32 LaunchIndex = 0; LaunchIndex < LaunchCount; ++LaunchIndex)
 		{
@@ -689,7 +725,8 @@ ULxSkillUnitGroup* ULxSkill::CreateDirectHitAreaEffects(const FLxSkillUnitResult
 	TArray<ALxDirectHitAreaSkillUnitActor*> SkillUnits;
 	const FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeAreaSpec(
 		ELxSkillUnitType::DirectHitAreaEffect, CreateParams.AreaEffectSpec);
-	for (const FTransform& Transform : BuildSpawnTransforms(InSourceResult, CreateParams.ResultDirectionType))
+	for (const FTransform& Transform : BuildSpawnTransforms(InSourceResult,
+		ELxSkillUnitResultSpawnLocationType::HitLocation, CreateParams.ResultDirectionType))
 	{
 		ALxDirectHitAreaSkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
 			this, SkillUnitClass, Transform, SkillUnitSpec);
@@ -708,7 +745,8 @@ ULxSkillUnitGroup* ULxSkill::CreateDurationAreaEffects(const FLxSkillUnitResult&
 {
 	TArray<ALxDurationAreaSkillUnitActor*> SkillUnits;
 	const FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeDurationAreaSpec(CreateParams);
-	for (const FTransform& Transform : BuildSpawnTransforms(InSourceResult, CreateParams.ResultDirectionType))
+	for (const FTransform& Transform : BuildSpawnTransforms(InSourceResult,
+		ELxSkillUnitResultSpawnLocationType::HitLocation, CreateParams.ResultDirectionType))
 	{
 		ALxDurationAreaSkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
 			this, SkillUnitClass, Transform, SkillUnitSpec);
@@ -724,12 +762,17 @@ ULxSkillUnitGroup* ULxSkill::CreateDurationAreaEffects(const FLxSkillUnitResult&
 
 ULxSkillUnitGroup* ULxSkill::CreateScalingAreaEffects(const FLxSkillUnitResult& InSourceResult,
 	TSubclassOf<ALxScalingAreaSkillUnitActor> SkillUnitClass,
-	const FLxScalingAreaEffectCreateParams& CreateParams, bool bActivateAfterCreate)
+	const FLxScalingAreaEffectCreateParams& CreateParams, const FLxSkillTargetFilterSpec& TargetFilterSpec,
+	const FLxSkillHitLimitSpec& HitLimitSpec, ELxSkillUnitResultSpawnLocationType SpawnLocationType,
+	bool bActivateAfterCreate)
 {
 	TArray<ALxScalingAreaSkillUnitActor*> SkillUnits;
-	const FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeAreaSpec(
+	FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeAreaSpec(
 		ELxSkillUnitType::ScalingAreaEffect, CreateParams.AreaEffectSpec);
-	for (const FTransform& Transform : BuildSpawnTransforms(InSourceResult, CreateParams.ResultDirectionType))
+	SkillUnitSpec.TargetFilterSpec = TargetFilterSpec;
+	SkillUnitSpec.HitLimitSpec = HitLimitSpec;
+	for (const FTransform& Transform : BuildSpawnTransforms(
+		InSourceResult, SpawnLocationType, CreateParams.ResultDirectionType))
 	{
 		ALxScalingAreaSkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
 			this, SkillUnitClass, Transform, SkillUnitSpec);
@@ -1043,10 +1086,10 @@ TArray<ULxSkillUnitGroup*> ULxSkill::GetCachedSkillUnitGroups() const
 }
 
 void ULxSkill::HandleCachedSkillUnitGroupFinished(ULxSkillUnitGroup* InSkillUnitGroup,
-	const TArray<FVector>& InDestroyedLocations)
+	const FLxSkillUnitResult& InSkillUnitResult)
 {
-	// 基类只负责释放缓存；销毁位置由技能单元组完成事件提供给蓝图监听者继续创建技能单元。
-	(void)InDestroyedLocations;
+	// 基类只负责释放缓存；完整结果由技能单元组完成事件提供给其他监听者继续创建技能单元。
+	(void)InSkillUnitResult;
 	ReleaseSkillUnitGroup(InSkillUnitGroup);
 }
 

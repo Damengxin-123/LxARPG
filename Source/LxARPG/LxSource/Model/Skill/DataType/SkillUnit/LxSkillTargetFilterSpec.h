@@ -5,11 +5,27 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillUnitEnum.h"
 #include "LxSkillTargetFilterSpec.generated.h"
 
+/** 技能目标相对于释放者的阵营关系，可组合选择多个关系。 */
+UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"), DisplayName="技能目标阵营关系")
+enum class ELxSkillTargetRelation : uint8
+{
+	None = 0 UMETA(Hidden),
+	Self = 1 << 0 UMETA(DisplayName="自身"),
+	Friendly = 1 << 1 UMETA(DisplayName="友方"),
+	Neutral = 1 << 2 UMETA(DisplayName="中立"),
+	Hostile = 1 << 3 UMETA(DisplayName="敌方")
+};
+
 /** 技能目标筛选参数，描述哪些对象可以成为技能单元目标。 */
 USTRUCT(BlueprintType, DisplayName="技能目标筛选参数")
 struct FLxSkillTargetFilterSpec
 {
 	GENERATED_BODY()
+
+	/** 允许成为目标的阵营关系组合，默认只允许敌方。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|目标筛选", DisplayName="允许的阵营关系",
+		meta=(Bitmask, BitmaskEnum="/Script/LxARPG.ELxSkillTargetRelation"))
+	int32 AllowedRelations = static_cast<int32>(ELxSkillTargetRelation::Hostile);
 
 	/** 目标必须拥有的标签。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|目标筛选", DisplayName="必须拥有标签")
