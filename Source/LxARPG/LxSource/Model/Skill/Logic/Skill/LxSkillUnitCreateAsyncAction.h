@@ -8,6 +8,20 @@
 
 class ALxScalingAreaSkillUnitActor;
 class ALxStraightProjectileSkillUnitActor;
+class ALxSkillUnitActor;
+class ALxGroundBounceProjectileSkillUnitActor;
+class ALxLobProjectileSkillUnitActor;
+class ALxDirectHitAreaSkillUnitActor;
+class ALxDurationAreaSkillUnitActor;
+class ALxMeleeSkillUnitActor;
+class ALxSingleRaySkillUnitActor;
+class ALxContinuousRaySkillUnitActor;
+class ALxContinuousAttachEffectSkillUnitActor;
+class ALxPeriodicAttachEffectSkillUnitActor;
+class ALxContinuousAuraEffectSkillUnitActor;
+class ALxPeriodicAuraEffectSkillUnitActor;
+class ALxSpawnEntitySkillUnitActor;
+class ALxTriggerSkillUnitActor;
 class ULxSkill;
 class ULxSkillUnitGroup;
 
@@ -51,6 +65,170 @@ public:
 		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec,
 		UPARAM(DisplayName="单元创建位置") ELxSkillUnitResultSpawnLocationType InSpawnLocationType);
 
+	/** 异步创建并监听一组地面弹跳投射物。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|投射物", DisplayName="创建弹跳投射物（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreateGroundBounceProjectileUnitsAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxGroundBounceProjectileSkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxGroundBounceProjectileSkillUnitCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec,
+		UPARAM(DisplayName="单元创建位置") ELxSkillUnitResultSpawnLocationType InSpawnLocationType);
+
+	/** 异步创建并监听一组抛射投射物。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|投射物", DisplayName="创建抛射投射物（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreateLobProjectileUnitsAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxLobProjectileSkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxLobProjectileSkillUnitCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec,
+		UPARAM(DisplayName="单元创建位置") ELxSkillUnitResultSpawnLocationType InSpawnLocationType);
+
+	/** 异步创建并监听一组直接命中型范围效果。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|范围效果", DisplayName="创建直接命中型范围效果（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreateDirectHitAreaEffectsAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxDirectHitAreaSkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxDirectHitAreaEffectCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec,
+		UPARAM(DisplayName="单元创建位置") ELxSkillUnitResultSpawnLocationType InSpawnLocationType);
+
+	/** 异步创建并监听一组持续型范围效果。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|范围效果", DisplayName="创建持续型范围效果（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreateDurationAreaEffectsAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxDurationAreaSkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxDurationAreaEffectCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec,
+		UPARAM(DisplayName="单元创建位置") ELxSkillUnitResultSpawnLocationType InSpawnLocationType);
+
+	/** 异步创建并监听近战效果。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|近战", DisplayName="创建近战效果（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreateMeleeEffectAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxMeleeSkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxMeleeSkillUnitCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec);
+
+	/** 异步创建并监听一组单次射线效果。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|射线", DisplayName="创建单次射线效果（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreateSingleRayEffectUnitsAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxSingleRaySkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxSingleRayEffectCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec,
+		UPARAM(DisplayName="单元创建位置") ELxSkillUnitResultSpawnLocationType InSpawnLocationType);
+
+	/** 异步创建并监听持续射线效果。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|射线", DisplayName="创建持续射线效果（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreateContinuousRayEffectUnitAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxContinuousRaySkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxContinuousRayEffectCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec,
+		UPARAM(DisplayName="单元创建位置") ELxSkillUnitResultSpawnLocationType InSpawnLocationType);
+
+	/** 异步创建并监听一组持续依附效果。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|依附效果", DisplayName="创建持续依附效果（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreateContinuousAttachEffectsAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxContinuousAttachEffectSkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxContinuousAttachEffectCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec);
+
+	/** 异步创建并监听一组周期依附效果。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|依附效果", DisplayName="创建周期依附效果（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreatePeriodicAttachEffectsAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxPeriodicAttachEffectSkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxPeriodicAttachEffectCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec);
+
+	/** 异步创建并监听持续型光环效果。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|光环效果", DisplayName="创建持续型光环效果（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreateContinuousAuraEffectUnitAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxContinuousAuraEffectSkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxContinuousAuraEffectCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec);
+
+	/** 异步创建并监听周期型光环效果。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|光环效果", DisplayName="创建周期型光环效果（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreatePeriodicAuraEffectUnitAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxPeriodicAuraEffectSkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxPeriodicAuraEffectCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec);
+
+	/** 异步创建并监听一组召唤实体载体。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|召唤实体", DisplayName="创建召唤实体（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreateSpawnEntityUnitsAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxSpawnEntitySkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxSpawnEntitySkillUnitCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec,
+		UPARAM(DisplayName="单元创建位置") ELxSkillUnitResultSpawnLocationType InSpawnLocationType);
+
+	/** 异步创建并监听一组触发器。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|触发器", DisplayName="创建触发器（异步）",
+		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
+			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
+	static ULxSkillUnitCreateAsyncAction* CreateTriggerUnitsAsync(
+		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
+		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
+		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxTriggerSkillUnitActor> InSkillUnitClass,
+		UPARAM(DisplayName="创建参数") const FLxTriggerSkillUnitCreateParams& InCreateParams,
+		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec,
+		UPARAM(DisplayName="单元创建位置") ELxSkillUnitResultSpawnLocationType InSpawnLocationType);
+
 	/** 每次技能单元组命中目标或障碍物时执行，可在技能单元存续期间反复执行。 */
 	UPROPERTY(BlueprintAssignable, Category="技能|技能单元创建|异步事件", DisplayName="技能命中")
 	FOnLxAsyncSkillUnitEvent OnHitTarget;
@@ -67,7 +245,20 @@ private:
 	enum class EAsyncCreateType : uint8
 	{
 		StraightProjectile,
-		ScalingAreaEffect
+		GroundBounceProjectile,
+		LobProjectile,
+		DirectHitAreaEffect,
+		DurationAreaEffect,
+		ScalingAreaEffect,
+		MeleeEffect,
+		SingleRayEffect,
+		ContinuousRayEffect,
+		ContinuousAttachEffect,
+		PeriodicAttachEffect,
+		ContinuousAuraEffect,
+		PeriodicAuraEffect,
+		SpawnEntity,
+		Trigger
 	};
 
 	/** 创建一个异步节点对象并注册到技能对象所在的游戏实例。 */
@@ -90,6 +281,9 @@ private:
 
 	/** 广播一次空的技能失效结果并结束创建失败的异步节点。 */
 	void FinishAsCreateFailed();
+
+	/** 在激活前将节点输入的目标规则应用到组内全部技能单元。 */
+	void ApplyTargetRulesToSkillUnits() const;
 
 	/** 当前节点所属技能对象。 */
 	UPROPERTY(Transient)
@@ -117,20 +311,68 @@ private:
 	/** 使用前置技能单元结果创建本组单元时采用的位置来源。 */
 	ELxSkillUnitResultSpawnLocationType SpawnLocationType = ELxSkillUnitResultSpawnLocationType::CasterLocation;
 
-	/** 直线投射物蓝图类型。 */
+	/** 当前节点需要创建的技能单元蓝图类型。 */
 	UPROPERTY(Transient)
-	TSubclassOf<ALxStraightProjectileSkillUnitActor> StraightProjectileClass;
+	TSubclassOf<ALxSkillUnitActor> SkillUnitClass;
 
 	/** 直线投射物创建参数。 */
 	UPROPERTY(Transient)
 	FLxProjectileSkillUnitCreateParams ProjectileCreateParams;
 
-	/** 缩放型范围效果蓝图类型。 */
-	UPROPERTY(Transient)
-	TSubclassOf<ALxScalingAreaSkillUnitActor> ScalingAreaEffectClass;
-
 	/** 缩放型范围效果创建参数。 */
 	UPROPERTY(Transient)
 	FLxScalingAreaEffectCreateParams ScalingAreaCreateParams;
+
+	/** 地面弹跳投射物创建参数。 */
+	UPROPERTY(Transient)
+	FLxGroundBounceProjectileSkillUnitCreateParams GroundBounceCreateParams;
+
+	/** 抛射投射物创建参数。 */
+	UPROPERTY(Transient)
+	FLxLobProjectileSkillUnitCreateParams LobCreateParams;
+
+	/** 直接命中型范围效果创建参数。 */
+	UPROPERTY(Transient)
+	FLxDirectHitAreaEffectCreateParams DirectHitAreaCreateParams;
+
+	/** 持续型范围效果创建参数。 */
+	UPROPERTY(Transient)
+	FLxDurationAreaEffectCreateParams DurationAreaCreateParams;
+
+	/** 近战效果创建参数。 */
+	UPROPERTY(Transient)
+	FLxMeleeSkillUnitCreateParams MeleeCreateParams;
+
+	/** 单次射线效果创建参数。 */
+	UPROPERTY(Transient)
+	FLxSingleRayEffectCreateParams SingleRayCreateParams;
+
+	/** 持续射线效果创建参数。 */
+	UPROPERTY(Transient)
+	FLxContinuousRayEffectCreateParams ContinuousRayCreateParams;
+
+	/** 持续依附效果创建参数。 */
+	UPROPERTY(Transient)
+	FLxContinuousAttachEffectCreateParams ContinuousAttachCreateParams;
+
+	/** 周期依附效果创建参数。 */
+	UPROPERTY(Transient)
+	FLxPeriodicAttachEffectCreateParams PeriodicAttachCreateParams;
+
+	/** 持续型光环效果创建参数。 */
+	UPROPERTY(Transient)
+	FLxContinuousAuraEffectCreateParams ContinuousAuraCreateParams;
+
+	/** 周期型光环效果创建参数。 */
+	UPROPERTY(Transient)
+	FLxPeriodicAuraEffectCreateParams PeriodicAuraCreateParams;
+
+	/** 召唤实体创建参数。 */
+	UPROPERTY(Transient)
+	FLxSpawnEntitySkillUnitCreateParams SpawnEntityCreateParams;
+
+	/** 触发器创建参数。 */
+	UPROPERTY(Transient)
+	FLxTriggerSkillUnitCreateParams TriggerCreateParams;
 
 };

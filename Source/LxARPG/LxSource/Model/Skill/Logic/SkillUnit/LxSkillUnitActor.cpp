@@ -43,6 +43,14 @@ void ALxSkillUnitActor::InitializeSkillUnit(const FLxSkillUnitSpec& InSkillUnitS
 	bSkillUnitInitialized = true;
 }
 
+void ALxSkillUnitActor::SetTargetRules(const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+	const FLxSkillHitLimitSpec& InHitLimitSpec)
+{
+	SkillUnitSpec.TargetFilterSpec = InTargetFilterSpec;
+	SkillUnitSpec.HitLimitSpec = InHitLimitSpec;
+	ApplySkillUnitSpecToComponents();
+}
+
 void ALxSkillUnitActor::ActivateSkillUnit_Implementation()
 {
 	if (bSkillUnitActive)

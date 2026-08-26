@@ -35,6 +35,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能单元", DisplayName="初始化技能单元")
 	virtual void InitializeSkillUnit(const FLxSkillUnitSpec& InSkillUnitSpec);
 
+	/** 在技能单元激活前覆盖目标筛选和命中限制参数。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|目标规则", DisplayName="设置目标筛选和命中限制")
+	void SetTargetRules(const FLxSkillTargetFilterSpec& InTargetFilterSpec,
+		const FLxSkillHitLimitSpec& InHitLimitSpec);
+
 	/** 激活技能单元。 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="技能单元", DisplayName="激活技能单元")
 	void ActivateSkillUnit();

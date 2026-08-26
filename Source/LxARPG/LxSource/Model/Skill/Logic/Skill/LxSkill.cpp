@@ -18,6 +18,10 @@
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxScalingAreaSkillUnitActor.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSingleRaySkillUnitActor.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxStraightProjectileSkillUnitActor.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSpawnEntitySkillUnitActor.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxTriggerSkillUnitActor.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxBarrierSkillUnitActor.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxMarkerSkillUnitActor.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitSpec.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerAimModule.h"
 #include "LxARPG/LxSource/Model/CharacterPoint/Logic/LxCharacterAnchorPointComponent.h"
@@ -660,7 +664,8 @@ ULxSkillUnitGroup* ULxSkill::CreateStraightProjectileUnits(const FLxSkillUnitRes
 
 ULxSkillUnitGroup* ULxSkill::CreateGroundBounceProjectileUnits(const FLxSkillUnitResult& InSourceResult,
 	TSubclassOf<ALxGroundBounceProjectileSkillUnitActor> SkillUnitClass,
-	const FLxGroundBounceProjectileSkillUnitCreateParams& CreateParams, bool bActivateAfterCreate)
+	const FLxGroundBounceProjectileSkillUnitCreateParams& CreateParams,
+	ELxSkillUnitResultSpawnLocationType SpawnLocationType, bool bActivateAfterCreate)
 {
 	TArray<ALxGroundBounceProjectileSkillUnitActor*> SkillUnits;
 	const int32 LaunchCount = FMath::Max(CreateParams.ProjectileSpec.LaunchCount, 1);
@@ -669,7 +674,7 @@ ULxSkillUnitGroup* ULxSkill::CreateGroundBounceProjectileUnits(const FLxSkillUni
 	FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeProjectileSpec(ProjectileParams);
 	SkillUnitSpec.MovementSpec.GravityScale = FMath::Max(CreateParams.GroundBounceSpec.GravityScale, 0.0f);
 	for (const FTransform& BaseTransform : BuildSpawnTransforms(InSourceResult,
-		ELxSkillUnitResultSpawnLocationType::HitLocation, CreateParams.ResultDirectionType))
+		SpawnLocationType, CreateParams.ResultDirectionType))
 	{
 		for (int32 LaunchIndex = 0; LaunchIndex < LaunchCount; ++LaunchIndex)
 		{
@@ -690,7 +695,8 @@ ULxSkillUnitGroup* ULxSkill::CreateGroundBounceProjectileUnits(const FLxSkillUni
 
 ULxSkillUnitGroup* ULxSkill::CreateLobProjectileUnits(const FLxSkillUnitResult& InSourceResult,
 	TSubclassOf<ALxLobProjectileSkillUnitActor> SkillUnitClass,
-	const FLxLobProjectileSkillUnitCreateParams& CreateParams, bool bActivateAfterCreate)
+	const FLxLobProjectileSkillUnitCreateParams& CreateParams,
+	ELxSkillUnitResultSpawnLocationType SpawnLocationType, bool bActivateAfterCreate)
 {
 	TArray<ALxLobProjectileSkillUnitActor*> SkillUnits;
 	const int32 LaunchCount = FMath::Max(CreateParams.ProjectileSpec.LaunchCount, 1);
@@ -699,7 +705,7 @@ ULxSkillUnitGroup* ULxSkill::CreateLobProjectileUnits(const FLxSkillUnitResult& 
 	FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeProjectileSpec(ProjectileParams);
 	SkillUnitSpec.MovementSpec.GravityScale = FMath::Max(CreateParams.LobSpec.GravityScale, 0.0f);
 	for (const FTransform& BaseTransform : BuildSpawnTransforms(InSourceResult,
-		ELxSkillUnitResultSpawnLocationType::HitLocation, CreateParams.ResultDirectionType))
+		SpawnLocationType, CreateParams.ResultDirectionType))
 	{
 		for (int32 LaunchIndex = 0; LaunchIndex < LaunchCount; ++LaunchIndex)
 		{
@@ -720,13 +726,14 @@ ULxSkillUnitGroup* ULxSkill::CreateLobProjectileUnits(const FLxSkillUnitResult& 
 
 ULxSkillUnitGroup* ULxSkill::CreateDirectHitAreaEffects(const FLxSkillUnitResult& InSourceResult,
 	TSubclassOf<ALxDirectHitAreaSkillUnitActor> SkillUnitClass,
-	const FLxDirectHitAreaEffectCreateParams& CreateParams, bool bActivateAfterCreate)
+	const FLxDirectHitAreaEffectCreateParams& CreateParams,
+	ELxSkillUnitResultSpawnLocationType SpawnLocationType, bool bActivateAfterCreate)
 {
 	TArray<ALxDirectHitAreaSkillUnitActor*> SkillUnits;
 	const FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeAreaSpec(
 		ELxSkillUnitType::DirectHitAreaEffect, CreateParams.AreaEffectSpec);
 	for (const FTransform& Transform : BuildSpawnTransforms(InSourceResult,
-		ELxSkillUnitResultSpawnLocationType::HitLocation, CreateParams.ResultDirectionType))
+		SpawnLocationType, CreateParams.ResultDirectionType))
 	{
 		ALxDirectHitAreaSkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
 			this, SkillUnitClass, Transform, SkillUnitSpec);
@@ -741,12 +748,13 @@ ULxSkillUnitGroup* ULxSkill::CreateDirectHitAreaEffects(const FLxSkillUnitResult
 
 ULxSkillUnitGroup* ULxSkill::CreateDurationAreaEffects(const FLxSkillUnitResult& InSourceResult,
 	TSubclassOf<ALxDurationAreaSkillUnitActor> SkillUnitClass,
-	const FLxDurationAreaEffectCreateParams& CreateParams, bool bActivateAfterCreate)
+	const FLxDurationAreaEffectCreateParams& CreateParams,
+	ELxSkillUnitResultSpawnLocationType SpawnLocationType, bool bActivateAfterCreate)
 {
 	TArray<ALxDurationAreaSkillUnitActor*> SkillUnits;
 	const FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeDurationAreaSpec(CreateParams);
 	for (const FTransform& Transform : BuildSpawnTransforms(InSourceResult,
-		ELxSkillUnitResultSpawnLocationType::HitLocation, CreateParams.ResultDirectionType))
+		SpawnLocationType, CreateParams.ResultDirectionType))
 	{
 		ALxDurationAreaSkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
 			this, SkillUnitClass, Transform, SkillUnitSpec);
@@ -813,28 +821,30 @@ ULxSkillUnitGroup* ULxSkill::CreateMeleeEffect(TSubclassOf<ALxMeleeSkillUnitActo
 
 ULxSkillUnitGroup* ULxSkill::CreateSingleRayEffectUnits(const FLxSkillUnitResult& InSourceResult,
 	TSubclassOf<ALxSingleRaySkillUnitActor> SkillUnitClass,
-	const FLxSingleRayEffectCreateParams& CreateParams, bool bActivateAfterCreate)
+	const FLxSingleRayEffectCreateParams& CreateParams,
+	ELxSkillUnitResultSpawnLocationType SpawnLocationType, bool bActivateAfterCreate)
 {
-	(void)InSourceResult;
 	TArray<ALxSingleRaySkillUnitActor*> SkillUnits;
 	const int32 LaunchCount = FMath::Max(CreateParams.SingleRaySpec.LaunchCount, 1);
 	const FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeRaySpec(ELxSkillUnitType::SingleRayEffect);
-	// 瞄准组件已按释放点到射线检测命中位置计算朝向，直接沿用即可与投射物表现一致。
-	FTransform BaseTransform = GetSkillSpawnTransform();
-	for (int32 LaunchIndex = 0; LaunchIndex < LaunchCount; ++LaunchIndex)
+	for (const FTransform& BaseTransform : BuildSpawnTransforms(
+		InSourceResult, SpawnLocationType, ELxSkillResultDirectionType::KeepSourceRotation))
 	{
-		const FTransform SpawnTransform = LxSkillCreateInternal::MakeProjectileTransform(BaseTransform,
-			LaunchIndex, LaunchCount, CreateParams.SingleRaySpec.GetRaySpacingInUnrealUnits());
-		ALxSingleRaySkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
-			this, SkillUnitClass, SpawnTransform, SkillUnitSpec);
-		if (SkillUnit)
+		for (int32 LaunchIndex = 0; LaunchIndex < LaunchCount; ++LaunchIndex)
 		{
-			SkillUnit->SetOwner(GetSkillCasterActor());
-			SkillUnit->SetInstigator(Cast<APawn>(GetSkillCasterActor()));
-			SkillUnit->InitializeRayParameters(CreateParams.RaySpec);
-			SkillUnit->InitializeRayDetectionCollisionComponents();
-			SkillUnit->InitializeSingleRayParameters(CreateParams.SingleRaySpec);
-			SkillUnits.Add(SkillUnit);
+			const FTransform SpawnTransform = LxSkillCreateInternal::MakeProjectileTransform(BaseTransform,
+				LaunchIndex, LaunchCount, CreateParams.SingleRaySpec.GetRaySpacingInUnrealUnits());
+			ALxSingleRaySkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
+				this, SkillUnitClass, SpawnTransform, SkillUnitSpec);
+			if (SkillUnit)
+			{
+				SkillUnit->SetOwner(GetSkillCasterActor());
+				SkillUnit->SetInstigator(Cast<APawn>(GetSkillCasterActor()));
+				SkillUnit->InitializeRayParameters(CreateParams.RaySpec);
+				SkillUnit->InitializeRayDetectionCollisionComponents();
+				SkillUnit->InitializeSingleRayParameters(CreateParams.SingleRaySpec);
+				SkillUnits.Add(SkillUnit);
+			}
 		}
 	}
 	// 单次射线的逻辑会立即完成，但表现需要按照创建参数继续保留，不能由单元组在完成回调中立即销毁。
@@ -846,8 +856,10 @@ ULxSkillUnitGroup* ULxSkill::CreateSingleRayEffectUnits(const FLxSkillUnitResult
 	return Result;
 }
 
-ULxSkillUnitGroup* ULxSkill::CreateContinuousRayEffectUnit(TSubclassOf<ALxContinuousRaySkillUnitActor> SkillUnitClass,
-	const FLxContinuousRayEffectCreateParams& CreateParams, bool bPersistent)
+ULxSkillUnitGroup* ULxSkill::CreateContinuousRayEffectUnit(const FLxSkillUnitResult& InSourceResult,
+	TSubclassOf<ALxContinuousRaySkillUnitActor> SkillUnitClass,
+	const FLxContinuousRayEffectCreateParams& CreateParams,
+	ELxSkillUnitResultSpawnLocationType SpawnLocationType, bool bPersistent)
 {
 	if (bPersistent && IsValid(PersistentContinuousRaySkillUnitGroup))
 	{
@@ -860,7 +872,9 @@ ULxSkillUnitGroup* ULxSkill::CreateContinuousRayEffectUnit(TSubclassOf<ALxContin
 	SkillUnitSpec.HitLimitSpec.bIgnoreAlreadyHitTargets = false;
 	SkillUnitSpec.HitLimitSpec.HitIntervalPerTarget = FMath::Max(CreateParams.ContinuousRaySpec.TriggerInterval, 0.01f);
 	// 持续射线同样沿用瞄准检测命中位置生成的朝向，避免使用地形 Actor 原点覆盖方向。
-	FTransform SpawnTransform = GetSkillSpawnTransform();
+	const TArray<FTransform> SpawnTransforms = BuildSpawnTransforms(
+		InSourceResult, SpawnLocationType, ELxSkillResultDirectionType::KeepSourceRotation);
+	const FTransform SpawnTransform = SpawnTransforms.IsEmpty() ? GetSkillSpawnTransform() : SpawnTransforms[0];
 	ALxContinuousRaySkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
 		this, SkillUnitClass, SpawnTransform, SkillUnitSpec);
 	if (SkillUnit)
@@ -993,6 +1007,60 @@ ULxSkillUnitGroup* ULxSkill::CreatePeriodicAuraEffectUnit(
 	}
 	SkillUnit->InitializePeriodicAuraEffectParameters(CreateParams.PeriodicSpec);
 	return LxSkillCreateInternal::MakeGroup(this, SkillUnit, bActivateAfterCreate);
+}
+
+ULxSkillUnitGroup* ULxSkill::CreateSpawnEntityUnits(const FLxSkillUnitResult& InSourceResult,
+	TSubclassOf<ALxSpawnEntitySkillUnitActor> SkillUnitClass,
+	const FLxSpawnEntitySkillUnitCreateParams& CreateParams,
+	ELxSkillUnitResultSpawnLocationType SpawnLocationType, bool bActivateAfterCreate)
+{
+	FLxSkillUnitSpec SkillUnitSpec;
+	SkillUnitSpec.SkillUnitType = SkillUnitClass && SkillUnitClass->IsChildOf(ALxBarrierSkillUnitActor::StaticClass())
+		? ELxSkillUnitType::Barrier
+		: (SkillUnitClass && SkillUnitClass->IsChildOf(ALxMarkerSkillUnitActor::StaticClass())
+			? ELxSkillUnitType::Marker : ELxSkillUnitType::SpawnEntity);
+	SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
+
+	TArray<ALxSpawnEntitySkillUnitActor*> SkillUnits;
+	for (const FTransform& SpawnTransform : BuildSpawnTransforms(
+		InSourceResult, SpawnLocationType, ELxSkillResultDirectionType::KeepSourceRotation))
+	{
+		ALxSpawnEntitySkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
+			this, SkillUnitClass, SpawnTransform, SkillUnitSpec);
+		if (SkillUnit)
+		{
+			SkillUnit->InitializeSpawnEntityParameters(CreateParams.SpawnEntitySpec);
+			SkillUnits.Add(SkillUnit);
+		}
+	}
+	return LxSkillCreateInternal::MakeGroup(this, SkillUnits, bActivateAfterCreate);
+}
+
+ULxSkillUnitGroup* ULxSkill::CreateTriggerUnits(const FLxSkillUnitResult& InSourceResult,
+	TSubclassOf<ALxTriggerSkillUnitActor> SkillUnitClass, const FLxTriggerSkillUnitCreateParams& CreateParams,
+	ELxSkillUnitResultSpawnLocationType SpawnLocationType, bool bActivateAfterCreate)
+{
+	FLxSkillUnitSpec SkillUnitSpec;
+	SkillUnitSpec.SkillUnitType = ELxSkillUnitType::Trigger;
+	SkillUnitSpec.SpaceSpec = CreateParams.SpaceSpec;
+	SkillUnitSpec.TriggerSpec = CreateParams.TriggerSpec;
+	SkillUnitSpec.TargetFilterSpec = CreateParams.TargetFilterSpec;
+	SkillUnitSpec.HitLimitSpec = CreateParams.HitLimitSpec;
+	SkillUnitSpec.LifeSpec = CreateParams.LifeSpec;
+
+	TArray<ALxTriggerSkillUnitActor*> SkillUnits;
+	for (const FTransform& SpawnTransform : BuildSpawnTransforms(
+		InSourceResult, SpawnLocationType, ELxSkillResultDirectionType::KeepSourceRotation))
+	{
+		ALxTriggerSkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(
+			this, SkillUnitClass, SpawnTransform, SkillUnitSpec);
+		if (SkillUnit)
+		{
+			SkillUnit->InitializeTriggerUnitParameters(CreateParams.TriggerUnitSpec);
+			SkillUnits.Add(SkillUnit);
+		}
+	}
+	return LxSkillCreateInternal::MakeGroup(this, SkillUnits, bActivateAfterCreate);
 }
 
 bool ULxSkill::SetPersistentSkillUnitGroup(ULxSkillUnitGroup* InSkillUnitGroup)

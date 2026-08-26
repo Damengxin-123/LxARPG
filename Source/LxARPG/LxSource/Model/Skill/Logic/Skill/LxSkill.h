@@ -26,6 +26,8 @@ class ALxContinuousAttachEffectSkillUnitActor;
 class ALxPeriodicAttachEffectSkillUnitActor;
 class ALxContinuousAuraEffectSkillUnitActor;
 class ALxPeriodicAuraEffectSkillUnitActor;
+class ALxSpawnEntitySkillUnitActor;
+class ALxTriggerSkillUnitActor;
 
 /** 技能命中词条事件，通知技能释放组件把命中词条和有效目标交给效果处理组件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillHitEntriesReady, ULxSkill*, SourceSkill, const TArray<FLxSkillEntryPackage>&, SkillEntryPackages, const TArray<AActor*>&, HitTargets);
@@ -237,28 +239,36 @@ public:
 		meta=(AutoCreateRefTerm="InSourceResult", AdvancedDisplay="bActivateAfterCreate"))
 	ULxSkillUnitGroup* CreateGroundBounceProjectileUnits(const FLxSkillUnitResult& InSourceResult,
 		TSubclassOf<ALxGroundBounceProjectileSkillUnitActor> SkillUnitClass,
-		const FLxGroundBounceProjectileSkillUnitCreateParams& CreateParams, bool bActivateAfterCreate = true);
+		const FLxGroundBounceProjectileSkillUnitCreateParams& CreateParams,
+		ELxSkillUnitResultSpawnLocationType SpawnLocationType = ELxSkillUnitResultSpawnLocationType::HitLocation,
+		bool bActivateAfterCreate = true);
 
 	/** 根据通用技能单元结果中的目标和位置创建抛射投射物。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|投射物", DisplayName="创建抛射投射物",
 		meta=(AutoCreateRefTerm="InSourceResult", AdvancedDisplay="bActivateAfterCreate"))
 	ULxSkillUnitGroup* CreateLobProjectileUnits(const FLxSkillUnitResult& InSourceResult,
 		TSubclassOf<ALxLobProjectileSkillUnitActor> SkillUnitClass,
-		const FLxLobProjectileSkillUnitCreateParams& CreateParams, bool bActivateAfterCreate = true);
+		const FLxLobProjectileSkillUnitCreateParams& CreateParams,
+		ELxSkillUnitResultSpawnLocationType SpawnLocationType = ELxSkillUnitResultSpawnLocationType::HitLocation,
+		bool bActivateAfterCreate = true);
 
 	/** 在通用技能单元结果的每个位置分别创建一个直接命中型范围效果。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|范围效果", DisplayName="创建直接命中型范围效果",
 		meta=(AutoCreateRefTerm="InSourceResult", AdvancedDisplay="bActivateAfterCreate"))
 	ULxSkillUnitGroup* CreateDirectHitAreaEffects(const FLxSkillUnitResult& InSourceResult,
 		TSubclassOf<ALxDirectHitAreaSkillUnitActor> SkillUnitClass,
-		const FLxDirectHitAreaEffectCreateParams& CreateParams, bool bActivateAfterCreate = true);
+		const FLxDirectHitAreaEffectCreateParams& CreateParams,
+		ELxSkillUnitResultSpawnLocationType SpawnLocationType = ELxSkillUnitResultSpawnLocationType::HitLocation,
+		bool bActivateAfterCreate = true);
 
 	/** 在通用技能单元结果的每个位置分别创建一个持续型范围效果。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|范围效果", DisplayName="创建持续型范围效果",
 		meta=(AutoCreateRefTerm="InSourceResult", AdvancedDisplay="bActivateAfterCreate"))
 	ULxSkillUnitGroup* CreateDurationAreaEffects(const FLxSkillUnitResult& InSourceResult,
 		TSubclassOf<ALxDurationAreaSkillUnitActor> SkillUnitClass,
-		const FLxDurationAreaEffectCreateParams& CreateParams, bool bActivateAfterCreate = true);
+		const FLxDurationAreaEffectCreateParams& CreateParams,
+		ELxSkillUnitResultSpawnLocationType SpawnLocationType = ELxSkillUnitResultSpawnLocationType::HitLocation,
+		bool bActivateAfterCreate = true);
 
 	/** 在通用技能单元结果的每个位置分别创建一个缩放型范围效果。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|范围效果", DisplayName="创建缩放型范围效果",
@@ -279,12 +289,18 @@ public:
 		meta=(AutoCreateRefTerm="InSourceResult", AdvancedDisplay="bActivateAfterCreate"))
 	ULxSkillUnitGroup* CreateSingleRayEffectUnits(const FLxSkillUnitResult& InSourceResult,
 		TSubclassOf<ALxSingleRaySkillUnitActor> SkillUnitClass,
-		const FLxSingleRayEffectCreateParams& CreateParams, bool bActivateAfterCreate = true);
+		const FLxSingleRayEffectCreateParams& CreateParams,
+		ELxSkillUnitResultSpawnLocationType SpawnLocationType = ELxSkillUnitResultSpawnLocationType::CasterLocation,
+		bool bActivateAfterCreate = true);
 
 	/** 创建可重复启停的持续射线；持久化时重复调用将返回原有中间层。 */
-	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|射线", DisplayName="创建持续射线效果")
-	ULxSkillUnitGroup* CreateContinuousRayEffectUnit(TSubclassOf<ALxContinuousRaySkillUnitActor> SkillUnitClass,
-		const FLxContinuousRayEffectCreateParams& CreateParams, bool bPersistent = true);
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|射线", DisplayName="创建持续射线效果",
+		meta=(AutoCreateRefTerm="InSourceResult"))
+	ULxSkillUnitGroup* CreateContinuousRayEffectUnit(const FLxSkillUnitResult& InSourceResult,
+		TSubclassOf<ALxContinuousRaySkillUnitActor> SkillUnitClass,
+		const FLxContinuousRayEffectCreateParams& CreateParams,
+		ELxSkillUnitResultSpawnLocationType SpawnLocationType = ELxSkillUnitResultSpawnLocationType::CasterLocation,
+		bool bPersistent = true);
 
 	/** 根据通用结果中的目标列表，为每个有效目标创建持续生效依附效果。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|依附效果", DisplayName="创建持续依附效果",
@@ -309,6 +325,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|光环效果", DisplayName="创建周期型光环效果")
 	ULxSkillUnitGroup* CreatePeriodicAuraEffectUnit(TSubclassOf<ALxPeriodicAuraEffectSkillUnitActor> SkillUnitClass,
 		const FLxPeriodicAuraEffectCreateParams& CreateParams, bool bActivateAfterCreate = true);
+
+	/** 根据通用技能单元结果创建召唤实体载体；屏障、标记和召唤生物可使用其派生类型。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|召唤实体", DisplayName="创建召唤实体",
+		meta=(AutoCreateRefTerm="InSourceResult", AdvancedDisplay="bActivateAfterCreate"))
+	ULxSkillUnitGroup* CreateSpawnEntityUnits(const FLxSkillUnitResult& InSourceResult,
+		TSubclassOf<ALxSpawnEntitySkillUnitActor> SkillUnitClass,
+		const FLxSpawnEntitySkillUnitCreateParams& CreateParams,
+		ELxSkillUnitResultSpawnLocationType SpawnLocationType = ELxSkillUnitResultSpawnLocationType::CasterLocation,
+		bool bActivateAfterCreate = true);
+
+	/** 根据通用技能单元结果创建触发器。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|触发器", DisplayName="创建触发器",
+		meta=(AutoCreateRefTerm="InSourceResult", AdvancedDisplay="bActivateAfterCreate"))
+	ULxSkillUnitGroup* CreateTriggerUnits(const FLxSkillUnitResult& InSourceResult,
+		TSubclassOf<ALxTriggerSkillUnitActor> SkillUnitClass, const FLxTriggerSkillUnitCreateParams& CreateParams,
+		ELxSkillUnitResultSpawnLocationType SpawnLocationType = ELxSkillUnitResultSpawnLocationType::CasterLocation,
+		bool bActivateAfterCreate = true);
 
 	/** 保存技能初始化时创建、后续可反复启停的唯一持久技能单元。 */
 	UFUNCTION(BlueprintCallable, Category="技能|持久技能单元", DisplayName="设置持久技能单元")
