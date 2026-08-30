@@ -19,6 +19,9 @@ public:
 	void InitializeGroundBounceParameters(const FLxSkillGroundBounceProjectileSpec& InGroundBounceSpec);
 
 protected:
+	/** 将蓝图选出的主要碰撞体设为扫掠根组件并配置地面阻挡。 */
+	virtual void ConfigureProjectilePrimaryCollision() override;
+
 	virtual void ResetProjectileRuntimeState() override;
 	virtual void HandleProjectileWorldHit(const FLxSkillDetectionResult& DetectionResult) override;
 

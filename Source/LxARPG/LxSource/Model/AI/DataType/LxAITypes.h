@@ -102,6 +102,14 @@ struct LXARPG_API FLxAIControlConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|决策", DisplayName="决策间隔", meta=(ClampMin="0.05", Units="s"))
 	float DecisionInterval = 0.35f;
 
+	/** 非紧急行为至少持续该时间后才允许被另一个仍可执行的普通行为替换。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|决策", DisplayName="行为最短持续时间", meta=(ClampMin="0.0", Units="s"))
+	float MinimumActionDuration = 0.8f;
+
+	/** 当前局势跨过阈值后需要额外回退的分数范围，用于避免在阈值附近频繁切换。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|决策|阈值", DisplayName="局势切换滞后", meta=(ClampMin="0.0", ClampMax="1.0"))
+	float SituationHysteresis = 0.08f;
+
 	/** 数量差异参与综合优势值计算的权重。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="AI|决策|对比", DisplayName="数量对比权重", meta=(ClampMin="0.0"))
 	float NumberComparisonWeight = 0.2f;

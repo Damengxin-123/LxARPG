@@ -11,11 +11,11 @@ struct FLxSkillHitLimitSpec
 
 	/** 总命中次数限制，低于等于 0 表示不限制。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|命中限制", DisplayName="总命中次数")
-	int32 MaxTotalHitCount = 0;
+	int32 MaxTotalHitCount = 100;
 
 	/** 单个目标最大命中次数，低于等于 0 表示不限制。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|命中限制", DisplayName="单目标命中次数")
-	int32 MaxHitCountPerTarget = 1;
+	int32 MaxHitCountPerTarget = 100;
 
 	/** 同一个目标两次命中之间的间隔。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|命中限制", DisplayName="单目标命中间隔")
@@ -23,9 +23,9 @@ struct FLxSkillHitLimitSpec
 
 	/** 是否允许同一个目标被重复命中。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|命中限制", DisplayName="允许重复命中同目标")
-	bool bCanHitSameTargetAgain = false;
+	bool bCanHitSameTargetAgain = true;
 
 	/** 是否忽略已经命中过的目标。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|命中限制", DisplayName="忽略已命中目标")
-	bool bIgnoreAlreadyHitTargets = true;
+	bool bIgnoreAlreadyHitTargets = false;
 };

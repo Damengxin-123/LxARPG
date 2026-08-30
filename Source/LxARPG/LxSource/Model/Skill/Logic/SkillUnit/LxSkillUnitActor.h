@@ -13,6 +13,8 @@ class ULxSkillLifeComponent;
 class ULxSkillMovementComponent;
 class ULxSkillPropagationComponent;
 class ULxSkillTriggerComponent;
+class UPrimitiveComponent;
+class UStaticMeshComponent;
 class ALxSkillUnitActor;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitResultEvent, ALxSkillUnitActor*, SkillUnit, const FLxSkillUnitResult&, SkillUnitResult);
@@ -110,6 +112,20 @@ public:
 	UFUNCTION(BlueprintPure, Category="技能单元|组件", DisplayName="获取传播能力组件")
 	ULxSkillPropagationComponent* GetSkillPropagationComponent() const;
 
+	/** 从技能子单元对象树重新收集预设形状和蓝图手动指定的静态网格体，并绑定为重叠事件来源。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|碰撞检测", DisplayName="刷新重叠事件来源")
+	void RefreshSkillUnitOverlapEventSources();
+
+	/** 在蓝图中将当前技能子单元拥有的静态网格体添加或移出重叠事件来源。 */
+	UFUNCTION(BlueprintCallable, Category="技能单元|碰撞检测", DisplayName="设置静态网格体为重叠事件来源")
+	bool SetStaticMeshAsOverlapEventSource(
+		UPARAM(DisplayName="静态网格体组件") UStaticMeshComponent* StaticMeshComponent,
+		UPARAM(DisplayName="作为重叠来源") bool bUseAsOverlapSource = true);
+
+	/** 获取当前已经绑定到目标检测组件的全部重叠事件来源。 */
+	UFUNCTION(BlueprintPure, Category="技能单元|碰撞检测", DisplayName="获取重叠事件来源")
+	TArray<UPrimitiveComponent*> GetSkillUnitOverlapEventSources() const;
+
 	/** 技能单元激活事件。 */
 	UPROPERTY(BlueprintAssignable, Category="技能单元|事件", DisplayName="技能单元激活事件")
 	FOnLxSkillUnitResultEvent OnSkillUnitActivated;
@@ -162,6 +178,9 @@ protected:
 	/** 广播由具体技能单元确认过的通用命中结果。 */
 	void PublishSkillUnitHitResult(const FLxSkillUnitResult& HitResult);
 
+	/** 从对象树中解析胶囊、盒体和球体三类虚幻预设形状碰撞组件。 */
+	TArray<UPrimitiveComponent*> ResolvePresetShapeOverlapEventSources() const;
+
 	UFUNCTION()
 	virtual void HandleLifeStateChanged(ELxSkillAbilityComponentState OldState, ELxSkillAbilityComponentState NewState);
 
@@ -179,11 +198,26 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|词条", DisplayName="技能单元词条包数组")
 	TArray<FLxSkillEntryPackage> SkillEntryPackages;
 
+	/** 所有技能子单元共享的目标检测组件，统一绑定对象树上的重叠事件来源。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="技能单元|组件", DisplayName="目标检测组件")
+	TObjectPtr<ULxSkillDetectionComponent> DetectionComponent;
+
+	/** 当前自动收集及蓝图手动指定的全部重叠事件来源。 */
+	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly,
+		Category="技能单元|碰撞检测", DisplayName="重叠事件来源")
+	TArray<TObjectPtr<UPrimitiveComponent>> OverlapEventSourceComponents;
+
+	/** 蓝图手动指定为重叠事件来源的静态网格体组件。 */
+	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly,
+		Category="技能单元|碰撞检测", DisplayName="手动静态网格体重叠来源")
+	TArray<TObjectPtr<UStaticMeshComponent>> ManualStaticMeshOverlapSources;
+
 	/** 是否在BeginPlay时自动激活。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元", DisplayName="自动激活")
 	bool bAutoActivateSkillUnit = false;
 
 	bool bSkillUnitInitialized = false;
+	bool bMissingOverlapSourceWarningLogged = false;
 	/** 由服务端维护并复制的技能单元运行状态。 */
 	UPROPERTY(ReplicatedUsing=OnRep_SkillUnitActive, VisibleAnywhere, BlueprintReadOnly, Category="技能|技能单元|网络", DisplayName="技能单元运行状态")
 	bool bSkillUnitActive = false;

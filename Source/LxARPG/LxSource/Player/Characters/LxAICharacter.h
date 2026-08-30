@@ -8,6 +8,7 @@
 
 class ULxAIBehaviorModule;
 class ULxAIControlComponent;
+struct FLxDamageReceiveResult;
 
 /** 由配置驱动的AI角色类型，继承角色通用属性、技能和战斗组件。 */
 UCLASS(Blueprintable, DisplayName="AI控制角色")
@@ -47,6 +48,10 @@ public:
 	float GetCurrentHealthRatio() const;
 
 protected:
+	/** 收到实际伤害时立即将攻击者写入当前AI的敌对记忆。 */
+	UFUNCTION(Category="AI|感知", DisplayName="处理AI受到伤害")
+	void HandleAIReceivedDamage(const FLxDamageReceiveResult& DamageReceiveResult, AActor* AttackerActor);
+
 	/** 角色属性变化后刷新全部AI角色信息界面的生命值显示。 */
 	UFUNCTION(Category="AI|场景界面", DisplayName="处理AI属性变化")
 	void HandleAIAttributesChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot);

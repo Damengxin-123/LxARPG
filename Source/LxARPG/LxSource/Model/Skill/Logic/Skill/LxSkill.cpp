@@ -25,9 +25,16 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitSpec.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerAimModule.h"
 #include "LxARPG/LxSource/Model/CharacterPoint/Logic/LxCharacterAnchorPointComponent.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillItem.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "TimerManager.h"
+
+FGameplayTag ULxSkill::GetSkillIDTag() const
+{
+	const ULxSkillItem* SkillItem = GetTypedOuter<ULxSkillItem>();
+	return SkillItem ? SkillItem->GetSkillItemInformation().ItemIDTag : FGameplayTag();
+}
 
 namespace LxSkillCreateInternal
 {
@@ -396,6 +403,53 @@ void ULxSkill::ReceiveSkillEffectForTargets_Implementation(const TArray<FLxSkill
 	}
 }
 
+bool ULxSkill::ApplySkillEntryPackageByIndex(
+	const FLxSkillUnitResult& InSkillUnitHitResult,
+	const int32 EntryPackageIndex)
+{
+	AActor* CasterActor = GetSkillCasterActor();
+	if (!IsValid(CasterActor) || !CasterActor->HasAuthority()
+		|| !InSkillUnitHitResult.bSuccess || !SkillEntryPackages.IsValidIndex(EntryPackageIndex))
+	{
+		return false;
+	}
+
+	const FLxSkillEntryPackage& SelectedEntryPackage = SkillEntryPackages[EntryPackageIndex];
+	if (SelectedEntryPackage.IsEmpty())
+	{
+		return false;
+	}
+
+	TArray<AActor*> ValidTargets;
+	for (AActor* HitTarget : InSkillUnitHitResult.HitTargets)
+	{
+		if (IsValid(HitTarget))
+		{
+			ValidTargets.AddUnique(HitTarget);
+		}
+	}
+	if (ValidTargets.IsEmpty())
+	{
+		return false;
+	}
+
+	TArray<FLxSkillEntryPackage> SelectedEntryPackages;
+	SelectedEntryPackages.Add(SelectedEntryPackage);
+	ALxSkillUnitActor* SourceSkillUnit = Cast<ALxSkillUnitActor>(InSkillUnitHitResult.SourceUnit);
+	const bool bPersistentEffect = Cast<ALxContinuousAttachEffectSkillUnitActor>(SourceSkillUnit)
+		|| Cast<ALxContinuousAuraEffectSkillUnitActor>(SourceSkillUnit);
+	if (bPersistentEffect)
+	{
+		OnPersistentSkillHitEntriesReady.Broadcast(this, SourceSkillUnit, SelectedEntryPackages, ValidTargets);
+	}
+	else
+	{
+		ReceiveSkillEffectForTargets(SelectedEntryPackages, ValidTargets);
+	}
+
+	return true;
+}
+
 float ULxSkill::GetEffectiveReleaseCooldown() const
 {
 	return FMath::Max(LxGameplayConstants::MinimumActionIntervalSeconds, ReleaseCooldown);
@@ -546,7 +600,8 @@ FTransform ULxSkill::GetSkillSpawnTransform() const
 }
 
 TArray<FTransform> ULxSkill::BuildSpawnTransforms(const FLxSkillUnitResult& InSourceResult,
-	ELxSkillUnitResultSpawnLocationType SpawnLocationType, ELxSkillResultDirectionType DirectionType) const
+	ELxSkillUnitResultSpawnLocationType SpawnLocationType,
+	ELxSkillResultDirectionType MovementDirectionType) const
 {
 	TArray<FTransform> Result;
 	int32 ResultItemCount = 0;
@@ -556,6 +611,7 @@ TArray<FTransform> ULxSkill::BuildSpawnTransforms(const FLxSkillUnitResult& InSo
 		ResultItemCount = FMath::Max(InSourceResult.HitTargets.Num(), InSourceResult.HitTargetLocations.Num());
 		break;
 	case ELxSkillUnitResultSpawnLocationType::HitLocation:
+	case ELxSkillUnitResultSpawnLocationType::PreviousSkillUnitLocation:
 		ResultItemCount = InSourceResult.HitLocations.Num();
 		break;
 	case ELxSkillUnitResultSpawnLocationType::InvalidLocation:
@@ -576,6 +632,8 @@ TArray<FTransform> ULxSkill::BuildSpawnTransforms(const FLxSkillUnitResult& InSo
 		FTransform ItemTransform = CasterTransform;
 		const bool bHasValidTarget = InSourceResult.HitTargets.IsValidIndex(ItemIndex)
 			&& IsValid(InSourceResult.HitTargets[ItemIndex]);
+		const bool bHasTargetLocation = InSourceResult.HitTargetLocations.IsValidIndex(ItemIndex)
+			|| bHasValidTarget;
 		const FVector TargetLocation = InSourceResult.HitTargetLocations.IsValidIndex(ItemIndex)
 			? InSourceResult.HitTargetLocations[ItemIndex]
 			: (bHasValidTarget ? InSourceResult.HitTargets[ItemIndex]->GetActorLocation() : CasterTransform.GetLocation());
@@ -586,8 +644,19 @@ TArray<FTransform> ULxSkill::BuildSpawnTransforms(const FLxSkillUnitResult& InSo
 			ItemTransform.SetLocation(TargetLocation);
 			break;
 		case ELxSkillUnitResultSpawnLocationType::HitLocation:
-			ItemTransform.SetLocation(InSourceResult.HitLocations.IsValidIndex(ItemIndex)
-				? InSourceResult.HitLocations[ItemIndex] : TargetLocation);
+		case ELxSkillUnitResultSpawnLocationType::PreviousSkillUnitLocation:
+			if (InSourceResult.HitLocations.IsValidIndex(ItemIndex))
+			{
+				ItemTransform.SetLocation(InSourceResult.HitLocations[ItemIndex]);
+			}
+			else if (const AActor* PreviousSkillUnitActor = Cast<AActor>(InSourceResult.SourceUnit))
+			{
+				ItemTransform.SetLocation(PreviousSkillUnitActor->GetActorLocation());
+			}
+			else
+			{
+				ItemTransform.SetLocation(TargetLocation);
+			}
 			break;
 		case ELxSkillUnitResultSpawnLocationType::InvalidLocation:
 			ItemTransform.SetLocation(InSourceResult.InvalidLocations.IsValidIndex(ItemIndex)
@@ -597,40 +666,41 @@ TArray<FTransform> ULxSkill::BuildSpawnTransforms(const FLxSkillUnitResult& InSo
 			break;
 		}
 
-		const FVector ResultDirection = ResolveResultDirection(InSourceResult, ItemIndex, DirectionType);
-		if (!ResultDirection.IsNearlyZero())
+		const FVector ConfiguredSpawnLocation = ItemTransform.GetLocation();
+		// 反向模式的实际起点是目标位置，配置的创建位置在此模式下作为运动终点。
+		if (MovementDirectionType == ELxSkillResultDirectionType::TargetToSource
+			&& bHasTargetLocation)
 		{
-			ItemTransform.SetRotation(ResultDirection.Rotation().Quaternion());
+			ItemTransform.SetLocation(TargetLocation);
+		}
+		const FVector MovementDirection = ResolveMovementDirection(
+			InSourceResult, ItemIndex, ConfiguredSpawnLocation, MovementDirectionType);
+		if (!MovementDirection.IsNearlyZero())
+		{
+			ItemTransform.SetRotation(MovementDirection.Rotation().Quaternion());
 		}
 		Result.Add(ItemTransform);
 	}
 	return Result;
 }
 
-FVector ULxSkill::ResolveResultDirection(const FLxSkillUnitResult& InSourceResult, int32 TargetIndex,
-	ELxSkillResultDirectionType DirectionType) const
+FVector ULxSkill::ResolveMovementDirection(const FLxSkillUnitResult& InSourceResult, int32 TargetIndex,
+	const FVector& SpawnLocation, ELxSkillResultDirectionType MovementDirectionType) const
 {
-	if (DirectionType == ELxSkillResultDirectionType::KeepSourceRotation)
+	if (MovementDirectionType == ELxSkillResultDirectionType::KeepSourceRotation)
 	{
 		return FVector::ZeroVector;
 	}
 
-	FVector SourceToTargetDirection = InSourceResult.SourceToTargetDirections.IsValidIndex(TargetIndex)
-		? InSourceResult.SourceToTargetDirections[TargetIndex].GetSafeNormal() : FVector::ZeroVector;
-	if (SourceToTargetDirection.IsNearlyZero())
-	{
-		const bool bHasValidTarget = InSourceResult.HitTargets.IsValidIndex(TargetIndex)
-			&& IsValid(InSourceResult.HitTargets[TargetIndex]);
-		const FVector TargetLocation = InSourceResult.HitTargetLocations.IsValidIndex(TargetIndex)
-			? InSourceResult.HitTargetLocations[TargetIndex]
-			: (bHasValidTarget ? InSourceResult.HitTargets[TargetIndex]->GetActorLocation() : FVector::ZeroVector);
-		const FVector SourceLocation = InSourceResult.HitLocations.IsValidIndex(TargetIndex)
-			? InSourceResult.HitLocations[TargetIndex] : GetSkillSpawnTransform().GetLocation();
-		SourceToTargetDirection = (TargetLocation - SourceLocation).GetSafeNormal();
-	}
+	const bool bHasValidTarget = InSourceResult.HitTargets.IsValidIndex(TargetIndex)
+		&& IsValid(InSourceResult.HitTargets[TargetIndex]);
+	const FVector TargetLocation = InSourceResult.HitTargetLocations.IsValidIndex(TargetIndex)
+		? InSourceResult.HitTargetLocations[TargetIndex]
+		: (bHasValidTarget ? InSourceResult.HitTargets[TargetIndex]->GetActorLocation() : SpawnLocation);
+	const FVector SpawnToTargetDirection = (TargetLocation - SpawnLocation).GetSafeNormal();
 
-	return DirectionType == ELxSkillResultDirectionType::TargetToSource
-		? -SourceToTargetDirection : SourceToTargetDirection;
+	return MovementDirectionType == ELxSkillResultDirectionType::TargetToSource
+		? -SpawnToTargetDirection : SpawnToTargetDirection;
 }
 
 ULxSkillUnitGroup* ULxSkill::CreateStraightProjectileUnits(const FLxSkillUnitResult& InSourceResult,
@@ -840,8 +910,8 @@ ULxSkillUnitGroup* ULxSkill::CreateSingleRayEffectUnits(const FLxSkillUnitResult
 			{
 				SkillUnit->SetOwner(GetSkillCasterActor());
 				SkillUnit->SetInstigator(Cast<APawn>(GetSkillCasterActor()));
-				SkillUnit->InitializeRayParameters(CreateParams.RaySpec);
 				SkillUnit->InitializeRayDetectionCollisionComponents();
+				SkillUnit->InitializeRayParameters(CreateParams.RaySpec);
 				SkillUnit->InitializeSingleRayParameters(CreateParams.SingleRaySpec);
 				SkillUnits.Add(SkillUnit);
 			}
@@ -881,8 +951,8 @@ ULxSkillUnitGroup* ULxSkill::CreateContinuousRayEffectUnit(const FLxSkillUnitRes
 	{
 		SkillUnit->SetOwner(GetSkillCasterActor());
 		SkillUnit->SetInstigator(Cast<APawn>(GetSkillCasterActor()));
-		SkillUnit->InitializeRayParameters(CreateParams.RaySpec);
 		SkillUnit->InitializeRayDetectionCollisionComponents();
+		SkillUnit->InitializeRayParameters(CreateParams.RaySpec);
 		SkillUnit->InitializeContinuousRayParameters(CreateParams.ContinuousRaySpec);
 	}
 	ULxSkillUnitGroup* Result = LxSkillCreateInternal::MakeGroup(this, SkillUnit, false);
@@ -960,19 +1030,20 @@ ULxSkillUnitGroup* ULxSkill::CreatePeriodicAttachEffects(const FLxSkillUnitResul
 
 ULxSkillUnitGroup* ULxSkill::CreateContinuousAuraEffectUnit(
 	TSubclassOf<ALxContinuousAuraEffectSkillUnitActor> SkillUnitClass,
-	const FLxContinuousAuraEffectCreateParams& CreateParams, bool bActivateAfterCreate)
+	const FLxContinuousAuraEffectCreateParams& CreateParams, float AuraRange, bool bActivateAfterCreate)
 {
 	ALxBaseCharacter* AuraOwner = Cast<ALxBaseCharacter>(GetSkillCasterActor());
 	const bool bDurationValid = FMath::IsNearlyEqual(CreateParams.AuraEffectSpec.Duration, -1.0f)
 		|| CreateParams.AuraEffectSpec.Duration > 0.0f;
-	if (!IsValid(AuraOwner) || !IsValid(AuraOwner->GetAuraEffectAnchorPoint()) || !bDurationValid)
+	if (!IsValid(AuraOwner) || !IsValid(AuraOwner->GetAuraEffectAnchorPoint()) || !bDurationValid
+		|| !FMath::IsFinite(AuraRange) || AuraRange <= 0.0f)
 	{
 		return nullptr;
 	}
 	const FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakeContinuousAuraSpec(CreateParams);
 	ALxContinuousAuraEffectSkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(this, SkillUnitClass,
 		AuraOwner->GetAuraEffectAnchorPoint()->GetComponentTransform(), SkillUnitSpec);
-	if (!SkillUnit || !SkillUnit->InitializeAuraEffect(AuraOwner, CreateParams.AuraEffectSpec))
+	if (!SkillUnit || !SkillUnit->InitializeAuraEffect(AuraOwner, CreateParams.AuraEffectSpec, AuraRange))
 	{
 		if (SkillUnit)
 		{
@@ -985,19 +1056,20 @@ ULxSkillUnitGroup* ULxSkill::CreateContinuousAuraEffectUnit(
 
 ULxSkillUnitGroup* ULxSkill::CreatePeriodicAuraEffectUnit(
 	TSubclassOf<ALxPeriodicAuraEffectSkillUnitActor> SkillUnitClass,
-	const FLxPeriodicAuraEffectCreateParams& CreateParams, bool bActivateAfterCreate)
+	const FLxPeriodicAuraEffectCreateParams& CreateParams, float AuraRange, bool bActivateAfterCreate)
 {
 	ALxBaseCharacter* AuraOwner = Cast<ALxBaseCharacter>(GetSkillCasterActor());
 	const bool bDurationValid = FMath::IsNearlyEqual(CreateParams.AuraEffectSpec.Duration, -1.0f)
 		|| CreateParams.AuraEffectSpec.Duration > 0.0f;
-	if (!IsValid(AuraOwner) || !IsValid(AuraOwner->GetAuraEffectAnchorPoint()) || !bDurationValid)
+	if (!IsValid(AuraOwner) || !IsValid(AuraOwner->GetAuraEffectAnchorPoint()) || !bDurationValid
+		|| !FMath::IsFinite(AuraRange) || AuraRange <= 0.0f)
 	{
 		return nullptr;
 	}
 	const FLxSkillUnitSpec SkillUnitSpec = LxSkillCreateInternal::MakePeriodicAuraSpec(CreateParams);
 	ALxPeriodicAuraEffectSkillUnitActor* SkillUnit = LxSkillCreateInternal::SpawnSkillUnit(this, SkillUnitClass,
 		AuraOwner->GetAuraEffectAnchorPoint()->GetComponentTransform(), SkillUnitSpec);
-	if (!SkillUnit || !SkillUnit->InitializeAuraEffect(AuraOwner, CreateParams.AuraEffectSpec))
+	if (!SkillUnit || !SkillUnit->InitializeAuraEffect(AuraOwner, CreateParams.AuraEffectSpec, AuraRange))
 	{
 		if (SkillUnit)
 		{
@@ -1115,7 +1187,6 @@ ULxSkillUnitGroup* ULxSkill::CreateSkillUnitGroup(const TArray<ALxSkillUnitActor
 	}
 
 	SkillUnitGroup->OnSkillUnitGroupFinished.AddUniqueDynamic(this, &ULxSkill::HandleCachedSkillUnitGroupFinished);
-	SkillUnitGroup->OnSkillUnitGroupHit.AddUniqueDynamic(this, &ULxSkill::HandleSkillUnitGroupHit);
 	SkillUnitGroup->OnSkillUnitGroupEffectsRemoved.AddUniqueDynamic(this, &ULxSkill::HandleSkillUnitGroupEffectsRemoved);
 	RuntimeSkillUnitGroups.Add(SkillUnitGroup);
 	return SkillUnitGroup;
@@ -1129,7 +1200,6 @@ bool ULxSkill::ReleaseSkillUnitGroup(ULxSkillUnitGroup* InSkillUnitGroup)
 	}
 
 	InSkillUnitGroup->OnSkillUnitGroupFinished.RemoveDynamic(this, &ULxSkill::HandleCachedSkillUnitGroupFinished);
-	InSkillUnitGroup->OnSkillUnitGroupHit.RemoveDynamic(this, &ULxSkill::HandleSkillUnitGroupHit);
 	InSkillUnitGroup->OnSkillUnitGroupEffectsRemoved.RemoveDynamic(this, &ULxSkill::HandleSkillUnitGroupEffectsRemoved);
 	InSkillUnitGroup->ClearSkillUnits();
 	const int32 RemovedCount = RuntimeSkillUnitGroups.RemoveAll([InSkillUnitGroup](const TObjectPtr<ULxSkillUnitGroup>& CachedSkillUnitGroup)
@@ -1159,49 +1229,6 @@ void ULxSkill::HandleCachedSkillUnitGroupFinished(ULxSkillUnitGroup* InSkillUnit
 	// 基类只负责释放缓存；完整结果由技能单元组完成事件提供给其他监听者继续创建技能单元。
 	(void)InSkillUnitResult;
 	ReleaseSkillUnitGroup(InSkillUnitGroup);
-}
-
-void ULxSkill::HandleSkillUnitGroupHit(ULxSkillUnitGroup* InSkillUnitGroup,
-	const FLxSkillUnitResult& InSkillUnitResult)
-{
-	AActor* CasterActor = GetSkillCasterActor();
-	if (!CasterActor || !CasterActor->HasAuthority())
-	{
-		return;
-	}
-
-	if (!IsValid(InSkillUnitGroup) || !InSkillUnitResult.bSuccess || InSkillUnitResult.HitTargets.IsEmpty())
-	{
-		return;
-	}
-
-	TArray<AActor*> ValidTargets;
-	for (AActor* HitTarget : InSkillUnitResult.HitTargets)
-	{
-		if (IsValid(HitTarget))
-		{
-			ValidTargets.AddUnique(HitTarget);
-		}
-	}
-	bool bPersistentEffect = false;
-	for (ALxSkillUnitActor* SkillUnit : InSkillUnitGroup->GetSkillUnits())
-	{
-		if (Cast<ALxContinuousAttachEffectSkillUnitActor>(SkillUnit)
-			|| Cast<ALxContinuousAuraEffectSkillUnitActor>(SkillUnit))
-		{
-			bPersistentEffect = true;
-			break;
-		}
-	}
-	if (bPersistentEffect)
-	{
-		OnPersistentSkillHitEntriesReady.Broadcast(this, Cast<ALxSkillUnitActor>(InSkillUnitResult.SourceUnit),
-			SkillEntryPackages, ValidTargets);
-	}
-	else
-	{
-		ReceiveSkillEffectForTargets(SkillEntryPackages, ValidTargets);
-	}
 }
 
 void ULxSkill::HandleSkillUnitGroupEffectsRemoved(ULxSkillUnitGroup* InSkillUnitGroup,

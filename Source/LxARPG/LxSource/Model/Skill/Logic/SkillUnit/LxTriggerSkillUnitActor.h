@@ -5,8 +5,6 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillTriggerUnitSpec.h"
 #include "LxTriggerSkillUnitActor.generated.h"
 
-class USphereComponent;
-class ULxSkillDetectionComponent;
 class ULxSkillLifeComponent;
 class ULxSkillTriggerComponent;
 
@@ -34,12 +32,6 @@ protected:
 	virtual void ApplySkillUnitSpecToComponents() override;
 	virtual void HandleSkillTriggered(const FLxSkillTriggerResult& TriggerResult) override;
 	virtual void HandleLifeStateChanged(ELxSkillAbilityComponentState OldState, ELxSkillAbilityComponentState NewState) override;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="技能单元|组件", DisplayName="触发碰撞体")
-	TObjectPtr<USphereComponent> TriggerCollisionComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="技能单元|组件", DisplayName="目标检测组件")
-	TObjectPtr<ULxSkillDetectionComponent> DetectionComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="技能单元|组件", DisplayName="触发能力组件")
 	TObjectPtr<ULxSkillTriggerComponent> TriggerComponent;

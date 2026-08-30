@@ -45,15 +45,8 @@ protected:
 	/** 返回当前使用的全部范围判定组件。 */
 	TArray<UPrimitiveComponent*> GetAreaDetectionCollisionComponents() const;
 
-	/** 从范围技能单元自身对象树中解析全部用于目标检测的碰撞体。 */
-	TArray<UPrimitiveComponent*> ResolveAreaDetectionCollisionComponents() const;
-
 	UFUNCTION()
 	virtual void HandleAreaDetectionResult(const FLxSkillDetectionResult& DetectionResult);
-
-	/** 目标检测组件。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="技能单元|范围效果|组件", DisplayName="目标检测组件")
-	TObjectPtr<ULxSkillDetectionComponent> DetectionComponent;
 
 	/** 命中触发组件。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="技能单元|范围效果|组件", DisplayName="命中触发组件")
@@ -67,7 +60,4 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|范围效果", DisplayName="范围效果参数")
 	FLxSkillAreaEffectSpec AreaEffectSpec;
 
-	/** 当前范围技能单元自身对象树中用于检测的全部碰撞体。 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category="技能单元|范围效果|组件", DisplayName="范围判定碰撞体")
-	TArray<TObjectPtr<UPrimitiveComponent>> DetectionCollisionComponents;
 };

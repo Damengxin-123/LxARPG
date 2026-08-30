@@ -5,7 +5,7 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillProjectileSpec.h"
 #include "LxProjectileSkillUnitActor.generated.h"
 
-class USphereComponent;
+class UPrimitiveComponent;
 class ULxSkillDetectionComponent;
 class ULxSkillLifeComponent;
 class ULxSkillMovementComponent;
@@ -36,6 +36,12 @@ public:
 	FOnLxProjectileInvalidated OnProjectileInvalidated;
 
 protected:
+	/** 将投射物碰撞体设为运动根组件，并把原场景根重新挂到碰撞体下以保持完整组件树。 */
+	void ConfigureProjectileCollisionAsRoot();
+
+	/** 允许特殊投射物在选出蓝图主要碰撞体后配置扫掠和场景阻挡规则。 */
+	virtual void ConfigureProjectilePrimaryCollision();
+
 	virtual void ActivateSkillUnit_Implementation() override;
 	virtual void InitializeSkillUnitDefaultParameters_Implementation() override;
 	virtual void ApplySkillUnitSpecToComponents() override;
@@ -74,14 +80,12 @@ protected:
 	/** 记录一次有效目标命中，供后续命中限制判断使用。 */
 	void RecordTriggeredTarget(AActor* InTarget);
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="技能单元|组件", DisplayName="碰撞体")
-	TObjectPtr<USphereComponent> ProjectileCollisionComponent;
+	/** 从统一重叠来源中选出的首个投射物主要碰撞体，不在 C++ 中创建默认形状。 */
+	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category="技能单元|组件", DisplayName="主要碰撞体")
+	TObjectPtr<UPrimitiveComponent> ProjectileCollisionComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="技能单元|组件", DisplayName="运动能力组件")
 	TObjectPtr<ULxSkillMovementComponent> MovementComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="技能单元|组件", DisplayName="目标检测组件")
-	TObjectPtr<ULxSkillDetectionComponent> DetectionComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="技能单元|组件", DisplayName="生命周期组件")
 	TObjectPtr<ULxSkillLifeComponent> LifeComponent;

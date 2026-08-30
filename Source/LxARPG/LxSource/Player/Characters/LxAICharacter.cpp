@@ -6,6 +6,7 @@
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
+#include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectComponent.h"
 #include "LxARPG/LxSource/Player/Controllers/LxAIController.h"
 #include "LxARPG/LxSource/UI/WorldSpace/AICharacterInfo/LxAICharacterInfoWidget.h"
 
@@ -35,7 +36,7 @@ ALxAICharacter::ALxAICharacter()
 	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::Balanced,
 		{ELxAIActionType::Heal, ELxAIActionType::Attack, ELxAIActionType::Defend}));
 	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::Disadvantage,
-		{ELxAIActionType::Heal, ELxAIActionType::Defend, ELxAIActionType::Retreat}));
+		{ELxAIActionType::Heal, ELxAIActionType::Retreat, ELxAIActionType::Defend}));
 	AIControlConfig.SituationBehaviorSets.Add(MakeDefaultBehaviorSet(ELxAISituationLevel::SelfDanger,
 		{ELxAIActionType::Retreat, ELxAIActionType::Defend}));
 }
@@ -48,10 +49,25 @@ ULxAIBehaviorModule* ALxAICharacter::GetAIBehaviorComponent() const
 void ALxAICharacter::InitialCharacterInformation()
 {
 	Super::InitialCharacterInformation();
+	if (ULxCharacterEffectComponent* EffectComponent = GetCharacterEffectComponent())
+	{
+		EffectComponent->OnCharacterDamageReceived.RemoveDynamic(this, &ALxAICharacter::HandleAIReceivedDamage);
+		EffectComponent->OnCharacterDamageReceived.AddDynamic(this, &ALxAICharacter::HandleAIReceivedDamage);
+	}
 	BindCharacterInfoWidgets();
 	if (AIControlComponent)
 	{
 		AIControlComponent->BaseComponentInitialize();
+	}
+}
+
+void ALxAICharacter::HandleAIReceivedDamage(const FLxDamageReceiveResult&, AActor* AttackerActor)
+{
+	if (ALxAIController* AIController = Cast<ALxAIController>(GetController());
+		AIController && IsValid(AttackerActor) && AttackerActor != this)
+	{
+		// 不依赖伤害感知的异步派发，保证低生命决策的这一轮已经有可用逃跑目标。
+		AIController->ReportPerceivedTarget(AttackerActor, ELxAIPerceptionSource::Damage, true);
 	}
 }
 

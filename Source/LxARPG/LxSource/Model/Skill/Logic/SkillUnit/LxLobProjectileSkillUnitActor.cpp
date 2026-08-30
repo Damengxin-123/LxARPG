@@ -1,16 +1,20 @@
 #include "LxLobProjectileSkillUnitActor.h"
 
-#include "Components/SphereComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillMovementSpec.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillMovementComponent.h"
 
 ALxLobProjectileSkillUnitActor::ALxLobProjectileSkillUnitActor()
 {
-	// 仅为抛射类型把碰撞球设为运动根组件，保证扫掠碰撞不会改变其他投射物的组件层级。
+
+}
+
+void ALxLobProjectileSkillUnitActor::ConfigureProjectilePrimaryCollision()
+{
+	// 抛射类型把蓝图选出的主要碰撞体设为运动根组件，以便扫掠检测场景阻挡。
 	if (ProjectileCollisionComponent)
 	{
-		ProjectileCollisionComponent->SetupAttachment(nullptr);
-		SetRootComponent(ProjectileCollisionComponent);
+		ConfigureProjectileCollisionAsRoot();
 		ProjectileCollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		ProjectileCollisionComponent->SetCollisionResponseToAllChannels(ECR_Overlap);
 		ProjectileCollisionComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
@@ -45,15 +49,15 @@ void ALxLobProjectileSkillUnitActor::ActivateSkillUnit_Implementation()
 		return;
 	}
 
-	FVector HorizontalLaunchDirection = GetActorForwardVector();
-	HorizontalLaunchDirection.Z = 0.0f;
-	if (!HorizontalLaunchDirection.Normalize())
+	FVector SkillLaunchDirection = GetActorForwardVector().GetSafeNormal();
+	if (SkillLaunchDirection.IsNearlyZero())
 	{
-		HorizontalLaunchDirection = FRotator(0.0f, GetActorRotation().Yaw, 0.0f).Vector();
+		SkillLaunchDirection = FVector::ForwardVector;
 	}
 
+	// 保留技能发射方向的俯仰分量：向上瞄准会增加滞空时间，向下瞄准会抵消部分上抛速度。
 	const FVector InitialVelocity =
-		HorizontalLaunchDirection * FLxSkillMovementSpec::MeterToUnrealUnit(FMath::Max(ProjectileSpec.FlightSpeed, 0.0f))
+		SkillLaunchDirection * FLxSkillMovementSpec::MeterToUnrealUnit(FMath::Max(ProjectileSpec.FlightSpeed, 0.0f))
 		+ FVector::UpVector * FLxSkillMovementSpec::MeterToUnrealUnit(FMath::Max(LobSpec.UpwardLaunchSpeed, 0.0f));
 	MovementComponent->SetCurrentVelocity(InitialVelocity);
 }

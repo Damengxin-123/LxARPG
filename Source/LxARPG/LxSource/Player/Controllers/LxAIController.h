@@ -156,4 +156,7 @@ private:
 
 	/** 定时刷新当前AI目标数值与行为匹配的计时器。 */
 	FTimerHandle AutomaticDecisionTimer;
+
+	/** 当前行为最近一次真正发生切换时的世界时间。 */
+	double CurrentActionStartTime = 0.0;
 };

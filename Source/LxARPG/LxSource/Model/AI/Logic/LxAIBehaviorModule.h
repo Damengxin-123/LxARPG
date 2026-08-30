@@ -35,12 +35,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="AI|行为", DisplayName="停止AI行为")
 	void StopBehavior();
 
+	/** 仅停止当前行为产生的移动和关注目标，保留逃跑完成阻止等跨行为状态。 */
+	void StopBehaviorExecution();
+
 	/** 获取当前是否仍处于尚未达到配置距离的逃跑过程。 */
 	UFUNCTION(BlueprintPure, Category="AI|行为|逃跑", DisplayName="逃跑行为是否进行中")
 	bool IsRetreatInProgress() const { return bRetreatInProgress; }
 
-	/** 根据本轮敌对目标与决策结果更新追近状态，并在达到配置距离时结束逃跑。 */
-	void UpdateRetreatProgress(const FLxAIBattleSnapshot& InBattleSnapshot, bool bInShouldRetreat);
+	/** 根据本轮敌对目标更新追近状态和累计移动距离，并在达到配置距离时结束逃跑。 */
+	void UpdateRetreatProgress(const FLxAIBattleSnapshot& InBattleSnapshot);
 
 private:
 	/** 判断巡逻行为是否满足自身的无威胁条件。 */
@@ -99,6 +102,12 @@ private:
 	/** 本次逃跑用于累计实际移动距离的开始位置。 */
 	FVector RetreatStartLocation = FVector::ZeroVector;
 
+	/** 上一次累计逃跑移动距离时记录的角色位置。 */
+	FVector LastRetreatSampleLocation = FVector::ZeroVector;
+
+	/** 本次逃跑已经产生的水平实际移动距离，单位为厘米。 */
+	float AccumulatedRetreatDistance = 0.0f;
+
 	/** 最近一次有效的逃离方向，用于敌方暂时丢失后继续分段逃跑。 */
 	FVector LastRetreatDirection = FVector::ZeroVector;
 
@@ -125,5 +134,7 @@ private:
 
 	/** 完成本次逃跑时与敌方之间的水平距离，单位为厘米。 */
 	float CompletedRetreatEnemyDistance = 0.0f;
-};
 
+	/** 逃跑已造成实际位移，下次巡逻需要以当前位置作为新原点。 */
+	bool bPatrolOriginNeedsRefresh = false;
+};

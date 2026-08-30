@@ -1,6 +1,6 @@
 #include "LxGroundBounceProjectileSkillUnitActor.h"
 
-#include "Components/SphereComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillMovementComponent.h"
 
 namespace LxGroundBounceProjectile
@@ -14,11 +14,15 @@ namespace LxGroundBounceProjectile
 
 ALxGroundBounceProjectileSkillUnitActor::ALxGroundBounceProjectileSkillUnitActor()
 {
-	// 仅为地面弹跳类型把碰撞球设为运动根组件，保证扫掠碰撞不会改变其他投射物的组件层级。
+
+}
+
+void ALxGroundBounceProjectileSkillUnitActor::ConfigureProjectilePrimaryCollision()
+{
+	// 地面弹跳类型把蓝图选出的主要碰撞体设为运动根组件，以便扫掠检测场景阻挡。
 	if (ProjectileCollisionComponent)
 	{
-		ProjectileCollisionComponent->SetupAttachment(nullptr);
-		SetRootComponent(ProjectileCollisionComponent);
+		ConfigureProjectileCollisionAsRoot();
 		ProjectileCollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		ProjectileCollisionComponent->SetCollisionResponseToAllChannels(ECR_Overlap);
 		ProjectileCollisionComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);

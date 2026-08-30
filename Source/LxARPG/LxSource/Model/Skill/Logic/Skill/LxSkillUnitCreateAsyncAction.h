@@ -24,6 +24,7 @@ class ALxSpawnEntitySkillUnitActor;
 class ALxTriggerSkillUnitActor;
 class ULxSkill;
 class ULxSkillUnitGroup;
+class ULxContinuousRaySkillUnitCreateAsyncAction;
 
 	/** 异步技能单元事件，使用技能单元结果统一传递目标与各类位置数组。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxAsyncSkillUnitEvent,
@@ -33,7 +34,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxAsyncSkillUnitEvent,
  * 技能单元异步创建节点，在绑定蓝图执行出口后创建并激活技能单元组。
  * 命中出口可以反复触发，失效出口仅在整组技能单元全部结束后触发一次。
  */
-UCLASS(DisplayName="技能单元异步创建节点")
+UCLASS(BlueprintType, DisplayName="技能单元异步创建节点")
 class LXARPG_API ULxSkillUnitCreateAsyncAction : public UBlueprintAsyncActionBase
 {
 	GENERATED_BODY()
@@ -146,7 +147,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|射线", DisplayName="创建持续射线效果（异步）",
 		meta=(BlueprintInternalUseOnly="true", DefaultToSelf="InSkill", HidePin="InSkill",
 			AutoCreateRefTerm="InSourceResult,InTargetFilterSpec,InHitLimitSpec"))
-	static ULxSkillUnitCreateAsyncAction* CreateContinuousRayEffectUnitAsync(
+	static ULxContinuousRaySkillUnitCreateAsyncAction* CreateContinuousRayEffectUnitAsync(
 		UPARAM(DisplayName="技能对象") ULxSkill* InSkill,
 		UPARAM(DisplayName="前置技能单元结果") const FLxSkillUnitResult& InSourceResult,
 		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxContinuousRaySkillUnitActor> InSkillUnitClass,
@@ -189,7 +190,8 @@ public:
 		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxContinuousAuraEffectSkillUnitActor> InSkillUnitClass,
 		UPARAM(DisplayName="创建参数") const FLxContinuousAuraEffectCreateParams& InCreateParams,
 		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
-		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec);
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec,
+		UPARAM(DisplayName="光环范围（米）", meta=(ClampMin="0.01", UIMin="0.01")) float InAuraRange = 1.0f);
 
 	/** 异步创建并监听周期型光环效果。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|光环效果", DisplayName="创建周期型光环效果（异步）",
@@ -201,7 +203,8 @@ public:
 		UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxPeriodicAuraEffectSkillUnitActor> InSkillUnitClass,
 		UPARAM(DisplayName="创建参数") const FLxPeriodicAuraEffectCreateParams& InCreateParams,
 		UPARAM(DisplayName="目标筛选参数") const FLxSkillTargetFilterSpec& InTargetFilterSpec,
-		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec);
+		UPARAM(DisplayName="命中限制参数") const FLxSkillHitLimitSpec& InHitLimitSpec,
+		UPARAM(DisplayName="光环范围（米）", meta=(ClampMin="0.01", UIMin="0.01")) float InAuraRange = 1.0f);
 
 	/** 异步创建并监听一组召唤实体载体。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步|召唤实体", DisplayName="创建召唤实体（异步）",
@@ -240,6 +243,20 @@ public:
 	/** 创建技能单元组、绑定事件并在绑定完成后自动激活。 */
 	virtual void Activate() override;
 
+	/** 停止当前异步节点创建的技能单元，并同步结束持续技能释放状态。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步控制", DisplayName="停止持续技能释放")
+	bool StopContinuousSkillRelease();
+
+	/** 更新当前异步节点创建的技能单元世界位置和旋转。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|异步控制", DisplayName="更新持续技能位置和旋转")
+	bool UpdateContinuousSkillLocationAndRotation(
+		UPARAM(DisplayName="世界位置") FVector InWorldLocation,
+		UPARAM(DisplayName="世界旋转") FRotator InWorldRotation);
+
+	/** 获取当前异步节点已创建的技能单元组。 */
+	UFUNCTION(BlueprintPure, Category="技能|技能单元创建|异步控制", DisplayName="获取异步技能单元组")
+	ULxSkillUnitGroup* GetCreatedSkillUnitGroup() const { return SkillUnitGroup; }
+
 private:
 	/** 当前异步节点需要创建的技能单元类别。 */
 	enum class EAsyncCreateType : uint8
@@ -264,7 +281,8 @@ private:
 	/** 创建一个异步节点对象并注册到技能对象所在的游戏实例。 */
 	static ULxSkillUnitCreateAsyncAction* CreateAction(ULxSkill* InSkill,
 		const FLxSkillUnitResult& InSourceResult, const FLxSkillTargetFilterSpec& InTargetFilterSpec,
-		const FLxSkillHitLimitSpec& InHitLimitSpec, EAsyncCreateType InCreateType);
+		const FLxSkillHitLimitSpec& InHitLimitSpec, EAsyncCreateType InCreateType,
+		UClass* InActionClass = nullptr);
 
 	/** 接收技能单元组的单次命中并转换为精简的蓝图输出参数。 */
 	UFUNCTION()
@@ -367,6 +385,10 @@ private:
 	UPROPERTY(Transient)
 	FLxPeriodicAuraEffectCreateParams PeriodicAuraCreateParams;
 
+	/** 光环范围（米），创建时作为默认一米大小光环子单元Actor的等比缩放倍率。 */
+	UPROPERTY(Transient)
+	float AuraRange = 1.0f;
+
 	/** 召唤实体创建参数。 */
 	UPROPERTY(Transient)
 	FLxSpawnEntitySkillUnitCreateParams SpawnEntityCreateParams;
@@ -375,4 +397,11 @@ private:
 	UPROPERTY(Transient)
 	FLxTriggerSkillUnitCreateParams TriggerCreateParams;
 
+};
+
+/** 持续射线专用异步控制器，作为蓝图节点输出用于后续停止和更新变换。 */
+UCLASS(BlueprintType, DisplayName="持续射线异步控制器", meta=(ExposedAsyncProxy="持续射线控制器"))
+class LXARPG_API ULxContinuousRaySkillUnitCreateAsyncAction : public ULxSkillUnitCreateAsyncAction
+{
+	GENERATED_BODY()
 };

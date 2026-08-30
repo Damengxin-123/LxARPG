@@ -1,8 +1,6 @@
 #include "LxTriggerSkillUnitActor.h"
 
 #include "Components/SceneComponent.h"
-#include "Components/SphereComponent.h"
-#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillDetectionComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillLifeComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillTriggerComponent.h"
 
@@ -11,12 +9,6 @@ ALxTriggerSkillUnitActor::ALxTriggerSkillUnitActor()
 	USceneComponent* SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	SetRootComponent(SceneRoot);
 
-	TriggerCollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("TriggerCollision"));
-	TriggerCollisionComponent->SetupAttachment(SceneRoot);
-	TriggerCollisionComponent->SetSphereRadius(100.0f);
-	TriggerCollisionComponent->SetGenerateOverlapEvents(true);
-
-	DetectionComponent = CreateDefaultSubobject<ULxSkillDetectionComponent>(TEXT("DetectionComponent"));
 	TriggerComponent = CreateDefaultSubobject<ULxSkillTriggerComponent>(TEXT("TriggerComponent"));
 	LifeComponent = CreateDefaultSubobject<ULxSkillLifeComponent>(TEXT("LifeComponent"));
 }
@@ -30,21 +22,15 @@ void ALxTriggerSkillUnitActor::InitializeSkillUnitDefaultParameters_Implementati
 {
 	Super::InitializeSkillUnitDefaultParameters_Implementation();
 
-	if (DetectionComponent)
-	{
-		DetectionComponent->SetTriggerCollisionComponent(TriggerCollisionComponent);
-	}
+	// 碰撞体由子类蓝图自由配置，初始化时统一收集并绑定全部受支持的重叠事件来源。
+	RefreshSkillUnitOverlapEventSources();
 }
 
 void ALxTriggerSkillUnitActor::ApplySkillUnitSpecToComponents()
 {
 	Super::ApplySkillUnitSpecToComponents();
 
-	const float RadiusCm = SkillUnitSpec.SpaceSpec.GetRadiusInUnrealUnits();
-	if (TriggerCollisionComponent && RadiusCm > 0.0f)
-	{
-		TriggerCollisionComponent->SetSphereRadius(RadiusCm);
-	}
+	// 不再修改固定球体半径，碰撞形状和尺寸完全由子单元蓝图决定。
 }
 
 void ALxTriggerSkillUnitActor::HandleSkillTriggered(const FLxSkillTriggerResult& TriggerResult)

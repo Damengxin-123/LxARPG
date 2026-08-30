@@ -5,7 +5,7 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillLobProjectileSpec.h"
 #include "LxLobProjectileSkillUnitActor.generated.h"
 
-/** 抛射投射物技能单元，激活时获得向前和向上的初始速度，随后受重力影响沿抛物线飞行。 */
+/** 抛射投射物技能单元，激活时同时叠加完整技能发射方向速度和向上抛射速度。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="抛射投射物技能单元")
 class LXARPG_API ALxLobProjectileSkillUnitActor : public ALxProjectileSkillUnitActor
 {
@@ -19,6 +19,9 @@ public:
 	void InitializeLobParameters(const FLxSkillLobProjectileSpec& InLobSpec);
 
 protected:
+	/** 将蓝图选出的主要碰撞体设为扫掠根组件并配置场景阻挡。 */
+	virtual void ConfigureProjectilePrimaryCollision() override;
+
 	virtual void ActivateSkillUnit_Implementation() override;
 
 	/** 抛射投射物专用参数。 */

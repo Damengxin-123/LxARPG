@@ -18,6 +18,8 @@
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxPeriodicAuraEffectSkillUnitActor.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSpawnEntitySkillUnitActor.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxTriggerSkillUnitActor.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 ULxSkillUnitCreateAsyncAction* ULxSkillUnitCreateAsyncAction::CreateStraightProjectileUnitsAsync(
 	ULxSkill* InSkill, const FLxSkillUnitResult& InSourceResult,
@@ -159,15 +161,16 @@ ULxSkillUnitCreateAsyncAction* ULxSkillUnitCreateAsyncAction::CreateSingleRayEff
 	return Action;
 }
 
-ULxSkillUnitCreateAsyncAction* ULxSkillUnitCreateAsyncAction::CreateContinuousRayEffectUnitAsync(
+ULxContinuousRaySkillUnitCreateAsyncAction* ULxSkillUnitCreateAsyncAction::CreateContinuousRayEffectUnitAsync(
 	ULxSkill* InSkill, const FLxSkillUnitResult& InSourceResult,
 	TSubclassOf<ALxContinuousRaySkillUnitActor> InSkillUnitClass,
 	const FLxContinuousRayEffectCreateParams& InCreateParams,
 	const FLxSkillTargetFilterSpec& InTargetFilterSpec, const FLxSkillHitLimitSpec& InHitLimitSpec,
 	ELxSkillUnitResultSpawnLocationType InSpawnLocationType)
 {
-	ULxSkillUnitCreateAsyncAction* Action = CreateAction(InSkill, InSourceResult, InTargetFilterSpec,
-		InHitLimitSpec, EAsyncCreateType::ContinuousRayEffect);
+	ULxContinuousRaySkillUnitCreateAsyncAction* Action = Cast<ULxContinuousRaySkillUnitCreateAsyncAction>(
+		CreateAction(InSkill, InSourceResult, InTargetFilterSpec, InHitLimitSpec,
+			EAsyncCreateType::ContinuousRayEffect, ULxContinuousRaySkillUnitCreateAsyncAction::StaticClass()));
 	if (Action)
 	{
 		Action->SkillUnitClass = InSkillUnitClass;
@@ -213,7 +216,8 @@ ULxSkillUnitCreateAsyncAction* ULxSkillUnitCreateAsyncAction::CreateContinuousAu
 	ULxSkill* InSkill, const FLxSkillUnitResult& InSourceResult,
 	TSubclassOf<ALxContinuousAuraEffectSkillUnitActor> InSkillUnitClass,
 	const FLxContinuousAuraEffectCreateParams& InCreateParams,
-	const FLxSkillTargetFilterSpec& InTargetFilterSpec, const FLxSkillHitLimitSpec& InHitLimitSpec)
+	const FLxSkillTargetFilterSpec& InTargetFilterSpec, const FLxSkillHitLimitSpec& InHitLimitSpec,
+	float InAuraRange)
 {
 	ULxSkillUnitCreateAsyncAction* Action = CreateAction(InSkill, InSourceResult, InTargetFilterSpec,
 		InHitLimitSpec, EAsyncCreateType::ContinuousAuraEffect);
@@ -221,6 +225,7 @@ ULxSkillUnitCreateAsyncAction* ULxSkillUnitCreateAsyncAction::CreateContinuousAu
 	{
 		Action->SkillUnitClass = InSkillUnitClass;
 		Action->ContinuousAuraCreateParams = InCreateParams;
+		Action->AuraRange = InAuraRange;
 	}
 	return Action;
 }
@@ -229,7 +234,8 @@ ULxSkillUnitCreateAsyncAction* ULxSkillUnitCreateAsyncAction::CreatePeriodicAura
 	ULxSkill* InSkill, const FLxSkillUnitResult& InSourceResult,
 	TSubclassOf<ALxPeriodicAuraEffectSkillUnitActor> InSkillUnitClass,
 	const FLxPeriodicAuraEffectCreateParams& InCreateParams,
-	const FLxSkillTargetFilterSpec& InTargetFilterSpec, const FLxSkillHitLimitSpec& InHitLimitSpec)
+	const FLxSkillTargetFilterSpec& InTargetFilterSpec, const FLxSkillHitLimitSpec& InHitLimitSpec,
+	float InAuraRange)
 {
 	ULxSkillUnitCreateAsyncAction* Action = CreateAction(InSkill, InSourceResult, InTargetFilterSpec,
 		InHitLimitSpec, EAsyncCreateType::PeriodicAuraEffect);
@@ -237,6 +243,7 @@ ULxSkillUnitCreateAsyncAction* ULxSkillUnitCreateAsyncAction::CreatePeriodicAura
 	{
 		Action->SkillUnitClass = InSkillUnitClass;
 		Action->PeriodicAuraCreateParams = InCreateParams;
+		Action->AuraRange = InAuraRange;
 	}
 	return Action;
 }
@@ -328,7 +335,7 @@ void ULxSkillUnitCreateAsyncAction::Activate()
 	case EAsyncCreateType::ContinuousRayEffect:
 		SkillUnitGroup = Skill->CreateContinuousRayEffectUnit(SourceResult,
 			TSubclassOf<ALxContinuousRaySkillUnitActor>(SkillUnitClass.Get()),
-			ContinuousRayCreateParams, SpawnLocationType, true);
+			ContinuousRayCreateParams, SpawnLocationType, false);
 		break;
 	case EAsyncCreateType::ContinuousAttachEffect:
 		SkillUnitGroup = Skill->CreateContinuousAttachEffects(SourceResult,
@@ -343,12 +350,12 @@ void ULxSkillUnitCreateAsyncAction::Activate()
 	case EAsyncCreateType::ContinuousAuraEffect:
 		SkillUnitGroup = Skill->CreateContinuousAuraEffectUnit(
 			TSubclassOf<ALxContinuousAuraEffectSkillUnitActor>(SkillUnitClass.Get()),
-			ContinuousAuraCreateParams, false);
+			ContinuousAuraCreateParams, AuraRange, false);
 		break;
 	case EAsyncCreateType::PeriodicAuraEffect:
 		SkillUnitGroup = Skill->CreatePeriodicAuraEffectUnit(
 			TSubclassOf<ALxPeriodicAuraEffectSkillUnitActor>(SkillUnitClass.Get()),
-			PeriodicAuraCreateParams, false);
+			PeriodicAuraCreateParams, AuraRange, false);
 		break;
 	case EAsyncCreateType::SpawnEntity:
 		SkillUnitGroup = Skill->CreateSpawnEntityUnits(SourceResult,
@@ -381,11 +388,55 @@ void ULxSkillUnitCreateAsyncAction::Activate()
 	SkillUnitGroup->ActivateSkillUnits();
 }
 
+bool ULxSkillUnitCreateAsyncAction::StopContinuousSkillRelease()
+{
+	bool bStopped = false;
+	if (IsValid(Skill) && Skill->IsSustainedReleaseActive())
+	{
+		if (const ALxBaseCharacter* CasterCharacter = Cast<ALxBaseCharacter>(Skill->GetSkillCasterActor()))
+		{
+			if (ULxSkillCastModule* SkillCastModule = CasterCharacter->GetSkillCastComponent())
+			{
+				bStopped = SkillCastModule->StopSustainedRelease(Skill);
+			}
+		}
+
+		if (Skill->IsSustainedReleaseActive())
+		{
+			bStopped = Skill->TryStopSustainedRelease() || bStopped;
+		}
+	}
+
+	// 停止临时持续射线后会触发单元组完成并销毁子单元 Actor，下次释放重新创建。
+	if (IsValid(SkillUnitGroup) && SkillUnitGroup->HasActiveSkillUnits())
+	{
+		SkillUnitGroup->StopSkillUnits();
+		bStopped = true;
+	}
+	return bStopped;
+}
+
+bool ULxSkillUnitCreateAsyncAction::UpdateContinuousSkillLocationAndRotation(
+	FVector InWorldLocation, FRotator InWorldRotation)
+{
+	if (!IsValid(SkillUnitGroup))
+	{
+		return false;
+	}
+
+	const FTransform UpdatedTransform(InWorldRotation, InWorldLocation);
+	SkillUnitGroup->UpdateSkillUnitsTransform(UpdatedTransform);
+	return true;
+}
+
 ULxSkillUnitCreateAsyncAction* ULxSkillUnitCreateAsyncAction::CreateAction(ULxSkill* InSkill,
 	const FLxSkillUnitResult& InSourceResult, const FLxSkillTargetFilterSpec& InTargetFilterSpec,
-	const FLxSkillHitLimitSpec& InHitLimitSpec, EAsyncCreateType InCreateType)
+	const FLxSkillHitLimitSpec& InHitLimitSpec, EAsyncCreateType InCreateType, UClass* InActionClass)
 {
-	ULxSkillUnitCreateAsyncAction* Action = NewObject<ULxSkillUnitCreateAsyncAction>();
+	UClass* ActionClass = InActionClass && InActionClass->IsChildOf(StaticClass())
+		? InActionClass : StaticClass();
+	ULxSkillUnitCreateAsyncAction* Action = NewObject<ULxSkillUnitCreateAsyncAction>(
+		GetTransientPackage(), ActionClass);
 	if (!Action)
 	{
 		return nullptr;

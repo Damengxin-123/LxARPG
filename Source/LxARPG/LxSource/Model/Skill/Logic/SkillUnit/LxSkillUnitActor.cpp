@@ -5,6 +5,11 @@
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillMovementComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillPropagationComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillTriggerComponent.h"
+#include "Components/BoxComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/PrimitiveComponent.h"
+#include "Components/SphereComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Net/UnrealNetwork.h"
 
 ALxSkillUnitActor::ALxSkillUnitActor()
@@ -13,6 +18,8 @@ ALxSkillUnitActor::ALxSkillUnitActor()
 	bReplicates = true;
 	SetReplicateMovement(true);
 	bNetLoadOnClient = true;
+
+	DetectionComponent = CreateDefaultSubobject<ULxSkillDetectionComponent>(TEXT("DetectionComponent"));
 }
 
 void ALxSkillUnitActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -26,6 +33,7 @@ void ALxSkillUnitActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	RefreshSkillUnitOverlapEventSources();
 	InitializeSkillUnitDefaultParameters();
 	BindSkillUnitComponentEvents();
 
@@ -79,9 +87,9 @@ void ALxSkillUnitActor::ActivateSkillUnit_Implementation()
 		LifeComponent->StartLife();
 	}
 
-	if (ULxSkillDetectionComponent* DetectionComponent = GetSkillDetectionComponent())
+	if (ULxSkillDetectionComponent* SkillDetectionComponent = GetSkillDetectionComponent())
 	{
-		DetectionComponent->StartDetection();
+		SkillDetectionComponent->StartDetection();
 	}
 
 	if (ULxSkillTriggerComponent* TriggerComponent = GetSkillTriggerComponent())
@@ -136,9 +144,9 @@ void ALxSkillUnitActor::StopSkillUnitComponents()
 		MovementComponent->StopMovement();
 	}
 
-	if (ULxSkillDetectionComponent* DetectionComponent = GetSkillDetectionComponent())
+	if (ULxSkillDetectionComponent* SkillDetectionComponent = GetSkillDetectionComponent())
 	{
-		DetectionComponent->StopDetection();
+		SkillDetectionComponent->StopDetection();
 	}
 
 	if (ULxSkillTriggerComponent* TriggerComponent = GetSkillTriggerComponent())
@@ -176,7 +184,7 @@ ULxSkillMovementComponent* ALxSkillUnitActor::GetSkillMovementComponent() const
 
 ULxSkillDetectionComponent* ALxSkillUnitActor::GetSkillDetectionComponent() const
 {
-	return FindComponentByClass<ULxSkillDetectionComponent>();
+	return DetectionComponent ? DetectionComponent.Get() : FindComponentByClass<ULxSkillDetectionComponent>();
 }
 
 ULxSkillLifeComponent* ALxSkillUnitActor::GetSkillLifeComponent() const
@@ -194,6 +202,114 @@ ULxSkillPropagationComponent* ALxSkillUnitActor::GetSkillPropagationComponent() 
 	return FindComponentByClass<ULxSkillPropagationComponent>();
 }
 
+void ALxSkillUnitActor::RefreshSkillUnitOverlapEventSources()
+{
+	OverlapEventSourceComponents.Reset();
+	for (UPrimitiveComponent* ShapeComponent : ResolvePresetShapeOverlapEventSources())
+	{
+		OverlapEventSourceComponents.AddUnique(ShapeComponent);
+	}
+
+	ManualStaticMeshOverlapSources.RemoveAll([this](const TObjectPtr<UStaticMeshComponent>& MeshComponent)
+	{
+		return !IsValid(MeshComponent) || MeshComponent->GetOwner() != this;
+	});
+	for (UStaticMeshComponent* MeshComponent : ManualStaticMeshOverlapSources)
+	{
+		OverlapEventSourceComponents.AddUnique(MeshComponent);
+	}
+
+	TArray<UPrimitiveComponent*> ValidSources;
+	for (UPrimitiveComponent* SourceComponent : OverlapEventSourceComponents)
+	{
+		if (!IsValid(SourceComponent))
+		{
+			continue;
+		}
+		SourceComponent->SetGenerateOverlapEvents(true);
+		ValidSources.Add(SourceComponent);
+		if (SourceComponent->GetCollisionEnabled() == ECollisionEnabled::NoCollision)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("技能子单元重叠来源未启用查询碰撞：Actor=%s，类型=%s，组件=%s。"),
+				*GetNameSafe(this), *GetClass()->GetName(), *GetNameSafe(SourceComponent));
+		}
+	}
+
+	if (DetectionComponent)
+	{
+		DetectionComponent->SetTriggerCollisionComponents(ValidSources);
+	}
+
+	if (ValidSources.IsEmpty())
+	{
+		if (!bMissingOverlapSourceWarningLogged)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("技能子单元未找到重叠事件来源：Actor=%s，类型=%s。请在蓝图对象树添加胶囊、盒体或球体碰撞组件，或调用“设置静态网格体为重叠事件来源”。"),
+				*GetNameSafe(this), *GetClass()->GetName());
+			bMissingOverlapSourceWarningLogged = true;
+		}
+	}
+	else
+	{
+		bMissingOverlapSourceWarningLogged = false;
+	}
+}
+
+bool ALxSkillUnitActor::SetStaticMeshAsOverlapEventSource(
+	UStaticMeshComponent* StaticMeshComponent, bool bUseAsOverlapSource)
+{
+	if (!IsValid(StaticMeshComponent) || StaticMeshComponent->GetOwner() != this)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("设置静态网格体重叠来源失败：Actor=%s，只能使用当前技能子单元对象树中的静态网格体组件。"),
+			*GetNameSafe(this));
+		return false;
+	}
+
+	if (bUseAsOverlapSource)
+	{
+		ManualStaticMeshOverlapSources.AddUnique(StaticMeshComponent);
+	}
+	else
+	{
+		ManualStaticMeshOverlapSources.Remove(StaticMeshComponent);
+	}
+	RefreshSkillUnitOverlapEventSources();
+	return true;
+}
+
+TArray<UPrimitiveComponent*> ALxSkillUnitActor::GetSkillUnitOverlapEventSources() const
+{
+	TArray<UPrimitiveComponent*> Result;
+	for (UPrimitiveComponent* SourceComponent : OverlapEventSourceComponents)
+	{
+		if (IsValid(SourceComponent))
+		{
+			Result.Add(SourceComponent);
+		}
+	}
+	return Result;
+}
+
+TArray<UPrimitiveComponent*> ALxSkillUnitActor::ResolvePresetShapeOverlapEventSources() const
+{
+	TArray<UPrimitiveComponent*> Result;
+	TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(this);
+	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+	{
+		if (IsValid(PrimitiveComponent)
+			&& (PrimitiveComponent->IsA<UCapsuleComponent>()
+				|| PrimitiveComponent->IsA<UBoxComponent>()
+				|| PrimitiveComponent->IsA<USphereComponent>()))
+		{
+			Result.Add(PrimitiveComponent);
+		}
+	}
+	return Result;
+}
+
 void ALxSkillUnitActor::ApplySkillUnitSpecToComponents()
 {
 	if (ULxSkillMovementComponent* MovementComponent = GetSkillMovementComponent())
@@ -207,9 +323,9 @@ void ALxSkillUnitActor::ApplySkillUnitSpecToComponents()
 		LifeComponent->SetLifeTickInterval(SkillUnitSpec.TriggerSpec.TickInterval);
 	}
 
-	if (ULxSkillDetectionComponent* DetectionComponent = GetSkillDetectionComponent())
+	if (ULxSkillDetectionComponent* SkillDetectionComponent = GetSkillDetectionComponent())
 	{
-		DetectionComponent->SetTargetFilterSpec(SkillUnitSpec.TargetFilterSpec);
+		SkillDetectionComponent->SetTargetFilterSpec(SkillUnitSpec.TargetFilterSpec);
 	}
 
 	if (ULxSkillTriggerComponent* TriggerComponent = GetSkillTriggerComponent())

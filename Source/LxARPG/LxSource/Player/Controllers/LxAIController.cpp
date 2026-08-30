@@ -69,12 +69,15 @@ void ALxAIController::OnPossess(APawn* InPawn)
 	DynamicHostileTargets.Reset();
 	CurrentSituation = ELxAISituationLevel::NoThreat;
 	CurrentAction = ELxAIActionType::None;
+	CurrentActionStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	CurrentBattleSnapshot = FLxAIBattleSnapshot();
 	ApplyPerceptionConfiguration();
 
 	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
 	if (Config.bEnableAutomaticControl)
 	{
+		// 接管角色时立即建立首个行为，避免在随机首次定时延迟内对外显示“无”。
+		RunAutomaticDecision();
 		const float DecisionInterval = FMath::Max(0.05f, Config.DecisionInterval);
 		GetWorldTimerManager().SetTimer(AutomaticDecisionTimer, this, &ALxAIController::RunAutomaticDecision,
 			DecisionInterval, true, FMath::FRandRange(0.01f, DecisionInterval));
@@ -278,6 +281,22 @@ FLxAIBattleSnapshot ALxAIController::BuildBattleSnapshot()
 		Snapshot.EnemyEffectiveStrength, Snapshot.EnemyAverageState, Snapshot.EnemyCenter);
 	AccumulateSide(AssistTargets, Snapshot.AssistCount, Snapshot.AssistBaseStrength,
 		Snapshot.AssistEffectiveStrength, Snapshot.AssistAverageState, Snapshot.AssistCenter);
+	// 防守位置只使用实际感知到的其他友方；没有友方时留在自身位置。
+	Snapshot.AssistCenter = AICharacter->GetActorLocation();
+	FVector OtherAssistLocationSum = FVector::ZeroVector;
+	int32 OtherAssistCount = 0;
+	for (const FLxAnalyzedTarget& Assist : AssistTargets)
+	{
+		if (Assist.Character != AICharacter)
+		{
+			OtherAssistLocationSum += Assist.Character->GetActorLocation();
+			++OtherAssistCount;
+		}
+	}
+	if (OtherAssistCount > 0)
+	{
+		Snapshot.AssistCenter = OtherAssistLocationSum / static_cast<float>(OtherAssistCount);
+	}
 	Snapshot.SelfState = AICharacter->GetCurrentHealthRatio();
 	Snapshot.bHasThreat = Snapshot.EnemyCount > 0;
 	Snapshot.NumberAdvantageRatio = static_cast<float>(Snapshot.AssistCount) /
@@ -351,9 +370,22 @@ ELxAISituationLevel ALxAIController::EvaluateSituation(const FLxAIBattleSnapshot
 	}
 
 	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
-	if (InSnapshot.SelfState <= Config.SelfDangerStateThreshold)
+	const float SituationHysteresis = FMath::Max(0.0f, Config.SituationHysteresis);
+	if (InSnapshot.SelfState <= Config.SelfDangerStateThreshold ||
+		(CurrentSituation == ELxAISituationLevel::SelfDanger &&
+			InSnapshot.SelfState <= Config.SelfDangerStateThreshold + SituationHysteresis))
 	{
 		return ELxAISituationLevel::SelfDanger;
+	}
+	if (CurrentSituation == ELxAISituationLevel::Advantage &&
+		InSnapshot.AdvantageScore >= Config.AdvantageThreshold - SituationHysteresis)
+	{
+		return ELxAISituationLevel::Advantage;
+	}
+	if (CurrentSituation == ELxAISituationLevel::Disadvantage &&
+		InSnapshot.AdvantageScore <= Config.DisadvantageThreshold + SituationHysteresis)
+	{
+		return ELxAISituationLevel::Disadvantage;
 	}
 	if (InSnapshot.AdvantageScore >= Config.AdvantageThreshold)
 	{
@@ -386,6 +418,14 @@ ELxAIActionType ALxAIController::SelectFirstExecutableAction(const FLxAIBattleSn
 	{
 		for (const ELxAIActionType CandidateAction : BehaviorSet->BehaviorCandidates)
 		{
+			// 明显劣势时，配置在防守之后的逃跑仍应先于防守尝试，避免防守的宽松条件永久遮蔽逃跑。
+			if (InSituation == ELxAISituationLevel::Disadvantage && CandidateAction == ELxAIActionType::Defend &&
+				BehaviorSet->BehaviorCandidates.Contains(ELxAIActionType::Retreat) &&
+				!InExcludedActions.Contains(ELxAIActionType::Retreat) &&
+				BehaviorComponent->CanExecuteBehavior(ELxAIActionType::Retreat, InSnapshot))
+			{
+				return ELxAIActionType::Retreat;
+			}
 			if (!InExcludedActions.Contains(CandidateAction) &&
 				BehaviorComponent->CanExecuteBehavior(CandidateAction, InSnapshot))
 			{
@@ -394,9 +434,16 @@ ELxAIActionType ALxAIController::SelectFirstExecutableAction(const FLxAIBattleSn
 		}
 	}
 
-	return !InExcludedActions.Contains(Config.FallbackAction) &&
-		BehaviorComponent->CanExecuteBehavior(Config.FallbackAction, InSnapshot) ?
-		Config.FallbackAction : ELxAIActionType::None;
+	if (!InExcludedActions.Contains(Config.FallbackAction) &&
+		BehaviorComponent->CanExecuteBehavior(Config.FallbackAction, InSnapshot))
+	{
+		return Config.FallbackAction;
+	}
+
+	// 角色配置的回退行为可能与当前局势冲突（例如有威胁时配置为巡逻），最终使用警戒保证运行中不落入“无”。
+	return !InExcludedActions.Contains(ELxAIActionType::Alert) &&
+		BehaviorComponent->CanExecuteBehavior(ELxAIActionType::Alert, InSnapshot) ?
+		ELxAIActionType::Alert : ELxAIActionType::None;
 }
 
 void ALxAIController::SelectAndExecuteAction(const ELxAISituationLevel InSituation)
@@ -409,36 +456,58 @@ void ALxAIController::SelectAndExecuteAction(const ELxAISituationLevel InSituati
 		return;
 	}
 
-	// 先按正常候选判断本轮是否仍然应该逃跑，再更新敌方追近和逃跑距离状态。
-	const TSet<ELxAIActionType> NoExcludedActions;
-	const ELxAIActionType PreferredAction = SelectFirstExecutableAction(
-		CurrentBattleSnapshot, InSituation, NoExcludedActions);
-	BehaviorComponent->UpdateRetreatProgress(
-		CurrentBattleSnapshot, PreferredAction == ELxAIActionType::Retreat);
+	BehaviorComponent->UpdateRetreatProgress(CurrentBattleSnapshot);
+	TSet<ELxAIActionType> ExcludedActions;
 
 	// 单次逃跑在达到配置距离前具有持续性；即使暂时丢失敌方，也会在当前路径结束后继续分段寻路。
 	if (BehaviorComponent->IsRetreatInProgress())
 	{
-		BehaviorComponent->ExecuteBehavior(ELxAIActionType::Retreat, CurrentBattleSnapshot);
-		ChangeAction(InSituation, ELxAIActionType::Retreat);
-		return;
+		const ELxAIBehaviorExecutionResult RetreatResult = BehaviorComponent->ExecuteBehavior(
+			ELxAIActionType::Retreat, CurrentBattleSnapshot);
+		if (RetreatResult != ELxAIBehaviorExecutionResult::Failed)
+		{
+			ChangeAction(InSituation, ELxAIActionType::Retreat);
+			return;
+		}
+		ExcludedActions.Add(ELxAIActionType::Retreat);
 	}
 
-	TSet<ELxAIActionType> ExcludedActions;
+	// 普通行为在最短持续时间内保持执行；自身危险触发的逃跑可以立即打断它。
+	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
+	const double CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	const bool bUrgentRetreat = InSituation == ELxAISituationLevel::SelfDanger &&
+		CurrentAction != ELxAIActionType::Retreat &&
+		BehaviorComponent->CanExecuteBehavior(ELxAIActionType::Retreat, CurrentBattleSnapshot);
+	const bool bWithinMinimumDuration = CurrentAction != ELxAIActionType::None &&
+		CurrentTime - CurrentActionStartTime < FMath::Max(0.0f, Config.MinimumActionDuration);
+	if (!bUrgentRetreat && bWithinMinimumDuration &&
+		BehaviorComponent->CanExecuteBehavior(CurrentAction, CurrentBattleSnapshot))
+	{
+		const ELxAIBehaviorExecutionResult CurrentResult = BehaviorComponent->ExecuteBehavior(
+			CurrentAction, CurrentBattleSnapshot);
+		if (CurrentResult != ELxAIBehaviorExecutionResult::Failed)
+		{
+			ChangeAction(InSituation, CurrentAction);
+			return;
+		}
+		ExcludedActions.Add(CurrentAction);
+	}
+
 	while (true)
 	{
 		const ELxAIActionType CandidateAction = SelectFirstExecutableAction(
 			CurrentBattleSnapshot, InSituation, ExcludedActions);
 		if (CandidateAction == ELxAIActionType::None)
 		{
-			BehaviorComponent->StopBehavior();
+			// 普通决策回退只停止当前执行，不清除逃跑完成锁，避免“逃跑→无→再逃跑”循环。
+			BehaviorComponent->StopBehaviorExecution();
 			ChangeAction(InSituation, ELxAIActionType::None);
 			return;
 		}
 
 		if (CandidateAction != CurrentAction)
 		{
-			BehaviorComponent->StopBehavior();
+			BehaviorComponent->StopBehaviorExecution();
 		}
 		const ELxAIBehaviorExecutionResult ExecutionResult = BehaviorComponent->ExecuteBehavior(
 			CandidateAction, CurrentBattleSnapshot);
@@ -463,6 +532,13 @@ void ALxAIController::ChangeAction(const ELxAISituationLevel InSituation, const 
 
 	CurrentSituation = InSituation;
 	CurrentAction = InActionType;
+	if (bActionChanged)
+	{
+		CurrentActionStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	}
+	UE_LOG(LogTemp, Verbose, TEXT("AI决策变化：角色=%s，局势=%d，行为=%d，生命比例=%.3f，敌人数=%d。"),
+		*GetNameSafe(GetPawn()), static_cast<int32>(CurrentSituation), static_cast<int32>(CurrentAction),
+		CurrentBattleSnapshot.SelfState, CurrentBattleSnapshot.EnemyCount);
 	OnAIActionChanged.Broadcast(CurrentSituation, CurrentAction);
 }
 

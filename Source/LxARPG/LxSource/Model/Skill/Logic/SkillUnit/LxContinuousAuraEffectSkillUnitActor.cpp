@@ -65,7 +65,7 @@ void ALxContinuousAuraEffectSkillUnitActor::HandleActiveAuraTargetDestroyed(AAct
 
 void ALxContinuousAuraEffectSkillUnitActor::AddActiveAuraTarget(AActor* TargetActor)
 {
-	if (!IsValid(TargetActor) || TargetActor == AuraOwner.Get() || ActiveAuraTargets.Contains(TargetActor))
+	if (!IsValid(TargetActor) || ActiveAuraTargets.Contains(TargetActor))
 	{
 		return;
 	}

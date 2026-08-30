@@ -1,7 +1,7 @@
 #include "LxProjectileSkillUnitActor.h"
 
+#include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
-#include "Components/SphereComponent.h"
 #include "Engine/World.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillDetectionComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnitComponent/LxSkillLifeComponent.h"
@@ -12,14 +12,44 @@ ALxProjectileSkillUnitActor::ALxProjectileSkillUnitActor()
 	USceneComponent* SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	SetRootComponent(SceneRoot);
 
-	ProjectileCollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("ProjectileCollision"));
-	ProjectileCollisionComponent->SetupAttachment(SceneRoot);
-	ProjectileCollisionComponent->SetSphereRadius(16.0f);
-	ProjectileCollisionComponent->SetGenerateOverlapEvents(true);
-
 	MovementComponent = CreateDefaultSubobject<ULxSkillMovementComponent>(TEXT("MovementComponent"));
-	DetectionComponent = CreateDefaultSubobject<ULxSkillDetectionComponent>(TEXT("DetectionComponent"));
 	LifeComponent = CreateDefaultSubobject<ULxSkillLifeComponent>(TEXT("LifeComponent"));
+}
+
+void ALxProjectileSkillUnitActor::ConfigureProjectilePrimaryCollision()
+{
+}
+
+void ALxProjectileSkillUnitActor::ConfigureProjectileCollisionAsRoot()
+{
+	if (!ProjectileCollisionComponent || GetRootComponent() == ProjectileCollisionComponent)
+	{
+		return;
+	}
+
+	USceneComponent* PreviousSceneRoot = GetRootComponent();
+	if (ProjectileCollisionComponent->IsRegistered())
+	{
+		ProjectileCollisionComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+	}
+	else
+	{
+		ProjectileCollisionComponent->SetupAttachment(nullptr);
+	}
+	SetRootComponent(ProjectileCollisionComponent);
+	if (PreviousSceneRoot)
+	{
+		// 蓝图模型与特效仍会挂在原 SceneRoot 下，必须把它纳入新根组件树。
+		if (PreviousSceneRoot->IsRegistered())
+		{
+			PreviousSceneRoot->AttachToComponent(ProjectileCollisionComponent,
+				FAttachmentTransformRules::KeepWorldTransform);
+		}
+		else
+		{
+			PreviousSceneRoot->SetupAttachment(ProjectileCollisionComponent);
+		}
+	}
 }
 
 void ALxProjectileSkillUnitActor::InitializeProjectileParameters(const FLxSkillProjectileSpec& InProjectileSpec)
@@ -44,6 +74,10 @@ void ALxProjectileSkillUnitActor::ActivateSkillUnit_Implementation()
 void ALxProjectileSkillUnitActor::InitializeSkillUnitDefaultParameters_Implementation()
 {
 	Super::InitializeSkillUnitDefaultParameters_Implementation();
+	RefreshSkillUnitOverlapEventSources();
+	const TArray<UPrimitiveComponent*> CollisionSources = GetSkillUnitOverlapEventSources();
+	ProjectileCollisionComponent = CollisionSources.IsEmpty() ? nullptr : CollisionSources[0];
+	ConfigureProjectilePrimaryCollision();
 
 	if (MovementComponent)
 	{
@@ -52,7 +86,6 @@ void ALxProjectileSkillUnitActor::InitializeSkillUnitDefaultParameters_Implement
 
 	if (DetectionComponent)
 	{
-		DetectionComponent->SetTriggerCollisionComponent(ProjectileCollisionComponent);
 		DetectionComponent->SetPublishWorldHit(true);
 	}
 }

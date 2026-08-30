@@ -49,7 +49,7 @@ struct FLxSkillTargetFilterSpec
 
 	/** 最大目标数量，低于等于 0 表示不限制。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|目标筛选", DisplayName="最大目标数量")
-	int32 MaxTargetCount = 0;
+	int32 MaxTargetCount = 100;
 
 	/** 目标排序方式，用于选择最大目标数量内的优先目标。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|目标筛选", DisplayName="目标排序方式")

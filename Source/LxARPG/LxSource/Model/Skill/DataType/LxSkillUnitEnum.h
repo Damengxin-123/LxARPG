@@ -50,13 +50,13 @@ enum class ELxSkillUnitSpawnRotationType : uint8
 	Custom				UMETA(DisplayName="自定义朝向")
 };
 
-/** 后续技能单元从前置命中结果中选择生成方向的方式。 */
-UENUM(BlueprintType, DisplayName="技能结果方向选择")
+/** 技能子单元从创建位置与目标位置之间选择运动方向。 */
+UENUM(BlueprintType, DisplayName="技能单元运动方向")
 enum class ELxSkillResultDirectionType : uint8
 {
-	KeepSourceRotation	UMETA(DisplayName="保持来源单元朝向"),
-	SourceToTarget		UMETA(DisplayName="来源位置朝向目标位置"),
-	TargetToSource		UMETA(DisplayName="目标位置朝向来源位置")
+	KeepSourceRotation	UMETA(DisplayName="保持创建位置朝向"),
+	SourceToTarget		UMETA(DisplayName="创建位置运动到目标位置"),
+	TargetToSource		UMETA(DisplayName="目标位置运动到创建位置")
 };
 
 /** 使用技能单元结果继续创建后续单元时采用的位置来源。 */
@@ -66,6 +66,7 @@ enum class ELxSkillUnitResultSpawnLocationType : uint8
 	CasterLocation UMETA(DisplayName="释放者位置"),
 	TargetLocation UMETA(DisplayName="目标位置"),
 	HitLocation UMETA(DisplayName="命中位置"),
+	PreviousSkillUnitLocation UMETA(DisplayName="前置子单元位置"),
 	InvalidLocation UMETA(DisplayName="失效位置")
 };
 

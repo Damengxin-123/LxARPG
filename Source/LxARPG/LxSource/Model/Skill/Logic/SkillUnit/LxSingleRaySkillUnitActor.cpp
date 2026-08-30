@@ -47,11 +47,11 @@ void ALxSingleRaySkillUnitActor::ActivateSkillUnit_Implementation()
 		const FVector TargetLocation = HitTarget->GetActorLocation();
 		UnitResult.HitTargets.Add(HitTarget);
 		UnitResult.HitTargetLocations.Add(TargetLocation);
-		UnitResult.HitLocations.Add(GetActorLocation());
+		UnitResult.HitLocations.Add(TargetLocation);
 		UnitResult.HitNormals.Add((GetActorLocation() - TargetLocation).GetSafeNormal());
 		UnitResult.SourceToTargetDirections.Add((TargetLocation - GetActorLocation()).GetSafeNormal());
 	}
-	PublishSkillUnitHitResult(UnitResult);
+	// PerformRayDetection 已通过射线基类发布命中，这里只保留结果用于结束单次射线。
 	FinishSkillUnit(UnitResult);
 
 	// 单次射线的命中判定立即完成，但必须保留一小段时间，确保蓝图表现能够渲染并复制到客户端。

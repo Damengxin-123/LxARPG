@@ -33,8 +33,8 @@ struct FLxProjectileSkillUnitCreateParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建", DisplayName="投射物参数")
 	FLxSkillProjectileSpec ProjectileSpec;
 
-	/** 使用前置命中结果创建投射物时采用的方向。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建", DisplayName="前置结果方向选择")
+	/** 技能单元在创建位置与目标位置之间采用的运动方向。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建", DisplayName="技能单元运动方向")
 	ELxSkillResultDirectionType ResultDirectionType = ELxSkillResultDirectionType::KeepSourceRotation;
 };
 
@@ -52,8 +52,8 @@ struct FLxGroundBounceProjectileSkillUnitCreateParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|地面弹跳投射物", DisplayName="地面弹跳参数")
 	FLxSkillGroundBounceProjectileSpec GroundBounceSpec;
 
-	/** 使用前置命中结果创建投射物时采用的方向。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|地面弹跳投射物", DisplayName="前置结果方向选择")
+	/** 技能单元在创建位置与目标位置之间采用的运动方向。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|地面弹跳投射物", DisplayName="技能单元运动方向")
 	ELxSkillResultDirectionType ResultDirectionType = ELxSkillResultDirectionType::KeepSourceRotation;
 };
 
@@ -71,8 +71,8 @@ struct FLxLobProjectileSkillUnitCreateParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|抛射投射物", DisplayName="抛射参数")
 	FLxSkillLobProjectileSpec LobSpec;
 
-	/** 使用前置命中结果创建投射物时采用的方向。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|抛射投射物", DisplayName="前置结果方向选择")
+	/** 技能单元在创建位置与目标位置之间采用的运动方向。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|抛射投射物", DisplayName="技能单元运动方向")
 	ELxSkillResultDirectionType ResultDirectionType = ELxSkillResultDirectionType::KeepSourceRotation;
 };
 
@@ -86,8 +86,8 @@ struct FLxDirectHitAreaEffectCreateParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|范围效果", DisplayName="范围效果参数")
 	FLxSkillAreaEffectSpec AreaEffectSpec;
 
-	/** 使用前置命中结果创建范围效果时采用的方向。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|范围效果", DisplayName="前置结果方向选择")
+	/** 技能单元在创建位置与目标位置之间采用的运动方向。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|范围效果", DisplayName="技能单元运动方向")
 	ELxSkillResultDirectionType ResultDirectionType = ELxSkillResultDirectionType::KeepSourceRotation;
 };
 
@@ -105,8 +105,8 @@ struct FLxDurationAreaEffectCreateParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|范围效果", DisplayName="持续型参数")
 	FLxSkillDurationAreaEffectSpec DurationAreaEffectSpec;
 
-	/** 使用前置命中结果创建范围效果时采用的方向。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|范围效果", DisplayName="前置结果方向选择")
+	/** 技能单元在创建位置与目标位置之间采用的运动方向。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|范围效果", DisplayName="技能单元运动方向")
 	ELxSkillResultDirectionType ResultDirectionType = ELxSkillResultDirectionType::KeepSourceRotation;
 };
 
@@ -124,8 +124,8 @@ struct FLxScalingAreaEffectCreateParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|范围效果", DisplayName="缩放型参数")
 	FLxSkillScalingAreaEffectSpec ScalingAreaEffectSpec;
 
-	/** 使用前置命中结果创建范围效果时采用的方向。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|范围效果", DisplayName="前置结果方向选择")
+	/** 技能单元在创建位置与目标位置之间采用的运动方向。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|范围效果", DisplayName="技能单元运动方向")
 	ELxSkillResultDirectionType ResultDirectionType = ELxSkillResultDirectionType::KeepSourceRotation;
 };
 /** 近战效果技能单元创建参数，只暴露近战效果单元自身需要的配置。 */

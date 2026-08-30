@@ -10,6 +10,11 @@ struct FLxSkillRaySpec
 {
 	GENERATED_BODY()
 
+	/** 相对技能单元蓝图中胶囊原始长度的倍率；基准长度为 1m 时，该数值也就是最终长度的米数。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线", DisplayName="射线长度倍率",
+		meta=(ClampMin="0.01", UIMin="0.01"))
+	float RayLengthMultiplier = 1.0f;
+
 	/** 是否允许射线命中多个目标；关闭时只保留距离射线起点最近的有效目标。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线", DisplayName="是否穿过目标")
 	bool bPassThroughTargets = true;
@@ -17,6 +22,9 @@ struct FLxSkillRaySpec
 	/** 是否忽略目标与射线起点之间阻挡可见性通道的场景障碍物。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|射线", DisplayName="是否穿过障碍物")
 	bool bPassThroughObstacles = true;
+
+	/** 获取不低于最小值的射线长度倍率。 */
+	float GetRayLengthMultiplier() const { return FMath::Max(RayLengthMultiplier, 0.01f); }
 };
 
 /** 单次射线效果参数，控制同批射线的数量和横向间距。 */

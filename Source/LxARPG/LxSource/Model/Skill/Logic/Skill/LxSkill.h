@@ -141,6 +141,15 @@ public:
 	void ReceiveSkillEffectForTargets(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets);
 	virtual void ReceiveSkillEffectForTargets_Implementation(const TArray<FLxSkillEntryPackage>& InSkillEntryPackages, const TArray<AActor*>& HitTargets);
 
+	/**
+	 * 对技能子单元命中结果中的目标使用指定下标的技能词条组合。
+	 * 当下标无效、组合为空或结果没有有效目标时不使用任何词条。
+	 */
+	UFUNCTION(BlueprintCallable, Category="技能|效果", DisplayName="对命中结果使用技能词条组合")
+	bool ApplySkillEntryPackageByIndex(
+		UPARAM(DisplayName="技能子单元命中结果") const FLxSkillUnitResult& InSkillUnitHitResult,
+		UPARAM(DisplayName="词条组合下标") int32 EntryPackageIndex);
+
 	/** 技能命中词条准备完成事件，由技能释放组件监听并继续转交效果处理组件。 */
 	UPROPERTY(BlueprintAssignable, Category="技能|效果", DisplayName="技能命中词条准备完成事件")
 	FOnLxSkillHitEntriesReady OnSkillHitEntriesReady;
@@ -153,13 +162,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="技能|效果", DisplayName="技能效果解除事件")
 	FOnLxSkillEffectsRemoved OnSkillEffectsRemoved;
 
-	/** 获取技能类型默认配置的词条包数组。 */
+	/** 获取技能类型配置的词条组合数组，主要供技能详情界面展示。 */
 	UFUNCTION(BlueprintPure, Category="技能|词条", DisplayName="获取技能词条包数组")
 	TArray<FLxSkillEntryPackage> GetSkillEntryPackages() const { return SkillEntryPackages; }
 
-	/** 获取技能唯一标签。 */
-	UFUNCTION(BlueprintPure, Category="技能|基础信息", DisplayName="获取技能ID")
-	FGameplayTag GetSkillIDTag() const { return SkillIDTag; }
+	/** 获取所属技能物品的标签 ID，技能类型不再单独维护重复标签。 */
+	UFUNCTION(BlueprintPure, Category="技能|基础信息", DisplayName="获取技能物品标签ID")
+	FGameplayTag GetSkillIDTag() const;
 
 	/** 获取技能释放类型，可用于判断技能是否支持蓄力。 */
 	UFUNCTION(BlueprintPure, Category="技能", DisplayName="获取技能类型")
@@ -180,6 +189,10 @@ public:
 	/** 判断技能是否采用按住期间持续运行的释放方式。 */
 	UFUNCTION(BlueprintPure, Category="技能|持续释放", DisplayName="是否持续释放技能")
 	bool IsSustainedReleaseSkill() const { return SkillReleaseType == ELxSkillReleaseType::SustainedRelease; }
+
+	/** 判断当前技能是否处于持续释放运行状态。 */
+	UFUNCTION(BlueprintPure, Category="技能|持续释放", DisplayName="持续释放是否正在运行")
+	bool IsSustainedReleaseActive() const { return bSustainedReleasing; }
 
 	/** 获取技能实际释放冷却，最低限制使用项目统一动作时间间隔。 */
 	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="获取实际释放冷却")
@@ -316,15 +329,19 @@ public:
 		TSubclassOf<ALxPeriodicAttachEffectSkillUnitActor> SkillUnitClass,
 		const FLxPeriodicAttachEffectCreateParams& CreateParams, bool bActivateAfterCreate = true);
 
-	/** 创建依附于释放角色的持续型光环效果。 */
+	/** 创建依附于释放角色的持续型光环效果，并按光环范围缩放默认一米大小的子单元Actor。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|光环效果", DisplayName="创建持续型光环效果")
 	ULxSkillUnitGroup* CreateContinuousAuraEffectUnit(TSubclassOf<ALxContinuousAuraEffectSkillUnitActor> SkillUnitClass,
-		const FLxContinuousAuraEffectCreateParams& CreateParams, bool bActivateAfterCreate = true);
+		const FLxContinuousAuraEffectCreateParams& CreateParams,
+		UPARAM(DisplayName="光环范围（米）", meta=(ClampMin="0.01", UIMin="0.01")) float AuraRange = 1.0f,
+		bool bActivateAfterCreate = true);
 
-	/** 创建依附于释放角色的周期触发型光环效果。 */
+	/** 创建依附于释放角色的周期触发型光环效果，并按光环范围缩放默认一米大小的子单元Actor。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|光环效果", DisplayName="创建周期型光环效果")
 	ULxSkillUnitGroup* CreatePeriodicAuraEffectUnit(TSubclassOf<ALxPeriodicAuraEffectSkillUnitActor> SkillUnitClass,
-		const FLxPeriodicAuraEffectCreateParams& CreateParams, bool bActivateAfterCreate = true);
+		const FLxPeriodicAuraEffectCreateParams& CreateParams,
+		UPARAM(DisplayName="光环范围（米）", meta=(ClampMin="0.01", UIMin="0.01")) float AuraRange = 1.0f,
+		bool bActivateAfterCreate = true);
 
 	/** 根据通用技能单元结果创建召唤实体载体；屏障、标记和召唤生物可使用其派生类型。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|召唤实体", DisplayName="创建召唤实体",
@@ -398,31 +415,24 @@ public:
 	virtual UWorld* GetWorld() const override;
 
 protected:
-	/** 将通用技能单元结果转换为逐项对齐的生成变换，并按选择应用前置结果方向。 */
+	/** 将通用技能单元结果转换为逐项对齐的生成变换，并按创建位置与目标位置计算运动方向。 */
 	TArray<FTransform> BuildSpawnTransforms(const FLxSkillUnitResult& InSourceResult,
 		ELxSkillUnitResultSpawnLocationType SpawnLocationType,
-		ELxSkillResultDirectionType DirectionType = ELxSkillResultDirectionType::KeepSourceRotation) const;
+		ELxSkillResultDirectionType MovementDirectionType =
+			ELxSkillResultDirectionType::KeepSourceRotation) const;
 
-	/** 获取前置结果中指定目标的生成方向，无法解析时返回零向量。 */
-	FVector ResolveResultDirection(const FLxSkillUnitResult& InSourceResult, int32 TargetIndex,
-		ELxSkillResultDirectionType DirectionType) const;
+	/** 根据最终创建位置与前置结果中的指定目标解析运动方向，无法解析时返回零向量。 */
+	FVector ResolveMovementDirection(const FLxSkillUnitResult& InSourceResult, int32 TargetIndex,
+		const FVector& SpawnLocation, ELxSkillResultDirectionType MovementDirectionType) const;
 
 	UFUNCTION()
 	void HandleCachedSkillUnitGroupFinished(ULxSkillUnitGroup* InSkillUnitGroup,
 		const FLxSkillUnitResult& InSkillUnitResult);
 
-	/** 接收中间层转发的通用技能单元结果，并将其中的目标列表交给技能效果传递链路。 */
-	UFUNCTION()
-	void HandleSkillUnitGroupHit(ULxSkillUnitGroup* InSkillUnitGroup, const FLxSkillUnitResult& InSkillUnitResult);
-
 	/** 接收中间层的持续效果解除目标，并转发到技能释放组件。 */
 	UFUNCTION()
 	void HandleSkillUnitGroupEffectsRemoved(ULxSkillUnitGroup* InSkillUnitGroup, ALxSkillUnitActor* SourceSkillUnit,
 		const TArray<AActor*>& InEffectTargets);
-
-	/** 技能唯一标签，用于标识技能所属分类和具体类型。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|基础信息", DisplayName="技能ID", meta=(Categories="技能"))
-	FGameplayTag SkillIDTag;
 
 	/** 技能释放类型，例如直接释放、持续释放或蓄力释放。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能", DisplayName="技能类型")
@@ -448,7 +458,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="再次释放关闭持久技能")
 	bool bStopPersistentSkillOnRepeatedRelease = false;
 
-	/** 技能默认词条包数组，蓝图中可手动添加，命中时可选择一个或多个词条包传入命中函数。 */
+	/** 技能词条组合数组，主要供技能详情界面展示；运行时仅在蓝图显式指定组合下标后使用。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|词条", DisplayName="技能词条包数组")
 	TArray<FLxSkillEntryPackage> SkillEntryPackages;
 
