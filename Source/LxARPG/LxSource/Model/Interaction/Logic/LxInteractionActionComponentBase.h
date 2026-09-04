@@ -22,10 +22,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取交互行为类型")
 	ELxInteractionActionType GetInteractionActionType() const { return InteractionActionType; }
 
-	/** 获取此功能组件的交互ID标签。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取交互ID标签")
-	FGameplayTag GetInteractionIDTag() const { return InteractionIDTag; }
-
 	/** 获取此功能组件的提示文本标签。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取提示文本标签")
 	virtual FGameplayTag GetPromptTextTag() const;
@@ -63,10 +59,6 @@ protected:
 	/** 组件对应的交互行为类型。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="交互行为类型")
 	ELxInteractionActionType InteractionActionType = ELxInteractionActionType::Dialogue;
-
-	/** 组件对应的交互ID标签。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="交互ID标签")
-	FGameplayTag InteractionIDTag;
 
 	/** 组件默认提示文本标签。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="提示文本标签")

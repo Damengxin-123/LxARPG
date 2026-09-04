@@ -2,11 +2,10 @@
 
 #include "LxInteractionActionComponentBase.h"
 
-void ULxInteractionNode::InitializeInteractionNode(FGameplayTag InInteractionIDTag, FGameplayTag InPromptTextTag,
+void ULxInteractionNode::InitializeInteractionNode(FGameplayTag InPromptTextTag,
 	ELxInteractionActionType InInteractionType, const TArray<ULxInteractionNode*>& InChildNodes,
 	ULxInteractionActionComponentBase* InActionComponent, FGameplayTag InNpcDialogueTextTag)
 {
-	InteractionIDTag = InInteractionIDTag;
 	PromptTextTag = InPromptTextTag;
 	InteractionActionType = InInteractionType;
 	ActionComponent = InActionComponent;

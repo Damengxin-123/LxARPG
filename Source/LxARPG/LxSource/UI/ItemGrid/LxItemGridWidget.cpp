@@ -49,6 +49,14 @@ namespace
 	}
 }
 
+void ULxItemGridWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	// 蓝图构造完成后统一刷新，避免初始空槽位错过默认图标设置。
+	BroadcastGridDataChanged();
+}
+
 void ULxItemGridWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
 	InitItemData(ListItemObject);
@@ -719,13 +727,15 @@ void ULxItemGridWidget::BroadcastGridDataChanged()
 	FGameplayTag EquipmentType;
 	if (!ItemIsVaild() && GetEquipmentType(EquipmentType))
 	{
-		// 再由蓝图按装备部位决定默认图标。
+		// 先通过统一显示事件应用预设默认图标，再由蓝图按装备部位补充空槽位表现。
+		OnItemDisplayUpdated(GetDisplayIcon(), FText::GetEmpty(), FText::GetEmpty(), FText::GetEmpty(), ELxItemRarityType::None);
 		OnEmptyEquipmentSlotUpdated(true, EquipmentType);
 		return;
 	}
 	if (!ItemIsVaild())
 	{
-		// 空非装备槽位显示默认图标。
+		// 空非装备槽位同样通过统一显示事件应用默认图标并清空旧物品信息。
+		OnItemDisplayUpdated(GetDisplayIcon(), FText::GetEmpty(), FText::GetEmpty(), FText::GetEmpty(), ELxItemRarityType::None);
 		OnEmptyEquipmentSlotUpdated(false, EquipmentType);
 		return;
 	}

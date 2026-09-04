@@ -28,6 +28,7 @@ struct FLxBuffInformation : public FLxItemInformationBase
 
 	FLxBuffInformation()
 	{
+		ItemCount = 1;
 		ItemCountMax = 1;
 		ItemType = ELxItemType::Buff;
 		ItemIDTag = LxTag_Item_Buff;

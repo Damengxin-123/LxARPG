@@ -16,7 +16,7 @@ class LXARPG_API ULxInteractionNode : public UObject
 public:
 	/** 初始化节点基础数据和子节点列表。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="初始化交互节点")
-	void InitializeInteractionNode(FGameplayTag InInteractionIDTag, FGameplayTag InPromptTextTag,
+	void InitializeInteractionNode(FGameplayTag InPromptTextTag,
 		ELxInteractionActionType InInteractionType, const TArray<ULxInteractionNode*>& InChildNodes,
 		ULxInteractionActionComponentBase* InActionComponent = nullptr, FGameplayTag InNpcDialogueTextTag = FGameplayTag());
 
@@ -43,10 +43,6 @@ public:
 	/** 设置上级节点。通常由添加子节点时自动调用。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="设置上级节点")
 	void SetParentNode(ULxInteractionNode* InParentNode) { ParentNode = InParentNode; }
-
-	/** 获取交互ID标签。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取交互ID标签")
-	FGameplayTag GetInteractionIDTag() const { return InteractionIDTag; }
 
 	/** 获取提示文本标签。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取提示文本标签")
@@ -81,10 +77,6 @@ public:
 	bool ValidateActionComponentType() const;
 
 private:
-	/** 标签型交互ID，用于分类、调试和选择回传。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="交互ID标签", meta=(AllowPrivateAccess="true"))
-	FGameplayTag InteractionIDTag;
-
 	/** 标签型提示文本ID，由UI或文本系统解析为显示文本。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="提示文本标签", meta=(AllowPrivateAccess="true"))
 	FGameplayTag PromptTextTag;

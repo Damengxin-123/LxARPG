@@ -33,6 +33,9 @@ class LXARPG_API ULxItemGridWidget : public ULxUIBaseObject, public IUserObjectL
 	GENERATED_BODY()
 
 public:
+	/** 控件完成构造后主动刷新一次显示，确保预设的默认图标立即应用。 */
+	virtual void NativeConstruct() override;
+
 	/**
 	 * @brief 当列表项对象设置时调用，用于初始化或更新当前格子的数据。
 	 * 该方法在列表项对象被设置到当前格子时被调用，可以用来根据新的列表项对象更新格子的显示或其他相关数据。
@@ -175,7 +178,7 @@ public:
 	ELxItemRarityType GetItemRarity() const;
 
 
-	/** 物品显示需要整体刷新时调用，蓝图中应同时更新图标和数量显示。 */
+	/** 格子显示需要整体刷新时调用；空槽位会传入默认图标和空物品信息。 */
 	UFUNCTION(BlueprintImplementableEvent, Category="物品格子", DisplayName="物品显示更新")
 	void OnItemDisplayUpdated(UTexture2D* DisplayIcon, const FText& ItemName, const FText& ItemDescription, const FText& ItemCount, ELxItemRarityType Rarity);
 

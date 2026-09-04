@@ -34,6 +34,7 @@ struct FLxEquipmentInformation : public FLxItemInformationBase
 
 	FLxEquipmentInformation()
 	{
+		ItemCount = 1;
 		ItemCountMax = 1;
 		ItemType = ELxItemType::Equipment;
 		ItemIDTag = LxTag_Item_Equipment;
@@ -64,6 +65,7 @@ struct FLxEquipmentInformation : public FLxItemInformationBase
 		this->ForgePotential = ForgePotential;
 		this->ItemEntryConfigs = DefaultEntryConfigList;
 
+		ItemCount = 1;
 		ItemCountMax = 1;
 		ItemType = ELxItemType::Equipment;
 	}

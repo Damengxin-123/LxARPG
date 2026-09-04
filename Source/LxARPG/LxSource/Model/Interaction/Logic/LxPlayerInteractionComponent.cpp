@@ -350,7 +350,6 @@ FLxInteractionOption ULxPlayerInteractionComponent::BuildOption(ULxInteractableC
 
 	if (Node)
 	{
-		Option.InteractionIDTag = Node->GetInteractionIDTag();
 		Option.PromptTextTag = Node->GetPromptTextTag();
 		Option.InteractionType = Node->GetInteractionActionType();
 	}

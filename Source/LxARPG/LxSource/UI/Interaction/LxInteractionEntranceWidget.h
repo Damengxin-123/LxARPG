@@ -31,10 +31,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取入口选项提示文本标签")
 	FGameplayTag GetEntranceOptionPromptTextTag(int32 OptionIndex) const;
 
-	/** 获取指定入口选项的交互ID标签。 */
-	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取入口选项交互ID标签")
-	FGameplayTag GetEntranceOptionIDTag(int32 OptionIndex) const;
-
 	/** 获取当前选中的入口选项下标；该下标等于上方提示标签表的数量。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取当前入口选项下标")
 	int32 GetCurrentEntranceOptionIndex() const;

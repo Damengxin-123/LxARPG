@@ -14,10 +14,6 @@ struct FLxInteractionOption
 {
 	GENERATED_BODY()
 
-	/** 交互节点的标签型ID，用于分类、调试和选择回传。 */
-	UPROPERTY(BlueprintReadOnly, Category="交互", DisplayName="交互ID标签")
-	FGameplayTag InteractionIDTag;
-
 	/** 显示文本使用的标签型ID，由UI或文本系统解析为真正文本。 */
 	UPROPERTY(BlueprintReadOnly, Category="交互", DisplayName="提示文本标签")
 	FGameplayTag PromptTextTag;

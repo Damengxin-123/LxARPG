@@ -30,7 +30,11 @@ namespace LxItemConfig
 	{
 		if (IsValidItemConfig(InItemData))
 		{
-			GEquipmentItemMap.Add(InItemData.ItemIDTag, InItemData);
+			// 装备不可堆叠；归一化旧数据表中可能已经保存的数量配置。
+			FLxEquipmentInformation NormalizedItemData = InItemData;
+			NormalizedItemData.ItemCount = 1;
+			NormalizedItemData.ItemCountMax = 1;
+			GEquipmentItemMap.Add(InItemData.ItemIDTag, MoveTemp(NormalizedItemData));
 		}
 	}
 
@@ -54,7 +58,11 @@ namespace LxItemConfig
 	{
 		if (IsValidItemConfig(InItemData))
 		{
-			GBuffItemMap.Add(InItemData.ItemIDTag, InItemData);
+			// Buff 不可堆叠；归一化旧数据表中可能已经保存的数量配置。
+			FLxBuffInformation NormalizedItemData = InItemData;
+			NormalizedItemData.ItemCount = 1;
+			NormalizedItemData.ItemCountMax = 1;
+			GBuffItemMap.Add(InItemData.ItemIDTag, MoveTemp(NormalizedItemData));
 		}
 	}
 
@@ -62,7 +70,11 @@ namespace LxItemConfig
 	{
 		if (IsValidItemConfig(InItemData))
 		{
-			GSkillItemMap.Add(InItemData.ItemIDTag, InItemData);
+			// 技能物品不可堆叠；归一化旧数据表中可能已经保存的数量配置。
+			FLxSkillItemInformation NormalizedItemData = InItemData;
+			NormalizedItemData.ItemCount = 1;
+			NormalizedItemData.ItemCountMax = 1;
+			GSkillItemMap.Add(InItemData.ItemIDTag, MoveTemp(NormalizedItemData));
 		}
 	}
 

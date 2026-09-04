@@ -27,18 +27,22 @@ struct FLxItemInformationBase : public FTableRowBase
 	ELxItemType ItemType = ELxItemType::None;
 
 	/** 最大堆叠数量。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="最大堆叠数量")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="最大堆叠数量",
+		meta=(EditCondition="ItemType != ELxItemType::Equipment && ItemType != ELxItemType::Buff && ItemType != ELxItemType::Skill", EditConditionHides))
 	int32 ItemCountMax = 99;
 
-	/** 当前物品数量，数据表中通常保持为0，由运行时物品对象写入实际数量。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品数量")
+	/** 当前物品数量；可堆叠物品由数据表配置，运行时物品对象会写入实际数量。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品数量",
+		meta=(EditCondition="ItemType != ELxItemType::Equipment && ItemType != ELxItemType::Buff && ItemType != ELxItemType::Skill", EditConditionHides))
 	int32 ItemCount = 0;
 
 	/** 物品稀有度。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品稀有度")
 	ELxItemRarityType ItemRarity = ELxItemRarityType::None;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品价值-金币",  meta=(ClampMin="0", UIMin="0"))
+	/** 物品出售价值；Buff 与技能物品不参与出售，因此在编辑器中隐藏。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品价值-金币",
+		meta=(ClampMin="0", UIMin="0", EditCondition="ItemType != ELxItemType::Buff && ItemType != ELxItemType::Skill", EditConditionHides))
 	int32 ItemSellPrice;
 
 	/** 物品在 UI 中显示的名称，统一从物品基础数据读取。 */

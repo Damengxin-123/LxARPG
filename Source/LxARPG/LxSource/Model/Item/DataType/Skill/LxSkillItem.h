@@ -22,6 +22,7 @@ struct FLxSkillItemInformation : public FLxItemInformationBase
 	{
 		ItemType = ELxItemType::Skill;
 		ItemIDTag = LxTag_Item_Skill;
+		ItemCount = 1;
 		ItemCountMax = 1;
 	}
 };

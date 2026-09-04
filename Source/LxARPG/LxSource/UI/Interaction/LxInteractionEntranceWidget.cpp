@@ -62,11 +62,6 @@ FGameplayTag ULxInteractionEntranceWidget::GetEntranceOptionPromptTextTag(int32 
 	return CachedEntranceOptions.IsValidIndex(OptionIndex) ? CachedEntranceOptions[OptionIndex].PromptTextTag : FGameplayTag();
 }
 
-FGameplayTag ULxInteractionEntranceWidget::GetEntranceOptionIDTag(int32 OptionIndex) const
-{
-	return CachedEntranceOptions.IsValidIndex(OptionIndex) ? CachedEntranceOptions[OptionIndex].InteractionIDTag : FGameplayTag();
-}
-
 int32 ULxInteractionEntranceWidget::GetCurrentEntranceOptionIndex() const
 {
 	return CachedCurrentAndLowerPromptTextTags.Num() > 0 ? CachedUpperPromptTextTags.Num() : INDEX_NONE;
