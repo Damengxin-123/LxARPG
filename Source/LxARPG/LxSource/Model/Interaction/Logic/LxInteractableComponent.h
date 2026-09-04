@@ -46,14 +46,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取根交互节点列表")
 	TArray<ULxInteractionNode*> GetRootInteractionNodes() const;
 
-	/** 获取当前有效的根交互节点。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取有效根交互节点列表")
-	TArray<ULxInteractionNode*> GetValidRootInteractionNodes() const;
-
-	/** 判断当前对象是否存在可用交互。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="是否存在有效交互")
-	bool HasValidInteraction() const;
-
 	/** 初始化或重建交互树所需的 UObject 功能模块。 */
 	UFUNCTION(BlueprintCallable, Category="交互|功能模块", DisplayName="初始化交互功能模块")
 	void InitializeInteractionFeatures();
@@ -61,10 +53,6 @@ public:
 	/** 获取当前组件持有的全部交互功能模块。 */
 	UFUNCTION(BlueprintPure, Category="交互|功能模块", DisplayName="获取交互功能模块列表")
 	TArray<ULxInteractionActionComponentBase*> GetInteractionFeatures() const;
-
-	/** 查找当前对象中指定类型的第一个交互功能模块。 */
-	UFUNCTION(BlueprintPure, Category="交互|功能模块", DisplayName="按类型获取交互功能模块")
-	ULxInteractionActionComponentBase* FindInteractionFeatureByType(ELxInteractionActionType InteractionType) const;
 
 	/** 根据运行时节点序号查找交互节点。 */
 	UFUNCTION(BlueprintPure, Category="交互|节点", DisplayName="按运行时序号获取交互节点")

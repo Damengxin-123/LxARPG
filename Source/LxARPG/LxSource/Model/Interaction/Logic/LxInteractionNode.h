@@ -35,10 +35,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取子节点列表")
 	TArray<ULxInteractionNode*> GetChildNodes() const;
 
-	/** 获取当前有效的子节点列表。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取有效子节点列表")
-	TArray<ULxInteractionNode*> GetValidChildNodes() const;
-
 	/** 获取上级节点，用于多级交互返回。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取上级节点")
 	ULxInteractionNode* GetParentNode() const { return ParentNode; }
@@ -66,12 +62,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取交互行为类型")
 	ELxInteractionActionType GetInteractionActionType() const { return InteractionActionType; }
 
-	/** 获取节点绑定的交互行为功能组件。 */
+	/** 获取节点绑定的运行时交互功能模块。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取交互功能模块")
-	ULxInteractionActionComponentBase* GetActionComponent() const { return ActionComponent; }
+	ULxInteractionActionComponentBase* GetInteractionFeature() const { return InteractionFeature; }
 
 	/** 设置功能节点对应的运行时功能模块。由交互提供组件初始化时调用。 */
-	void SetActionComponent(ULxInteractionActionComponentBase* InActionComponent) { ActionComponent = InActionComponent; }
+	void SetInteractionFeature(ULxInteractionActionComponentBase* InInteractionFeature)
+	{
+		InteractionFeature = InInteractionFeature;
+	}
 
 	/** 判断当前节点是否为功能节点。 */
 	UFUNCTION(BlueprintPure, Category="交互", DisplayName="是否为功能节点")
@@ -106,9 +105,9 @@ public:
 	/** 只检查指定交互发起者是否满足节点配置的通用要求。 */
 	bool CheckCommonRequirement(ULxPlayerInteractionModule* PlayerInteractionComponent) const;
 
-	/** 验证节点类型与绑定功能组件类型是否一致。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="验证交互组件类型")
-	bool ValidateActionComponentType() const;
+	/** 验证节点类型与绑定功能模块类型是否一致。 */
+	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="验证交互功能模块类型")
+	bool ValidateInteractionFeatureType() const;
 
 	/** 验证普通/功能节点标记是否与交互类型的用途一致。 */
 	UFUNCTION(BlueprintPure, Category="交互", DisplayName="验证交互节点类型")
@@ -141,7 +140,7 @@ private:
 
 	/** 功能节点初始化后绑定的运行时功能模块；普通节点为空。 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category="交互", DisplayName="交互功能模块", meta=(AllowPrivateAccess="true"))
-	TObjectPtr<ULxInteractionActionComponentBase> ActionComponent = nullptr;
+	TObjectPtr<ULxInteractionActionComponentBase> InteractionFeature = nullptr;
 
 	/** 子节点列表，顺序决定UI展示顺序。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="子节点列表", meta=(AllowPrivateAccess="true"))

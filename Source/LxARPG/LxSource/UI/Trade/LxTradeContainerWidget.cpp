@@ -215,7 +215,7 @@ void ULxTradeContainerWidget::HandleInteractionOptionActivated(const FLxInteract
 		return;
 	}
 
-	SetTradeContainerComponent(Cast<ULxTradeContainerInteractionComponent>(Option.InteractionNode->GetActionComponent()));
+	SetTradeContainerComponent(Cast<ULxTradeContainerInteractionComponent>(Option.InteractionNode->GetInteractionFeature()));
 }
 
 void ULxTradeContainerWidget::HandleInteractionCancelled()

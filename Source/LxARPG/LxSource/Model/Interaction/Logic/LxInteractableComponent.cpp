@@ -102,24 +102,6 @@ TArray<ULxInteractionNode*> ULxInteractableComponent::GetRootInteractionNodes() 
 	return Result;
 }
 
-TArray<ULxInteractionNode*> ULxInteractableComponent::GetValidRootInteractionNodes() const
-{
-	TArray<ULxInteractionNode*> Result;
-	for (ULxInteractionNode* RootNode : RootInteractionNodes)
-	{
-		if (RootNode && RootNode->IsNodeValid())
-		{
-			Result.Add(RootNode);
-		}
-	}
-	return Result;
-}
-
-bool ULxInteractableComponent::HasValidInteraction() const
-{
-	return GetValidRootInteractionNodes().Num() > 0;
-}
-
 void ULxInteractableComponent::InitializeInteractionFeatures()
 {
 	const AActor* OwnerActor = GetOwner();
@@ -158,19 +140,6 @@ TArray<ULxInteractionActionComponentBase*> ULxInteractableComponent::GetInteract
 	return Result;
 }
 
-ULxInteractionActionComponentBase* ULxInteractableComponent::FindInteractionFeatureByType(
-	ELxInteractionActionType InteractionType) const
-{
-	for (ULxInteractionActionComponentBase* InteractionFeature : InteractionFeatures)
-	{
-		if (InteractionFeature && InteractionFeature->GetInteractionActionType() == InteractionType)
-		{
-			return InteractionFeature;
-		}
-	}
-	return nullptr;
-}
-
 ULxInteractionNode* ULxInteractableComponent::FindInteractionNodeByRuntimeIndex(int32 InRuntimeNodeIndex) const
 {
 	const TObjectPtr<ULxInteractionNode>* FoundNode = RuntimeNodeIndex.Find(InRuntimeNodeIndex);
@@ -193,7 +162,7 @@ bool ULxInteractableComponent::ExecuteInteractionNode(ULxInteractionNode* Intera
 		return false;
 	}
 
-	ULxInteractionActionComponentBase* InteractionFeature = InteractionNode->GetActionComponent();
+	ULxInteractionActionComponentBase* InteractionFeature = InteractionNode->GetInteractionFeature();
 	if (!InteractionFeature || !InteractionFeature->ExecuteInteraction(PlayerInteractionComponent))
 	{
 		return false;
@@ -244,7 +213,7 @@ void ULxInteractableComponent::ShutdownInteractionFeatures()
 	{
 		if (NodePair.Value)
 		{
-			NodePair.Value->SetActionComponent(nullptr);
+			NodePair.Value->SetInteractionFeature(nullptr);
 		}
 	}
 }
@@ -269,7 +238,7 @@ void ULxInteractableComponent::BuildInteractionFeaturesRecursive(ULxInteractionN
 		if (ULxInteractionActionComponentBase* InteractionFeature = CreateInteractionFeatureForNode(InteractionNode))
 		{
 			InteractionFeatures.Add(InteractionFeature);
-			InteractionNode->SetActionComponent(InteractionFeature);
+			InteractionNode->SetInteractionFeature(InteractionFeature);
 			InteractionFeature->InitializeInteractionFeature(this, InteractionNode,
 				InteractionNode->GetRuntimeNodeIndex());
 		}
@@ -382,7 +351,7 @@ void ULxInteractableComponent::BindReplicatedFeaturesToNodes()
 			continue;
 		}
 
-		InteractionNode->SetActionComponent(InteractionFeature);
+		InteractionNode->SetInteractionFeature(InteractionFeature);
 		ApplyNodeConfigToFeature(InteractionNode, InteractionFeature);
 		if (InteractionFeature->GetOwnerInteractionNode() != InteractionNode)
 		{

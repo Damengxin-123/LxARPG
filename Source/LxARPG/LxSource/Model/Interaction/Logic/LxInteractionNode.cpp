@@ -15,7 +15,7 @@ void ULxInteractionNode::InitializeInteractionNode(FGameplayTag InPromptTextTag,
 	bIsFunctionNode = bInIsFunctionNode;
 	Requirement = MoveTemp(InRequirement);
 	FeatureConfig = MoveTemp(InFeatureConfig);
-	ActionComponent = nullptr;
+	InteractionFeature = nullptr;
 	NpcDialogueTextTag = InNpcDialogueTextTag;
 	RuntimeNodeIndex = INDEX_NONE;
 	ChildNodes.Reset();
@@ -51,27 +51,14 @@ TArray<ULxInteractionNode*> ULxInteractionNode::GetChildNodes() const
 	return Result;
 }
 
-TArray<ULxInteractionNode*> ULxInteractionNode::GetValidChildNodes() const
-{
-	TArray<ULxInteractionNode*> ValidChildNodes;
-	for (ULxInteractionNode* ChildNode : ChildNodes)
-	{
-		if (ChildNode && ChildNode->IsNodeValid())
-		{
-			ValidChildNodes.Add(ChildNode);
-		}
-	}
-	return ValidChildNodes;
-}
-
 FGameplayTag ULxInteractionNode::GetPromptTextTag() const
 {
-	return ActionComponent ? ActionComponent->GetPromptTextTag() : PromptTextTag;
+	return InteractionFeature ? InteractionFeature->GetPromptTextTag() : PromptTextTag;
 }
 
 bool ULxInteractionNode::IsNodeValid() const
 {
-	return ValidateNodeType() && (!bIsFunctionNode || ValidateActionComponentType());
+	return ValidateNodeType() && (!bIsFunctionNode || ValidateInteractionFeatureType());
 }
 
 bool ULxInteractionNode::IsNodeInteractable(ULxPlayerInteractionModule* PlayerInteractionComponent) const
@@ -81,7 +68,8 @@ bool ULxInteractionNode::IsNodeInteractable(ULxPlayerInteractionModule* PlayerIn
 		return false;
 	}
 
-	return !bIsFunctionNode || (ActionComponent && ActionComponent->CheckInteractionRequirement(PlayerInteractionComponent));
+	return !bIsFunctionNode || (InteractionFeature
+		&& InteractionFeature->CheckInteractionRequirement(PlayerInteractionComponent));
 }
 
 bool ULxInteractionNode::CheckCommonRequirement(ULxPlayerInteractionModule* PlayerInteractionComponent) const
@@ -126,14 +114,15 @@ bool ULxInteractionNode::CheckCommonRequirement(ULxPlayerInteractionModule* Play
 	return true;
 }
 
-bool ULxInteractionNode::ValidateActionComponentType() const
+bool ULxInteractionNode::ValidateInteractionFeatureType() const
 {
-	if (!ActionComponent)
+	if (!InteractionFeature)
 	{
 		return false;
 	}
 
-	return ActionComponent->GetInteractionActionType() == InteractionActionType && ActionComponent->IsInteractionValid();
+	return InteractionFeature->GetInteractionActionType() == InteractionActionType
+		&& InteractionFeature->IsInteractionValid();
 }
 
 bool ULxInteractionNode::ValidateNodeType() const

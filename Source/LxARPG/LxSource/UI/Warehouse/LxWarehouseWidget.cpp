@@ -216,7 +216,7 @@ void ULxWarehouseWidget::HandleInteractionOptionActivated(const FLxInteractionOp
 	}
 
 	// 仓库类型交互节点被激活后，将节点上的仓库组件交给仓库界面显示。
-	SetWarehouseComponent(Cast<ULxWarehouseInteractionComponent>(Option.InteractionNode->GetActionComponent()));
+	SetWarehouseComponent(Cast<ULxWarehouseInteractionComponent>(Option.InteractionNode->GetInteractionFeature()));
 }
 
 void ULxWarehouseWidget::HandleInteractionCancelled()

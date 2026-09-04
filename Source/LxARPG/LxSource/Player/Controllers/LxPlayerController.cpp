@@ -54,7 +54,7 @@ namespace
 			return nullptr;
 		}
 
-		return Cast<TFeature>(InteractionNode->GetActionComponent());
+		return Cast<TFeature>(InteractionNode->GetInteractionFeature());
 	}
 }
 

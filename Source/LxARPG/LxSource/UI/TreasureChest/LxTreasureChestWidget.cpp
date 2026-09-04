@@ -219,7 +219,7 @@ void ULxTreasureChestWidget::HandleInteractionOptionActivated(const FLxInteracti
 		return;
 	}
 
-	SetTreasureChestComponent(Cast<ULxTreasureChestInteractionComponent>(Option.InteractionNode->GetActionComponent()));
+	SetTreasureChestComponent(Cast<ULxTreasureChestInteractionComponent>(Option.InteractionNode->GetInteractionFeature()));
 }
 
 void ULxTreasureChestWidget::HandleInteractionCancelled()
