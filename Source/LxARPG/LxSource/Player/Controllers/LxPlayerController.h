@@ -36,32 +36,45 @@ public:
 	UFUNCTION(BlueprintCallable, Category="创建角色", DisplayName="创建玩家角色")
 	void CreatePlayerCharacter();
 
-	UFUNCTION(Server, Reliable)
-	void ServerMoveItemBetweenBackpackAndWarehouse(AActor* WarehouseOwner, int32 SourceSlotIndex, int32 TargetSlotIndex, bool bMoveToWarehouse);
+	/** 在服务器上的指定仓库功能模块与玩家背包之间移动物品。 */
+	UFUNCTION(Server, Reliable, Category="交互|网络", DisplayName="服务器移动背包与仓库物品")
+	void ServerMoveItemBetweenBackpackAndWarehouse(AActor* WarehouseOwner, int32 RuntimeNodeIndex,
+		int32 SourceSlotIndex, int32 TargetSlotIndex, bool bMoveToWarehouse);
 
-	UFUNCTION(Server, Reliable)
+	/** 在服务器上移动玩家背包槽位。 */
+	UFUNCTION(Server, Reliable, Category="物品|网络", DisplayName="服务器移动背包槽位")
 	void ServerMoveBackpackSlot(int32 SourceSlotIndex, int32 TargetSlotIndex);
 
-	UFUNCTION(Server, Reliable)
-	void ServerMoveWarehouseSlot(AActor* WarehouseOwner, int32 SourceSlotIndex, int32 TargetSlotIndex);
+	/** 在服务器上的指定仓库功能模块内移动槽位。 */
+	UFUNCTION(Server, Reliable, Category="交互|网络", DisplayName="服务器移动仓库槽位")
+	void ServerMoveWarehouseSlot(AActor* WarehouseOwner, int32 RuntimeNodeIndex,
+		int32 SourceSlotIndex, int32 TargetSlotIndex);
 
-	UFUNCTION(Server, Reliable)
-	void ServerMoveTreasureChestSlotToBackpack(AActor* TreasureChestOwner, int32 TreasureChestSlotIndex, int32 BackpackSlotIndex);
+	/** 在服务器上把指定宝箱功能模块的物品移动到背包。 */
+	UFUNCTION(Server, Reliable, Category="交互|网络", DisplayName="服务器取出宝箱物品")
+	void ServerMoveTreasureChestSlotToBackpack(AActor* TreasureChestOwner, int32 RuntimeNodeIndex,
+		int32 TreasureChestSlotIndex, int32 BackpackSlotIndex);
 
-	UFUNCTION(Server, Reliable)
-	void ServerBuyTradeSlot(AActor* TradeOwner, int32 TradeSlotIndex);
+	/** 在服务器上购买指定商城功能模块中的商品。 */
+	UFUNCTION(Server, Reliable, Category="交互|网络", DisplayName="服务器购买商城商品")
+	void ServerBuyTradeSlot(AActor* TradeOwner, int32 RuntimeNodeIndex, int32 TradeSlotIndex);
 
-	UFUNCTION(Server, Reliable)
-	void ServerBuyTradeSlotToBackpackSlot(AActor* TradeOwner, int32 TradeSlotIndex, int32 BackpackSlotIndex);
+	/** 在服务器上购买商品并放入指定背包槽位。 */
+	UFUNCTION(Server, Reliable, Category="交互|网络", DisplayName="服务器购买商品到背包槽位")
+	void ServerBuyTradeSlotToBackpackSlot(AActor* TradeOwner, int32 RuntimeNodeIndex,
+		int32 TradeSlotIndex, int32 BackpackSlotIndex);
 
-	UFUNCTION(Server, Reliable)
-	void ServerSellBackpackSlot(AActor* TradeOwner, int32 BackpackSlotIndex);
+	/** 在服务器上向指定商城功能模块出售背包物品。 */
+	UFUNCTION(Server, Reliable, Category="交互|网络", DisplayName="服务器出售背包物品")
+	void ServerSellBackpackSlot(AActor* TradeOwner, int32 RuntimeNodeIndex, int32 BackpackSlotIndex);
 
-	UFUNCTION(Server, Reliable)
-	void ServerExecuteItemTransfer(AActor* ItemTransferOwner);
+	/** 在服务器上执行指定物品传递功能节点。 */
+	UFUNCTION(Server, Reliable, Category="交互|网络", DisplayName="服务器执行物品传递")
+	void ServerExecuteItemTransfer(AActor* ItemTransferOwner, int32 RuntimeNodeIndex);
 
-	UFUNCTION(Server, Reliable)
-	void ServerTriggerMechanism(AActor* MechanismOwner);
+	/** 在服务器上执行指定机关功能节点。 */
+	UFUNCTION(Server, Reliable, Category="交互|网络", DisplayName="服务器触发机关")
+	void ServerTriggerMechanism(AActor* MechanismOwner, int32 RuntimeNodeIndex);
 
 	/** 获取玩家聊天组件。 */
 	UFUNCTION(BlueprintPure, Category="聊天", DisplayName="获取玩家聊天组件")

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxPlayerInteractionComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionOption.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerControlModuleBase.h"
 #include "LxPlayerInteractionModule.generated.h"
 
@@ -41,6 +41,14 @@ public:
 	/** 获取当前待交互队列。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取待交互队列")
 	TArray<ULxInteractableComponent*> GetInteractableQueue() const;
+
+	/** 判断指定可交互组件是否仍在当前角色的交互范围队列中。 */
+	UFUNCTION(BlueprintPure, Category="交互", DisplayName="是否在交互范围内")
+	bool IsInteractableComponentInRange(const ULxInteractableComponent* InInteractableComponent) const;
+
+	/** 获取当前交互发起流程所处的阶段。 */
+	UFUNCTION(BlueprintPure, Category="交互", DisplayName="获取当前交互阶段")
+	ELxPlayerInteractionPhase GetInteractionPhase() const { return InteractionPhase; }
 
 	/** 刷新入口交互选项，并广播给UI。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="刷新入口选项")
@@ -105,6 +113,11 @@ private:
 	/** 最近一次广播给多级交互UI的选项缓存。 */
 	UPROPERTY()
 	TArray<FLxInteractionOption> CachedCurrentOptions;
+
+	/** 当前仅用于驱动普通交互窗口和功能界面切换的流程阶段。 */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="交互", DisplayName="当前交互阶段",
+		meta=(AllowPrivateAccess="true"))
+	ELxPlayerInteractionPhase InteractionPhase = ELxPlayerInteractionPhase::None;
 
 	FLxInteractionOption BuildOption(ULxInteractableComponent* SourceComponent, ULxInteractionNode* Node, bool bIsBackOption = false) const;
 	bool ShouldShowInEntranceOptions(const ULxInteractionNode* Node) const;

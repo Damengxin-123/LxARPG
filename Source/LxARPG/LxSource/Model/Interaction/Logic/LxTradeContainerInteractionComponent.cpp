@@ -20,20 +20,20 @@ namespace
 
 ULxTradeContainerInteractionComponent::ULxTradeContainerInteractionComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
-	SetIsReplicatedByDefault(true);
 	InteractionActionType = ELxInteractionActionType::TradeContainer;
 }
 
-void ULxTradeContainerInteractionComponent::BaseComponentInitialize()
+void ULxTradeContainerInteractionComponent::ApplyConfig(const FLxTradeContainerInteractionConfig& InConfig)
 {
-	Super::BaseComponentInitialize();
-	InitializeTradeSlots();
+	TradeItemList = InConfig.ItemList;
+	GoldItemIDTag = InConfig.GoldItemIDTag;
+	TradeItemValueRate = FMath::Max(0.0f, InConfig.SellValueRate);
+	PurchaseValueRate = FMath::Max(0.0f, InConfig.PurchaseValueRate);
 }
 
-void ULxTradeContainerInteractionComponent::BeginPlay()
+void ULxTradeContainerInteractionComponent::OnInitializeInteractionFeature_Implementation()
 {
-	Super::BeginPlay();
+	Super::OnInitializeInteractionFeature_Implementation();
 	if (AActor* OwnerActor = GetOwner())
 	{
 		OwnerActor->SetReplicates(true);
@@ -46,12 +46,13 @@ void ULxTradeContainerInteractionComponent::GetLifetimeReplicatedProps(TArray<FL
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ULxTradeContainerInteractionComponent, ReplicatedTradeSlots);
+	DOREPLIFETIME(ULxTradeContainerInteractionComponent, PurchaseValueRate);
 }
 
-void ULxTradeContainerInteractionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void ULxTradeContainerInteractionComponent::OnShutdownInteractionFeature_Implementation()
 {
 	UnbindPlayerDataTransfer();
-	Super::EndPlay(EndPlayReason);
+	Super::OnShutdownInteractionFeature_Implementation();
 }
 
 bool ULxTradeContainerInteractionComponent::ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent)
@@ -92,7 +93,7 @@ void ULxTradeContainerInteractionComponent::RefreshTradeSlots()
 	}
 
 	BroadcastTradeSlotsChanged();
-	OnDataChange.Broadcast();
+	NotifyFeatureDataChanged();
 	SyncReplicatedTradeSlots();
 }
 
@@ -144,7 +145,7 @@ bool ULxTradeContainerInteractionComponent::BuyTradeSlot(ULxItemSlotData* TradeS
 			return false;
 		}
 
-		PlayerController->ServerBuyTradeSlot(OwnerActor, TradeSlot->GetSlotIndex());
+		PlayerController->ServerBuyTradeSlot(OwnerActor, GetRuntimeNodeIndex(), TradeSlot->GetSlotIndex());
 		return true;
 	}
 
@@ -193,7 +194,8 @@ bool ULxTradeContainerInteractionComponent::BuyTradeSlotToBackpackSlot(ULxItemSl
 			return false;
 		}
 
-		PlayerController->ServerBuyTradeSlotToBackpackSlot(OwnerActor, TradeSlot->GetSlotIndex(), TargetBackpackSlot->GetSlotIndex());
+		PlayerController->ServerBuyTradeSlotToBackpackSlot(
+			OwnerActor, GetRuntimeNodeIndex(), TradeSlot->GetSlotIndex(), TargetBackpackSlot->GetSlotIndex());
 		return true;
 	}
 
@@ -247,7 +249,8 @@ bool ULxTradeContainerInteractionComponent::SellBackpackSlot(ULxItemSlotData* Ba
 			return false;
 		}
 
-		PlayerController->ServerSellBackpackSlot(OwnerActor, BackpackSlot->GetSlotIndex());
+		PlayerController->ServerSellBackpackSlot(
+			OwnerActor, GetRuntimeNodeIndex(), BackpackSlot->GetSlotIndex());
 		return true;
 	}
 
@@ -259,7 +262,7 @@ bool ULxTradeContainerInteractionComponent::SellBackpackSlot(ULxItemSlotData* Ba
 		return false;
 	}
 
-	const int32 Price = CalculateSlotPrice(BackpackSlot);
+	const int32 Price = CalculateItemPrice(BackpackSlot->GetItem(), PurchaseValueRate);
 	TArray<FLxItemQuote> GoldItemList;
 	if (!BuildGoldCost(Price, GoldItemList))
 	{
@@ -289,6 +292,18 @@ void ULxTradeContainerInteractionComponent::SetTradeItemValueRate(float InTradeI
 
 	TradeItemValueRate = NewTradeItemValueRate;
 	ApplyTradeItemValueRateToSlots();
+	RefreshTradeSlots();
+}
+
+void ULxTradeContainerInteractionComponent::SetPurchaseValueRate(float InPurchaseValueRate)
+{
+	const float NewPurchaseValueRate = FMath::Max(0.0f, InPurchaseValueRate);
+	if (FMath::IsNearlyEqual(PurchaseValueRate, NewPurchaseValueRate))
+	{
+		return;
+	}
+
+	PurchaseValueRate = NewPurchaseValueRate;
 	RefreshTradeSlots();
 }
 
@@ -536,7 +551,7 @@ bool ULxTradeContainerInteractionComponent::PutItemQuoteInBackpackSlot(ULxItemSl
 	return true;
 }
 
-int32 ULxTradeContainerInteractionComponent::CalculateItemPrice(ULxItemBase* Item) const
+int32 ULxTradeContainerInteractionComponent::CalculateItemPrice(ULxItemBase* Item, float ValueRate) const
 {
 	if (Item == nullptr || !Item->ItemIsValid())
 	{
@@ -544,7 +559,7 @@ int32 ULxTradeContainerInteractionComponent::CalculateItemPrice(ULxItemBase* Ite
 	}
 
 	const FLxItemInformationBase ItemInformation = Item->ItemInformation();
-	return FMath::Max(0, ItemInformation.ItemSellPrice);
+	return FMath::Max(0, FMath::RoundToInt(static_cast<float>(ItemInformation.ItemSellPrice) * FMath::Max(0.0f, ValueRate)));
 }
 
 int32 ULxTradeContainerInteractionComponent::CalculateSlotPrice(ULxItemSlotData* Slot) const

@@ -10,20 +10,18 @@
 
 ULxTreasureChestInteractionComponent::ULxTreasureChestInteractionComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
-	SetIsReplicatedByDefault(true);
 	InteractionActionType = ELxInteractionActionType::TreasureChest;
 }
 
-void ULxTreasureChestInteractionComponent::BaseComponentInitialize()
+void ULxTreasureChestInteractionComponent::ApplyConfig(const FLxTreasureChestInteractionConfig& InConfig)
 {
-	Super::BaseComponentInitialize();
-	InitializeTreasureChestSlots();
+	TreasureChestItemList = InConfig.ItemList;
+	AcquireCompletionLimit = FMath::Max(0, InConfig.AcquireCompletionLimit);
 }
 
-void ULxTreasureChestInteractionComponent::BeginPlay()
+void ULxTreasureChestInteractionComponent::OnInitializeInteractionFeature_Implementation()
 {
-	Super::BeginPlay();
+	Super::OnInitializeInteractionFeature_Implementation();
 	if (AActor* OwnerActor = GetOwner())
 	{
 		OwnerActor->SetReplicates(true);
@@ -62,7 +60,7 @@ void ULxTreasureChestInteractionComponent::RefreshTreasureChestSlots()
 {
 	RebuildTreasureChestItemList();
 	BroadcastTreasureChestSlotsChanged();
-	OnDataChange.Broadcast();
+	NotifyFeatureDataChanged();
 	SyncReplicatedTreasureChestSlots();
 }
 
@@ -202,7 +200,8 @@ bool ULxTreasureChestInteractionComponent::MoveTreasureChestSlotToBackpack(ULxCh
 			return false;
 		}
 
-		PlayerController->ServerMoveTreasureChestSlotToBackpack(OwnerActor, TreasureChestSlotIndex, BackpackSlotIndex);
+		PlayerController->ServerMoveTreasureChestSlotToBackpack(
+			OwnerActor, GetRuntimeNodeIndex(), TreasureChestSlotIndex, BackpackSlotIndex);
 		return true;
 	}
 
@@ -305,7 +304,7 @@ void ULxTreasureChestInteractionComponent::ApplyReplicatedTreasureChestSlots()
 
 	RebuildTreasureChestItemList();
 	BroadcastTreasureChestSlotsChanged();
-	OnDataChange.Broadcast();
+	NotifyFeatureDataChanged();
 	CheckAcquireCompletion();
 }
 

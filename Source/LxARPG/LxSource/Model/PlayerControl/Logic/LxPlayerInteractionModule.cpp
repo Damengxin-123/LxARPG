@@ -1,13 +1,7 @@
 #include "LxPlayerInteractionModule.h"
 
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractableComponent.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionActionComponentBase.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxItemTransferInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionNode.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxTriggerMechanismInteractionComponent.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxTradeContainerInteractionComponent.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxTreasureChestInteractionComponent.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxWarehouseInteractionComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -74,8 +68,8 @@ void ULxPlayerInteractionModule::InitMonitorRegistration()
 
 void ULxPlayerInteractionModule::AddInteractableComponent(ULxInteractableComponent* InInteractableComponent)
 {
-	// 只有存在有效入口节点的对象才进入待交互队列。
-	if (!InInteractableComponent || InteractableQueue.Contains(InInteractableComponent) || !InInteractableComponent->HasValidInteraction())
+	// 交互条件可能在范围内动态变化，因此队列只表示“在交互范围内”。
+	if (!InInteractableComponent || InteractableQueue.Contains(InInteractableComponent))
 	{
 		return;
 	}
@@ -125,6 +119,12 @@ TArray<ULxInteractableComponent*> ULxPlayerInteractionModule::GetInteractableQue
 	return Result;
 }
 
+bool ULxPlayerInteractionModule::IsInteractableComponentInRange(
+	const ULxInteractableComponent* InInteractableComponent) const
+{
+	return InInteractableComponent && InteractableQueue.Contains(InInteractableComponent);
+}
+
 void ULxPlayerInteractionModule::RefreshEntranceOptions()
 {
 	// 入口选项按照可交互对象进入队列的先后顺序展开。
@@ -138,9 +138,10 @@ void ULxPlayerInteractionModule::RefreshEntranceOptions()
 			continue;
 		}
 
-		for (ULxInteractionNode* RootNode : InteractableComponent->GetValidRootInteractionNodes())
+		for (ULxInteractionNode* RootNode : InteractableComponent->GetRootInteractionNodes())
 		{
-			if (ShouldShowInEntranceOptions(RootNode) && ValidateInteractionNodePlacement(RootNode))
+			if (RootNode && RootNode->IsNodeInteractable(this)
+				&& ShouldShowInEntranceOptions(RootNode) && ValidateInteractionNodePlacement(RootNode))
 			{
 				CachedEntranceOptions.Add(BuildOption(InteractableComponent, RootNode));
 			}
@@ -166,8 +167,13 @@ void ULxPlayerInteractionModule::RefreshCurrentInteractionOptions()
 		CachedCurrentOptions.Add(BuildOption(CurrentInteractableComponent, CurrentInteractionNode->GetParentNode(), true));
 	}
 
-	for (ULxInteractionNode* ChildNode : CurrentInteractionNode->GetValidChildNodes())
+	for (ULxInteractionNode* ChildNode : CurrentInteractionNode->GetChildNodes())
 	{
+		if (!ChildNode || !ChildNode->IsNodeInteractable(this))
+		{
+			continue;
+		}
+
 		if (!ValidateInteractionNodePlacement(ChildNode))
 		{
 			CachedCurrentOptions.Reset();
@@ -212,7 +218,8 @@ bool ULxPlayerInteractionModule::ActivateInteractionOption(const FLxInteractionO
 	CurrentInteractableComponent = Option.SourceInteractionComponent;
 	CurrentInteractionNode = Option.InteractionNode;
 
-	if (!CurrentInteractionNode || !CurrentInteractionNode->IsNodeValid())
+	if (!CurrentInteractionNode || !CurrentInteractableComponent
+		|| !CurrentInteractionNode->IsNodeInteractable(this))
 	{
 		RefreshEntranceOptions();
 		return false;
@@ -232,86 +239,47 @@ bool ULxPlayerInteractionModule::ActivateInteractionOption(const FLxInteractionO
 		return true;
 	}
 
-	for (ULxInteractionNode* ChildNode : CurrentInteractionNode->GetValidChildNodes())
+	for (ULxInteractionNode* ChildNode : CurrentInteractionNode->GetChildNodes())
 	{
-		if (!ValidateInteractionNodePlacement(ChildNode))
+		if (ChildNode && !ValidateInteractionNodePlacement(ChildNode))
 		{
 			CancelInteraction();
 			return false;
 		}
 	}
 
-	// 统一刷新当前节点的子级选项，再把激活事件分发给各类型交互UI。
-	RefreshCurrentInteractionOptions();
-	if (CurrentInteractionNode->GetInteractionActionType() == ELxInteractionActionType::TriggerMechanism &&
-		!CurrentInteractionNode->GetParentNode())
+	if (!CurrentInteractionNode->IsFunctionNode())
 	{
-		ULxTriggerMechanismInteractionComponent* TriggerMechanismComponent =
-			Cast<ULxTriggerMechanismInteractionComponent>(CurrentInteractionNode->GetActionComponent());
-		if (!TriggerMechanismComponent || !TriggerMechanismComponent->TriggerMechanism(this))
-		{
-			return false;
-		}
-
-		OnInteractionOptionExecuted.Broadcast(Option);
-		CurrentInteractableComponent = nullptr;
-		CurrentInteractionNode = nullptr;
-		CachedCurrentOptions.Reset();
-		OnCurrentInteractionOptionsUpdated.Broadcast(CachedCurrentOptions);
-		RefreshEntranceOptions();
+		// 普通节点只负责导航：选中后显示其子项，不接触任何具体功能数据。
+		InteractionPhase = ELxPlayerInteractionPhase::Navigation;
+		RefreshCurrentInteractionOptions();
+		OnInteractionOptionActivated.Broadcast(Option, CurrentInteractionNode->GetInteractionActionType());
 		return true;
 	}
 
-	if (CurrentInteractionNode->GetInteractionActionType() == ELxInteractionActionType::ItemTransfer)
+	bool bShouldOpenFunctionUI = false;
+	if (!CurrentInteractableComponent->ExecuteInteractionNode(CurrentInteractionNode, this, bShouldOpenFunctionUI))
 	{
-		ULxItemTransferInteractionComponent* ItemTransferComponent =
-			Cast<ULxItemTransferInteractionComponent>(CurrentInteractionNode->GetActionComponent());
-		if (!ItemTransferComponent || !ItemTransferComponent->ExecuteInteraction(this))
-		{
-			return false;
-		}
+		return false;
+	}
 
-		OnInteractionOptionExecuted.Broadcast(Option);
-		CurrentInteractableComponent = nullptr;
-		CurrentInteractionNode = nullptr;
+	if (bShouldOpenFunctionUI)
+	{
+		// 发起方只分发界面路由事件，功能数据由交互提供组件与功能模块管理。
+		InteractionPhase = ELxPlayerInteractionPhase::Function;
 		CachedCurrentOptions.Reset();
 		OnCurrentInteractionOptionsUpdated.Broadcast(CachedCurrentOptions);
-		RefreshEntranceOptions();
+		OnInteractionOptionActivated.Broadcast(Option, CurrentInteractionNode->GetInteractionActionType());
 		return true;
 	}
 
-	if (CurrentInteractionNode->GetInteractionActionType() == ELxInteractionActionType::Warehouse)
-	{
-		ULxWarehouseInteractionComponent* WarehouseComponent =
-			Cast<ULxWarehouseInteractionComponent>(CurrentInteractionNode->GetActionComponent());
-		if (!WarehouseComponent || !WarehouseComponent->ExecuteInteraction(this))
-		{
-			return false;
-		}
-	}
-
-	if (CurrentInteractionNode->GetInteractionActionType() == ELxInteractionActionType::TreasureChest)
-	{
-		ULxTreasureChestInteractionComponent* TreasureChestComponent =
-			Cast<ULxTreasureChestInteractionComponent>(CurrentInteractionNode->GetActionComponent());
-		if (!TreasureChestComponent || !TreasureChestComponent->ExecuteInteraction(this))
-		{
-			return false;
-		}
-	}
-
-	if (CurrentInteractionNode->GetInteractionActionType() == ELxInteractionActionType::TradeContainer)
-	{
-		ULxTradeContainerInteractionComponent* TradeContainerComponent =
-			Cast<ULxTradeContainerInteractionComponent>(CurrentInteractionNode->GetActionComponent());
-		if (!TradeContainerComponent || !TradeContainerComponent->ExecuteInteraction(this))
-		{
-			return false;
-		}
-	}
-
-	RefreshCurrentInteractionOptions();
-	OnInteractionOptionActivated.Broadcast(Option, CurrentInteractionNode->GetInteractionActionType());
+	OnInteractionOptionExecuted.Broadcast(Option);
+	InteractionPhase = ELxPlayerInteractionPhase::None;
+	CurrentInteractableComponent = nullptr;
+	CurrentInteractionNode = nullptr;
+	CachedCurrentOptions.Reset();
+	OnCurrentInteractionOptionsUpdated.Broadcast(CachedCurrentOptions);
+	RefreshEntranceOptions();
 	return true;
 }
 
@@ -335,6 +303,7 @@ void ULxPlayerInteractionModule::BackToParentInteractionNode()
 
 void ULxPlayerInteractionModule::CancelInteraction()
 {
+	InteractionPhase = ELxPlayerInteractionPhase::None;
 	CurrentInteractableComponent = nullptr;
 	CurrentInteractionNode = nullptr;
 	CachedCurrentOptions.Reset();
@@ -407,7 +376,7 @@ void ULxPlayerInteractionModule::RemoveInvalidInteractables()
 	for (int32 Index = InteractableQueue.Num() - 1; Index >= 0; --Index)
 	{
 		ULxInteractableComponent* InteractableComponent = InteractableQueue[Index];
-		if (!InteractableComponent || !InteractableComponent->HasValidInteraction())
+		if (!IsValid(InteractableComponent))
 		{
 			UnbindInteractableComponent(InteractableComponent);
 			InteractableQueue.RemoveAt(Index);

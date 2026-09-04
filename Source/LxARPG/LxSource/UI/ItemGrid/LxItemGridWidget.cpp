@@ -497,6 +497,7 @@ bool ULxItemGridWidget::TryHandleTradeDrop(ULxItemSlotData* SourceSlot)
 
 			PlayerController->ServerBuyTradeSlotToBackpackSlot(
 				TradeComponent->GetOwner(),
+				TradeComponent->GetRuntimeNodeIndex(),
 				SourceSlot->GetSlotIndex(),
 				CurrentSlotData->GetSlotIndex());
 			return true;
@@ -512,7 +513,8 @@ bool ULxItemGridWidget::TryHandleTradeDrop(ULxItemSlotData* SourceSlot)
 				return false;
 			}
 
-			PlayerController->ServerSellBackpackSlot(TradeComponent->GetOwner(), SourceSlot->GetSlotIndex());
+			PlayerController->ServerSellBackpackSlot(
+				TradeComponent->GetOwner(), TradeComponent->GetRuntimeNodeIndex(), SourceSlot->GetSlotIndex());
 			return true;
 		}
 	}
@@ -569,6 +571,7 @@ bool ULxItemGridWidget::TryHandleServerSlotDrop(ULxItemSlotData* SourceSlot)
 
 		PlayerController->ServerMoveTreasureChestSlotToBackpack(
 			TreasureChestComponent->GetOwner(),
+			TreasureChestComponent->GetRuntimeNodeIndex(),
 			SourceSlot->GetSlotIndex(),
 			CurrentSlotData->GetSlotIndex());
 		return true;
@@ -593,6 +596,7 @@ bool ULxItemGridWidget::TryHandleServerSlotDrop(ULxItemSlotData* SourceSlot)
 	{
 		PlayerController->ServerMoveWarehouseSlot(
 			WarehouseComponent->GetOwner(),
+			WarehouseComponent->GetRuntimeNodeIndex(),
 			SourceSlot->GetSlotIndex(),
 			CurrentSlotData->GetSlotIndex());
 		return true;
@@ -600,6 +604,7 @@ bool ULxItemGridWidget::TryHandleServerSlotDrop(ULxItemSlotData* SourceSlot)
 
 	PlayerController->ServerMoveItemBetweenBackpackAndWarehouse(
 		WarehouseComponent->GetOwner(),
+		WarehouseComponent->GetRuntimeNodeIndex(),
 		SourceSlot->GetSlotIndex(),
 		CurrentSlotData->GetSlotIndex(),
 		bMoveToWarehouse);

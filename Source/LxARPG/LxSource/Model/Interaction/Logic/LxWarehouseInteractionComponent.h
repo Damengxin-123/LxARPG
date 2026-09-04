@@ -14,20 +14,19 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxWarehouseStateChanged, ELxInter
 /** 仓库槽位列表变化事件，供仓库界面刷新所有仓库格子。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxWarehouseSlotListChanged, const TArray<ULxItemSlotData*>&, WarehouseSlots);
 
-/** 长期存放物品的仓库交互组件。仓库槽位可以存取物品，但不会触发使用物品逻辑。 */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, BlueprintType, DisplayName="仓库交互组件")
+/** 长期存放物品的仓库交互模块。仓库槽位可以存取物品，但不会触发使用物品逻辑。 */
+UCLASS(Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="仓库交互模块")
 class LXARPG_API ULxWarehouseInteractionComponent : public ULxInteractionActionComponentBase
 {
 	GENERATED_BODY()
 
 public:
-	/** 创建仓库组件，并声明自身为“存取容器”类型交互。 */
+	/** 创建仓库模块，并声明自身为“存取容器”类型交互。 */
 	ULxWarehouseInteractionComponent();
 
-	/** 初始化仓库槽位。 */
-	virtual void BaseComponentInitialize() override;
-	/** 兜底初始化仓库槽位，支持未走项目自定义初始化入口的场景。 */
-	virtual void BeginPlay() override;
+	/** 应用功能节点提供的仓库初始配置。 */
+	void ApplyConfig(const FLxWarehouseInteractionConfig& InConfig);
+
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	/** 仓库交互被触发时调用，进入交互中状态并通知外部表现。 */
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
@@ -62,6 +61,9 @@ public:
 	FOnLxWarehouseSlotListChanged OnWarehouseSlotListChanged;
 
 protected:
+	/** 功能模块绑定到交互提供组件后初始化仓库槽位。 */
+	virtual void OnInitializeInteractionFeature_Implementation() override;
+
 	/** 仓库槽位数量，可在放置仓库对象时配置。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|仓库", DisplayName="仓库槽位数量", meta=(ClampMin="1"))
 	int32 WarehouseSlotCount = 100;

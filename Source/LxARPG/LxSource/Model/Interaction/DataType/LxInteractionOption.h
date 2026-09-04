@@ -40,3 +40,13 @@ struct FLxInteractionOption
 		return bIsBackOption || (InteractionNode != nullptr && SourceInteractionComponent != nullptr);
 	}
 };
+
+/** 交互选项列表更新事件，主要供交互界面或 AI 控制器绑定。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxInteractionOptionListUpdated, const TArray<FLxInteractionOption>&, Options);
+/** 交互选项成功执行事件。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxInteractionOptionExecuted, const FLxInteractionOption&, Option);
+/** 交互选项被激活事件，交互类型单独传出以便界面快速完成路由。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxInteractionOptionActivated, const FLxInteractionOption&, Option,
+	ELxInteractionActionType, InteractionType);
+/** 当前交互被取消事件。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxInteractionCancelled);

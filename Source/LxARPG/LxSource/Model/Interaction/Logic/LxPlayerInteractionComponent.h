@@ -8,17 +8,9 @@
 class ULxInteractableComponent;
 class ULxInteractionNode;
 
-/** 交互选项列表更新事件，主要供交互UI或AI控制器绑定。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxInteractionOptionListUpdated, const TArray<FLxInteractionOption>&, Options);
-/** 交互选项成功执行事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxInteractionOptionExecuted, const FLxInteractionOption&, Option);
-/** 交互选项被激活事件。InteractionType单独传出，方便各交互UI快速判断是否需要响应。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxInteractionOptionActivated, const FLxInteractionOption&, Option, ELxInteractionActionType, InteractionType);
-/** 当前交互被取消事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxInteractionCancelled);
-
 /** 玩家角色持有的交互管理组件，维护候选队列、选项刷新和多级交互导航。 */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="玩家交互组件")
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent, DeprecatedNode,
+	DeprecationMessage="请使用玩家操控组件中的玩家交互模块"), Blueprintable, DisplayName="玩家交互组件（旧版）")
 class LXARPG_API ULxPlayerInteractionComponent : public ULxCharacterComponentBase
 {
 	GENERATED_BODY()

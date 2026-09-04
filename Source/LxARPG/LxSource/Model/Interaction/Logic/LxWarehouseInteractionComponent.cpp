@@ -7,20 +7,17 @@
 
 ULxWarehouseInteractionComponent::ULxWarehouseInteractionComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
-	SetIsReplicatedByDefault(true);
 	InteractionActionType = ELxInteractionActionType::Warehouse;
 }
 
-void ULxWarehouseInteractionComponent::BaseComponentInitialize()
+void ULxWarehouseInteractionComponent::ApplyConfig(const FLxWarehouseInteractionConfig& InConfig)
 {
-	Super::BaseComponentInitialize();
-	InitializeWarehouseSlots();
+	WarehouseSlotCount = FMath::Max(1, InConfig.SlotCount);
 }
 
-void ULxWarehouseInteractionComponent::BeginPlay()
+void ULxWarehouseInteractionComponent::OnInitializeInteractionFeature_Implementation()
 {
-	Super::BeginPlay();
+	Super::OnInitializeInteractionFeature_Implementation();
 	if (AActor* OwnerActor = GetOwner())
 	{
 		OwnerActor->SetReplicates(true);
@@ -60,7 +57,7 @@ void ULxWarehouseInteractionComponent::RefreshWarehouseSlots()
 {
 	RebuildWarehouseItemList();
 	BroadcastWarehouseSlotsChanged();
-	OnDataChange.Broadcast();
+	NotifyFeatureDataChanged();
 	SyncReplicatedWarehouseSlots();
 }
 
@@ -276,7 +273,7 @@ void ULxWarehouseInteractionComponent::ApplyReplicatedWarehouseSlots()
 
 	RebuildWarehouseItemList();
 	BroadcastWarehouseSlotsChanged();
-	OnDataChange.Broadcast();
+	NotifyFeatureDataChanged();
 }
 
 FLxItemQuote ULxWarehouseInteractionComponent::BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const

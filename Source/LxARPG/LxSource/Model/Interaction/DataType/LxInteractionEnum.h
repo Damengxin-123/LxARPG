@@ -38,6 +38,15 @@ enum class ELxInteractionDataState : uint8
 	NotInteractable UMETA(DisplayName="不可交互"),
 };
 
+/** 交互发起方当前所处的流程阶段，只描述导航和界面路由，不保存具体功能数据。 */
+UENUM(BlueprintType)
+enum class ELxPlayerInteractionPhase : uint8
+{
+	None UMETA(DisplayName="无交互"),
+	Navigation UMETA(DisplayName="普通交互导航"),
+	Function UMETA(DisplayName="功能交互"),
+};
+
 /** 简单机关的运行状态。 */
 UENUM(BlueprintType)
 enum class ELxMechanismState : uint8

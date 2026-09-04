@@ -9,6 +9,13 @@
 ULxItemTransferInteractionComponent::ULxItemTransferInteractionComponent()
 {
 	InteractionActionType = ELxInteractionActionType::ItemTransfer;
+	bOpenFunctionUI = false;
+}
+
+void ULxItemTransferInteractionComponent::ApplyConfig(const FLxItemTransferInteractionConfig& InConfig)
+{
+	ItemTransferList = InConfig.ItemList;
+	ItemTransferDirection = InConfig.Direction;
 }
 
 bool ULxItemTransferInteractionComponent::CheckInteractionRequirement_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) const
@@ -47,7 +54,7 @@ bool ULxItemTransferInteractionComponent::ExecuteInteraction_Implementation(ULxP
 			return false;
 		}
 
-		PlayerController->ServerExecuteItemTransfer(OwnerActor);
+		PlayerController->ServerExecuteItemTransfer(OwnerActor, GetRuntimeNodeIndex());
 		return true;
 	}
 

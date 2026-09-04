@@ -6,51 +6,58 @@
 
 class ULxPlayerInteractionModule;
 
-/** 鏈哄叧鐘舵€佹敼鍙樹簨浠躲€?*/
+/** 机关状态变化事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxMechanismStateChanged, ELxMechanismState, NewState);
 
-/** 鏈哄叧绫诲瀷浜や簰缁勪欢锛岃礋璐ｈЕ鍙戞満鍏炽€佺淮鎶ゆ満鍏崇姸鎬侊紝骞舵寜鐘舵€佹彁渚涗氦浜掓彁绀烘枃鏈爣绛俱€?*/
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, BlueprintType, DisplayName="Trigger Mechanism Interaction Component")
+/** 机关交互模块，负责触发机关、维护机关状态，并按状态提供交互提示文本。 */
+UCLASS(Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="机关交互模块")
 class LXARPG_API ULxTriggerMechanismInteractionComponent : public ULxInteractionActionComponentBase
 {
 	GENERATED_BODY()
 
 public:
+	/** 创建机关模块，并声明为不需要独立功能界面的即时交互。 */
 	ULxTriggerMechanismInteractionComponent();
 
-	virtual void BeginPlay() override;
+	/** 应用功能节点提供的机关初始配置。 */
+	void ApplyConfig(const FLxTriggerMechanismInteractionConfig& InConfig);
+
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	/** 瑙﹀彂鏈哄叧銆傞粯璁や細鍦ㄥ叧闂拰寮€鍚姸鎬佷箣闂村垏鎹紝涓嶅彲寮€鍚姸鎬佷笉浼氳Е鍙戞垚鍔熴€?*/
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Interaction|Mechanism", DisplayName="Trigger Mechanism")
+	/** 触发机关；默认在关闭和开启状态之间切换。 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="交互|机关", DisplayName="触发机关")
 	bool TriggerMechanism(ULxPlayerInteractionModule* PlayerInteractionComponent);
 	virtual bool TriggerMechanism_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent);
 
-	/** 璁剧疆鏈哄叧鐘舵€侊紝骞跺箍鎾満鍏崇姸鎬佹敼鍙樹簨浠躲€?*/
-	UFUNCTION(BlueprintCallable, Category="Interaction|Mechanism", DisplayName="Set Mechanism State")
+	/** 设置机关状态，并广播机关状态变化。 */
+	UFUNCTION(BlueprintCallable, Category="交互|机关", DisplayName="设置机关状态")
 	void SetMechanismState(ELxMechanismState InMechanismState);
 
-	/** 鑾峰彇褰撳墠鏈哄叧鐘舵€併€?*/
-	UFUNCTION(BlueprintCallable, Category="Interaction|Mechanism", DisplayName="Get Mechanism State")
+	/** 获取当前机关状态。 */
+	UFUNCTION(BlueprintPure, Category="交互|机关", DisplayName="获取机关状态")
 	ELxMechanismState GetMechanismState() const { return MechanismState; }
 
 	virtual FGameplayTag GetPromptTextTag() const override;
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
 
-	/** 鏈哄叧鐘舵€佹敼鍙樻椂瑙﹀彂锛屼緵钃濆浘鍝嶅簲闂ㄣ€佸紑鍏崇瓑琛ㄧ幇銆?*/
-	UPROPERTY(BlueprintAssignable, Category="Interaction|Mechanism", DisplayName="Mechanism State Changed")
+	/** 机关状态改变时触发，供蓝图播放门、开关等表现。 */
+	UPROPERTY(BlueprintAssignable, Category="交互|机关", DisplayName="机关状态改变")
 	FOnLxMechanismStateChanged OnMechanismStateChanged;
 
 protected:
-	/** 褰撳墠鏈哄叧鐘舵€併€?*/
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_MechanismState, Category="Interaction|Mechanism", DisplayName="Mechanism State")
+	/** 功能模块绑定后确保所属 Actor 开启复制。 */
+	virtual void OnInitializeInteractionFeature_Implementation() override;
+
+	/** 当前机关状态。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_MechanismState, Category="交互|机关", DisplayName="机关状态")
 	ELxMechanismState MechanismState = ELxMechanismState::Closed;
 
-	/** 鍚勬満鍏崇姸鎬佸搴旂殑浜や簰鎻愮ず鏂囨湰鏍囩锛屼緥濡傚叧闂姸鎬佹樉绀衡€滃紑闂ㄢ€濓紝寮€鍚姸鎬佹樉绀衡€滃叧闂ㄢ€濄€?*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction|Mechanism", DisplayName="Mechanism State Prompt Text Tags")
+	/** 各机关状态对应的交互提示文本标签。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|机关", DisplayName="机关状态提示文本标签")
 	TMap<ELxMechanismState, FGameplayTag> MechanismStatePromptTextTags;
 
 private:
+	/** 应用复制状态并广播机关变化。 */
 	UFUNCTION()
 	void OnRep_MechanismState();
 };

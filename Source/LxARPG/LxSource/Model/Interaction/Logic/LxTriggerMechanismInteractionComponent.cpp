@@ -8,13 +8,23 @@
 
 ULxTriggerMechanismInteractionComponent::ULxTriggerMechanismInteractionComponent()
 {
-	SetIsReplicatedByDefault(true);
 	InteractionActionType = ELxInteractionActionType::TriggerMechanism;
+	bOpenFunctionUI = false;
 }
 
-void ULxTriggerMechanismInteractionComponent::BeginPlay()
+void ULxTriggerMechanismInteractionComponent::ApplyConfig(const FLxTriggerMechanismInteractionConfig& InConfig)
 {
-	Super::BeginPlay();
+	MechanismState = InConfig.InitialState;
+	MechanismStatePromptTextTags.Reset();
+	for (const FLxMechanismStatePromptText& StatePromptText : InConfig.StatePromptTexts)
+	{
+		MechanismStatePromptTextTags.Add(StatePromptText.MechanismState, StatePromptText.PromptTextTag);
+	}
+}
+
+void ULxTriggerMechanismInteractionComponent::OnInitializeInteractionFeature_Implementation()
+{
+	Super::OnInitializeInteractionFeature_Implementation();
 	if (AActor* OwnerActor = GetOwner())
 	{
 		OwnerActor->SetReplicates(true);
@@ -45,7 +55,7 @@ bool ULxTriggerMechanismInteractionComponent::TriggerMechanism_Implementation(
 			return false;
 		}
 
-		PlayerController->ServerTriggerMechanism(OwnerActor);
+		PlayerController->ServerTriggerMechanism(OwnerActor, GetRuntimeNodeIndex());
 		return true;
 	}
 
@@ -72,13 +82,13 @@ void ULxTriggerMechanismInteractionComponent::SetMechanismState(ELxMechanismStat
 
 	MechanismState = InMechanismState;
 	OnMechanismStateChanged.Broadcast(MechanismState);
-	OnDataChange.Broadcast();
+	NotifyFeatureDataChanged();
 }
 
 void ULxTriggerMechanismInteractionComponent::OnRep_MechanismState()
 {
 	OnMechanismStateChanged.Broadcast(MechanismState);
-	OnDataChange.Broadcast();
+	NotifyFeatureDataChanged();
 }
 
 FGameplayTag ULxTriggerMechanismInteractionComponent::GetPromptTextTag() const

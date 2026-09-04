@@ -13,20 +13,19 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTreasureChestStateChanged, ELxI
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTreasureChestSlotListChanged, const TArray<ULxItemSlotData*>&, TreasureChestSlots);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxTreasureChestItemAcquireCompleted);
 
-/** 只可取出的宝箱交互组件。蓝图配置物品清单，运行时生成宝箱槽位供 UI 展示和拖出。 */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, BlueprintType, DisplayName="宝箱交互组件")
+/** 只可取出的宝箱交互模块。根据功能节点配置生成宝箱槽位供 UI 展示和拖出。 */
+UCLASS(Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="宝箱交互模块")
 class LXARPG_API ULxTreasureChestInteractionComponent : public ULxInteractionActionComponentBase
 {
 	GENERATED_BODY()
 
 public:
-	/** 创建宝箱组件，并声明自身为宝箱类型交互。 */
+	/** 创建宝箱模块，并声明自身为宝箱类型交互。 */
 	ULxTreasureChestInteractionComponent();
 
-	/** 初始化宝箱槽位。 */
-	virtual void BaseComponentInitialize() override;
-	/** 兜底初始化宝箱槽位，兼容未走项目自定义初始化入口的场景。 */
-	virtual void BeginPlay() override;
+	/** 应用功能节点提供的宝箱初始配置。 */
+	void ApplyConfig(const FLxTreasureChestInteractionConfig& InConfig);
+
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	/** 宝箱被交互时进入交互中状态，并通知外部 UI 打开。 */
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
@@ -63,6 +62,9 @@ public:
 	FOnLxTreasureChestItemAcquireCompleted OnItemAcquireCompleted;
 
 protected:
+	/** 功能模块绑定到交互提供组件后初始化宝箱槽位。 */
+	virtual void OnInitializeInteractionFeature_Implementation() override;
+
 	/** 宝箱内物品列表。在蓝图中配置，组件初始化时会创建为运行时物品对象。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|宝箱", DisplayName="宝箱内物品列表")
 	TArray<FLxItemQuote> TreasureChestItemList;
