@@ -5,18 +5,15 @@
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 
-void ULxInteractionNode::InitializeInteractionNode(FGameplayTag InPromptTextTag,
+void ULxInteractionNode::InitializeInteractionNode(FText InPromptText,
 	ELxInteractionActionType InInteractionType, const TArray<ULxInteractionNode*>& InChildNodes,
-	bool bInIsFunctionNode, FLxInteractionRequirement InRequirement,
-	FLxInteractionFeatureNodeConfig InFeatureConfig, FGameplayTag InNpcDialogueTextTag)
+	FLxInteractionRequirement InRequirement, FText InNpcDialogueText)
 {
-	PromptTextTag = InPromptTextTag;
+	PromptText = InPromptText;
 	InteractionActionType = InInteractionType;
-	bIsFunctionNode = bInIsFunctionNode;
 	Requirement = MoveTemp(InRequirement);
-	FeatureConfig = MoveTemp(InFeatureConfig);
 	InteractionFeature = nullptr;
-	NpcDialogueTextTag = InNpcDialogueTextTag;
+	NpcDialogueText = InNpcDialogueText;
 	RuntimeNodeIndex = INDEX_NONE;
 	ChildNodes.Reset();
 	AddChildNodes(InChildNodes);
@@ -51,14 +48,14 @@ TArray<ULxInteractionNode*> ULxInteractionNode::GetChildNodes() const
 	return Result;
 }
 
-FGameplayTag ULxInteractionNode::GetPromptTextTag() const
+FText ULxInteractionNode::GetPromptText() const
 {
-	return InteractionFeature ? InteractionFeature->GetPromptTextTag() : PromptTextTag;
+	return InteractionFeature ? InteractionFeature->GetPromptText() : PromptText;
 }
 
 bool ULxInteractionNode::IsNodeValid() const
 {
-	return ValidateNodeType() && (!bIsFunctionNode || ValidateInteractionFeatureType());
+	return ValidateNodeType() && (!IsFunctionNode() || ValidateInteractionFeatureType());
 }
 
 bool ULxInteractionNode::IsNodeInteractable(ULxPlayerInteractionModule* PlayerInteractionComponent) const
@@ -68,8 +65,35 @@ bool ULxInteractionNode::IsNodeInteractable(ULxPlayerInteractionModule* PlayerIn
 		return false;
 	}
 
-	return !bIsFunctionNode || (InteractionFeature
+	return !IsFunctionNode() || (InteractionFeature
 		&& InteractionFeature->CheckInteractionRequirement(PlayerInteractionComponent));
+}
+
+bool ULxInteractionNode::CanProcessActiveInteractionRequest(ULxPlayerInteractionModule* PlayerInteractionComponent) const
+{
+	if (!ValidateNodeType() || !CheckCommonRequirement(PlayerInteractionComponent))
+	{
+		return false;
+	}
+
+	if (!IsFunctionNode())
+	{
+		return IsNodeInteractable(PlayerInteractionComponent);
+	}
+
+	if (!InteractionFeature || InteractionFeature->GetInteractionActionType() != InteractionActionType)
+	{
+		return false;
+	}
+
+	const ELxInteractionDataState FeatureState = InteractionFeature->GetInteractionState();
+	if (FeatureState != ELxInteractionDataState::Interactable
+		&& FeatureState != ELxInteractionDataState::Interacting)
+	{
+		return false;
+	}
+
+	return InteractionFeature->CheckInteractionRequirement(PlayerInteractionComponent);
 }
 
 bool ULxInteractionNode::CheckCommonRequirement(ULxPlayerInteractionModule* PlayerInteractionComponent) const
@@ -125,10 +149,15 @@ bool ULxInteractionNode::ValidateInteractionFeatureType() const
 		&& InteractionFeature->IsInteractionValid();
 }
 
+bool ULxInteractionNode::IsFunctionNode() const
+{
+	return InteractionActionType != ELxInteractionActionType::Entrance
+		&& InteractionActionType != ELxInteractionActionType::Dialogue
+		&& InteractionActionType != ELxInteractionActionType::InteractionExit;
+}
+
 bool ULxInteractionNode::ValidateNodeType() const
 {
-	const bool bOrdinaryInteractionType = InteractionActionType == ELxInteractionActionType::Entrance
-		|| InteractionActionType == ELxInteractionActionType::Dialogue
-		|| InteractionActionType == ELxInteractionActionType::InteractionExit;
-	return bIsFunctionNode ? !bOrdinaryInteractionType : bOrdinaryInteractionType;
+	const UEnum* InteractionTypeEnum = StaticEnum<ELxInteractionActionType>();
+	return InteractionTypeEnum && InteractionTypeEnum->IsValidEnumValue(static_cast<int64>(InteractionActionType));
 }

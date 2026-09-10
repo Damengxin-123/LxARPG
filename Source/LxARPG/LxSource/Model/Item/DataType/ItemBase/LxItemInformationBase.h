@@ -43,7 +43,7 @@ struct FLxItemInformationBase : public FTableRowBase
 	/** 物品出售价值；Buff 与技能物品不参与出售，因此在编辑器中隐藏。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品价值-金币",
 		meta=(ClampMin="0", UIMin="0", EditCondition="ItemType != ELxItemType::Buff && ItemType != ELxItemType::Skill", EditConditionHides))
-	int32 ItemSellPrice;
+	int32 ItemSellPrice = 0;
 
 	/** 物品在 UI 中显示的名称，统一从物品基础数据读取。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|可视化", DisplayName="可视化名称")

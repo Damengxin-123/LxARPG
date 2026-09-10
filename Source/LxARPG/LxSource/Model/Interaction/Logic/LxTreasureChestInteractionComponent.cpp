@@ -1,6 +1,7 @@
 #include "LxTreasureChestInteractionComponent.h"
 
 #include "GameFramework/Actor.h"
+#include "LxInteractableComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
@@ -153,6 +154,10 @@ void ULxTreasureChestInteractionComponent::CheckAcquireCompletion()
 	bCompletionBroadcasted = true;
 	SetTreasureChestState(ELxInteractionDataState::Finished);
 	OnItemAcquireCompleted.Broadcast();
+	if (ULxInteractableComponent* InteractableComponent = GetInteractableComponent())
+	{
+		InteractableComponent->NotifyTreasureChestCompleted();
+	}
 }
 
 int32 ULxTreasureChestInteractionComponent::GetTakenItemEntryCount() const

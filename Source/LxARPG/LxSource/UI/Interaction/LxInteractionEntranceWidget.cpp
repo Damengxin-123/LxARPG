@@ -51,20 +51,20 @@ void ULxInteractionEntranceWidget::SetPlayerInteractionComponent(ULxPlayerIntera
 	else
 	{
 		CachedEntranceOptions.Reset();
-		ResetPromptTextTagTables();
-		BroadcastPromptTextTagTablesUpdated();
+		ResetPromptTextTables();
+		BroadcastPromptTextTablesUpdated();
 		UpdateEntranceVisibilityAndInputRegistration();
 	}
 }
 
-FGameplayTag ULxInteractionEntranceWidget::GetEntranceOptionPromptTextTag(int32 OptionIndex) const
+FText ULxInteractionEntranceWidget::GetEntranceOptionPromptText(int32 OptionIndex) const
 {
-	return CachedEntranceOptions.IsValidIndex(OptionIndex) ? CachedEntranceOptions[OptionIndex].PromptTextTag : FGameplayTag();
+	return CachedEntranceOptions.IsValidIndex(OptionIndex) ? CachedEntranceOptions[OptionIndex].PromptText : FText();
 }
 
 int32 ULxInteractionEntranceWidget::GetCurrentEntranceOptionIndex() const
 {
-	return CachedCurrentAndLowerPromptTextTags.Num() > 0 ? CachedUpperPromptTextTags.Num() : INDEX_NONE;
+	return CachedCurrentAndLowerPromptTexts.Num() > 0 ? CachedUpperPromptTexts.Num() : INDEX_NONE;
 }
 
 void ULxInteractionEntranceWidget::SubmitEntranceOptionIndex(int32 OptionIndex)
@@ -93,7 +93,7 @@ void ULxInteractionEntranceWidget::SubmitCurrentEntranceOption()
 	SubmitEntranceOptionIndex(GetCurrentEntranceOptionIndex());
 }
 
-void ULxInteractionEntranceWidget::ScrollEntrancePromptTextTags(float MouseWheelValue)
+void ULxInteractionEntranceWidget::ScrollEntrancePromptTexts(float MouseWheelValue)
 {
 	if (FMath::IsNearlyZero(MouseWheelValue))
 	{
@@ -103,28 +103,28 @@ void ULxInteractionEntranceWidget::ScrollEntrancePromptTextTags(float MouseWheel
 	if (MouseWheelValue < 0.0f)
 	{
 		// 向下滚动时，下方表第一个元素从“当前项”变为“上方最后一项”。
-		if (CachedCurrentAndLowerPromptTextTags.Num() <= 1)
+		if (CachedCurrentAndLowerPromptTexts.Num() <= 1)
 		{
 			return;
 		}
 
-		CachedUpperPromptTextTags.Add(CachedCurrentAndLowerPromptTextTags[0]);
-		CachedCurrentAndLowerPromptTextTags.RemoveAt(0);
+		CachedUpperPromptTexts.Add(CachedCurrentAndLowerPromptTexts[0]);
+		CachedCurrentAndLowerPromptTexts.RemoveAt(0);
 	}
 	else
 	{
 		// 向上滚动时，上方表最后一个元素回到下方表开头，成为当前项。
-		if (CachedUpperPromptTextTags.IsEmpty())
+		if (CachedUpperPromptTexts.IsEmpty())
 		{
 			return;
 		}
 
-		const FGameplayTag PreviousPromptTextTag = CachedUpperPromptTextTags.Last();
-		CachedUpperPromptTextTags.RemoveAt(CachedUpperPromptTextTags.Num() - 1);
-		CachedCurrentAndLowerPromptTextTags.Insert(PreviousPromptTextTag, 0);
+		const FText PreviousPromptText = CachedUpperPromptTexts.Last();
+		CachedUpperPromptTexts.RemoveAt(CachedUpperPromptTexts.Num() - 1);
+		CachedCurrentAndLowerPromptTexts.Insert(PreviousPromptText, 0);
 	}
 
-	BroadcastPromptTextTagTablesUpdated();
+	BroadcastPromptTextTablesUpdated();
 }
 
 void ULxInteractionEntranceWidget::HandleInteractionTriggerKeyPressed_Implementation()
@@ -156,27 +156,27 @@ void ULxInteractionEntranceWidget::UnbindPlayerInteractionComponent()
 void ULxInteractionEntranceWidget::HandleEntranceOptionsUpdated(const TArray<FLxInteractionOption>& Options)
 {
 	CachedEntranceOptions = Options;
-	ResetPromptTextTagTables();
-	BroadcastPromptTextTagTablesUpdated();
+	ResetPromptTextTables();
+	BroadcastPromptTextTablesUpdated();
 	UpdateEntranceVisibilityAndInputRegistration();
 }
 
-void ULxInteractionEntranceWidget::ResetPromptTextTagTables()
+void ULxInteractionEntranceWidget::ResetPromptTextTables()
 {
-	CachedUpperPromptTextTags.Reset();
-	CachedCurrentAndLowerPromptTextTags.Reset();
-	CachedCurrentAndLowerPromptTextTags.Reserve(CachedEntranceOptions.Num());
+	CachedUpperPromptTexts.Reset();
+	CachedCurrentAndLowerPromptTexts.Reset();
+	CachedCurrentAndLowerPromptTexts.Reserve(CachedEntranceOptions.Num());
 
-	// 新入口列表默认选中第一项，因此全部标签先进入“当前及下方”表。
+	// 新入口列表默认选中第一项，因此全部文本先进入“当前及下方”表。
 	for (const FLxInteractionOption& Option : CachedEntranceOptions)
 	{
-		CachedCurrentAndLowerPromptTextTags.Add(Option.PromptTextTag);
+		CachedCurrentAndLowerPromptTexts.Add(Option.PromptText);
 	}
 }
 
-void ULxInteractionEntranceWidget::BroadcastPromptTextTagTablesUpdated()
+void ULxInteractionEntranceWidget::BroadcastPromptTextTablesUpdated()
 {
-	OnEntrancePromptTextTagsUpdated(CachedUpperPromptTextTags, CachedCurrentAndLowerPromptTextTags);
+	OnEntrancePromptTextsUpdated(CachedUpperPromptTexts, CachedCurrentAndLowerPromptTexts);
 }
 
 bool ULxInteractionEntranceWidget::ShouldShowEntrance() const

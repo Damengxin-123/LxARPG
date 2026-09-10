@@ -15,5 +15,6 @@ UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Item_Equipment_Belt,TEXT("物品.装备.腰
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Item_Equipment_Jewelry,TEXT("物品.装备.饰品"), "饰品");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Item_Consumable, TEXT("物品.消耗品"), "消耗品");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Item_Material, TEXT("物品.材料"), "材料");
+UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Item_Material_Currency_Gold, TEXT("物品.材料.货币.金币"), "金币");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Item_Skill, TEXT("物品.技能"), "技能");
 UE_DEFINE_GAMEPLAY_TAG_COMMENT(LxTag_Item_Buff, TEXT("物品.buff"), "buff");

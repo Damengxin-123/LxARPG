@@ -11,6 +11,13 @@
 
 namespace
 {
+	/** 交易界面每行按十个槽位补齐，并至少保留十个可接收出售操作的槽位。 */
+	int32 GetTradeDisplaySlotCount(int32 ItemCount)
+	{
+		constexpr int32 SlotsPerGroup = 10;
+		return FMath::DivideAndRoundUp(FMath::Max(1, ItemCount), SlotsPerGroup) * SlotsPerGroup;
+	}
+
 	ALxPlayerController* GetPlayerControllerFromDataTransfer(ULxCharacterDataTransferComponent* DataTransferComponent)
 	{
 		const ALxBaseCharacter* OwnerCharacter = DataTransferComponent ? Cast<ALxBaseCharacter>(DataTransferComponent->GetOwner()) : nullptr;
@@ -25,8 +32,21 @@ ULxTradeContainerInteractionComponent::ULxTradeContainerInteractionComponent()
 
 void ULxTradeContainerInteractionComponent::ApplyConfig(const FLxTradeContainerInteractionConfig& InConfig)
 {
-	TradeItemList = InConfig.ItemList;
-	GoldItemIDTag = InConfig.GoldItemIDTag;
+	TradeItemConfigs = InConfig.TradeItems;
+	if (TradeItemConfigs.IsEmpty())
+	{
+		// 旧配置中正数表示有限库存；历史上使用负数表达无限商品时按单件无限库存迁移。
+		for (const FLxItemQuote& LegacyItem : InConfig.ItemList)
+		{
+			FLxTradeItemConfig MigratedItem;
+			MigratedItem.ItemIDTag = LegacyItem.ItemIDTag;
+			MigratedItem.ItemCount = FMath::Max(1, LegacyItem.ItemCount);
+			MigratedItem.bLimitedStock = LegacyItem.ItemCount >= 0;
+			TradeItemConfigs.Add(MigratedItem);
+		}
+	}
+	// 兼容旧蓝图中尚未填写金币标签的配置，避免所有有价格的买卖被静默拒绝。
+	GoldItemIDTag = InConfig.GoldItemIDTag.IsValid() ? InConfig.GoldItemIDTag : LxTag_Item_Material_Currency_Gold;
 	TradeItemValueRate = FMath::Max(0.0f, InConfig.SellValueRate);
 	PurchaseValueRate = FMath::Max(0.0f, InConfig.PurchaseValueRate);
 }
@@ -176,6 +196,7 @@ bool ULxTradeContainerInteractionComponent::BuyTradeSlot(ULxItemSlotData* TradeS
 		return false;
 	}
 
+	ConsumePurchasedStock(TradeSlot, ItemQuote.ItemCount);
 	RefreshTradeSlots();
 	return true;
 }
@@ -235,6 +256,7 @@ bool ULxTradeContainerInteractionComponent::BuyTradeSlotToBackpackSlot(ULxItemSl
 		return false;
 	}
 
+	ConsumePurchasedStock(TradeSlot, ItemQuote.ItemCount);
 	RefreshTradeSlots();
 	return true;
 }
@@ -262,7 +284,7 @@ bool ULxTradeContainerInteractionComponent::SellBackpackSlot(ULxItemSlotData* Ba
 		return false;
 	}
 
-	const int32 Price = CalculateItemPrice(BackpackSlot->GetItem(), PurchaseValueRate);
+	const int32 Price = GetBackpackSlotSellPrice(BackpackSlot);
 	TArray<FLxItemQuote> GoldItemList;
 	if (!BuildGoldCost(Price, GoldItemList))
 	{
@@ -280,6 +302,33 @@ bool ULxTradeContainerInteractionComponent::SellBackpackSlot(ULxItemSlotData* Ba
 
 	RefreshTradeSlots();
 	return true;
+}
+
+int32 ULxTradeContainerInteractionComponent::GetBackpackSlotSellPrice(ULxItemSlotData* BackpackSlot) const
+{
+	return BackpackSlot && BackpackSlot->GetSlotType() == ELxItemSlotType::Backpack
+		? CalculateItemPrice(BackpackSlot->GetItem(), PurchaseValueRate)
+		: 0;
+}
+
+int32 ULxTradeContainerInteractionComponent::CalculateStackTotalPrice(int32 UnitPrice, int32 ItemCount, float ValueRate)
+{
+	const int64 BaseValue = static_cast<int64>(FMath::Max(0, UnitPrice))
+		* static_cast<int64>(FMath::Max(0, ItemCount));
+	const double AdjustedValue = static_cast<double>(BaseValue) * static_cast<double>(FMath::Max(0.0f, ValueRate));
+	if (AdjustedValue <= 0.0)
+	{
+		return 0;
+	}
+
+	const int64 RoundedValue = static_cast<int64>(AdjustedValue + 0.5);
+	return RoundedValue > MAX_int32 ? MAX_int32 : static_cast<int32>(RoundedValue);
+}
+
+bool ULxTradeContainerInteractionComponent::IsTradeSlotLimitedStock(ULxItemSlotData* TradeSlot) const
+{
+	return TradeSlot && TradeItemConfigs.IsValidIndex(TradeSlot->GetSlotIndex())
+		&& TradeItemConfigs[TradeSlot->GetSlotIndex()].bLimitedStock;
 }
 
 void ULxTradeContainerInteractionComponent::SetTradeItemValueRate(float InTradeItemValueRate)
@@ -309,7 +358,8 @@ void ULxTradeContainerInteractionComponent::SetPurchaseValueRate(float InPurchas
 
 void ULxTradeContainerInteractionComponent::InitializeTradeSlots()
 {
-	if (bTradeContainerInitialized && TradeItemSlotList.Num() == TradeItemList.Num())
+	const int32 DisplaySlotCount = GetTradeDisplaySlotCount(TradeItemConfigs.Num());
+	if (bTradeContainerInitialized && TradeItemSlotList.Num() == DisplaySlotCount)
 	{
 		RefreshTradeSlots();
 		return;
@@ -318,10 +368,11 @@ void ULxTradeContainerInteractionComponent::InitializeTradeSlots()
 	TradeItemSlotList.Reset();
 	TradeItems.Reset();
 
-	for (int32 Index = 0; Index < TradeItemList.Num(); ++Index)
+	for (int32 Index = 0; Index < DisplaySlotCount; ++Index)
 	{
-		const FLxItemQuote& ItemQuote = TradeItemList[Index];
-		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, ItemQuote);
+		ULxItemBase* NewItem = TradeItemConfigs.IsValidIndex(Index)
+			? ULxItemBase::CreateItemObject(this, TradeItemConfigs[Index].ToItemQuote())
+			: nullptr;
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
 		NewSlot->SetSlotIndex(Index);
 		NewSlot->InitItemSlot(ELxItemSlotType::Transaction, LxTag_Item, NewItem);
@@ -386,11 +437,14 @@ void ULxTradeContainerInteractionComponent::SyncReplicatedTradeSlots()
 	{
 		ReplicatedTradeSlots.Add(BuildItemQuoteFromSlot(SlotData));
 	}
+
+	// 库存变化后立即推动所属可交互对象复制，及时刷新客户端商城数量。
+	GetOwner()->ForceNetUpdate();
 }
 
 void ULxTradeContainerInteractionComponent::ApplyReplicatedTradeSlots()
 {
-	const int32 DesiredSlotCount = FMath::Max(TradeItemList.Num(), ReplicatedTradeSlots.Num());
+	const int32 DesiredSlotCount = GetTradeDisplaySlotCount(FMath::Max(TradeItemConfigs.Num(), ReplicatedTradeSlots.Num()));
 	if (TradeItemSlotList.Num() != DesiredSlotCount)
 	{
 		TradeItemSlotList.Reset();
@@ -551,6 +605,31 @@ bool ULxTradeContainerInteractionComponent::PutItemQuoteInBackpackSlot(ULxItemSl
 	return true;
 }
 
+void ULxTradeContainerInteractionComponent::ConsumePurchasedStock(ULxItemSlotData* TradeSlot, int32 PurchasedCount)
+{
+	if (!TradeSlot || PurchasedCount <= 0 || !IsTradeSlotLimitedStock(TradeSlot))
+	{
+		return;
+	}
+
+	ULxItemBase* CurrentItem = TradeSlot->GetItem();
+	if (!CurrentItem || CurrentItem->ItemCount() <= PurchasedCount)
+	{
+		TradeSlot->ClearItem();
+		return;
+	}
+
+	const FLxItemQuote RemainingItem(CurrentItem->ItemIDTag(), CurrentItem->ItemCount() - PurchasedCount);
+	if (ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, RemainingItem))
+	{
+		TradeSlot->SetItem(NewItem);
+	}
+	else
+	{
+		TradeSlot->ClearItem();
+	}
+}
+
 int32 ULxTradeContainerInteractionComponent::CalculateItemPrice(ULxItemBase* Item, float ValueRate) const
 {
 	if (Item == nullptr || !Item->ItemIsValid())
@@ -559,7 +638,7 @@ int32 ULxTradeContainerInteractionComponent::CalculateItemPrice(ULxItemBase* Ite
 	}
 
 	const FLxItemInformationBase ItemInformation = Item->ItemInformation();
-	return FMath::Max(0, FMath::RoundToInt(static_cast<float>(ItemInformation.ItemSellPrice) * FMath::Max(0.0f, ValueRate)));
+	return CalculateStackTotalPrice(ItemInformation.ItemSellPrice, static_cast<int32>(Item->ItemCount()), ValueRate);
 }
 
 int32 ULxTradeContainerInteractionComponent::CalculateSlotPrice(ULxItemSlotData* Slot) const

@@ -40,7 +40,7 @@ struct FLxInteractionRequirement
 	FGameplayTagContainer RequiredStateTags;
 };
 
-/** 机关状态和该状态下提示文本标签的映射。 */
+/** 机关状态和该状态下提示文本的映射。 */
 USTRUCT(BlueprintType, DisplayName = "机关状态提示文本")
 struct FLxMechanismStatePromptText
 {
@@ -50,9 +50,9 @@ struct FLxMechanismStatePromptText
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|机关", DisplayName = "机关状态")
 	ELxMechanismState MechanismState = ELxMechanismState::Closed;
 
-	/** 提示文本标签。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|机关", DisplayName = "提示文本标签")
-	FGameplayTag PromptTextTag;
+	/** 提示文本。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|机关", DisplayName = "提示文本")
+	FText PromptText;
 };
 
 /** 宝箱功能模块的初始配置。 */
@@ -82,18 +82,44 @@ struct FLxWarehouseInteractionConfig
 };
 
 /** 商城功能模块的初始配置。 */
+USTRUCT(BlueprintType, DisplayName = "商城商品配置")
+struct FLxTradeItemConfig
+{
+	GENERATED_BODY()
+
+	/** 商城槽位中显示和交易的物品ID。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "物品ID", meta = (Categories = "物品"))
+	FGameplayTag ItemIDTag;
+
+	/** 当前一次购买会取得的物品数量，也是有限库存的初始数量。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "物品数量", meta = (ClampMin = "1", UIMin = "1"))
+	int32 ItemCount = 1;
+
+	/** 启用后购买成功会扣除商城槽位库存；关闭后商品可以无限次购买。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "有限库存")
+	bool bLimitedStock = true;
+
+	/** 转换为物品系统使用的物品引用。 */
+	FLxItemQuote ToItemQuote() const { return FLxItemQuote(ItemIDTag, FMath::Max(1, ItemCount)); }
+};
+
+/** 商城功能模块的初始配置。 */
 USTRUCT(BlueprintType, DisplayName = "商城功能配置")
 struct FLxTradeContainerInteractionConfig
 {
 	GENERATED_BODY()
 
-	/** 商城初始化时创建的商品列表。 */
+	/** 商城初始化时创建的商品列表，每项可以分别控制是否为有限库存。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "商城商品列表")
+	TArray<FLxTradeItemConfig> TradeItems;
+
+	/** 旧商城商品列表，仅用于读取并兼容尚未迁移的蓝图数据。 */
+	UPROPERTY(BlueprintReadOnly, Category = "交互|商城")
 	TArray<FLxItemQuote> ItemList;
 
 	/** 交易使用的金币物品标签。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "金币物品ID", meta = (Categories = "物品"))
-	FGameplayTag GoldItemIDTag;
+	FGameplayTag GoldItemIDTag = LxTag_Item_Material_Currency_Gold;
 
 	/** 商城向玩家出售物品时使用的价值倍率。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "售卖价值比例", meta = (ClampMin = "0.0", UIMin = "0.0"))
@@ -143,62 +169,4 @@ struct FLxFunctionPageInteractionConfig
 	/** 功能节点被选择后需要打开的功能页面。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|功能界面", DisplayName = "功能页面ID")
 	ELxFunctionPageID FunctionPageID = ELxFunctionPageID::EquipmentEnhancement;
-};
-
-/**
- * 功能节点可以使用的初始配置集合。
- * “显示配置”布尔值只整理编辑器细节面板，不参与功能启用和模块实例化判断。
- */
-USTRUCT(BlueprintType, DisplayName = "交互功能节点配置")
-struct FLxInteractionFeatureNodeConfig
-{
-	GENERATED_BODY()
-
-	/** 是否在细节面板中显示宝箱配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|编辑器显示", DisplayName = "显示宝箱配置")
-	bool bShowTreasureChestConfig = false;
-
-	/** 宝箱功能的初始配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|功能配置", DisplayName = "宝箱功能配置", meta = (EditCondition = "bShowTreasureChestConfig", EditConditionHides))
-	FLxTreasureChestInteractionConfig TreasureChestConfig;
-
-	/** 是否在细节面板中显示仓库配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|编辑器显示", DisplayName = "显示仓库配置")
-	bool bShowWarehouseConfig = false;
-
-	/** 仓库功能的初始配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|功能配置", DisplayName = "仓库功能配置", meta = (EditCondition = "bShowWarehouseConfig", EditConditionHides))
-	FLxWarehouseInteractionConfig WarehouseConfig;
-
-	/** 是否在细节面板中显示商城配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|编辑器显示", DisplayName = "显示商城配置")
-	bool bShowTradeContainerConfig = false;
-
-	/** 商城功能的初始配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|功能配置", DisplayName = "商城功能配置", meta = (EditCondition = "bShowTradeContainerConfig", EditConditionHides))
-	FLxTradeContainerInteractionConfig TradeContainerConfig;
-
-	/** 是否在细节面板中显示机关配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|编辑器显示", DisplayName = "显示机关配置")
-	bool bShowTriggerMechanismConfig = false;
-
-	/** 机关功能的初始配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|功能配置", DisplayName = "机关功能配置", meta = (EditCondition = "bShowTriggerMechanismConfig", EditConditionHides))
-	FLxTriggerMechanismInteractionConfig TriggerMechanismConfig;
-
-	/** 是否在细节面板中显示物品传递配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|编辑器显示", DisplayName = "显示物品传递配置")
-	bool bShowItemTransferConfig = false;
-
-	/** 物品传递功能的初始配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|功能配置", DisplayName = "物品传递功能配置", meta = (EditCondition = "bShowItemTransferConfig", EditConditionHides))
-	FLxItemTransferInteractionConfig ItemTransferConfig;
-
-	/** 是否在细节面板中显示功能界面配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|编辑器显示", DisplayName = "显示功能界面配置")
-	bool bShowFunctionPageConfig = false;
-
-	/** 功能界面节点的初始配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|功能配置", DisplayName = "功能界面配置", meta = (EditCondition = "bShowFunctionPageConfig", EditConditionHides))
-	FLxFunctionPageInteractionConfig FunctionPageConfig;
 };

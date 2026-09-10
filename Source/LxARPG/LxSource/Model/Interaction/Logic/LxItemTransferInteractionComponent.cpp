@@ -5,6 +5,7 @@
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
+#include "LxInteractableComponent.h"
 
 ULxItemTransferInteractionComponent::ULxItemTransferInteractionComponent()
 {
@@ -71,6 +72,10 @@ bool ULxItemTransferInteractionComponent::ExecuteInteraction_Implementation(ULxP
 	if (bTransferSucceeded)
 	{
 		OnItemTransferCompleted.Broadcast();
+		if (ULxInteractableComponent* InteractableComponent = GetInteractableComponent())
+		{
+			InteractableComponent->NotifyItemTransferCompleted();
+		}
 	}
 	return bTransferSucceeded;
 }

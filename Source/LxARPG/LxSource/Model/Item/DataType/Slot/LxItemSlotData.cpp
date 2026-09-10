@@ -144,11 +144,7 @@ bool ULxItemSlotData::ItemIsEnter() const
 
 bool ULxItemSlotData::ItemIsLeave() const
 {
-	if (m_eSlotType == ELxItemSlotType::Transaction && !bCanTrade)
-	{
-		return false;
-	}
-
+	// 商城商品始终允许发起拖拽；购买资格在放下时由权威交易逻辑再次校验。
 	return m_fSlotLogicSet.ItemLeave;
 }
 

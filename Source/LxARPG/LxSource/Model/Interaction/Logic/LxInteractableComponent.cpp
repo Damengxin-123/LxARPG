@@ -1,6 +1,8 @@
 #include "LxInteractableComponent.h"
 
 #include "Engine/ActorChannel.h"
+#include "Engine/World.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
 #include "LxARPG/LxSource/Model/Interaction/Interface/LxInteractionReceiverInterface.h"
 #include "LxFunctionPageInteractionComponent.h"
@@ -33,10 +35,15 @@ void ULxInteractableComponent::BeginPlay()
 		OwnerActor->SetReplicates(true);
 	}
 	InitializeInteractionFeatures();
+	BindInteractionRangeColliders();
+	RefreshAutomaticInteractionRange();
 }
 
 void ULxInteractableComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	OnInteractableComponentEndPlayNative.Broadcast();
+	OnInteractableComponentEndPlayNative.Clear();
+	SetInteractionRangeColliders({});
 	ShutdownInteractionFeatures();
 	Super::EndPlay(EndPlayReason);
 }
@@ -77,6 +84,11 @@ void ULxInteractableComponent::SetRootInteractionNodes(const TArray<ULxInteracti
 
 	InitializeInteractionFeatures();
 	RefreshInteractionOptions();
+}
+
+void ULxInteractableComponent::BuildInteractionTree(TArray<ULxInteractionNode*> RootNodes)
+{
+	SetRootInteractionNodes(RootNodes);
 }
 
 void ULxInteractableComponent::AddRootInteractionNode(ULxInteractionNode* InRootNode)
@@ -178,6 +190,120 @@ void ULxInteractableComponent::RefreshInteractionOptions()
 	OnDataChange.Broadcast();
 }
 
+void ULxInteractableComponent::NotifyItemTransferCompleted()
+{
+	OnItemTransferCompleted.Broadcast();
+}
+
+void ULxInteractableComponent::NotifyTreasureChestCompleted()
+{
+	OnTreasureChestCompleted.Broadcast();
+}
+
+void ULxInteractableComponent::NotifyMechanismStateChanged(ELxMechanismState NewState)
+{
+	OnMechanismStateChanged.Broadcast(NewState);
+}
+
+void ULxInteractableComponent::SetInteractionRangeColliders(const TArray<UPrimitiveComponent*>& InColliders)
+{
+	UnbindInteractionRangeColliders();
+	InteractionRangeColliders.Reset();
+	for (UPrimitiveComponent* Collider : InColliders)
+	{
+		if (IsValid(Collider))
+		{
+			InteractionRangeColliders.AddUnique(Collider);
+		}
+	}
+	BindInteractionRangeColliders();
+	RefreshAutomaticInteractionRange();
+}
+
+void ULxInteractableComponent::BindInteractionRangeColliders()
+{
+	// 构造脚本在编辑器中只记录列表，游戏开始后再绑定，避免编辑器预览触发交互。
+	if (IsTemplate() || !GetWorld() || !GetWorld()->IsGameWorld())
+	{
+		return;
+	}
+	for (UPrimitiveComponent* Collider : InteractionRangeColliders)
+	{
+		if (IsValid(Collider))
+		{
+			Collider->OnComponentBeginOverlap.AddUniqueDynamic(this, &ULxInteractableComponent::HandleAutomaticRangeBeginOverlap);
+			Collider->OnComponentEndOverlap.AddUniqueDynamic(this, &ULxInteractableComponent::HandleAutomaticRangeEndOverlap);
+		}
+	}
+}
+
+void ULxInteractableComponent::UnbindInteractionRangeColliders()
+{
+	for (UPrimitiveComponent* Collider : InteractionRangeColliders)
+	{
+		if (IsValid(Collider))
+		{
+			Collider->OnComponentBeginOverlap.RemoveDynamic(this, &ULxInteractableComponent::HandleAutomaticRangeBeginOverlap);
+			Collider->OnComponentEndOverlap.RemoveDynamic(this, &ULxInteractableComponent::HandleAutomaticRangeEndOverlap);
+		}
+	}
+}
+
+void ULxInteractableComponent::RefreshAutomaticInteractionRange()
+{
+	TSet<TWeakObjectPtr<AActor>> CurrentActors;
+	if (!IsTemplate() && GetWorld() && GetWorld()->IsGameWorld())
+	{
+		for (UPrimitiveComponent* Collider : InteractionRangeColliders)
+		{
+			if (!IsValid(Collider) || !Collider->IsRegistered() || !Collider->GetGenerateOverlapEvents()
+				|| !Collider->IsQueryCollisionEnabled())
+			{
+				continue;
+			}
+			TArray<AActor*> OverlappingActors;
+			Collider->GetOverlappingActors(OverlappingActors);
+			for (AActor* Actor : OverlappingActors)
+			{
+				if (IsValid(Actor) && Actor->GetClass()->ImplementsInterface(ULxInteractionReceiverInterface::StaticClass()))
+				{
+					CurrentActors.Add(Actor);
+				}
+			}
+		}
+	}
+
+	// 先更新缓存再通知蓝图，重复设置或重入不会重复报告同一次进入。
+	const TSet<TWeakObjectPtr<AActor>> PreviousActors = MoveTemp(AutomaticRangeActors);
+	AutomaticRangeActors = CurrentActors;
+	for (const TWeakObjectPtr<AActor>& Actor : PreviousActors)
+	{
+		if (Actor.IsValid() && !AutomaticRangeActors.Contains(Actor))
+		{
+			HandleInteractionRangeEndOverlap(Actor.Get());
+		}
+	}
+	for (const TWeakObjectPtr<AActor>& Actor : CurrentActors)
+	{
+		if (Actor.IsValid() && !PreviousActors.Contains(Actor) && AutomaticRangeActors.Contains(Actor))
+		{
+			HandleInteractionRangeBeginOverlap(Actor.Get());
+		}
+	}
+}
+
+void ULxInteractableComponent::HandleAutomaticRangeBeginOverlap(UPrimitiveComponent* OverlappedComponent,
+	AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	RefreshAutomaticInteractionRange();
+}
+
+void ULxInteractableComponent::HandleAutomaticRangeEndOverlap(UPrimitiveComponent* OverlappedComponent,
+	AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	RefreshAutomaticInteractionRange();
+}
+
 void ULxInteractableComponent::HandleInteractionRangeBeginOverlap(AActor* OtherActor)
 {
 	if (!OtherActor || !OtherActor->GetClass()->ImplementsInterface(ULxInteractionReceiverInterface::StaticClass()))
@@ -253,7 +379,8 @@ void ULxInteractableComponent::BuildInteractionFeaturesRecursive(ULxInteractionN
 ULxInteractionActionComponentBase* ULxInteractableComponent::CreateInteractionFeatureForNode(
 	ULxInteractionNode* InteractionNode)
 {
-	if (!InteractionNode || !InteractionNode->IsFunctionNode())
+	if (!InteractionNode || !InteractionNode->IsFunctionNode()
+		|| !IsInteractionFeatureEnabled(InteractionNode->GetInteractionActionType()))
 	{
 		return nullptr;
 	}
@@ -297,42 +424,61 @@ ULxInteractionActionComponentBase* ULxInteractableComponent::CreateInteractionFe
 		InteractionFeature = NewObject<ULxInteractionActionComponentBase>(this, FeatureClass, UniqueFeatureName);
 	}
 
-	ApplyNodeConfigToFeature(InteractionNode, InteractionFeature);
+	ApplyFeatureConfigToFeature(InteractionFeature);
 	return InteractionFeature;
 }
 
-void ULxInteractableComponent::ApplyNodeConfigToFeature(ULxInteractionNode* InteractionNode,
+bool ULxInteractableComponent::IsInteractionFeatureEnabled(ELxInteractionActionType InteractionType) const
+{
+	switch (InteractionType)
+	{
+	case ELxInteractionActionType::TreasureChest:
+		return bEnableTreasureChest;
+	case ELxInteractionActionType::Warehouse:
+		return bEnableWarehouse;
+	case ELxInteractionActionType::TradeContainer:
+		return bEnableTradeContainer;
+	case ELxInteractionActionType::TriggerMechanism:
+		return bEnableTriggerMechanism;
+	case ELxInteractionActionType::ItemTransfer:
+		return bEnableItemTransfer;
+	case ELxInteractionActionType::FunctionPage:
+		return bEnableFunctionPage;
+	default:
+		return false;
+	}
+}
+
+void ULxInteractableComponent::ApplyFeatureConfigToFeature(
 	ULxInteractionActionComponentBase* InteractionFeature) const
 {
-	if (!InteractionNode || !InteractionFeature)
+	if (!InteractionFeature)
 	{
 		return;
 	}
-
-	const FLxInteractionFeatureNodeConfig& FeatureConfig = InteractionNode->GetFeatureConfig();
 	if (ULxTreasureChestInteractionComponent* TreasureChestFeature = Cast<ULxTreasureChestInteractionComponent>(InteractionFeature))
 	{
-		TreasureChestFeature->ApplyConfig(FeatureConfig.TreasureChestConfig);
+		TreasureChestFeature->ApplyConfig(TreasureChestConfig);
 	}
 	else if (ULxWarehouseInteractionComponent* WarehouseFeature = Cast<ULxWarehouseInteractionComponent>(InteractionFeature))
 	{
-		WarehouseFeature->ApplyConfig(FeatureConfig.WarehouseConfig);
+		WarehouseFeature->ApplyConfig(WarehouseConfig);
 	}
 	else if (ULxTradeContainerInteractionComponent* TradeFeature = Cast<ULxTradeContainerInteractionComponent>(InteractionFeature))
 	{
-		TradeFeature->ApplyConfig(FeatureConfig.TradeContainerConfig);
+		TradeFeature->ApplyConfig(TradeContainerConfig);
 	}
 	else if (ULxTriggerMechanismInteractionComponent* MechanismFeature = Cast<ULxTriggerMechanismInteractionComponent>(InteractionFeature))
 	{
-		MechanismFeature->ApplyConfig(FeatureConfig.TriggerMechanismConfig);
+		MechanismFeature->ApplyConfig(TriggerMechanismConfig);
 	}
 	else if (ULxItemTransferInteractionComponent* ItemTransferFeature = Cast<ULxItemTransferInteractionComponent>(InteractionFeature))
 	{
-		ItemTransferFeature->ApplyConfig(FeatureConfig.ItemTransferConfig);
+		ItemTransferFeature->ApplyConfig(ItemTransferConfig);
 	}
 	else if (ULxFunctionPageInteractionComponent* FunctionPageFeature = Cast<ULxFunctionPageInteractionComponent>(InteractionFeature))
 	{
-		FunctionPageFeature->ApplyConfig(FeatureConfig.FunctionPageConfig);
+		FunctionPageFeature->ApplyConfig(FunctionPageConfig);
 	}
 }
 
@@ -352,7 +498,7 @@ void ULxInteractableComponent::BindReplicatedFeaturesToNodes()
 		}
 
 		InteractionNode->SetInteractionFeature(InteractionFeature);
-		ApplyNodeConfigToFeature(InteractionNode, InteractionFeature);
+		ApplyFeatureConfigToFeature(InteractionFeature);
 		if (InteractionFeature->GetOwnerInteractionNode() != InteractionNode)
 		{
 			InteractionFeature->InitializeInteractionFeature(this, InteractionNode,

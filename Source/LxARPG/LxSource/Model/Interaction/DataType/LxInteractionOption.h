@@ -14,9 +14,9 @@ struct FLxInteractionOption
 {
 	GENERATED_BODY()
 
-	/** 显示文本使用的标签型ID，由UI或文本系统解析为真正文本。 */
-	UPROPERTY(BlueprintReadOnly, Category="交互", DisplayName="提示文本标签")
-	FGameplayTag PromptTextTag;
+	/** 选项直接显示的文本，支持本地化。 */
+	UPROPERTY(BlueprintReadOnly, Category="交互", DisplayName="提示文本")
+	FText PromptText;
 
 	/** 当前选项对应的交互类型。 */
 	UPROPERTY(BlueprintReadOnly, Category="交互", DisplayName="交互类型")

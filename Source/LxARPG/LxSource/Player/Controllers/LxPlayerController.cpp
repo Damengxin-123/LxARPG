@@ -49,7 +49,7 @@ namespace
 			? InteractableComponent->FindInteractionNodeByRuntimeIndex(RuntimeNodeIndex)
 			: nullptr;
 		if (!InteractionNode || InteractionNode->GetInteractionActionType() != ExpectedType
-			|| !InteractionNode->IsNodeInteractable(PlayerInteractionModule))
+			|| !InteractionNode->CanProcessActiveInteractionRequest(PlayerInteractionModule))
 		{
 			return nullptr;
 		}

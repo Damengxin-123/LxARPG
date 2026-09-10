@@ -49,6 +49,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互|商城", DisplayName="卖出背包槽位物品")
 	bool SellBackpackSlot(ULxItemSlotData* BackpackSlot, ULxCharacterDataTransferComponent* DataTransferComponent);
 
+	/** 获取一个背包槽位整组物品按当前收购比例计算出的总售价。 */
+	UFUNCTION(BlueprintPure, Category="交互|商城", DisplayName="获取背包槽位出售总价")
+	int32 GetBackpackSlotSellPrice(ULxItemSlotData* BackpackSlot) const;
+
+	/** 按单价、堆叠数量和倍率计算整组物品总价，并限制在 int32 有效范围内。 */
+	UFUNCTION(BlueprintPure, Category="交互|商城", DisplayName="计算堆叠物品总价")
+	static int32 CalculateStackTotalPrice(int32 UnitPrice, int32 ItemCount, float ValueRate = 1.0f);
+
+	/** 查询指定交易槽位购买成功后是否会扣除商城库存。 */
+	UFUNCTION(BlueprintPure, Category="交互|商城", DisplayName="交易槽位是否为有限库存")
+	bool IsTradeSlotLimitedStock(ULxItemSlotData* TradeSlot) const;
+
 	UFUNCTION(BlueprintCallable, Category="交互|商城", DisplayName="设置商品价值倍率")
 	void SetTradeItemValueRate(float InTradeItemValueRate);
 
@@ -76,11 +88,11 @@ protected:
 	/** 功能模块释放前解除玩家数据监听。 */
 	virtual void OnShutdownInteractionFeature_Implementation() override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|商城", DisplayName="交易物品列表")
-	TArray<FLxItemQuote> TradeItemList;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|商城", DisplayName="交易商品配置列表")
+	TArray<FLxTradeItemConfig> TradeItemConfigs;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|商城", DisplayName="金币物品ID", meta=(Categories="物品"))
-	FGameplayTag GoldItemIDTag;
+	FGameplayTag GoldItemIDTag = LxTag_Item_Material_Currency_Gold;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|商城", DisplayName="商品价值倍率", meta=(ClampMin="0.0", UIMin="0.0"))
 	float TradeItemValueRate = 1.0f;
@@ -112,6 +124,8 @@ private:
 	bool BuildGoldCost(int32 Price, TArray<FLxItemQuote>& OutCostItemList) const;
 	bool CanPutItemQuoteInBackpackSlot(ULxItemSlotData* TargetBackpackSlot, const FLxItemQuote& ItemQuote) const;
 	bool PutItemQuoteInBackpackSlot(ULxItemSlotData* TargetBackpackSlot, const FLxItemQuote& ItemQuote);
+	/** 购买成功后按商品配置扣除有限库存，无限库存保持原数量。 */
+	void ConsumePurchasedStock(ULxItemSlotData* TradeSlot, int32 PurchasedCount);
 	int32 CalculateItemPrice(ULxItemBase* Item, float ValueRate = 1.0f) const;
 	int32 CalculateSlotPrice(ULxItemSlotData* Slot) const;
 

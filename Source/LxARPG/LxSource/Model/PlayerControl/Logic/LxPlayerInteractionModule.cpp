@@ -320,7 +320,7 @@ FLxInteractionOption ULxPlayerInteractionModule::BuildOption(ULxInteractableComp
 
 	if (Node)
 	{
-		Option.PromptTextTag = Node->GetPromptTextTag();
+		Option.PromptText = Node->GetPromptText();
 		Option.InteractionType = Node->GetInteractionActionType();
 	}
 
@@ -329,13 +329,8 @@ FLxInteractionOption ULxPlayerInteractionModule::BuildOption(ULxInteractableComp
 
 bool ULxPlayerInteractionModule::ShouldShowInEntranceOptions(const ULxInteractionNode* Node) const
 {
-	if (!Node)
-	{
-		return false;
-	}
-
-	// 入口UI显示所有入口节点，以及没有上级节点的简单根交互节点。
-	return Node->GetInteractionActionType() == ELxInteractionActionType::Entrance || !Node->GetParentNode();
+	// 交互树中的任何根节点都可以直接作为范围入口，包括直接执行的功能节点。
+	return Node && !Node->GetParentNode();
 }
 
 bool ULxPlayerInteractionModule::ValidateInteractionNodePlacement(const ULxInteractionNode* Node) const

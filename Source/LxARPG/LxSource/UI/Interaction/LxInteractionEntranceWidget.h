@@ -27,21 +27,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取入口选项数量")
 	int32 GetEntranceOptionCount() const { return CachedEntranceOptions.Num(); }
 
-	/** 获取指定入口选项的提示文本标签。 */
-	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取入口选项提示文本标签")
-	FGameplayTag GetEntranceOptionPromptTextTag(int32 OptionIndex) const;
+	/** 获取指定入口选项的提示文本。 */
+	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取入口选项提示文本")
+	FText GetEntranceOptionPromptText(int32 OptionIndex) const;
 
-	/** 获取当前选中的入口选项下标；该下标等于上方提示标签表的数量。 */
+	/** 获取当前选中的入口选项下标；该下标等于上方提示文本表的数量。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取当前入口选项下标")
 	int32 GetCurrentEntranceOptionIndex() const;
 
-	/** 获取显示在当前选项上方的提示文本标签表。 */
-	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取当前选项上方提示标签表")
-	TArray<FGameplayTag> GetUpperPromptTextTags() const { return CachedUpperPromptTextTags; }
+	/** 获取显示在当前选项上方的提示文本表。 */
+	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取当前选项上方提示文本表")
+	TArray<FText> GetUpperPromptTexts() const { return CachedUpperPromptTexts; }
 
-	/** 获取当前选项及其下方的提示文本标签表；第一个元素就是当前选项。 */
-	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取当前及下方提示标签表")
-	TArray<FGameplayTag> GetCurrentAndLowerPromptTextTags() const { return CachedCurrentAndLowerPromptTextTags; }
+	/** 获取当前选项及其下方的提示文本表；第一个元素就是当前选项。 */
+	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取当前及下方提示文本表")
+	TArray<FText> GetCurrentAndLowerPromptTexts() const { return CachedCurrentAndLowerPromptTexts; }
 
 	/** 按指定下标提交入口选项，触发后续交互逻辑。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="提交入口选项下标")
@@ -53,11 +53,11 @@ public:
 
 	/** 根据鼠标滚轮值滚动入口选项；向下滚把当前项移入上方表，向上滚把上方表最后一项移回当前项。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="滚动入口选项")
-	void ScrollEntrancePromptTextTags(float MouseWheelValue);
+	void ScrollEntrancePromptTexts(float MouseWheelValue);
 
-	/** 入口提示文本标签表更新时调用；蓝图可分别刷新当前选项上方列表、当前及下方列表。 */
-	UFUNCTION(BlueprintImplementableEvent, Category="交互UI", DisplayName="入口提示文本标签表更新")
-	void OnEntrancePromptTextTagsUpdated(const TArray<FGameplayTag>& UpperPromptTextTags, const TArray<FGameplayTag>& CurrentAndLowerPromptTextTags);
+	/** 入口提示文本表更新时调用；蓝图可分别刷新当前选项上方列表、当前及下方列表。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="交互UI", DisplayName="入口提示文本表更新")
+	void OnEntrancePromptTextsUpdated(const TArray<FText>& UpperPromptTexts, const TArray<FText>& CurrentAndLowerPromptTexts);
 
 	/** 交互触发键按下后调用；默认提交当前入口选项，蓝图可重写。 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="交互UI", DisplayName="交互触发键按下")
@@ -72,8 +72,8 @@ protected:
 private:
 	void BindPlayerInteractionComponent();
 	void UnbindPlayerInteractionComponent();
-	void ResetPromptTextTagTables();
-	void BroadcastPromptTextTagTablesUpdated();
+	void ResetPromptTextTables();
+	void BroadcastPromptTextTablesUpdated();
 	void UpdateEntranceVisibilityAndInputRegistration();
 	bool ShouldHideEntranceAfterSelection(const FLxInteractionOption& Option) const;
 	/** 入口选项成功触发后隐藏入口UI，并取消入口触发键监听。 */
@@ -91,13 +91,13 @@ private:
 	UPROPERTY(Transient)
 	TArray<FLxInteractionOption> CachedEntranceOptions;
 
-	/** UI布局中显示在当前选项上方的提示文本标签缓存。 */
+	/** UI布局中显示在当前选项上方的提示文本缓存。 */
 	UPROPERTY(Transient)
-	TArray<FGameplayTag> CachedUpperPromptTextTags;
+	TArray<FText> CachedUpperPromptTexts;
 
-	/** UI布局中显示当前选项及其下方选项的提示文本标签缓存，第一个元素为当前选项。 */
+	/** UI布局中显示当前选项及其下方选项的提示文本缓存，第一个元素为当前选项。 */
 	UPROPERTY(Transient)
-	TArray<FGameplayTag> CachedCurrentAndLowerPromptTextTags;
+	TArray<FText> CachedCurrentAndLowerPromptTexts;
 
 	bool bIsInteractionInputRegistered = false;
 };

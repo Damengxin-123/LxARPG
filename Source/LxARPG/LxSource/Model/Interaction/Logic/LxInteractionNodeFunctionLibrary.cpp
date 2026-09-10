@@ -2,31 +2,31 @@
 
 #include "LxInteractionNode.h"
 
-ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateInteractionNode(UObject* Outer, FGameplayTag PromptTextTag,
-	ELxInteractionActionType InteractionType, const TArray<ULxInteractionNode*>& ChildNodes,
-	FLxInteractionRequirement Requirement, FGameplayTag NpcDialogueTextTag)
+ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateInteractionNode(UObject* Outer, FText PromptText,
+	FText NpcDialogueText, ELxInteractionActionType InteractionType,
+	FLxInteractionRequirement Requirement, TArray<ULxInteractionNode*> ChildNodes)
 {
 	UObject* NodeOuter = Outer ? Outer : GetTransientPackage();
 	ULxInteractionNode* NewNode = NewObject<ULxInteractionNode>(NodeOuter);
-	NewNode->InitializeInteractionNode(PromptTextTag, InteractionType, ChildNodes, false,
-		MoveTemp(Requirement), FLxInteractionFeatureNodeConfig(), NpcDialogueTextTag);
+	NewNode->InitializeInteractionNode(PromptText, InteractionType, ChildNodes,
+		MoveTemp(Requirement), NpcDialogueText);
 	return NewNode;
 }
 
 ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateInteractionExitNode(UObject* Outer,
-	FGameplayTag PromptTextTag)
+	FText PromptText)
 {
-	return CreateInteractionNode(Outer, PromptTextTag, ELxInteractionActionType::InteractionExit,
-		TArray<ULxInteractionNode*>(), FLxInteractionRequirement());
+	return CreateInteractionNode(Outer, PromptText, FText(), ELxInteractionActionType::InteractionExit,
+		FLxInteractionRequirement(), TArray<ULxInteractionNode*>());
 }
 
 ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateFunctionInteractionNode(UObject* Outer,
-	FGameplayTag PromptTextTag, ELxInteractionActionType InteractionType,
-	FLxInteractionFeatureNodeConfig FeatureConfig, FLxInteractionRequirement Requirement)
+	FText PromptText, ELxInteractionActionType InteractionType,
+	FLxInteractionRequirement Requirement, TArray<ULxInteractionNode*> ChildNodes)
 {
 	UObject* NodeOuter = Outer ? Outer : GetTransientPackage();
 	ULxInteractionNode* NewNode = NewObject<ULxInteractionNode>(NodeOuter);
-	NewNode->InitializeInteractionNode(PromptTextTag, InteractionType, TArray<ULxInteractionNode*>(), true,
-		MoveTemp(Requirement), MoveTemp(FeatureConfig));
+	NewNode->InitializeInteractionNode(PromptText, InteractionType, ChildNodes,
+		MoveTemp(Requirement));
 	return NewNode;
 }

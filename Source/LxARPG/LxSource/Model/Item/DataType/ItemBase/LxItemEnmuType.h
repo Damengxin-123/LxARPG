@@ -58,6 +58,8 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Belt);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Jewelry);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Consumable);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Material);
+/** 商城交易默认使用的金币物品标签。 */
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Material_Currency_Gold);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Skill);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Buff);
 

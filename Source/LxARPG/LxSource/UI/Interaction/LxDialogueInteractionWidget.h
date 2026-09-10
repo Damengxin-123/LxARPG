@@ -26,23 +26,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取对话选项数量")
 	int32 GetDialogueOptionCount() const { return CachedDialogueOptions.Num(); }
 
-	/** 获取指定对话选项的提示文本标签。 */
-	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取对话选项提示文本标签")
-	FGameplayTag GetDialogueOptionPromptTextTag(int32 OptionIndex) const;
+	/** 获取指定对话选项的提示文本。 */
+	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取对话选项提示文本")
+	FText GetDialogueOptionPromptText(int32 OptionIndex) const;
 
 	/** 蓝图选择某个选项后调用，C++会用下标找到对应选项并继续触发交互树。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="提交对话选项下标")
 	void SubmitDialogueOptionIndex(int32 OptionIndex);
 
-	/** 对话内容更新时调用，蓝图可根据NPC发言标签和选项提示标签刷新界面。 */
+	/** 对话内容更新时调用，蓝图可根据NPC发言文本和选项提示文本刷新界面。 */
 	UFUNCTION(BlueprintImplementableEvent, Category="交互UI", DisplayName="对话交互更新")
-	void OnDialogueInteractionUpdated(FGameplayTag NpcDialogueTextTag, const TArray<FGameplayTag>& OptionPromptTextTags);
+	void OnDialogueInteractionUpdated(const FText& NpcDialogueText, const TArray<FText>& OptionPromptTexts);
 
 private:
 	void BindPlayerInteractionComponent();
 	void UnbindPlayerInteractionComponent();
-	void RebuildDialoguePromptTextTags();
-	void ShowDialogueInteraction(FGameplayTag NpcDialogueTextTag);
+	void RebuildDialoguePromptTexts();
+	void ShowDialogueInteraction(FText NpcDialogueText);
 	void HideDialogueInteraction();
 	void SetMouseCursorVisible(bool bInVisible);
 	bool ShouldHandleInteractionType(ELxInteractionActionType InteractionType) const;
@@ -64,7 +64,7 @@ private:
 	UPROPERTY(Transient)
 	TArray<FLxInteractionOption> CachedDialogueOptions;
 
-	/** 当前节点子选项的提示文本标签缓存，顺序与CachedDialogueOptions一致。 */
+	/** 当前节点子选项的提示文本缓存，顺序与CachedDialogueOptions一致。 */
 	UPROPERTY(Transient)
-	TArray<FGameplayTag> CachedDialogueOptionPromptTextTags;
+	TArray<FText> CachedDialogueOptionPromptTexts;
 };

@@ -13,7 +13,7 @@ void ULxInteractionActionComponentBase::InitializeInteractionFeature(
 	RuntimeNodeIndex = InRuntimeNodeIndex;
 	if (OwnerInteractionNode)
 	{
-		PromptTextTag = OwnerInteractionNode->GetConfiguredPromptTextTag();
+		PromptText = OwnerInteractionNode->GetConfiguredPromptText();
 		Requirement = OwnerInteractionNode->GetInteractionRequirement();
 	}
 
@@ -49,20 +49,20 @@ void ULxInteractionActionComponentBase::GetLifetimeReplicatedProps(TArray<FLifet
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ULxInteractionActionComponentBase, InteractionActionType);
-	DOREPLIFETIME(ULxInteractionActionComponentBase, PromptTextTag);
+	DOREPLIFETIME(ULxInteractionActionComponentBase, PromptText);
 	DOREPLIFETIME(ULxInteractionActionComponentBase, InteractionState);
 	DOREPLIFETIME(ULxInteractionActionComponentBase, bOpenFunctionUI);
 	DOREPLIFETIME(ULxInteractionActionComponentBase, RuntimeNodeIndex);
 }
 
-FGameplayTag ULxInteractionActionComponentBase::GetPromptTextTag() const
+FText ULxInteractionActionComponentBase::GetPromptText() const
 {
-	return PromptTextTag;
+	return PromptText;
 }
 
-void ULxInteractionActionComponentBase::SetPromptTextTag(FGameplayTag InPromptTextTag)
+void ULxInteractionActionComponentBase::SetPromptText(FText InPromptText)
 {
-	PromptTextTag = InPromptTextTag;
+	PromptText = InPromptText;
 	NotifyFeatureDataChanged();
 }
 

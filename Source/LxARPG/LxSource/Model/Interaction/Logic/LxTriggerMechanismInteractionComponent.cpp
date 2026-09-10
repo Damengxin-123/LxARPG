@@ -4,6 +4,7 @@
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
+#include "LxInteractableComponent.h"
 #include "Net/UnrealNetwork.h"
 
 ULxTriggerMechanismInteractionComponent::ULxTriggerMechanismInteractionComponent()
@@ -15,10 +16,10 @@ ULxTriggerMechanismInteractionComponent::ULxTriggerMechanismInteractionComponent
 void ULxTriggerMechanismInteractionComponent::ApplyConfig(const FLxTriggerMechanismInteractionConfig& InConfig)
 {
 	MechanismState = InConfig.InitialState;
-	MechanismStatePromptTextTags.Reset();
+	MechanismStatePromptTexts.Reset();
 	for (const FLxMechanismStatePromptText& StatePromptText : InConfig.StatePromptTexts)
 	{
-		MechanismStatePromptTextTags.Add(StatePromptText.MechanismState, StatePromptText.PromptTextTag);
+		MechanismStatePromptTexts.Add(StatePromptText.MechanismState, StatePromptText.PromptText);
 	}
 }
 
@@ -81,24 +82,32 @@ void ULxTriggerMechanismInteractionComponent::SetMechanismState(ELxMechanismStat
 	}
 
 	MechanismState = InMechanismState;
-	OnMechanismStateChanged.Broadcast(MechanismState);
-	NotifyFeatureDataChanged();
+	BroadcastMechanismStateChanged();
 }
 
 void ULxTriggerMechanismInteractionComponent::OnRep_MechanismState()
 {
+	BroadcastMechanismStateChanged();
+}
+
+void ULxTriggerMechanismInteractionComponent::BroadcastMechanismStateChanged()
+{
 	OnMechanismStateChanged.Broadcast(MechanismState);
+	if (ULxInteractableComponent* InteractableComponent = GetInteractableComponent())
+	{
+		InteractableComponent->NotifyMechanismStateChanged(MechanismState);
+	}
 	NotifyFeatureDataChanged();
 }
 
-FGameplayTag ULxTriggerMechanismInteractionComponent::GetPromptTextTag() const
+FText ULxTriggerMechanismInteractionComponent::GetPromptText() const
 {
-	if (const FGameplayTag* PromptTextTagByState = MechanismStatePromptTextTags.Find(MechanismState))
+	if (const FText* PromptTextByState = MechanismStatePromptTexts.Find(MechanismState))
 	{
-		return *PromptTextTagByState;
+		return *PromptTextByState;
 	}
 
-	return Super::GetPromptTextTag();
+	return Super::GetPromptText();
 }
 
 bool ULxTriggerMechanismInteractionComponent::ExecuteInteraction_Implementation(

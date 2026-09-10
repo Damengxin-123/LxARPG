@@ -37,7 +37,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="交互|机关", DisplayName="获取机关状态")
 	ELxMechanismState GetMechanismState() const { return MechanismState; }
 
-	virtual FGameplayTag GetPromptTextTag() const override;
+	virtual FText GetPromptText() const override;
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
 
 	/** 机关状态改变时触发，供蓝图播放门、开关等表现。 */
@@ -52,11 +52,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_MechanismState, Category="交互|机关", DisplayName="机关状态")
 	ELxMechanismState MechanismState = ELxMechanismState::Closed;
 
-	/** 各机关状态对应的交互提示文本标签。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|机关", DisplayName="机关状态提示文本标签")
-	TMap<ELxMechanismState, FGameplayTag> MechanismStatePromptTextTags;
+	/** 各机关状态对应的交互提示文本。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|机关", DisplayName="机关状态提示文本")
+	TMap<ELxMechanismState, FText> MechanismStatePromptTexts;
 
 private:
+	/** 广播当前机关状态，并通知所属可交互对象组件及交互选项监听者。 */
+	void BroadcastMechanismStateChanged();
+
 	/** 应用复制状态并广播机关变化。 */
 	UFUNCTION()
 	void OnRep_MechanismState();

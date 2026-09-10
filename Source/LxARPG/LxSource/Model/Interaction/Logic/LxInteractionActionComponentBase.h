@@ -50,13 +50,13 @@ public:
 	UFUNCTION(BlueprintPure, Category="交互|功能模块", DisplayName="获取交互行为类型")
 	ELxInteractionActionType GetInteractionActionType() const { return InteractionActionType; }
 
-	/** 获取此功能组件的提示文本标签。 */
-	UFUNCTION(BlueprintPure, Category="交互|功能模块", DisplayName="获取提示文本标签")
-	virtual FGameplayTag GetPromptTextTag() const;
+	/** 获取此功能组件的提示文本。 */
+	UFUNCTION(BlueprintPure, Category="交互|功能模块", DisplayName="获取提示文本")
+	virtual FText GetPromptText() const;
 
-	/** 设置模块默认提示文本标签。 */
-	UFUNCTION(BlueprintCallable, Category="交互|功能模块", DisplayName="设置提示文本标签")
-	void SetPromptTextTag(FGameplayTag InPromptTextTag);
+	/** 设置模块默认提示文本。 */
+	UFUNCTION(BlueprintCallable, Category="交互|功能模块", DisplayName="设置提示文本")
+	void SetPromptText(FText InPromptText);
 
 	/** 获取此功能组件当前的可交互状态。 */
 	UFUNCTION(BlueprintPure, Category="交互|功能模块", DisplayName="获取交互状态")
@@ -117,9 +117,9 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category="交互|功能模块", DisplayName="交互行为类型")
 	ELxInteractionActionType InteractionActionType = ELxInteractionActionType::Dialogue;
 
-	/** 组件默认提示文本标签。 */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category="交互|功能模块", DisplayName="提示文本标签")
-	FGameplayTag PromptTextTag;
+	/** 组件默认提示文本。 */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category="交互|功能模块", DisplayName="提示文本")
+	FText PromptText;
 
 	/** 组件执行前需要检测的交互需求。 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="交互|功能模块", DisplayName="交互需求")

@@ -36,9 +36,9 @@ void ULxDialogueInteractionWidget::SetPlayerInteractionComponent(ULxPlayerIntera
 	}
 }
 
-FGameplayTag ULxDialogueInteractionWidget::GetDialogueOptionPromptTextTag(int32 OptionIndex) const
+FText ULxDialogueInteractionWidget::GetDialogueOptionPromptText(int32 OptionIndex) const
 {
-	return CachedDialogueOptionPromptTextTags.IsValidIndex(OptionIndex) ? CachedDialogueOptionPromptTextTags[OptionIndex] : FGameplayTag();
+	return CachedDialogueOptionPromptTexts.IsValidIndex(OptionIndex) ? CachedDialogueOptionPromptTexts[OptionIndex] : FText();
 }
 
 void ULxDialogueInteractionWidget::SubmitDialogueOptionIndex(int32 OptionIndex)
@@ -84,31 +84,31 @@ void ULxDialogueInteractionWidget::UnbindPlayerInteractionComponent()
 	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxDialogueInteractionWidget::HandleInteractionCancelled);
 }
 
-void ULxDialogueInteractionWidget::RebuildDialoguePromptTextTags()
+void ULxDialogueInteractionWidget::RebuildDialoguePromptTexts()
 {
-	CachedDialogueOptionPromptTextTags.Reset();
-	CachedDialogueOptionPromptTextTags.Reserve(CachedDialogueOptions.Num());
+	CachedDialogueOptionPromptTexts.Reset();
+	CachedDialogueOptionPromptTexts.Reserve(CachedDialogueOptions.Num());
 
 	for (const FLxInteractionOption& Option : CachedDialogueOptions)
 	{
-		CachedDialogueOptionPromptTextTags.Add(Option.PromptTextTag);
+		CachedDialogueOptionPromptTexts.Add(Option.PromptText);
 	}
 }
 
-void ULxDialogueInteractionWidget::ShowDialogueInteraction(FGameplayTag NpcDialogueTextTag)
+void ULxDialogueInteractionWidget::ShowDialogueInteraction(FText NpcDialogueText)
 {
 	SetVisibility(ESlateVisibility::Visible);
 	SetMouseCursorVisible(true);
-	OnDialogueInteractionUpdated(NpcDialogueTextTag, CachedDialogueOptionPromptTextTags);
+	OnDialogueInteractionUpdated(NpcDialogueText, CachedDialogueOptionPromptTexts);
 }
 
 void ULxDialogueInteractionWidget::HideDialogueInteraction()
 {
 	CachedDialogueOptions.Reset();
-	CachedDialogueOptionPromptTextTags.Reset();
+	CachedDialogueOptionPromptTexts.Reset();
 	SetVisibility(ESlateVisibility::Collapsed);
 	SetMouseCursorVisible(false);
-	OnDialogueInteractionUpdated(FGameplayTag(), CachedDialogueOptionPromptTextTags);
+	OnDialogueInteractionUpdated(FText(), CachedDialogueOptionPromptTexts);
 }
 
 void ULxDialogueInteractionWidget::SetMouseCursorVisible(bool bInVisible)
@@ -163,7 +163,7 @@ void ULxDialogueInteractionWidget::HandleCurrentInteractionOptionsUpdated(const 
 		}
 	}
 
-	RebuildDialoguePromptTextTags();
+	RebuildDialoguePromptTexts();
 }
 
 void ULxDialogueInteractionWidget::HandleInteractionOptionActivated(const FLxInteractionOption& Option, ELxInteractionActionType InteractionType)
@@ -174,13 +174,13 @@ void ULxDialogueInteractionWidget::HandleInteractionOptionActivated(const FLxInt
 		return;
 	}
 
-	FGameplayTag NpcDialogueTextTag;
+	FText NpcDialogueText;
 	if (Option.InteractionNode)
 	{
-		NpcDialogueTextTag = Option.InteractionNode->GetNpcDialogueTextTag();
+		NpcDialogueText = Option.InteractionNode->GetNpcDialogueText();
 	}
 
-	ShowDialogueInteraction(NpcDialogueTextTag);
+	ShowDialogueInteraction(NpcDialogueText);
 }
 
 void ULxDialogueInteractionWidget::HandleInteractionCancelled()

@@ -356,14 +356,20 @@ bool ULxItemGridWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
 	}
 
 	// 判断拖拽双方是否是同一个格子
-	if (DragOperation->SourceSlot == CurrentSlotData || !CurrentSlotData->ItemIsEnter())
+	if (DragOperation->SourceSlot == CurrentSlotData)
 	{
 		return false;
 	}
 
+	// 交易槽位只把拖放当作买卖指令，因此要先于普通槽位的进入规则处理。
 	if (TryHandleTradeDrop(DragOperation->SourceSlot))
 	{
 		return true;
+	}
+
+	if (!CurrentSlotData->ItemIsEnter())
+	{
+		return false;
 	}
 
 	if (TryHandleServerSlotDrop(DragOperation->SourceSlot))
@@ -726,7 +732,8 @@ void ULxItemGridWidget::BroadcastGridDataChanged()
 {
 	if (CurrentSlotData && CurrentSlotData->GetSlotType() == ELxItemSlotType::Transaction)
 	{
-		OnTradeRequirementUpdated(CurrentSlotData->CanTrade());
+		// 空商城槽位没有购买含义，用“满足”状态清除蓝图中的不可购买遮罩。
+		OnTradeRequirementUpdated(!CurrentSlotData->IsValid() || CurrentSlotData->CanTrade());
 	}
 
 	FGameplayTag EquipmentType;

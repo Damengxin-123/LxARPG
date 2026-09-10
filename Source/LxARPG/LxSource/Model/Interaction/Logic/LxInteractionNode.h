@@ -8,27 +8,23 @@
 class ULxInteractionActionComponentBase;
 class ULxPlayerInteractionModule;
 
-/** 运行时交互树节点，负责保存交互结构、显示标签和可选功能组件。 */
+/** 运行时交互树节点，负责保存交互结构、显示文本和可选功能组件。 */
 UCLASS(BlueprintType, Blueprintable, EditInlineNew, DefaultToInstanced, DisplayName="交互节点")
 class LXARPG_API ULxInteractionNode : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	/** 初始化节点基础数据、通用限制和功能初始配置。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="初始化交互节点")
-	void InitializeInteractionNode(FGameplayTag InPromptTextTag,
+	/** 初始化节点基础数据、通用限制和子节点。 */
+	void InitializeInteractionNode(FText InPromptText,
 		ELxInteractionActionType InInteractionType, const TArray<ULxInteractionNode*>& InChildNodes,
-		bool bInIsFunctionNode, FLxInteractionRequirement InRequirement,
-		FLxInteractionFeatureNodeConfig InFeatureConfig,
-		FGameplayTag InNpcDialogueTextTag = FGameplayTag());
+		FLxInteractionRequirement InRequirement,
+		FText InNpcDialogueText = FText());
 
 	/** 添加一个子节点，并自动设置子节点的上级节点。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="添加子节点")
 	void AddChildNode(ULxInteractionNode* InChildNode);
 
 	/** 批量添加子节点。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="添加子节点列表")
 	void AddChildNodes(const TArray<ULxInteractionNode*>& InChildNodes);
 
 	/** 获取全部子节点。 */
@@ -40,23 +36,22 @@ public:
 	ULxInteractionNode* GetParentNode() const { return ParentNode; }
 
 	/** 设置上级节点。通常由添加子节点时自动调用。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="设置上级节点")
 	void SetParentNode(ULxInteractionNode* InParentNode) { ParentNode = InParentNode; }
 
-	/** 获取提示文本标签。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取提示文本标签")
-	FGameplayTag GetPromptTextTag() const;
+	/** 获取提示文本。 */
+	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取提示文本")
+	FText GetPromptText() const;
 
-	/** 获取节点自身配置的提示文本标签，不读取运行时功能模块。 */
-	FGameplayTag GetConfiguredPromptTextTag() const { return PromptTextTag; }
+	/** 获取节点自身配置的提示文本，不读取运行时功能模块。 */
+	FText GetConfiguredPromptText() const { return PromptText; }
 
-	/** 获取NPC发言文本标签，对话UI进入该节点时可用它显示NPC当前发言。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取NPC发言文本标签")
-	FGameplayTag GetNpcDialogueTextTag() const { return NpcDialogueTextTag; }
+	/** 获取NPC发言文本，对话UI进入该节点时可用它显示NPC当前发言。 */
+	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取NPC发言文本")
+	FText GetNpcDialogueText() const { return NpcDialogueText; }
 
-	/** 设置NPC发言文本标签，主要用于对话节点运行时补充或调整发言内容。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="设置NPC发言文本标签")
-	void SetNpcDialogueTextTag(FGameplayTag InNpcDialogueTextTag) { NpcDialogueTextTag = InNpcDialogueTextTag; }
+	/** 设置NPC发言文本，主要用于对话节点运行时补充或调整发言内容。 */
+	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="设置NPC发言文本")
+	void SetNpcDialogueText(FText InNpcDialogueText) { NpcDialogueText = InNpcDialogueText; }
 
 	/** 获取节点声明的交互行为类型。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取交互行为类型")
@@ -72,16 +67,13 @@ public:
 		InteractionFeature = InInteractionFeature;
 	}
 
-	/** 判断当前节点是否为功能节点。 */
+	/** 根据节点类型判断是否需要创建并执行功能模块。 */
 	UFUNCTION(BlueprintPure, Category="交互", DisplayName="是否为功能节点")
-	bool IsFunctionNode() const { return bIsFunctionNode; }
+	bool IsFunctionNode() const;
 
 	/** 获取节点配置的通用交互要求。 */
 	UFUNCTION(BlueprintPure, Category="交互", DisplayName="获取交互要求")
 	FLxInteractionRequirement GetInteractionRequirement() const { return Requirement; }
-
-	/** 获取功能节点保存的功能初始配置。 */
-	const FLxInteractionFeatureNodeConfig& GetFeatureConfig() const { return FeatureConfig; }
 
 	/** 设置节点在当前交互树中的运行时序号。 */
 	void SetRuntimeNodeIndex(int32 InRuntimeNodeIndex) { RuntimeNodeIndex = InRuntimeNodeIndex; }
@@ -102,6 +94,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="节点是否可交互")
 	bool IsNodeInteractable(ULxPlayerInteractionModule* PlayerInteractionComponent) const;
 
+	/** 判断节点能否继续处理已经发起的功能交互请求，允许功能处于“交互中”状态。 */
+	bool CanProcessActiveInteractionRequest(ULxPlayerInteractionModule* PlayerInteractionComponent) const;
+
 	/** 只检查指定交互发起者是否满足节点配置的通用要求。 */
 	bool CheckCommonRequirement(ULxPlayerInteractionModule* PlayerInteractionComponent) const;
 
@@ -114,29 +109,21 @@ public:
 	bool ValidateNodeType() const;
 
 private:
-	/** 标签型提示文本ID，由UI或文本系统解析为显示文本。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="提示文本标签", meta=(AllowPrivateAccess="true"))
-	FGameplayTag PromptTextTag;
+	/** 直接用于界面显示的提示文本，支持本地化。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="提示文本", meta=(AllowPrivateAccess="true"))
+	FText PromptText;
 
-	/** NPC发言文本标签。仅对Dialogue节点有语义，入口/对话UI可用它展示NPC说的话。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="NPC发言文本标签", meta=(AllowPrivateAccess="true"))
-	FGameplayTag NpcDialogueTextTag;
+	/** NPC发言文本。仅对Dialogue节点有语义，入口/对话UI可用它展示NPC说的话。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="NPC发言文本", meta=(AllowPrivateAccess="true", MultiLine="true"))
+	FText NpcDialogueText;
 
 	/** 节点对应的交互行为类型。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="交互行为类型", meta=(AllowPrivateAccess="true"))
 	ELxInteractionActionType InteractionActionType = ELxInteractionActionType::Dialogue;
 
-	/** 功能节点执行具体模块，普通节点仅用于选项导航。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="是否为功能节点", meta=(AllowPrivateAccess="true"))
-	bool bIsFunctionNode = false;
-
 	/** 节点被显示和选择前需要满足的通用交互要求。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|需求", DisplayName="交互要求", meta=(AllowPrivateAccess="true"))
 	FLxInteractionRequirement Requirement;
-
-	/** 功能节点用于创建运行时功能模块的初始配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="交互功能配置", meta=(AllowPrivateAccess="true", EditCondition="bIsFunctionNode", EditConditionHides))
-	FLxInteractionFeatureNodeConfig FeatureConfig;
 
 	/** 功能节点初始化后绑定的运行时功能模块；普通节点为空。 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category="交互", DisplayName="交互功能模块", meta=(AllowPrivateAccess="true"))
