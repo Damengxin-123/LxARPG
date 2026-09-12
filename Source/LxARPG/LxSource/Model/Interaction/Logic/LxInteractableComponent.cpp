@@ -9,6 +9,7 @@
 #include "LxInteractionActionComponentBase.h"
 #include "LxInteractionNode.h"
 #include "LxItemTransferInteractionComponent.h"
+#include "LxQuestInteractionComponent.h"
 #include "LxTradeContainerInteractionComponent.h"
 #include "LxTreasureChestInteractionComponent.h"
 #include "LxTriggerMechanismInteractionComponent.h"
@@ -406,6 +407,9 @@ ULxInteractionActionComponentBase* ULxInteractableComponent::CreateInteractionFe
 	case ELxInteractionActionType::FunctionPage:
 		FeatureClass = ULxFunctionPageInteractionComponent::StaticClass();
 		break;
+	case ELxInteractionActionType::Quest:
+		FeatureClass = ULxQuestInteractionComponent::StaticClass();
+		break;
 	case ELxInteractionActionType::Entrance:
 	case ELxInteractionActionType::Dialogue:
 	case ELxInteractionActionType::InteractionExit:
@@ -424,7 +428,7 @@ ULxInteractionActionComponentBase* ULxInteractableComponent::CreateInteractionFe
 		InteractionFeature = NewObject<ULxInteractionActionComponentBase>(this, FeatureClass, UniqueFeatureName);
 	}
 
-	ApplyFeatureConfigToFeature(InteractionFeature);
+	ApplyFeatureConfigToFeature(InteractionFeature, InteractionNode);
 	return InteractionFeature;
 }
 
@@ -444,13 +448,15 @@ bool ULxInteractableComponent::IsInteractionFeatureEnabled(ELxInteractionActionT
 		return bEnableItemTransfer;
 	case ELxInteractionActionType::FunctionPage:
 		return bEnableFunctionPage;
+	case ELxInteractionActionType::Quest:
+		return bEnableQuestInteraction;
 	default:
 		return false;
 	}
 }
 
 void ULxInteractableComponent::ApplyFeatureConfigToFeature(
-	ULxInteractionActionComponentBase* InteractionFeature) const
+	ULxInteractionActionComponentBase* InteractionFeature, const ULxInteractionNode* InteractionNode) const
 {
 	if (!InteractionFeature)
 	{
@@ -480,6 +486,12 @@ void ULxInteractableComponent::ApplyFeatureConfigToFeature(
 	{
 		FunctionPageFeature->ApplyConfig(FunctionPageConfig);
 	}
+	else if (ULxQuestInteractionComponent* QuestFeature = Cast<ULxQuestInteractionComponent>(InteractionFeature))
+	{
+		QuestFeature->ApplyConfig(InteractionNode
+			? InteractionNode->GetQuestInteractionConfig()
+			: FLxQuestInteractionConfig());
+	}
 }
 
 void ULxInteractableComponent::BindReplicatedFeaturesToNodes()
@@ -498,7 +510,7 @@ void ULxInteractableComponent::BindReplicatedFeaturesToNodes()
 		}
 
 		InteractionNode->SetInteractionFeature(InteractionFeature);
-		ApplyFeatureConfigToFeature(InteractionFeature);
+		ApplyFeatureConfigToFeature(InteractionFeature, InteractionNode);
 		if (InteractionFeature->GetOwnerInteractionNode() != InteractionNode)
 		{
 			InteractionFeature->InitializeInteractionFeature(this, InteractionNode,

@@ -8,6 +8,7 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ShowInfoConfig/LxItemRarityType.h"
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
+#include "LxARPG/LxSource/Model/Quest/DataType/LxQuestRuntimeData.h"
 #include "LxCharacterEntryPackage.h"
 #include "LxCharacterDataTransferComponent.generated.h"
 
@@ -20,6 +21,7 @@ class ULxCharacterEffectCacheModule;
 class ULxCharacterEffectTransferModule;
 class ULxCharacterLifecycleComponent;
 class ULxCharacterProfessionModule;
+class ULxCharacterQuestModule;
 class ULxCharacterStateComponent;
 class ULxEquipmentSlotData;
 class ULxItemBase;
@@ -33,6 +35,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxEquipmentSlotListChanged, const
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillBackpackSlotListChanged, const TArray<ULxItemSlotData*>&, SkillSlots);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBuffListChanged, const TArray<ULxBuff*>&, BuffList);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxCharacterProfessionDataChanged);
+/** 角色任务进度发生变化时触发。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxCharacterQuestProgressChanged);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDataTransferStateTagsChanged, FGameplayTag, StateCategoryTag, const FGameplayTagContainer&, StateTags);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDataTransferLifecycleStateChanged, bool, bIsAlive, FGameplayTag, LifecycleStateTag);
 
@@ -116,6 +120,30 @@ public:
 	/** 通过数据中转组件给同类型已学习职业平分增加经验。 */
 	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="增加同类型职业经验")
 	void AddProfessionExperienceByType(ELxProfessionType InProfessionType, float InExperience);
+
+	/** 获取指定任务当前在角色上的运行状态。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|任务", DisplayName="获取任务状态")
+	ELxQuestRuntimeState GetQuestState(FGameplayTag InQuestSeriesId, FGameplayTag InQuestId) const;
+
+	/** 判断角色当前是否可以接取指定任务。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|任务", DisplayName="能否接取任务")
+	bool CanAcceptQuest(FGameplayTag InQuestSeriesId, FGameplayTag InQuestId) const;
+
+	/** 接取对话型任务，并立即将其推进到可提交状态。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|任务", DisplayName="接取对话型任务")
+	bool AcceptDialogueQuest(FGameplayTag InQuestSeriesId, FGameplayTag InQuestId);
+
+	/** 判断角色当前是否可以提交指定任务。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|任务", DisplayName="能否提交任务")
+	bool CanSubmitQuest(FGameplayTag InQuestSeriesId, FGameplayTag InQuestId) const;
+
+	/** 提交指定任务并将其设为已完成。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|任务", DisplayName="提交任务")
+	bool SubmitQuest(FGameplayTag InQuestSeriesId, FGameplayTag InQuestId);
+
+	/** 判断角色是否已经完成指定任务。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|任务", DisplayName="任务是否已完成")
+	bool IsQuestCompleted(FGameplayTag InQuestSeriesId, FGameplayTag InQuestId) const;
 
 	/** 获取所有生效中的 Buff。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有Buff")
@@ -245,6 +273,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="角色数据中转|职业", DisplayName="角色职业数据变化事件")
 	FOnLxCharacterProfessionDataChanged OnProfessionChanged;
 
+	/** 角色任务记录变化事件，供交互选项和任务界面刷新。 */
+	UPROPERTY(BlueprintAssignable, Category="角色数据中转|任务", DisplayName="角色任务进度变化事件")
+	FOnLxCharacterQuestProgressChanged OnQuestProgressChanged;
+
 	/** 角色状态标签变化事件，广播发生变化的状态分类及其当前标签集合。 */
 	UPROPERTY(BlueprintAssignable, Category="角色数据中转|状态", DisplayName="角色状态标签变化事件")
 	FOnLxCharacterDataTransferStateTagsChanged OnCharacterStateTagsChanged;
@@ -277,6 +309,10 @@ protected:
 	/** 当前角色职业组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|职业", DisplayName="角色职业组件")
 	TObjectPtr<ULxCharacterProfessionModule> ProfessionComponent = nullptr;
+
+	/** 当前角色任务模块。 */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="角色数据中转|任务", DisplayName="角色任务模块")
+	TObjectPtr<ULxCharacterQuestModule> QuestComponent = nullptr;
 
 	/** 当前角色 Buff 组件。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Character Data Transfer", DisplayName="角色Buff组件")
@@ -339,6 +375,10 @@ private:
 
 	UFUNCTION()
 	void HandleProfessionDataChanged();
+
+	/** 转发角色任务模块的任务进度变化事件。 */
+	UFUNCTION(Category="角色数据中转|任务", DisplayName="处理任务进度变化")
+	void HandleQuestProgressChanged();
 
 	UFUNCTION()
 	void HandleBuffDataChanged();

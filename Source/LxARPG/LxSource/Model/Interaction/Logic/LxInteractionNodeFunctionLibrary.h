@@ -39,4 +39,16 @@ public:
 		UPARAM(DisplayName="节点类型") ELxInteractionActionType InteractionType,
 		UPARAM(DisplayName="节点限制") FLxInteractionRequirement Requirement,
 		UPARAM(DisplayName="子节点列表") TArray<ULxInteractionNode*> ChildNodes);
+
+	/** 创建任务交互节点，可选择使用任务可视化名称或自定义提示文本，自动接取或提交任务。 */
+	UFUNCTION(BlueprintPure, Category="交互|任务", DisplayName="创建任务交互节点",
+		meta=(DefaultToSelf="Outer", AutoCreateRefTerm="ChildNodes", Categories="任务"))
+	static ULxInteractionNode* CreateQuestInteractionNode(
+		UPARAM(DisplayName="节点所有者") UObject* Outer,
+		UPARAM(DisplayName="交互提示文本") FText PromptText,
+		UPARAM(DisplayName="任务系列ID") FGameplayTag QuestSeriesId,
+		UPARAM(DisplayName="任务ID") FGameplayTag QuestId,
+		UPARAM(DisplayName="节点限制") FLxInteractionRequirement Requirement,
+		UPARAM(DisplayName="子节点列表") TArray<ULxInteractionNode*> ChildNodes,
+		UPARAM(DisplayName="使用任务可视化文本") bool bUseQuestDisplayText = true);
 };

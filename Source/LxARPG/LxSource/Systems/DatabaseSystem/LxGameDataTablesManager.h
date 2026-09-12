@@ -92,6 +92,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|职业", DisplayName="角色职业表")
 	TObjectPtr<UDataTable> m_pProfessionDefinitionTable = nullptr;
 
+	/** 任务系列静态资产索引表，首版由任务静态数据模块读取并建立软引用映射。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|任务", DisplayName="任务系列索引表",
+		meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxQuestSeriesRegistryRow"))
+	TObjectPtr<UDataTable> m_pQuestSeriesIndexTable = nullptr;
+
 	// 富文本样式映射表，Row Struct 使用 FLxRichTextStyleRow，内部行引用指向 FRichTextStyleRow 样式表。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|富文本样式", DisplayName="富文本样式映射表", meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxRichTextStyleRow"))
 	TObjectPtr<UDataTable> m_pRichTextStyleTable = nullptr;

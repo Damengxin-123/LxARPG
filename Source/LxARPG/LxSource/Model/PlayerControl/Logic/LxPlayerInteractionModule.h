@@ -128,4 +128,8 @@ private:
 
 	UFUNCTION()
 	void HandleInteractableOptionsChanged();
+
+	/** 玩家任务状态变化后刷新当前范围内的任务交互选项。 */
+	UFUNCTION(Category="交互|任务", DisplayName="处理玩家任务进度变化")
+	void HandleQuestProgressChanged();
 };

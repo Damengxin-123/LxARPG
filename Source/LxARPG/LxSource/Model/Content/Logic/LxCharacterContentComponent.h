@@ -9,12 +9,13 @@ class ULxCharacterBackpackModule;
 class ULxCharacterBuffModule;
 class ULxCharacterEquipmentModule;
 class ULxCharacterProfessionModule;
+class ULxCharacterQuestModule;
 class ULxSkillBackpackModule;
 
 /**
  * 角色内容组件。
  *
- * 角色只挂载该组件；背包、装备、技能背包、Buff 和职业作为独立 UObject 模块由它统一持有。
+ * 角色只挂载该组件；背包、装备、技能背包、Buff、职业和任务作为独立 UObject 模块由它统一持有。
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色内容组件")
 class LXARPG_API ULxCharacterContentComponent : public ULxCharacterComponentBase
@@ -22,7 +23,7 @@ class LXARPG_API ULxCharacterContentComponent : public ULxCharacterComponentBase
 	GENERATED_BODY()
 
 public:
-	/** 创建角色内容组件及五个默认内容模块。 */
+	/** 创建角色内容组件及六个默认内容模块。 */
 	ULxCharacterContentComponent();
 
 	/** 按固定顺序初始化全部内容模块并注册网络复制子对象。 */
@@ -51,6 +52,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="角色|内容", DisplayName="获取职业模块")
 	ULxCharacterProfessionModule* GetProfessionModule() const { return ProfessionModule; }
 
+	/** 获取保存角色任务运行状态的任务模块。 */
+	UFUNCTION(BlueprintPure, Category="角色|内容", DisplayName="获取任务模块")
+	ULxCharacterQuestModule* GetQuestModule() const { return QuestModule; }
+
 	/** 服务端批量添加背包物品。 */
 	UFUNCTION(Server, Reliable)
 	void ServerAddBackpackItems(const TArray<FLxItemQuote>& InItems);
@@ -75,6 +80,10 @@ protected:
 	/** 职业功能模块。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Instanced, Category="角色|内容", DisplayName="职业模块")
 	TObjectPtr<ULxCharacterProfessionModule> ProfessionModule;
+
+	/** 任务进度功能模块。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Instanced, Category="角色|内容", DisplayName="任务模块")
+	TObjectPtr<ULxCharacterQuestModule> QuestModule;
 
 private:
 	/** 注册需要由该组件复制的 UObject 内容模块。 */

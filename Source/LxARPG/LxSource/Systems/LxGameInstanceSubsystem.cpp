@@ -5,6 +5,7 @@
 #include "DatabaseSystem/LxGameDataTablesManager.h"
 #include "LxARPG/LxSource/Core/Tools/LxString.h"
 #include "SettingSystem/LxGameSettings.h"
+#include "StaticDataSystem/LxGlobalStaticDataManager.h"
 
 ULxGameInstanceSubsystem* ULxGameInstanceSubsystem::GetInstance(const UWorld* InWorldPtr)
 {
@@ -27,6 +28,19 @@ void ULxGameInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 	LoadDataTables();
+	InitializeGlobalStaticDataManager();
+}
+
+void ULxGameInstanceSubsystem::Deinitialize()
+{
+	if (GlobalStaticDataManager)
+	{
+		GlobalStaticDataManager->Deinitialize();
+		GlobalStaticDataManager = nullptr;
+	}
+	m_vGameDataManager = nullptr;
+
+	Super::Deinitialize();
 }
 
 const ULxGameDataTablesManager* ULxGameInstanceSubsystem::GetGameDataManager() const
@@ -36,6 +50,17 @@ const ULxGameDataTablesManager* ULxGameInstanceSubsystem::GetGameDataManager() c
 		return m_vGameDataManager;
 	}
 	return nullptr;
+}
+
+ULxGlobalStaticDataManager* ULxGameInstanceSubsystem::GetGlobalStaticDataManager() const
+{
+	return GlobalStaticDataManager;
+}
+
+void ULxGameInstanceSubsystem::InitializeGlobalStaticDataManager()
+{
+	GlobalStaticDataManager = NewObject<ULxGlobalStaticDataManager>(this, TEXT("全局静态数据管理器"));
+	GlobalStaticDataManager->Initialize(m_vGameDataManager.Get());
 }
 
 void ULxGameInstanceSubsystem::LoadDataTables()

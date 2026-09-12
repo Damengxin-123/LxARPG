@@ -167,8 +167,9 @@ private:
 	/** 判断细节面板是否启用了指定功能。 */
 	bool IsInteractionFeatureEnabled(ELxInteractionActionType InteractionType) const;
 
-	/** 把组件细节面板配置应用到新创建的功能模块。 */
-	void ApplyFeatureConfigToFeature(ULxInteractionActionComponentBase* InteractionFeature) const;
+	/** 把组件或节点配置应用到新创建的功能模块。 */
+	void ApplyFeatureConfigToFeature(ULxInteractionActionComponentBase* InteractionFeature,
+		const ULxInteractionNode* InteractionNode) const;
 
 	/** 将复制到客户端的功能模块重新绑定到本地交互树节点。 */
 	void BindReplicatedFeaturesToNodes();
@@ -228,6 +229,10 @@ private:
 	/** 选择功能节点后打开的功能界面配置。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="功能界面配置", meta=(AllowPrivateAccess="true", EditCondition="bEnableFunctionPage", EditConditionHides))
 	FLxFunctionPageInteractionConfig FunctionPageConfig;
+
+	/** 是否启用任务交互功能；每个任务节点分别保存自己的任务ID配置。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="启用任务交互功能", meta=(AllowPrivateAccess="true"))
+	bool bEnableQuestInteraction = false;
 
 	/** 当前交互树创建的运行时功能模块，由组件统一持有和复制。 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing=OnRep_InteractionFeatures,

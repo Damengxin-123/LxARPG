@@ -2,6 +2,7 @@
 
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractableComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionNode.h"
+#include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -28,11 +29,29 @@ void ULxPlayerInteractionModule::InitializeModule(ULxPlayerControlComponent* InO
 		return;
 	}
 
+	if (ULxCharacterDataTransferComponent* DataTransferComponent =
+		OwnerCharacter->GetCharacterDataTransferComponent())
+	{
+		DataTransferComponent->OnQuestProgressChanged.RemoveDynamic(
+			this, &ULxPlayerInteractionModule::HandleQuestProgressChanged);
+		DataTransferComponent->OnQuestProgressChanged.AddDynamic(
+			this, &ULxPlayerInteractionModule::HandleQuestProgressChanged);
+	}
+
 	InitMonitorRegistration();
 }
 
 void ULxPlayerInteractionModule::ShutdownModule()
 {
+	if (ALxBaseCharacter* OwnerCharacter = GetPlayerCharacter())
+	{
+		if (ULxCharacterDataTransferComponent* DataTransferComponent =
+			OwnerCharacter->GetCharacterDataTransferComponent())
+		{
+			DataTransferComponent->OnQuestProgressChanged.RemoveDynamic(
+				this, &ULxPlayerInteractionModule::HandleQuestProgressChanged);
+		}
+	}
 	ClearInteractableComponents();
 	Super::ShutdownModule();
 }
@@ -274,11 +293,8 @@ bool ULxPlayerInteractionModule::ActivateInteractionOption(const FLxInteractionO
 	}
 
 	OnInteractionOptionExecuted.Broadcast(Option);
-	InteractionPhase = ELxPlayerInteractionPhase::None;
-	CurrentInteractableComponent = nullptr;
-	CurrentInteractionNode = nullptr;
-	CachedCurrentOptions.Reset();
-	OnCurrentInteractionOptionsUpdated.Broadcast(CachedCurrentOptions);
+	// 即时功能执行完毕后统一结束交互，通知对话窗口关闭并恢复鼠标状态。
+	CancelInteraction();
 	RefreshEntranceOptions();
 	return true;
 }
@@ -383,4 +399,13 @@ void ULxPlayerInteractionModule::HandleInteractableOptionsChanged()
 {
 	RefreshEntranceOptions();
 	RefreshCurrentInteractionOptions();
+}
+
+void ULxPlayerInteractionModule::HandleQuestProgressChanged()
+{
+	RefreshEntranceOptions();
+	if (CurrentInteractionNode)
+	{
+		RefreshCurrentInteractionOptions();
+	}
 }

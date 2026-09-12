@@ -8,6 +8,7 @@
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractableComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionNode.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxItemTransferInteractionComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxQuestInteractionComponent.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTradeContainerInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTriggerMechanismInteractionComponent.h"
@@ -275,6 +276,27 @@ void ALxPlayerController::ServerTriggerMechanism_Implementation(AActor* Mechanis
 	if (TriggerMechanismComponent && PlayerInteractionComponent)
 	{
 		TriggerMechanismComponent->TriggerMechanism(PlayerInteractionComponent);
+	}
+}
+
+void ALxPlayerController::ServerExecuteQuestInteraction_Implementation(
+	AActor* QuestOwner, int32 RuntimeNodeIndex)
+{
+	if (!QuestOwner)
+	{
+		return;
+	}
+
+	ULxQuestInteractionComponent* QuestInteractionComponent =
+		FindInteractionFeature<ULxQuestInteractionComponent>(
+			this, QuestOwner, RuntimeNodeIndex, ELxInteractionActionType::Quest);
+	const ALxPlayerCharacter* PlayerCharacter = Cast<ALxPlayerCharacter>(GetPawn());
+	ULxPlayerInteractionModule* PlayerInteractionComponent = PlayerCharacter
+		? PlayerCharacter->GetPlayerInteractionComponent()
+		: nullptr;
+	if (QuestInteractionComponent && PlayerInteractionComponent)
+	{
+		QuestInteractionComponent->ExecuteInteraction(PlayerInteractionComponent);
 	}
 }
 

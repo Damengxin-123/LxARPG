@@ -30,3 +30,17 @@ ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateFunctionInteraction
 		MoveTemp(Requirement));
 	return NewNode;
 }
+
+ULxInteractionNode* ULxInteractionNodeFunctionLibrary::CreateQuestInteractionNode(UObject* Outer,
+	FText PromptText, FGameplayTag QuestSeriesId, FGameplayTag QuestId,
+	FLxInteractionRequirement Requirement, TArray<ULxInteractionNode*> ChildNodes, bool bUseQuestDisplayText)
+{
+	ULxInteractionNode* NewNode = CreateFunctionInteractionNode(Outer, PromptText,
+		ELxInteractionActionType::Quest, MoveTemp(Requirement), MoveTemp(ChildNodes));
+	FLxQuestInteractionConfig QuestConfig;
+	QuestConfig.bUseQuestDisplayText = bUseQuestDisplayText;
+	QuestConfig.QuestSeriesId = QuestSeriesId;
+	QuestConfig.QuestId = QuestId;
+	NewNode->SetQuestInteractionConfig(QuestConfig);
+	return NewNode;
+}

@@ -4,6 +4,7 @@
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
+#include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
@@ -12,6 +13,7 @@
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
 #include "LxARPG/LxSource/Model/Lifecycle/Logic/LxCharacterLifecycleComponent.h"
 #include "LxARPG/LxSource/Model/Profession/Logic/LxCharacterProfessionComponent.h"
+#include "LxARPG/LxSource/Model/Quest/Logic/LxCharacterQuestModule.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
 #include "LxARPG/LxSource/Model/State/Logic/LxCharacterStateComponent.h"
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
@@ -449,6 +451,44 @@ bool ULxCharacterDataTransferComponent::RemoveItemListFromBackpack(const TArray<
 	return BackpackComponent != nullptr && BackpackComponent->RemoveItemList(InItemList);
 }
 
+ELxQuestRuntimeState ULxCharacterDataTransferComponent::GetQuestState(
+	FGameplayTag InQuestSeriesId, FGameplayTag InQuestId) const
+{
+	return QuestComponent
+		? QuestComponent->GetQuestState(InQuestSeriesId, InQuestId)
+		: ELxQuestRuntimeState::NotAccepted;
+}
+
+bool ULxCharacterDataTransferComponent::CanAcceptQuest(
+	FGameplayTag InQuestSeriesId, FGameplayTag InQuestId) const
+{
+	return QuestComponent && QuestComponent->CanAcceptQuest(InQuestSeriesId, InQuestId);
+}
+
+bool ULxCharacterDataTransferComponent::AcceptDialogueQuest(
+	FGameplayTag InQuestSeriesId, FGameplayTag InQuestId)
+{
+	return QuestComponent && QuestComponent->AcceptDialogueQuest(InQuestSeriesId, InQuestId);
+}
+
+bool ULxCharacterDataTransferComponent::CanSubmitQuest(
+	FGameplayTag InQuestSeriesId, FGameplayTag InQuestId) const
+{
+	return QuestComponent && QuestComponent->CanSubmitQuest(InQuestSeriesId, InQuestId);
+}
+
+bool ULxCharacterDataTransferComponent::SubmitQuest(
+	FGameplayTag InQuestSeriesId, FGameplayTag InQuestId)
+{
+	return QuestComponent && QuestComponent->SubmitQuest(InQuestSeriesId, InQuestId);
+}
+
+bool ULxCharacterDataTransferComponent::IsQuestCompleted(
+	FGameplayTag InQuestSeriesId, FGameplayTag InQuestId) const
+{
+	return QuestComponent && QuestComponent->IsQuestCompleted(InQuestSeriesId, InQuestId);
+}
+
 void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 {
 	ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
@@ -462,6 +502,8 @@ void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 	EquipmentComponent = OwnerCharacter->GetCharacterEquipmentComponent();
 	SkillBackpackComponent = OwnerCharacter->GetSkillBackpackComponent();
 	ProfessionComponent = OwnerCharacter->GetCharacterProfessionComponent();
+	const ULxCharacterContentComponent* ContentComponent = OwnerCharacter->GetCharacterContentComponent();
+	QuestComponent = ContentComponent ? ContentComponent->GetQuestModule() : nullptr;
 	BuffComponent = OwnerCharacter->GetCharacterBuffComponent();
 	StateComponent = OwnerCharacter->GetCharacterStateComponent();
 	LifecycleComponent = OwnerCharacter->GetCharacterLifecycleComponent();
@@ -477,7 +519,7 @@ void ULxCharacterDataTransferComponent::EnsureOwnerComponentsCached()
 		return;
 	}
 
-	if (AttributeComponent == nullptr || StateComponent == nullptr || EffectCacheModule == nullptr
+	if (AttributeComponent == nullptr || StateComponent == nullptr || QuestComponent == nullptr || EffectCacheModule == nullptr
 		|| EffectTransferModule == nullptr)
 	{
 		CacheOwnerComponents();
@@ -512,6 +554,11 @@ void ULxCharacterDataTransferComponent::BindComponentEvents()
 	if (ProfessionComponent)
 	{
 		ProfessionComponent->OnProfessionChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleProfessionDataChanged);
+	}
+
+	if (QuestComponent)
+	{
+		QuestComponent->OnQuestProgressChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleQuestProgressChanged);
 	}
 
 	if (BuffComponent)
@@ -558,6 +605,11 @@ void ULxCharacterDataTransferComponent::UnbindComponentEvents()
 	if (ProfessionComponent)
 	{
 		ProfessionComponent->OnProfessionChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleProfessionDataChanged);
+	}
+
+	if (QuestComponent)
+	{
+		QuestComponent->OnQuestProgressChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleQuestProgressChanged);
 	}
 
 	if (BuffComponent)
@@ -1100,6 +1152,11 @@ void ULxCharacterDataTransferComponent::HandleProfessionDataChanged()
 {
 	RefreshProfessionEffectPackages();
 	OnProfessionChanged.Broadcast();
+}
+
+void ULxCharacterDataTransferComponent::HandleQuestProgressChanged()
+{
+	OnQuestProgressChanged.Broadcast();
 }
 
 void ULxCharacterDataTransferComponent::HandleBuffDataChanged()

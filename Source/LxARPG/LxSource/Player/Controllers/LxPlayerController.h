@@ -76,6 +76,10 @@ public:
 	UFUNCTION(Server, Reliable, Category="交互|网络", DisplayName="服务器触发机关")
 	void ServerTriggerMechanism(AActor* MechanismOwner, int32 RuntimeNodeIndex);
 
+	/** 在服务器上执行指定任务功能节点的接取或提交逻辑。 */
+	UFUNCTION(Server, Reliable, Category="交互|网络", DisplayName="服务器执行任务交互")
+	void ServerExecuteQuestInteraction(AActor* QuestOwner, int32 RuntimeNodeIndex);
+
 	/** 获取玩家聊天组件。 */
 	UFUNCTION(BlueprintPure, Category="聊天", DisplayName="获取玩家聊天组件")
 	ULxPlayerChatComponent* GetPlayerChatComponent() const { return m_pChatComponent; }

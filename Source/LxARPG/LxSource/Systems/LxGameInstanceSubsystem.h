@@ -7,10 +7,11 @@
 #include "LxGameInstanceSubsystem.generated.h"
 
 class ULxGameDataTablesManager;
+class ULxGlobalStaticDataManager;
 /**
  * 
  */
-UCLASS()
+UCLASS(DisplayName="游戏实例全局子系统")
 class LXARPG_API ULxGameInstanceSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
@@ -32,13 +33,22 @@ public:
 	 */
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
+	/** 释放全局静态数据管理器及其全部子模块缓存。 */
+	virtual void Deinitialize() override;
+
 	/**
 	 * @brief 获取游戏数据表管理器。
 	 *
 	 * @return 返回当前游戏实例持有的数据表管理器对象。
 	 */
 	const ULxGameDataTablesManager* GetGameDataManager() const;
+
+	/** 获取游戏实例持有的全局静态数据管理器。 */
+	UFUNCTION(BlueprintPure, Category="静态数据|全局", DisplayName="获取全局静态数据管理器")
+	ULxGlobalStaticDataManager* GetGlobalStaticDataManager() const;
 private:
+	/** 使用现有数据表管理器配置创建全局静态数据管理器。 */
+	void InitializeGlobalStaticDataManager();
 
 	/**
 	 * @brief 加载项目运行所需的数据表。
@@ -50,4 +60,8 @@ private:
 	// 数据表管理对象
 	UPROPERTY()
 	TObjectPtr<ULxGameDataTablesManager> m_vGameDataManager;
+
+	/** 游戏实例生命周期内持有的全局静态数据管理器。 */
+	UPROPERTY(Transient, VisibleAnywhere, Category="静态数据|全局", DisplayName="全局静态数据管理器")
+	TObjectPtr<ULxGlobalStaticDataManager> GlobalStaticDataManager = nullptr;
 };

@@ -5,6 +5,7 @@
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
 #include "LxARPG/LxSource/Model/Profession/Logic/LxCharacterProfessionComponent.h"
+#include "LxARPG/LxSource/Model/Quest/Logic/LxCharacterQuestModule.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
 
 ULxCharacterContentComponent::ULxCharacterContentComponent()
@@ -18,6 +19,7 @@ ULxCharacterContentComponent::ULxCharacterContentComponent()
 	SkillBackpackModule = CreateDefaultSubobject<ULxSkillBackpackModule>(TEXT("技能背包模块"));
 	BuffModule = CreateDefaultSubobject<ULxCharacterBuffModule>(TEXT("Buff模块"));
 	ProfessionModule = CreateDefaultSubobject<ULxCharacterProfessionModule>(TEXT("职业模块"));
+	QuestModule = CreateDefaultSubobject<ULxCharacterQuestModule>(TEXT("任务模块"));
 }
 
 void ULxCharacterContentComponent::BaseComponentInitialize()
@@ -33,11 +35,13 @@ void ULxCharacterContentComponent::BaseComponentInitialize()
 	if (SkillBackpackModule) SkillBackpackModule->InitializeModule(this);
 	if (BuffModule) BuffModule->InitializeModule(this);
 	if (ProfessionModule) ProfessionModule->InitializeModule(this);
+	if (QuestModule) QuestModule->InitializeModule(this);
 	RegisterReplicatedModules();
 }
 
 void ULxCharacterContentComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (QuestModule) QuestModule->ShutdownModule();
 	if (ProfessionModule) ProfessionModule->ShutdownModule();
 	if (BuffModule) BuffModule->ShutdownModule();
 	if (SkillBackpackModule) SkillBackpackModule->ShutdownModule();
@@ -64,4 +68,5 @@ void ULxCharacterContentComponent::RegisterReplicatedModules()
 	AddReplicatedSubObject(BackpackModule);
 	AddReplicatedSubObject(SkillBackpackModule);
 	AddReplicatedSubObject(BuffModule);
+	AddReplicatedSubObject(QuestModule);
 }

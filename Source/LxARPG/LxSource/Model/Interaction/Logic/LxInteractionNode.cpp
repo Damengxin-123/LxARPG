@@ -1,6 +1,9 @@
 #include "LxInteractionNode.h"
 
 #include "LxInteractionActionComponentBase.h"
+#include "LxARPG/LxSource/Model/Quest/Logic/LxQuestStaticDataModule.h"
+#include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
+#include "LxARPG/LxSource/Systems/StaticDataSystem/LxGlobalStaticDataManager.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
@@ -113,6 +116,32 @@ bool ULxInteractionNode::CheckCommonRequirement(ULxPlayerInteractionModule* Play
 		&& !DataTransferComponent->CheckHaveBackpackItemList(Requirement.RequiredItems))
 	{
 		return false;
+	}
+
+	if (!Requirement.RequiredQuests.IsEmpty())
+	{
+		ULxGameInstanceSubsystem* Subsystem = ULxGameInstanceSubsystem::GetInstance(PlayerCharacter->GetWorld());
+		ULxGlobalStaticDataManager* Manager = Subsystem ? Subsystem->GetGlobalStaticDataManager() : nullptr;
+		ULxQuestStaticDataModule* QuestData = Manager ? Manager->GetQuestStaticDataModule() : nullptr;
+		if (!QuestData || !QuestData->IsInitialized())
+		{
+			return false;
+		}
+		for (const FLxInteractionQuestRequirement& QuestRequirement : Requirement.RequiredQuests)
+		{
+			FLxQuestNodeDefinition QuestDefinition;
+			// 先校验实际任务配置，避免不存在的任务被默认状态误判为“未接取”。
+			if (!QuestRequirement.QuestSeriesId.IsValid() || !QuestRequirement.QuestId.IsValid()
+				|| QuestRequirement.QuestId == QuestRequirement.QuestSeriesId
+				|| !QuestRequirement.QuestId.MatchesTag(QuestRequirement.QuestSeriesId)
+				|| QuestRequirement.AllowedStates.IsEmpty()
+				|| !QuestData->GetQuestNode(QuestRequirement.QuestSeriesId, QuestRequirement.QuestId, QuestDefinition)
+				|| !QuestRequirement.AllowedStates.Contains(DataTransferComponent->GetQuestState(
+					QuestRequirement.QuestSeriesId, QuestRequirement.QuestId)))
+			{
+				return false;
+			}
+		}
 	}
 
 	for (const FLxInteractionAttributeRequirement& AttributeRequirement : Requirement.RequiredAttributes)

@@ -75,6 +75,17 @@ public:
 	UFUNCTION(BlueprintPure, Category="交互", DisplayName="获取交互要求")
 	FLxInteractionRequirement GetInteractionRequirement() const { return Requirement; }
 
+	/** 设置当前任务功能节点独立持有的任务标识配置。 */
+	UFUNCTION(BlueprintCallable, Category="交互|任务", DisplayName="设置任务交互配置")
+	void SetQuestInteractionConfig(const FLxQuestInteractionConfig& InQuestInteractionConfig)
+	{
+		QuestInteractionConfig = InQuestInteractionConfig;
+	}
+
+	/** 获取当前节点独立持有的任务标识配置。 */
+	UFUNCTION(BlueprintPure, Category="交互|任务", DisplayName="获取任务交互配置")
+	FLxQuestInteractionConfig GetQuestInteractionConfig() const { return QuestInteractionConfig; }
+
 	/** 设置节点在当前交互树中的运行时序号。 */
 	void SetRuntimeNodeIndex(int32 InRuntimeNodeIndex) { RuntimeNodeIndex = InRuntimeNodeIndex; }
 
@@ -124,6 +135,11 @@ private:
 	/** 节点被显示和选择前需要满足的通用交互要求。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|需求", DisplayName="交互要求", meta=(AllowPrivateAccess="true"))
 	FLxInteractionRequirement Requirement;
+
+	/** 任务功能节点独立使用的任务系列和任务ID，不与同一NPC的其他节点共享。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|任务", DisplayName="任务交互配置",
+		meta=(AllowPrivateAccess="true", EditCondition="InteractionActionType == ELxInteractionActionType::Quest", EditConditionHides))
+	FLxQuestInteractionConfig QuestInteractionConfig;
 
 	/** 功能节点初始化后绑定的运行时功能模块；普通节点为空。 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category="交互", DisplayName="交互功能模块", meta=(AllowPrivateAccess="true"))

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionEnum.h"
+#include "LxARPG/LxSource/Model/Quest/DataType/LxQuestRuntimeData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxInteractionData.generated.h"
 
@@ -21,7 +22,26 @@ struct FLxInteractionAttributeRequirement
 	float MinValue = 0.0f;
 };
 
-/** 交互行为的通用需求集合，具体检测由功能组件执行。 */
+/** 单个任务的状态限制，同一任务可允许多个状态。 */
+USTRUCT(BlueprintType, DisplayName="交互任务状态需求")
+struct FLxInteractionQuestRequirement
+{
+	GENERATED_BODY()
+
+	/** 需要检查的任务所属系列。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="任务系列ID", meta=(Categories="任务"))
+	FGameplayTag QuestSeriesId;
+
+	/** 需要检查的任务标识。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="任务ID", meta=(Categories="任务"))
+	FGameplayTag QuestId;
+
+	/** 当前任务匹配任一状态即可；空列表不满足条件，默认要求任务已完成。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="允许的任务状态")
+	TArray<ELxQuestRuntimeState> AllowedStates = {ELxQuestRuntimeState::Completed};
+};
+
+/** 交互行为的通用需求集合，由交互节点统一检查。 */
 USTRUCT(BlueprintType, DisplayName = "交互需求")
 struct FLxInteractionRequirement
 {
@@ -38,6 +58,10 @@ struct FLxInteractionRequirement
 	/** 所需状态标签。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|需求", DisplayName = "所需状态标签")
 	FGameplayTagContainer RequiredStateTags;
+
+	/** 所有任务条件均满足时才显示并允许执行节点；空列表表示不限制任务状态。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="任务状态限制")
+	TArray<FLxInteractionQuestRequirement> RequiredQuests;
 };
 
 /** 机关状态和该状态下提示文本的映射。 */
@@ -169,4 +193,30 @@ struct FLxFunctionPageInteractionConfig
 	/** 功能节点被选择后需要打开的功能页面。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|功能界面", DisplayName = "功能页面ID")
 	ELxFunctionPageID FunctionPageID = ELxFunctionPageID::EquipmentEnhancement;
+};
+
+/** 单个任务交互节点使用的任务标识配置。 */
+USTRUCT(BlueprintType, DisplayName="任务交互配置")
+struct FLxQuestInteractionConfig
+{
+	GENERATED_BODY()
+
+	/** 开启时使用任务可视化名称，关闭时使用节点自定义交互提示文本。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|任务", DisplayName="使用任务可视化文本")
+	bool bUseQuestDisplayText = true;
+
+	/** 当前交互节点引用的任务系列标签ID。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|任务", DisplayName="任务系列ID", meta=(Categories="任务"))
+	FGameplayTag QuestSeriesId;
+
+	/** 当前交互节点引用的任务标签ID，必须是任务系列ID的严格子标签。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|任务", DisplayName="任务ID", meta=(Categories="任务"))
+	FGameplayTag QuestId;
+
+	/** 判断系列ID和任务ID是否组成有效的父子标签关系。 */
+	bool IsValid() const
+	{
+		return QuestSeriesId.IsValid() && QuestId.IsValid()
+			&& QuestSeriesId != QuestId && QuestId.MatchesTag(QuestSeriesId);
+	}
 };
