@@ -15,7 +15,8 @@ ULxTriggerMechanismInteractionComponent::ULxTriggerMechanismInteractionComponent
 
 void ULxTriggerMechanismInteractionComponent::ApplyConfig(const FLxTriggerMechanismInteractionConfig& InConfig)
 {
-	MechanismState = InConfig.InitialState;
+	// 客户端的机关状态来自服务器复制，不可被资产初始配置覆盖。
+	if (!GetOwner() || GetOwner()->HasAuthority()) MechanismState = InConfig.InitialState;
 	MechanismStatePromptTexts.Reset();
 	for (const FLxMechanismStatePromptText& StatePromptText : InConfig.StatePromptTexts)
 	{
@@ -56,7 +57,7 @@ bool ULxTriggerMechanismInteractionComponent::TriggerMechanism_Implementation(
 			return false;
 		}
 
-		PlayerController->ServerTriggerMechanism(OwnerActor, GetRuntimeNodeIndex());
+		PlayerController->ServerTriggerMechanism(OwnerActor, GetRuntimeNodeIndex(), GetInteractionTreeRevision());
 		return true;
 	}
 

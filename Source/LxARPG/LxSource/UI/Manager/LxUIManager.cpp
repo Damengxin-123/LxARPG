@@ -1,5 +1,8 @@
 #include "LxUIManager.h"
 
+#include "LxARPG/LxSource/UI/Quest/LxQuestDetailWidget.h"
+#include "LxARPG/LxSource/UI/Quest/LxQuestSummaryWidget.h"
+
 #include "Components/CanvasPanelSlot.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -30,6 +33,7 @@ void ULxUIManager::NativeConstruct()
 
 void ULxUIManager::NativeDestruct()
 {
+	if (InteractionUIManager) InteractionUIManager->SetPlayerInteractionComponent(nullptr);
 	HUDUIManager = nullptr;
 	TogglePanelUIManager = nullptr;
 	TooltipUIManager = nullptr;
@@ -270,6 +274,24 @@ void ULxUIManager::RegisterProfessionWidget(ULxProfessionWidget* InProfessionWid
 		bInCloseOtherPanelsWhenOpened);
 }
 
+void ULxUIManager::RegisterQuestDetailWidget(ULxQuestDetailWidget* InQuestWidget)
+{
+	if (InQuestWidget)
+	{
+		InQuestWidget->SetVisibility(ESlateVisibility::Collapsed);
+		RegisterTogglePanelWidget(InQuestWidget, ELxInputActionID::Quest, true, true);
+	}
+}
+
+void ULxUIManager::RegisterQuestSummaryWidget(ULxQuestSummaryWidget* InQuestWidget)
+{
+	if (InQuestWidget)
+	{
+		InQuestWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		RegisterHUDWidget(InQuestWidget);
+	}
+}
+
 void ULxUIManager::RegisterItemTooltipWidget(ULxItemTooltipWidget* InItemTooltipWidget)
 {
 	EnsureDefaultManagementObjects();
@@ -350,6 +372,14 @@ void ULxUIManager::RegisterPopupWidget(ULxUIBaseObject* InPopupWidget, bool bInH
 void ULxUIManager::SetChildUIVisible(ULxUIBaseObject* InChildUIWidget, bool bInVisible)
 {
 	EnsureDefaultManagementObjects();
+
+	// 功能页面使用通用关闭按钮时，也需要结束交互并释放NPC的功能状态。
+	if (!bInVisible && InteractionUIManager && InteractionUIManager->IsActiveFunctionPageWidget(InChildUIWidget))
+	{
+		InteractionUIManager->CloseFunctionPage();
+		UpdateCursorState();
+		return;
+	}
 
 	if (TogglePanelUIManager && TogglePanelUIManager->SetPanelVisible(InChildUIWidget, bInVisible))
 	{

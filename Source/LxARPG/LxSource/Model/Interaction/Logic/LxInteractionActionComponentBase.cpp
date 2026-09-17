@@ -11,9 +11,12 @@ void ULxInteractionActionComponentBase::InitializeInteractionFeature(
 	OwnerInteractableComponent = InOwnerComponent;
 	OwnerInteractionNode = InOwnerNode;
 	RuntimeNodeIndex = InRuntimeNodeIndex;
+	if (!GetOwner() || GetOwner()->HasAuthority())
+		InteractionTreeRevision = InOwnerComponent ? InOwnerComponent->GetInteractionTreeRevision() : INDEX_NONE;
 	if (OwnerInteractionNode)
 	{
-		PromptText = OwnerInteractionNode->GetConfiguredPromptText();
+		if (!GetOwner() || GetOwner()->HasAuthority())
+			PromptText = OwnerInteractionNode->GetConfiguredPromptText();
 		Requirement = OwnerInteractionNode->GetInteractionRequirement();
 	}
 
@@ -53,6 +56,7 @@ void ULxInteractionActionComponentBase::GetLifetimeReplicatedProps(TArray<FLifet
 	DOREPLIFETIME(ULxInteractionActionComponentBase, InteractionState);
 	DOREPLIFETIME(ULxInteractionActionComponentBase, bOpenFunctionUI);
 	DOREPLIFETIME(ULxInteractionActionComponentBase, RuntimeNodeIndex);
+	DOREPLIFETIME(ULxInteractionActionComponentBase, InteractionTreeRevision);
 }
 
 FText ULxInteractionActionComponentBase::GetPromptText() const
@@ -114,4 +118,10 @@ void ULxInteractionActionComponentBase::OnRep_InteractionState()
 {
 	OnInteractionStateChanged.Broadcast(InteractionState);
 	NotifyFeatureDataChanged();
+}
+
+void ULxInteractionActionComponentBase::OnRep_RuntimeBinding()
+{
+	if (ULxInteractableComponent* Component = GetInteractableComponent())
+		Component->RefreshReplicatedInteractionFeatures();
 }

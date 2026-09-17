@@ -2,6 +2,13 @@
 
 #include "LxARPG/LxSource/Model/Quest/DataType/LxQuestSeriesAsset.h"
 #include "GameplayTagsEditorModule.h"
+#include "Framework/Application/SlateApplication.h"
+#include "IDetailsView.h"
+#include "IStructureDetailsView.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "UObject/StructOnScope.h"
+#include "UObject/UnrealType.h"
 #include "SGameplayTagPicker.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SButton.h"
@@ -26,6 +33,8 @@ namespace LxQuestNodeTableColumns
 	const FName DisplayName(TEXT("DisplayName"));
 	const FName Description(TEXT("Description"));
 	const FName QuestContent(TEXT("QuestContent"));
+	/** 奖励列表编辑列。 */
+	const FName Rewards(TEXT("Rewards"));
 }
 
 /** 把一个任务节点定义呈现为可直接编辑的多列表格行。 */
@@ -51,6 +60,22 @@ public:
 	/** 根据列名称创建任务节点字段控件。 */
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
 	{
+		if (ColumnName == LxQuestNodeTableColumns::Rewards)
+		{
+			return SNew(SComboButton)
+				.OnGetMenuContent(this, &SLxQuestNodeTableRow::CreateRewardEditor)
+				.ButtonContent()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]()
+					{
+						const FLxQuestNodeDefinition* QuestNode = FindQuestNode();
+						return FText::Format(LOCTEXT("RewardItemCount", "奖励物品（{0}项）"),
+							FText::AsNumber(QuestNode ? QuestNode->RewardItemList.Num() : 0));
+					})
+				];
+		}
+
 		if (ColumnName == LxQuestNodeTableColumns::QuestId)
 		{
 			return SNew(SComboButton)
@@ -145,6 +170,59 @@ public:
 	}
 
 private:
+	/** 使用标准数组属性编辑器编辑奖励草稿，确认后通过现有事务写回任务节点。 */
+	TSharedRef<SWidget> CreateRewardEditor()
+	{
+		const TSharedRef<FStructOnScope> Draft = MakeShared<FStructOnScope>(FLxQuestNodeDefinition::StaticStruct());
+		if (const FLxQuestNodeDefinition* QuestNode = FindQuestNode())
+		{
+			*reinterpret_cast<FLxQuestNodeDefinition*>(Draft->GetStructMemory()) = *QuestNode;
+		}
+
+		FDetailsViewArgs DetailsArgs;
+		DetailsArgs.bAllowSearch = false;
+		DetailsArgs.bHideSelectionTip = true;
+		FPropertyEditorModule& PropertyEditor = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		RewardDetailsView = PropertyEditor.CreateStructureDetailView(DetailsArgs, FStructureDetailsViewArgs(), nullptr);
+		RewardDetailsView->GetDetailsView()->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateLambda(
+			[](const FPropertyAndParent& Property)
+			{
+				return Property.Property.GetOwnerStruct() != FLxQuestNodeDefinition::StaticStruct()
+					|| Property.Property.GetFName() == GET_MEMBER_NAME_CHECKED(FLxQuestNodeDefinition, RewardItemList);
+			}));
+		RewardDetailsView->SetStructureData(Draft);
+
+		return SNew(SBox)
+			.WidthOverride(500.0f)
+			.HeightOverride(360.0f)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot().FillHeight(1.0f)
+				[
+					RewardDetailsView->GetWidget().ToSharedRef()
+				]
+				+ SVerticalBox::Slot().AutoHeight().Padding(4.0f)
+				[
+					SNew(SButton)
+					.Text(LOCTEXT("ApplyRewards", "应用奖励配置"))
+					.OnClicked_Lambda([WeakThis = TWeakPtr<SLxQuestNodeTableRow>(SharedThis(this)), Draft]()
+					{
+						if (const TSharedPtr<SLxQuestNodeTableRow> Row = WeakThis.Pin())
+						{
+							Row->EditQuestNode(LOCTEXT("EditRewards", "修改任务奖励"),
+								[&Draft](FLxQuestNodeDefinition& QuestNode)
+								{
+									QuestNode.RewardItemList = reinterpret_cast<const FLxQuestNodeDefinition*>(
+										Draft->GetStructMemory())->RewardItemList;
+								});
+						}
+						FSlateApplication::Get().DismissAllMenus();
+						return FReply::Handled();
+					})
+				]
+			];
+	}
+
 	/** 查询当前行引用的任务节点定义。 */
 	const FLxQuestNodeDefinition* FindQuestNode() const
 	{
@@ -238,6 +316,9 @@ private:
 
 	/** 当前打开的任务ID下拉控件所编辑的标签值。 */
 	TSharedPtr<FGameplayTag> EditedQuestId;
+
+	/** 当前奖励编辑弹层，持有属性视图及其临时草稿。 */
+	TSharedPtr<IStructureDetailsView> RewardDetailsView;
 };
 
 void SLxQuestNodeTable::Construct(const FArguments& InArgs)
@@ -323,6 +404,9 @@ void SLxQuestNodeTable::Construct(const FArguments& InArgs)
 				+ SHeaderRow::Column(LxQuestNodeTableColumns::QuestContent)
 				.DefaultLabel(LOCTEXT("QuestContentColumn", "任务内容"))
 				.FillWidth(1.5f)
+				+ SHeaderRow::Column(LxQuestNodeTableColumns::Rewards)
+				.DefaultLabel(LOCTEXT("RewardsColumn", "任务奖励"))
+				.FillWidth(1.0f)
 			)
 		]
 		+ SVerticalBox::Slot()

@@ -1,15 +1,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 #include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionOption.h"
 #include "LxDialogueInteractionWidget.generated.h"
 
 class ULxPlayerInteractionModule;
+class ULxOptionViewData;
 
-/** 对话交互UI，负责显示已经触发的入口/对话节点内容，并把选项选择回传给玩家交互组件。 */
-UCLASS(Blueprintable, BlueprintType, DisplayName="对话交互UI")
+/** 交互对话框，显示NPC发言和ListView选项，并将条目回调提交到对应交互节点。 */
+UCLASS(Blueprintable, BlueprintType, DisplayName="交互对话框")
 class LXARPG_API ULxDialogueInteractionWidget : public ULxUIBaseObject
 {
 	GENERATED_BODY()
@@ -30,22 +30,34 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取对话选项提示文本")
 	FText GetDialogueOptionPromptText(int32 OptionIndex) const;
 
+	/** 获取供选项列表项控件使用的显示数据，顺序与对话选项下标一致。 */
+	UFUNCTION(BlueprintPure, Category="交互UI", DisplayName="获取对话框选项视图数据")
+	TArray<ULxOptionViewData*> GetDialogueOptionViewData() const { return CachedDialogueOptionViewData; }
+
+	/** 获取当前选中的显示下标；空列表时为 INDEX_NONE。 */
+	UFUNCTION(BlueprintPure, Category="交互UI", DisplayName="获取当前对话框选项下标")
+	int32 GetCurrentDialogueOptionIndex() const { return CurrentDialogueOptionIndex; }
+
 	/** 蓝图选择某个选项后调用，C++会用下标找到对应选项并继续触发交互树。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="提交对话选项下标")
 	void SubmitDialogueOptionIndex(int32 OptionIndex);
 
-	/** 对话内容更新时调用，蓝图可根据NPC发言文本和选项提示文本刷新界面。 */
-	UFUNCTION(BlueprintImplementableEvent, Category="交互UI", DisplayName="对话交互更新")
-	void OnDialogueInteractionUpdated(const FText& NpcDialogueText, const TArray<FText>& OptionPromptTexts);
+	/** 蓝图更新NPC发言，并用 Set List Items 将数据交给使用选项列表项控件的 ListView。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="交互UI", DisplayName="交互对话框更新")
+	void OnDialogueInteractionUpdated(const FText& NpcDialogueText, const TArray<ULxOptionViewData*>& Options);
 
 private:
 	void BindPlayerInteractionComponent();
 	void UnbindPlayerInteractionComponent();
-	void RebuildDialoguePromptTexts();
+	/** 重建条目数据及选中状态，并绑定显示下标对应的交互回调。 */
+	void RebuildDialogueOptionViewData();
+	/** 解除旧条目回调，避免已替换或关闭的对话选项继续触发。 */
+	void InvalidateDialogueOptionCallbacks();
+	/** 向蓝图发送NPC发言和当前选项数据。 */
+	void BroadcastDialogueUpdated();
 	void ShowDialogueInteraction(FText NpcDialogueText);
 	void HideDialogueInteraction();
 	void SetMouseCursorVisible(bool bInVisible);
-	bool ShouldHandleInteractionType(ELxInteractionActionType InteractionType) const;
 
 	UFUNCTION()
 	void HandleCurrentInteractionOptionsUpdated(const TArray<FLxInteractionOption>& Options);
@@ -64,7 +76,15 @@ private:
 	UPROPERTY(Transient)
 	TArray<FLxInteractionOption> CachedDialogueOptions;
 
-	/** 当前节点子选项的提示文本缓存，顺序与CachedDialogueOptions一致。 */
+	/** ListView使用的选项显示数据，编号对应过滤返回项后的业务选项。 */
 	UPROPERTY(Transient)
-	TArray<FText> CachedDialogueOptionPromptTexts;
+	TArray<ULxOptionViewData*> CachedDialogueOptionViewData;
+
+	/** 对话框唯一的选择编号，新选项默认选中第一项。 */
+	UPROPERTY(Transient)
+	int32 CurrentDialogueOptionIndex = INDEX_NONE;
+
+	/** 当前显示的NPC发言，用于选项独立刷新时保持对话内容。 */
+	UPROPERTY(Transient)
+	FText CachedNpcDialogueText;
 };

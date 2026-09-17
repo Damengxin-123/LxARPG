@@ -46,6 +46,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="交互|功能模块", DisplayName="获取运行时节点序号")
 	int32 GetRuntimeNodeIndex() const { return RuntimeNodeIndex; }
 
+	/** 该模块对应的交互树版本，避免资产重载后错误绑定。 */
+	int32 GetInteractionTreeRevision() const { return InteractionTreeRevision; }
+
 	/** 获取此功能组件声明的交互类型，用于和节点类型做校验。 */
 	UFUNCTION(BlueprintPure, Category="交互|功能模块", DisplayName="获取交互行为类型")
 	ELxInteractionActionType GetInteractionActionType() const { return InteractionActionType; }
@@ -143,8 +146,16 @@ private:
 	TObjectPtr<ULxInteractionNode> OwnerInteractionNode = nullptr;
 
 	/** 功能节点在当前交互树中的稳定运行时序号。 */
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing=OnRep_RuntimeBinding)
 	int32 RuntimeNodeIndex = INDEX_NONE;
+
+	/** 创建模块时所属服务器交互树版本。 */
+	UPROPERTY(ReplicatedUsing=OnRep_RuntimeBinding)
+	int32 InteractionTreeRevision = INDEX_NONE;
+
+	/** 绑定标识到齐后通知组件重新绑定节点。 */
+	UFUNCTION(Category="交互|同步", DisplayName="同步交互功能绑定")
+	void OnRep_RuntimeBinding();
 
 	/** 应用复制的交互状态并广播变化事件。 */
 	UFUNCTION()

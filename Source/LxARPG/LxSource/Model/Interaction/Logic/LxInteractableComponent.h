@@ -11,6 +11,8 @@ class UActorChannel;
 class UPrimitiveComponent;
 class ULxInteractionActionComponentBase;
 class ULxInteractionNode;
+class ULxInteractionTreeAsset;
+class USphereComponent;
 class ULxPlayerInteractionModule;
 class FOutBunch;
 struct FReplicationFlags;
@@ -38,6 +40,36 @@ class LXARPG_API ULxInteractableComponent : public ULxComponentBase
 	GENERATED_BODY()
 
 public:
+	/** 指定后自动从资产创建独立交互树和功能模块，无需蓝图手动构建。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_InteractionTree, Category="交互|流程", DisplayName="交互树资产")
+	TObjectPtr<ULxInteractionTreeAsset> InteractionTreeAsset;
+
+	/** 当前NPC的功能开关与内容；仅为交互树中已有且启用的功能节点创建模块。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_FeatureConfig, Category="交互|功能", DisplayName="交互功能配置", meta=(ShowOnlyInnerProperties))
+	FLxInteractableFeatureConfig FeatureConfig;
+
+	/** 使用资产且未手动绑定范围时，自动创建NPC交互范围。 */
+	UPROPERTY(EditAnywhere, Category="交互|范围", DisplayName="自动创建资产交互范围", meta=(EditCondition="InteractionTreeAsset != nullptr", EditConditionHides))
+	bool bCreateAssetInteractionRange = true;
+
+	/** 自动交互球形范围的半径，单位厘米。 */
+	UPROPERTY(EditAnywhere, Category="交互|范围", DisplayName="资产交互范围半径", meta=(ClampMin="1", Units="cm", EditCondition="InteractionTreeAsset != nullptr && bCreateAssetInteractionRange", EditConditionHides))
+	float AssetInteractionRangeRadius = 250.0f;
+
+	/** 显式重新载入资产；通常由组件初始化自动调用。 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="交互|流程", DisplayName="加载交互树资产")
+	bool LoadInteractionTreeAsset();
+
+	/** 由服务器替换交互树资产；传空卸载，切换时关闭原交互窗口。 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="交互|流程", DisplayName="设置交互树资产")
+	bool SetInteractionTreeAsset(UPARAM(DisplayName="交互树资产") ULxInteractionTreeAsset* InAsset);
+
+	/** 获取当前服务器交互树版本，用于拒绝旧功能模块绑定。 */
+	int32 GetInteractionTreeRevision() const { return InteractionTreeRevision; }
+
+	/** 子对象的复制信息到齐后尝试绑定本地资产节点。 */
+	void RefreshReplicatedInteractionFeatures();
+
 	/** 创建统一交互功能提供组件并启用组件复制。 */
 	ULxInteractableComponent();
 
@@ -48,16 +80,6 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual bool ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch,
 		FReplicationFlags* RepFlags) override;
-
-	/** 设置根交互节点列表。 */
-	void SetRootInteractionNodes(const TArray<ULxInteractionNode*>& InRootNodes);
-
-	/** 使用蓝图纯函数创建的根节点构建完整交互树，并创建细节面板中已启用的功能模块。 */
-	UFUNCTION(BlueprintCallable, Category="交互|流程", DisplayName="构建交互树", meta=(AutoCreateRefTerm="RootNodes"))
-	void BuildInteractionTree(UPARAM(DisplayName="根节点列表") TArray<ULxInteractionNode*> RootNodes);
-
-	/** 添加一个根交互节点。 */
-	void AddRootInteractionNode(ULxInteractionNode* InRootNode);
 
 	/** 获取全部根交互节点。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取根交互节点列表")
@@ -128,6 +150,41 @@ public:
 	FOnLxInteractableComponentEndPlayNative OnInteractableComponentEndPlayNative;
 
 private:
+	/** 按当前资产重建本地节点，服务器额外创建独立功能实例。 */
+	bool RebuildInteractionTree();
+
+	/** 清理旧节点和功能绑定，并通知正在交互的玩家关闭界面。 */
+	void ClearInteractionTree();
+
+	/** 根据资产是否已加载维护自动范围，保留显式绑定的碰撞体。 */
+	void RefreshAssetInteractionRange();
+
+	/** 收到资产或版本更新后重新生成客户端节点。 */
+	UFUNCTION(Category="交互|同步", DisplayName="同步交互树资产")
+	void OnRep_InteractionTree();
+
+	/** NPC配置到达客户端后重新应用到已绑定模块，兼容复制到达顺序。 */
+	UFUNCTION()
+	void OnRep_FeatureConfig();
+
+	/** 每次服务器重建递增，防止相同节点序号绑定到旧功能实例。 */
+	UPROPERTY(ReplicatedUsing=OnRep_InteractionTree)
+	int32 InteractionTreeRevision = 0;
+
+	/** 本地节点已应用的资产版本。 */
+	int32 LoadedInteractionTreeRevision = INDEX_NONE;
+
+	/** 自动创建的范围组件，仅属于当前NPC。 */
+	UPROPERTY(Transient)
+	TObjectPtr<USphereComponent> AssetInteractionRange;
+
+	/** 为已构建的节点创建模块，避免资产加载入口递归调用。 */
+	void InitializeBuiltTreeFeatures();
+
+	/** 已实例化的资产，用于避免多次初始化重置宝箱或仓库状态。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxInteractionTreeAsset> LoadedInteractionTreeAsset;
+
 	/** 为当前碰撞体列表绑定重叠事件，重复调用不会重复注册。 */
 	void BindInteractionRangeColliders();
 
@@ -164,10 +221,10 @@ private:
 	/** 根据功能节点的交互类型创建对应 UObject 功能模块。 */
 	ULxInteractionActionComponentBase* CreateInteractionFeatureForNode(ULxInteractionNode* InteractionNode);
 
-	/** 判断细节面板是否启用了指定功能。 */
+	/** 判断交互树与当前NPC组件是否同时启用了指定功能。 */
 	bool IsInteractionFeatureEnabled(ELxInteractionActionType InteractionType) const;
 
-	/** 把组件或节点配置应用到新创建的功能模块。 */
+	/** 把当前NPC的内容配置应用到功能模块。 */
 	void ApplyFeatureConfigToFeature(ULxInteractionActionComponentBase* InteractionFeature,
 		const ULxInteractionNode* InteractionNode) const;
 
@@ -178,61 +235,9 @@ private:
 	UFUNCTION()
 	void OnRep_InteractionFeatures();
 
-	/** 当前蓝图构建出的根交互节点列表，顺序决定入口UI展示顺序。 */
+	/** 当前资产生成的根交互节点列表，顺序决定入口UI展示顺序。 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category="交互|流程", DisplayName="运行时根交互节点列表", meta=(AllowPrivateAccess="true"))
 	TArray<TObjectPtr<ULxInteractionNode>> RootInteractionNodes;
-
-	/** 是否启用宝箱功能；启用后才创建宝箱功能节点对应的模块。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="启用宝箱功能", meta=(AllowPrivateAccess="true"))
-	bool bEnableTreasureChest = false;
-
-	/** 宝箱的物品及完成条件配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="宝箱功能配置", meta=(AllowPrivateAccess="true", EditCondition="bEnableTreasureChest", EditConditionHides))
-	FLxTreasureChestInteractionConfig TreasureChestConfig;
-
-	/** 是否启用仓库功能；启用后才创建仓库功能节点对应的模块。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="启用仓库功能", meta=(AllowPrivateAccess="true"))
-	bool bEnableWarehouse = false;
-
-	/** 仓库的槽位数量配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="仓库功能配置", meta=(AllowPrivateAccess="true", EditCondition="bEnableWarehouse", EditConditionHides))
-	FLxWarehouseInteractionConfig WarehouseConfig;
-
-	/** 是否启用交易功能；启用后才创建交易功能节点对应的模块。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="启用交易功能", meta=(AllowPrivateAccess="true"))
-	bool bEnableTradeContainer = false;
-
-	/** 交易商品、金币及价值倍率配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="交易功能配置", meta=(AllowPrivateAccess="true", EditCondition="bEnableTradeContainer", EditConditionHides))
-	FLxTradeContainerInteractionConfig TradeContainerConfig;
-
-	/** 是否启用机关功能；启用后才创建机关功能节点对应的模块。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="启用机关功能", meta=(AllowPrivateAccess="true"))
-	bool bEnableTriggerMechanism = false;
-
-	/** 机关的初始状态及各状态提示文本配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="机关功能配置", meta=(AllowPrivateAccess="true", EditCondition="bEnableTriggerMechanism", EditConditionHides))
-	FLxTriggerMechanismInteractionConfig TriggerMechanismConfig;
-
-	/** 是否启用物品传递功能；启用后才创建物品传递功能节点对应的模块。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="启用物品传递功能", meta=(AllowPrivateAccess="true"))
-	bool bEnableItemTransfer = false;
-
-	/** 物品传递的物品列表及方向配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="物品传递功能配置", meta=(AllowPrivateAccess="true", EditCondition="bEnableItemTransfer", EditConditionHides))
-	FLxItemTransferInteractionConfig ItemTransferConfig;
-
-	/** 是否启用功能界面功能；启用后才创建功能界面节点对应的模块。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="启用功能界面功能", meta=(AllowPrivateAccess="true"))
-	bool bEnableFunctionPage = false;
-
-	/** 选择功能节点后打开的功能界面配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="功能界面配置", meta=(AllowPrivateAccess="true", EditCondition="bEnableFunctionPage", EditConditionHides))
-	FLxFunctionPageInteractionConfig FunctionPageConfig;
-
-	/** 是否启用任务交互功能；每个任务节点分别保存自己的任务ID配置。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|功能配置", DisplayName="启用任务交互功能", meta=(AllowPrivateAccess="true"))
-	bool bEnableQuestInteraction = false;
 
 	/** 当前交互树创建的运行时功能模块，由组件统一持有和复制。 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing=OnRep_InteractionFeatures,

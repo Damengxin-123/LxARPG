@@ -7,6 +7,45 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxInteractionData.generated.h"
 
+class ULxUIBaseObject;
+
+/** 单项物品限制，独立配置所需物品数量和生效方式。 */
+USTRUCT(BlueprintType, DisplayName="交互物品需求")
+struct FLxInteractionItemRequirement
+{
+	GENERATED_BODY()
+
+	/** 需要持有的物品标签。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="物品ID", meta=(Categories="物品"))
+	FGameplayTag ItemIDTag;
+
+	/** 需要持有的物品数量，同类必要物品条件的数量累加。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="物品数量", meta=(ClampMin="1", UIMin="1"))
+	int32 ItemCount = 1;
+
+	/** 必要项全部满足；跨类别的可选项至少满足一项。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="生效方式")
+	ELxInteractionRequirementMode Mode = ELxInteractionRequirementMode::Required;
+
+	/** 转换为背包查询使用的物品引用。 */
+	FLxItemQuote ToItemQuote() const { return FLxItemQuote(ItemIDTag, ItemCount); }
+};
+
+/** 单项角色状态标签限制。 */
+USTRUCT(BlueprintType, DisplayName="交互状态需求")
+struct FLxInteractionStateRequirement
+{
+	GENERATED_BODY()
+
+	/** 角色需要持有的状态标签，保留标签层级匹配语义。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="状态标签")
+	FGameplayTag StateTag;
+
+	/** 必要项全部满足；跨类别的可选项至少满足一项。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="生效方式")
+	ELxInteractionRequirementMode Mode = ELxInteractionRequirementMode::Required;
+};
+
 /** 属性类交互需求，例如力量达到指定值后才能交互。 */
 USTRUCT(BlueprintType, DisplayName = "交互属性需求")
 struct FLxInteractionAttributeRequirement
@@ -20,6 +59,10 @@ struct FLxInteractionAttributeRequirement
 	/** 允许交互所需的最小属性值。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|需求", DisplayName = "最小值")
 	float MinValue = 0.0f;
+
+	/** 必要项全部满足；跨类别的可选项至少满足一项。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="生效方式")
+	ELxInteractionRequirementMode Mode = ELxInteractionRequirementMode::Required;
 };
 
 /** 单个任务的状态限制，同一任务可允许多个状态。 */
@@ -39,17 +82,21 @@ struct FLxInteractionQuestRequirement
 	/** 当前任务匹配任一状态即可；空列表不满足条件，默认要求任务已完成。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="允许的任务状态")
 	TArray<ELxQuestRuntimeState> AllowedStates = {ELxQuestRuntimeState::Completed};
+
+	/** 必要项全部满足；跨类别的可选项至少满足一项。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="生效方式")
+	ELxInteractionRequirementMode Mode = ELxInteractionRequirementMode::Required;
 };
 
 /** 交互行为的通用需求集合，由交互节点统一检查。 */
 USTRUCT(BlueprintType, DisplayName = "交互需求")
-struct FLxInteractionRequirement
+struct LXARPG_API FLxInteractionRequirement
 {
 	GENERATED_BODY()
 
 	/** 所需物品列表。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|需求", DisplayName = "所需物品列表")
-	TArray<FLxItemQuote> RequiredItems;
+	TArray<FLxInteractionItemRequirement> ItemRequirements;
 
 	/** 所需属性列表。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|需求", DisplayName = "所需属性列表")
@@ -57,11 +104,30 @@ struct FLxInteractionRequirement
 
 	/** 所需状态标签。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|需求", DisplayName = "所需状态标签")
-	FGameplayTagContainer RequiredStateTags;
+	TArray<FLxInteractionStateRequirement> StateRequirements;
 
-	/** 所有任务条件均满足时才显示并允许执行节点；空列表表示不限制任务状态。 */
+	/** 每项检查一个任务的允许状态，并按生效方式与其他类别条件组合。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|需求", DisplayName="任务状态限制")
 	TArray<FLxInteractionQuestRequirement> RequiredQuests;
+
+	/** 加载旧资产时，将旧物品列表和状态容器迁移为必要条件，并清空旧数据。 */
+	void PostSerialize(const FArchive& Ar);
+
+private:
+	/** 仅用于读取旧版物品限制；新配置统一保存到 ItemRequirements。 */
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="使用逐项配置的物品限制"))
+	TArray<FLxItemQuote> RequiredItems_DEPRECATED;
+
+	/** 仅用于读取旧版状态限制；新配置统一保存到 StateRequirements。 */
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="使用逐项配置的状态限制"))
+	FGameplayTagContainer RequiredStateTags_DEPRECATED;
+};
+
+/** 让嵌套在交互资产中的限制配置在反序列化后执行旧字段迁移。 */
+template<>
+struct TStructOpsTypeTraits<FLxInteractionRequirement> : TStructOpsTypeTraitsBase2<FLxInteractionRequirement>
+{
+	enum { WithPostSerialize = true };
 };
 
 /** 机关状态和该状态下提示文本的映射。 */
@@ -137,10 +203,6 @@ struct FLxTradeContainerInteractionConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "商城商品列表")
 	TArray<FLxTradeItemConfig> TradeItems;
 
-	/** 旧商城商品列表，仅用于读取并兼容尚未迁移的蓝图数据。 */
-	UPROPERTY(BlueprintReadOnly, Category = "交互|商城")
-	TArray<FLxItemQuote> ItemList;
-
 	/** 交易使用的金币物品标签。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "金币物品ID", meta = (Categories = "物品"))
 	FGameplayTag GoldItemIDTag = LxTag_Item_Material_Currency_Gold;
@@ -190,9 +252,82 @@ struct FLxFunctionPageInteractionConfig
 {
 	GENERATED_BODY()
 
+	/** 选择功能节点后创建的自定义页面；留空时该节点不可交互。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|功能界面", DisplayName = "功能页面类")
+	TSubclassOf<ULxUIBaseObject> PageWidgetClass;
+
 	/** 功能节点被选择后需要打开的功能页面。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|功能界面", DisplayName = "功能页面ID")
 	ELxFunctionPageID FunctionPageID = ELxFunctionPageID::EquipmentEnhancement;
+};
+
+/** 每个NPC独立配置的功能开关与初始内容，运行时状态由功能模块持有。 */
+USTRUCT(BlueprintType, DisplayName="角色交互功能配置")
+struct FLxInteractableFeatureConfig
+{
+	GENERATED_BODY()
+
+	/** 当前NPC是否启用宝箱功能。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="启用宝箱功能")
+	bool bEnableTreasureChest = false;
+	/** 当前NPC的宝箱初始内容。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="宝箱配置", meta=(EditCondition="bEnableTreasureChest", EditConditionHides))
+	FLxTreasureChestInteractionConfig TreasureChestConfig;
+
+	/** 当前NPC是否启用仓库功能。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="启用仓库功能")
+	bool bEnableWarehouse = false;
+	/** 当前NPC的仓库初始内容。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="仓库配置", meta=(EditCondition="bEnableWarehouse", EditConditionHides))
+	FLxWarehouseInteractionConfig WarehouseConfig;
+
+	/** 当前NPC是否启用交易功能。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="启用交易功能")
+	bool bEnableTradeContainer = false;
+	/** 当前NPC的交易初始内容。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="交易配置", meta=(EditCondition="bEnableTradeContainer", EditConditionHides))
+	FLxTradeContainerInteractionConfig TradeContainerConfig;
+
+	/** 当前NPC是否启用机关功能。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="启用机关功能")
+	bool bEnableTriggerMechanism = false;
+	/** 当前NPC的机关初始内容。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="机关配置", meta=(EditCondition="bEnableTriggerMechanism", EditConditionHides))
+	FLxTriggerMechanismInteractionConfig TriggerMechanismConfig;
+
+	/** 当前NPC是否启用物品传递功能。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="启用物品传递功能")
+	bool bEnableItemTransfer = false;
+	/** 当前NPC的物品传递初始内容。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="物品传递配置", meta=(EditCondition="bEnableItemTransfer", EditConditionHides))
+	FLxItemTransferInteractionConfig ItemTransferConfig;
+
+	/** 当前NPC是否启用功能界面功能。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="启用功能界面功能")
+	bool bEnableFunctionPage = false;
+	/** 当前NPC的功能界面初始内容。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="功能界面配置", meta=(EditCondition="bEnableFunctionPage", EditConditionHides))
+	FLxFunctionPageInteractionConfig FunctionPageConfig;
+
+	/** 当前NPC是否启用任务功能；具体任务仍由各任务节点引用。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="功能", DisplayName="启用任务功能")
+	bool bEnableQuest = false;
+
+	/** 查询当前NPC是否启用了指定功能。 */
+	bool IsEnabled(ELxInteractionActionType Type) const
+	{
+		switch (Type)
+		{
+		case ELxInteractionActionType::TreasureChest: return bEnableTreasureChest;
+		case ELxInteractionActionType::Warehouse: return bEnableWarehouse;
+		case ELxInteractionActionType::TradeContainer: return bEnableTradeContainer;
+		case ELxInteractionActionType::TriggerMechanism: return bEnableTriggerMechanism;
+		case ELxInteractionActionType::ItemTransfer: return bEnableItemTransfer;
+		case ELxInteractionActionType::FunctionPage: return bEnableFunctionPage;
+		case ELxInteractionActionType::Quest: return bEnableQuest;
+		default: return false;
+		}
+	}
 };
 
 /** 单个任务交互节点使用的任务标识配置。 */

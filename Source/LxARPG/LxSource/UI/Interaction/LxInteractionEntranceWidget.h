@@ -1,12 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 #include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionOption.h"
 #include "LxInteractionEntranceWidget.generated.h"
 
 class ULxPlayerInteractionModule;
+class ULxOptionViewData;
 
 /** 交互入口UI，负责显示可交互入口选项，并把触发输入提交到当前选中的入口选项。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="交互入口UI")
@@ -31,17 +31,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取入口选项提示文本")
 	FText GetEntranceOptionPromptText(int32 OptionIndex) const;
 
-	/** 获取当前选中的入口选项下标；该下标等于上方提示文本表的数量。 */
+	/** 获取当前选中的入口选项下标；没有选项时为 INDEX_NONE。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取当前入口选项下标")
-	int32 GetCurrentEntranceOptionIndex() const;
+	int32 GetCurrentEntranceOptionIndex() const { return CurrentEntranceOptionIndex; }
 
-	/** 获取显示在当前选项上方的提示文本表。 */
-	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取当前选项上方提示文本表")
-	TArray<FText> GetUpperPromptTexts() const { return CachedUpperPromptTexts; }
-
-	/** 获取当前选项及其下方的提示文本表；第一个元素就是当前选项。 */
-	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="获取当前及下方提示文本表")
-	TArray<FText> GetCurrentAndLowerPromptTexts() const { return CachedCurrentAndLowerPromptTexts; }
+	/** 获取当前入口选项视图数据，供蓝图 ListView 设置列表项。 */
+	UFUNCTION(BlueprintPure, Category="交互UI", DisplayName="获取入口选项视图数据")
+	TArray<ULxOptionViewData*> GetEntranceOptionViewData() const { return CachedEntranceOptions; }
 
 	/** 按指定下标提交入口选项，触发后续交互逻辑。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="提交入口选项下标")
@@ -51,13 +47,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="提交当前入口选项")
 	void SubmitCurrentEntranceOption();
 
-	/** 根据鼠标滚轮值滚动入口选项；向下滚把当前项移入上方表，向上滚把上方表最后一项移回当前项。 */
+	/** 根据鼠标滚轮值切换选项；负值选下一项，正值选上一项，到首尾停止。 */
 	UFUNCTION(BlueprintCallable, Category="交互UI", DisplayName="滚动入口选项")
 	void ScrollEntrancePromptTexts(float MouseWheelValue);
 
-	/** 入口提示文本表更新时调用；蓝图可分别刷新当前选项上方列表、当前及下方列表。 */
-	UFUNCTION(BlueprintImplementableEvent, Category="交互UI", DisplayName="入口提示文本表更新")
-	void OnEntrancePromptTextsUpdated(const TArray<FText>& UpperPromptTexts, const TArray<FText>& CurrentAndLowerPromptTexts);
+	/** 入口选项或选择编号更新时发送新数据；蓝图用 Set List Items 刷新单个 ListView。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="交互UI", DisplayName="入口选项视图数据更新")
+	void OnEntranceOptionViewDataUpdated(const TArray<ULxOptionViewData*>& Options);
 
 	/** 交互触发键按下后调用；默认提交当前入口选项，蓝图可重写。 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category="交互UI", DisplayName="交互触发键按下")
@@ -72,13 +68,24 @@ protected:
 private:
 	void BindPlayerInteractionComponent();
 	void UnbindPlayerInteractionComponent();
-	void ResetPromptTextTables();
-	void BroadcastPromptTextTablesUpdated();
+	/** 创建包含显示状态和编号回调的入口选项数据。 */
+	ULxOptionViewData* CreateEntranceOptionViewData(const FText& Text, int32 OptionIndex);
+	/** 解除旧数据的回调，避免列表重建后旧条目触发同编号的新选项。 */
+	void InvalidateEntranceOptionCallbacks();
+	/** 按当前编号重建显示数据，让 ListView 重新绑定条目并刷新选中效果。 */
+	void RefreshEntranceOptionSelection();
+	/** 把当前视图数据发送给蓝图。 */
+	void BroadcastEntranceOptionViewDataUpdated();
 	void UpdateEntranceVisibilityAndInputRegistration();
-	bool ShouldHideEntranceAfterSelection(const FLxInteractionOption& Option) const;
-	/** 入口选项成功触发后隐藏入口UI，并取消入口触发键监听。 */
-	void HideEntranceAfterSelection();
 	bool ShouldShowEntrance() const;
+
+	/** 交互进入导航或功能阶段后，立即同步入口提示及输入监听。 */
+	UFUNCTION()
+	void HandleInteractionOptionActivated(const FLxInteractionOption& Option, ELxInteractionActionType InteractionType);
+
+	/** 当前交互结束后，根据最新候选入口恢复提示及输入监听。 */
+	UFUNCTION()
+	void HandleInteractionCancelled();
 
 	UFUNCTION()
 	void HandleEntranceOptionsUpdated(const TArray<FLxInteractionOption>& Options);
@@ -87,17 +94,13 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<ULxPlayerInteractionModule> PlayerInteractionComponent = nullptr;
 
-	/** 当前入口选项完整缓存，用于通过下标执行真实交互。 */
+	/** 当前入口列表的显示数据；真实交互选项由玩家交互模块维护。 */
 	UPROPERTY(Transient)
-	TArray<FLxInteractionOption> CachedEntranceOptions;
+	TArray<ULxOptionViewData*> CachedEntranceOptions;
 
-	/** UI布局中显示在当前选项上方的提示文本缓存。 */
+	/** 入口UI唯一的选择状态，以列表序号记录。 */
 	UPROPERTY(Transient)
-	TArray<FText> CachedUpperPromptTexts;
-
-	/** UI布局中显示当前选项及其下方选项的提示文本缓存，第一个元素为当前选项。 */
-	UPROPERTY(Transient)
-	TArray<FText> CachedCurrentAndLowerPromptTexts;
+	int32 CurrentEntranceOptionIndex = INDEX_NONE;
 
 	bool bIsInteractionInputRegistered = false;
 };

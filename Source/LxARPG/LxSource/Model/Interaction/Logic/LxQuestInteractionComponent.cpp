@@ -43,8 +43,9 @@ FText ULxQuestInteractionComponent::GetPromptText() const
 bool ULxQuestInteractionComponent::CheckInteractionRequirement_Implementation(
 	ULxPlayerInteractionModule* PlayerInteractionComponent) const
 {
+	FLxQuestNodeDefinition QuestNode;
 	if (!Super::CheckInteractionRequirement_Implementation(PlayerInteractionComponent)
-		|| !IsStaticQuestConfigurationAvailable())
+		|| !GetQuestDefinition(QuestNode))
 	{
 		return false;
 	}
@@ -83,7 +84,7 @@ bool ULxQuestInteractionComponent::ExecuteInteraction_Implementation(
 			return false;
 		}
 
-		PlayerController->ServerExecuteQuestInteraction(InteractionOwner, GetRuntimeNodeIndex());
+		PlayerController->ServerExecuteQuestInteraction(InteractionOwner, GetRuntimeNodeIndex(), GetInteractionTreeRevision());
 		return true;
 	}
 
@@ -102,8 +103,22 @@ bool ULxQuestInteractionComponent::ExecuteInteraction_Implementation(
 	}
 	else if (DataTransferComponent->CanSubmitQuest(QuestConfig.QuestSeriesId, QuestConfig.QuestId))
 	{
+		FLxQuestNodeDefinition QuestNode;
+		if (!GetQuestDefinition(QuestNode)
+			|| (!QuestNode.RewardItemList.IsEmpty()
+				&& !DataTransferComponent->CanAddItemListToBackpack(QuestNode.RewardItemList)))
+		{
+			return false;
+		}
+
 		bSucceeded = DataTransferComponent->SubmitQuest(
 			QuestConfig.QuestSeriesId, QuestConfig.QuestId);
+		if (bSucceeded && !QuestNode.RewardItemList.IsEmpty())
+		{
+			// 完成状态先阻止重复提交；物品始终通过提交者的数据中转组件发放。
+			bSucceeded = DataTransferComponent->AddItemListToBackpack(QuestNode.RewardItemList);
+			ensureMsgf(bSucceeded, TEXT("任务 %s 提交后奖励发放失败"), *QuestConfig.QuestId.ToString());
+		}
 	}
 
 	if (bSucceeded)
@@ -129,18 +144,17 @@ ULxCharacterDataTransferComponent* ULxQuestInteractionComponent::ResolveDataTran
 	return PlayerCharacter ? PlayerCharacter->GetCharacterDataTransferComponent() : nullptr;
 }
 
-bool ULxQuestInteractionComponent::IsStaticQuestConfigurationAvailable() const
+bool ULxQuestInteractionComponent::GetQuestDefinition(FLxQuestNodeDefinition& OutQuestNode) const
 {
 	if (!QuestConfig.IsValid())
 	{
 		return false;
 	}
 
-	// 无游戏实例的自动化测试世界只能验证交互与状态机；正常游戏世界必须通过静态任务索引校验。
 	ULxGameInstanceSubsystem* GameInstanceSubsystem = ULxGameInstanceSubsystem::GetInstance(GetWorld());
 	if (!GameInstanceSubsystem)
 	{
-		return true;
+		return false;
 	}
 
 	ULxGlobalStaticDataManager* GlobalStaticDataManager =
@@ -153,7 +167,6 @@ bool ULxQuestInteractionComponent::IsStaticQuestConfigurationAvailable() const
 		return false;
 	}
 
-	FLxQuestNodeDefinition QuestNode;
 	return QuestStaticDataModule->GetQuestNode(
-		QuestConfig.QuestSeriesId, QuestConfig.QuestId, QuestNode);
+		QuestConfig.QuestSeriesId, QuestConfig.QuestId, OutQuestNode);
 }

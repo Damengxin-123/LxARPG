@@ -1,12 +1,16 @@
 #include "LxInteractionEntranceWidget.h"
 
-#include "LxARPG/LxSource/Core/Tools/LxString.h"
-#include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionNode.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
+#include "LxARPG/LxSource/UI/Option/LxOptionViewData.h"
 
 void ULxInteractionEntranceWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	BindPlayerInteractionComponent();
+	if (PlayerInteractionComponent)
+	{
+		PlayerInteractionComponent->RefreshEntranceOptions();
+	}
 	UpdateEntranceVisibilityAndInputRegistration();
 }
 
@@ -19,6 +23,9 @@ void ULxInteractionEntranceWidget::NativeDestruct()
 	}
 
 	UnbindPlayerInteractionComponent();
+	InvalidateEntranceOptionCallbacks();
+	CachedEntranceOptions.Reset();
+	CurrentEntranceOptionIndex = INDEX_NONE;
 	Super::NativeDestruct();
 }
 
@@ -50,41 +57,28 @@ void ULxInteractionEntranceWidget::SetPlayerInteractionComponent(ULxPlayerIntera
 	}
 	else
 	{
-		CachedEntranceOptions.Reset();
-		ResetPromptTextTables();
-		BroadcastPromptTextTablesUpdated();
-		UpdateEntranceVisibilityAndInputRegistration();
+		HandleEntranceOptionsUpdated({});
 	}
 }
 
 FText ULxInteractionEntranceWidget::GetEntranceOptionPromptText(int32 OptionIndex) const
 {
-	return CachedEntranceOptions.IsValidIndex(OptionIndex) ? CachedEntranceOptions[OptionIndex].PromptText : FText();
-}
-
-int32 ULxInteractionEntranceWidget::GetCurrentEntranceOptionIndex() const
-{
-	return CachedCurrentAndLowerPromptTexts.Num() > 0 ? CachedUpperPromptTexts.Num() : INDEX_NONE;
+	return CachedEntranceOptions.IsValidIndex(OptionIndex) ? CachedEntranceOptions[OptionIndex]->OptionText : FText();
 }
 
 void ULxInteractionEntranceWidget::SubmitEntranceOptionIndex(int32 OptionIndex)
 {
-	if (!PlayerInteractionComponent || !CachedEntranceOptions.IsValidIndex(OptionIndex))
+	if (!ShouldShowEntrance() || !CachedEntranceOptions.IsValidIndex(OptionIndex))
 	{
 		return;
 	}
 
-	const FLxInteractionOption SelectedOption = CachedEntranceOptions[OptionIndex];
-	if (PlayerInteractionComponent->ActivateInteractionOption(SelectedOption))
+	CurrentEntranceOptionIndex = OptionIndex;
+	PlayerInteractionComponent->SelectEntranceOptionByIndex(CurrentEntranceOptionIndex);
+	UpdateEntranceVisibilityAndInputRegistration();
+	if (ShouldShowEntrance())
 	{
-		if (ShouldHideEntranceAfterSelection(SelectedOption))
-		{
-			HideEntranceAfterSelection();
-		}
-		else
-		{
-			UpdateEntranceVisibilityAndInputRegistration();
-		}
+		RefreshEntranceOptionSelection();
 	}
 }
 
@@ -95,36 +89,31 @@ void ULxInteractionEntranceWidget::SubmitCurrentEntranceOption()
 
 void ULxInteractionEntranceWidget::ScrollEntrancePromptTexts(float MouseWheelValue)
 {
-	if (FMath::IsNearlyZero(MouseWheelValue))
+	if (!ShouldShowEntrance() || !FMath::IsFinite(MouseWheelValue) || FMath::IsNearlyZero(MouseWheelValue))
 	{
 		return;
 	}
 
-	if (MouseWheelValue < 0.0f)
+	const int32 NewOptionIndex = FMath::Clamp(
+		CurrentEntranceOptionIndex + (MouseWheelValue < 0.0f ? 1 : -1), 0, CachedEntranceOptions.Num() - 1);
+	if (NewOptionIndex == CurrentEntranceOptionIndex)
 	{
-		// 向下滚动时，下方表第一个元素从“当前项”变为“上方最后一项”。
-		if (CachedCurrentAndLowerPromptTexts.Num() <= 1)
-		{
-			return;
-		}
-
-		CachedUpperPromptTexts.Add(CachedCurrentAndLowerPromptTexts[0]);
-		CachedCurrentAndLowerPromptTexts.RemoveAt(0);
-	}
-	else
-	{
-		// 向上滚动时，上方表最后一个元素回到下方表开头，成为当前项。
-		if (CachedUpperPromptTexts.IsEmpty())
-		{
-			return;
-		}
-
-		const FText PreviousPromptText = CachedUpperPromptTexts.Last();
-		CachedUpperPromptTexts.RemoveAt(CachedUpperPromptTexts.Num() - 1);
-		CachedCurrentAndLowerPromptTexts.Insert(PreviousPromptText, 0);
+		return;
 	}
 
-	BroadcastPromptTextTablesUpdated();
+	CurrentEntranceOptionIndex = NewOptionIndex;
+	RefreshEntranceOptionSelection();
+}
+
+void ULxInteractionEntranceWidget::RefreshEntranceOptionSelection()
+{
+	InvalidateEntranceOptionCallbacks();
+	for (int32 OptionIndex = 0; OptionIndex < CachedEntranceOptions.Num(); ++OptionIndex)
+	{
+		CachedEntranceOptions[OptionIndex] = CreateEntranceOptionViewData(
+			CachedEntranceOptions[OptionIndex]->OptionText, OptionIndex);
+	}
+	BroadcastEntranceOptionViewDataUpdated();
 }
 
 void ULxInteractionEntranceWidget::HandleInteractionTriggerKeyPressed_Implementation()
@@ -141,6 +130,8 @@ void ULxInteractionEntranceWidget::BindPlayerInteractionComponent()
 
 	PlayerInteractionComponent->OnEntranceOptionsUpdated.RemoveDynamic(this, &ULxInteractionEntranceWidget::HandleEntranceOptionsUpdated);
 	PlayerInteractionComponent->OnEntranceOptionsUpdated.AddDynamic(this, &ULxInteractionEntranceWidget::HandleEntranceOptionsUpdated);
+	PlayerInteractionComponent->OnInteractionOptionActivated.AddUniqueDynamic(this, &ULxInteractionEntranceWidget::HandleInteractionOptionActivated);
+	PlayerInteractionComponent->OnInteractionCancelled.AddUniqueDynamic(this, &ULxInteractionEntranceWidget::HandleInteractionCancelled);
 }
 
 void ULxInteractionEntranceWidget::UnbindPlayerInteractionComponent()
@@ -151,54 +142,65 @@ void ULxInteractionEntranceWidget::UnbindPlayerInteractionComponent()
 	}
 
 	PlayerInteractionComponent->OnEntranceOptionsUpdated.RemoveDynamic(this, &ULxInteractionEntranceWidget::HandleEntranceOptionsUpdated);
+	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveDynamic(this, &ULxInteractionEntranceWidget::HandleInteractionOptionActivated);
+	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxInteractionEntranceWidget::HandleInteractionCancelled);
 }
 
 void ULxInteractionEntranceWidget::HandleEntranceOptionsUpdated(const TArray<FLxInteractionOption>& Options)
 {
-	CachedEntranceOptions = Options;
-	ResetPromptTextTables();
-	BroadcastPromptTextTablesUpdated();
+	InvalidateEntranceOptionCallbacks();
+	CachedEntranceOptions.Reset(Options.Num());
+	CurrentEntranceOptionIndex = Options.IsEmpty() ? INDEX_NONE : 0;
+	for (int32 OptionIndex = 0; OptionIndex < Options.Num(); ++OptionIndex)
+	{
+		CachedEntranceOptions.Add(CreateEntranceOptionViewData(Options[OptionIndex].PromptText, OptionIndex));
+	}
 	UpdateEntranceVisibilityAndInputRegistration();
+	BroadcastEntranceOptionViewDataUpdated();
 }
 
-void ULxInteractionEntranceWidget::ResetPromptTextTables()
+ULxOptionViewData* ULxInteractionEntranceWidget::CreateEntranceOptionViewData(const FText& Text, int32 OptionIndex)
 {
-	CachedUpperPromptTexts.Reset();
-	CachedCurrentAndLowerPromptTexts.Reset();
-	CachedCurrentAndLowerPromptTexts.Reserve(CachedEntranceOptions.Num());
+	ULxOptionViewData* Data = NewObject<ULxOptionViewData>(this);
+	Data->OptionText = Text;
+	Data->OptionIndex = OptionIndex;
+	Data->bSelected = OptionIndex == CurrentEntranceOptionIndex;
+	Data->OnOptionTriggered.BindUObject(this, &ULxInteractionEntranceWidget::SubmitEntranceOptionIndex);
+	return Data;
+}
 
-	// 新入口列表默认选中第一项，因此全部文本先进入“当前及下方”表。
-	for (const FLxInteractionOption& Option : CachedEntranceOptions)
+void ULxInteractionEntranceWidget::InvalidateEntranceOptionCallbacks()
+{
+	for (ULxOptionViewData* Data : CachedEntranceOptions)
 	{
-		CachedCurrentAndLowerPromptTexts.Add(Option.PromptText);
+		Data->OnOptionTriggered.Unbind();
 	}
 }
 
-void ULxInteractionEntranceWidget::BroadcastPromptTextTablesUpdated()
+void ULxInteractionEntranceWidget::BroadcastEntranceOptionViewDataUpdated()
 {
-	OnEntrancePromptTextsUpdated(CachedUpperPromptTexts, CachedCurrentAndLowerPromptTexts);
+	// 使用独立数组，蓝图回调重建入口列表时不会改变本次事件参数。
+	const TArray<ULxOptionViewData*> Options = CachedEntranceOptions;
+	OnEntranceOptionViewDataUpdated(Options);
 }
 
 bool ULxInteractionEntranceWidget::ShouldShowEntrance() const
 {
-	return CachedEntranceOptions.Num() > 0;
+	return PlayerInteractionComponent && PlayerInteractionComponent->CanSelectEntranceOption()
+		&& !CachedEntranceOptions.IsEmpty();
 }
 
-bool ULxInteractionEntranceWidget::ShouldHideEntranceAfterSelection(const FLxInteractionOption& Option) const
+void ULxInteractionEntranceWidget::HandleInteractionOptionActivated(
+	const FLxInteractionOption& Option, ELxInteractionActionType InteractionType)
 {
-	return Option.InteractionType != ELxInteractionActionType::TriggerMechanism ||
-		!Option.InteractionNode ||
-		Option.InteractionNode->GetParentNode() != nullptr;
+	UpdateEntranceVisibilityAndInputRegistration();
 }
 
-void ULxInteractionEntranceWidget::HideEntranceAfterSelection()
+void ULxInteractionEntranceWidget::HandleInteractionCancelled()
 {
-	SetVisibility(ESlateVisibility::Collapsed);
-
-	if (bIsInteractionInputRegistered)
+	if (PlayerInteractionComponent)
 	{
-		UnregisterInputActionReceive(InteractionTriggerInputActionID);
-		bIsInteractionInputRegistered = false;
+		PlayerInteractionComponent->RefreshEntranceOptions();
 	}
 }
 

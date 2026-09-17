@@ -4,11 +4,13 @@
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
+#include "LxARPG/LxSource/UI/Option/LxOptionViewData.h"
 #include "GameFramework/PlayerController.h"
 
 void ULxDialogueInteractionWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	BindPlayerInteractionComponent();
 	HideDialogueInteraction();
 }
 
@@ -27,18 +29,14 @@ void ULxDialogueInteractionWidget::SetPlayerInteractionComponent(ULxPlayerIntera
 	}
 
 	UnbindPlayerInteractionComponent();
+	HideDialogueInteraction();
 	PlayerInteractionComponent = InPlayerInteractionComponent;
 	BindPlayerInteractionComponent();
-
-	if (!PlayerInteractionComponent)
-	{
-		HideDialogueInteraction();
-	}
 }
 
 FText ULxDialogueInteractionWidget::GetDialogueOptionPromptText(int32 OptionIndex) const
 {
-	return CachedDialogueOptionPromptTexts.IsValidIndex(OptionIndex) ? CachedDialogueOptionPromptTexts[OptionIndex] : FText();
+	return CachedDialogueOptions.IsValidIndex(OptionIndex) ? CachedDialogueOptions[OptionIndex].PromptText : FText();
 }
 
 void ULxDialogueInteractionWidget::SubmitDialogueOptionIndex(int32 OptionIndex)
@@ -49,6 +47,7 @@ void ULxDialogueInteractionWidget::SubmitDialogueOptionIndex(int32 OptionIndex)
 	}
 
 	const FLxInteractionOption SelectedOption = CachedDialogueOptions[OptionIndex];
+	CurrentDialogueOptionIndex = OptionIndex;
 	if (!PlayerInteractionComponent->ActivateInteractionOption(SelectedOption))
 	{
 		HideDialogueInteraction();
@@ -84,31 +83,56 @@ void ULxDialogueInteractionWidget::UnbindPlayerInteractionComponent()
 	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxDialogueInteractionWidget::HandleInteractionCancelled);
 }
 
-void ULxDialogueInteractionWidget::RebuildDialoguePromptTexts()
+void ULxDialogueInteractionWidget::RebuildDialogueOptionViewData()
 {
-	CachedDialogueOptionPromptTexts.Reset();
-	CachedDialogueOptionPromptTexts.Reserve(CachedDialogueOptions.Num());
+	InvalidateDialogueOptionCallbacks();
+	CachedDialogueOptionViewData.Reset(CachedDialogueOptions.Num());
 
-	for (const FLxInteractionOption& Option : CachedDialogueOptions)
+	for (int32 OptionIndex = 0; OptionIndex < CachedDialogueOptions.Num(); ++OptionIndex)
 	{
-		CachedDialogueOptionPromptTexts.Add(Option.PromptText);
+		ULxOptionViewData* Data = NewObject<ULxOptionViewData>(this);
+		Data->OptionText = CachedDialogueOptions[OptionIndex].PromptText;
+		Data->OptionIndex = OptionIndex;
+		Data->bSelected = OptionIndex == CurrentDialogueOptionIndex;
+		Data->OnOptionTriggered.BindUObject(this, &ULxDialogueInteractionWidget::SubmitDialogueOptionIndex);
+		CachedDialogueOptionViewData.Add(Data);
 	}
+}
+
+void ULxDialogueInteractionWidget::InvalidateDialogueOptionCallbacks()
+{
+	for (ULxOptionViewData* Data : CachedDialogueOptionViewData)
+	{
+		Data->OnOptionTriggered.Unbind();
+	}
+}
+
+void ULxDialogueInteractionWidget::BroadcastDialogueUpdated()
+{
+	// 蓝图回调可能重建列表，使用快照保持本次事件参数稳定。
+	const FText NpcDialogueText = CachedNpcDialogueText;
+	const TArray<ULxOptionViewData*> Options = CachedDialogueOptionViewData;
+	OnDialogueInteractionUpdated(NpcDialogueText, Options);
 }
 
 void ULxDialogueInteractionWidget::ShowDialogueInteraction(FText NpcDialogueText)
 {
+	CachedNpcDialogueText = NpcDialogueText;
 	SetVisibility(ESlateVisibility::Visible);
 	SetMouseCursorVisible(true);
-	OnDialogueInteractionUpdated(NpcDialogueText, CachedDialogueOptionPromptTexts);
+	BroadcastDialogueUpdated();
 }
 
 void ULxDialogueInteractionWidget::HideDialogueInteraction()
 {
+	InvalidateDialogueOptionCallbacks();
 	CachedDialogueOptions.Reset();
-	CachedDialogueOptionPromptTexts.Reset();
+	CachedDialogueOptionViewData.Reset();
+	CurrentDialogueOptionIndex = INDEX_NONE;
+	CachedNpcDialogueText = FText::GetEmpty();
 	SetVisibility(ESlateVisibility::Collapsed);
 	SetMouseCursorVisible(false);
-	OnDialogueInteractionUpdated(FText(), CachedDialogueOptionPromptTexts);
+	BroadcastDialogueUpdated();
 }
 
 void ULxDialogueInteractionWidget::SetMouseCursorVisible(bool bInVisible)
@@ -145,11 +169,6 @@ void ULxDialogueInteractionWidget::SetMouseCursorVisible(bool bInVisible)
 	}
 }
 
-bool ULxDialogueInteractionWidget::ShouldHandleInteractionType(ELxInteractionActionType InteractionType) const
-{
-	return InteractionType == ELxInteractionActionType::Entrance || InteractionType == ELxInteractionActionType::Dialogue;
-}
-
 void ULxDialogueInteractionWidget::HandleCurrentInteractionOptionsUpdated(const TArray<FLxInteractionOption>& Options)
 {
 	CachedDialogueOptions.Reset();
@@ -163,12 +182,20 @@ void ULxDialogueInteractionWidget::HandleCurrentInteractionOptionsUpdated(const 
 		}
 	}
 
-	RebuildDialoguePromptTexts();
+	CurrentDialogueOptionIndex = CachedDialogueOptions.IsEmpty() ? INDEX_NONE : 0;
+	RebuildDialogueOptionViewData();
+	if (IsVisible())
+	{
+		BroadcastDialogueUpdated();
+	}
 }
 
 void ULxDialogueInteractionWidget::HandleInteractionOptionActivated(const FLxInteractionOption& Option, ELxInteractionActionType InteractionType)
 {
-	if (!ShouldHandleInteractionType(InteractionType))
+	// 导航阶段也包含执行完毕的任务等功能节点；独立功能界面按节点配置隐藏对话。
+	if (!PlayerInteractionComponent || !Option.InteractionNode
+		|| (PlayerInteractionComponent->GetInteractionPhase() != ELxPlayerInteractionPhase::Navigation
+			&& Option.InteractionNode->ShouldCloseInteractionDialogue()))
 	{
 		HideDialogueInteraction();
 		return;

@@ -112,8 +112,40 @@ bool ULxInteractionNode::CheckCommonRequirement(ULxPlayerInteractionModule* Play
 		return false;
 	}
 
-	if (!Requirement.RequiredItems.IsEmpty()
-		&& !DataTransferComponent->CheckHaveBackpackItemList(Requirement.RequiredItems))
+	bool bHasOptional = false;
+	bool bAnyOptionalSatisfied = false;
+	/** 必要项失败立即拒绝；可选项只累计匹配结果，统一在所有类别检查后判定。 */
+	const auto EvaluateCondition = [&bHasOptional, &bAnyOptionalSatisfied](
+		ELxInteractionRequirementMode Mode, bool bSatisfied)
+	{
+		switch (Mode)
+		{
+		case ELxInteractionRequirementMode::Required:
+			return bSatisfied;
+		case ELxInteractionRequirementMode::Optional:
+			bHasOptional = true;
+			bAnyOptionalSatisfied |= bSatisfied;
+			return true;
+		default:
+			return false;
+		}
+	};
+
+	// 必要物品仍整批检查，保持旧列表对重复物品数量累加的语义。
+	TArray<FLxItemQuote> NecessaryItems;
+	for (const FLxInteractionItemRequirement& ItemRequirement : Requirement.ItemRequirements)
+	{
+		if (ItemRequirement.Mode == ELxInteractionRequirementMode::Required)
+		{
+			NecessaryItems.Add(ItemRequirement.ToItemQuote());
+		}
+		else if (!EvaluateCondition(ItemRequirement.Mode,
+			DataTransferComponent->CheckHaveBackpackItemList({ItemRequirement.ToItemQuote()})))
+		{
+			return false;
+		}
+	}
+	if (!NecessaryItems.IsEmpty() && !DataTransferComponent->CheckHaveBackpackItemList(NecessaryItems))
 	{
 		return false;
 	}
@@ -123,21 +155,19 @@ bool ULxInteractionNode::CheckCommonRequirement(ULxPlayerInteractionModule* Play
 		ULxGameInstanceSubsystem* Subsystem = ULxGameInstanceSubsystem::GetInstance(PlayerCharacter->GetWorld());
 		ULxGlobalStaticDataManager* Manager = Subsystem ? Subsystem->GetGlobalStaticDataManager() : nullptr;
 		ULxQuestStaticDataModule* QuestData = Manager ? Manager->GetQuestStaticDataModule() : nullptr;
-		if (!QuestData || !QuestData->IsInitialized())
-		{
-			return false;
-		}
 		for (const FLxInteractionQuestRequirement& QuestRequirement : Requirement.RequiredQuests)
 		{
 			FLxQuestNodeDefinition QuestDefinition;
 			// 先校验实际任务配置，避免不存在的任务被默认状态误判为“未接取”。
-			if (!QuestRequirement.QuestSeriesId.IsValid() || !QuestRequirement.QuestId.IsValid()
-				|| QuestRequirement.QuestId == QuestRequirement.QuestSeriesId
-				|| !QuestRequirement.QuestId.MatchesTag(QuestRequirement.QuestSeriesId)
-				|| QuestRequirement.AllowedStates.IsEmpty()
-				|| !QuestData->GetQuestNode(QuestRequirement.QuestSeriesId, QuestRequirement.QuestId, QuestDefinition)
-				|| !QuestRequirement.AllowedStates.Contains(DataTransferComponent->GetQuestState(
-					QuestRequirement.QuestSeriesId, QuestRequirement.QuestId)))
+			const bool bSatisfied = QuestData && QuestData->IsInitialized()
+				&& QuestRequirement.QuestSeriesId.IsValid() && QuestRequirement.QuestId.IsValid()
+				&& QuestRequirement.QuestId != QuestRequirement.QuestSeriesId
+				&& QuestRequirement.QuestId.MatchesTag(QuestRequirement.QuestSeriesId)
+				&& !QuestRequirement.AllowedStates.IsEmpty()
+				&& QuestData->GetQuestNode(QuestRequirement.QuestSeriesId, QuestRequirement.QuestId, QuestDefinition)
+				&& QuestRequirement.AllowedStates.Contains(DataTransferComponent->GetQuestState(
+					QuestRequirement.QuestSeriesId, QuestRequirement.QuestId));
+			if (!EvaluateCondition(QuestRequirement.Mode, bSatisfied))
 			{
 				return false;
 			}
@@ -147,24 +177,28 @@ bool ULxInteractionNode::CheckCommonRequirement(ULxPlayerInteractionModule* Play
 	for (const FLxInteractionAttributeRequirement& AttributeRequirement : Requirement.RequiredAttributes)
 	{
 		float AttributeValue = 0.0f;
-		if (!DataTransferComponent->QueryCharacterAttributeValue(AttributeRequirement.AttributeIDTag, AttributeValue)
-			|| AttributeValue < AttributeRequirement.MinValue)
+		const bool bSatisfied = DataTransferComponent->QueryCharacterAttributeValue(
+			AttributeRequirement.AttributeIDTag, AttributeValue) && AttributeValue >= AttributeRequirement.MinValue;
+		if (!EvaluateCondition(AttributeRequirement.Mode, bSatisfied))
 		{
 			return false;
 		}
 	}
 
-	if (!Requirement.RequiredStateTags.IsEmpty())
+	if (!Requirement.StateRequirements.IsEmpty())
 	{
 		FGameplayTagContainer CurrentStateTags;
 		DataTransferComponent->GetAllCharacterStateTags(CurrentStateTags);
-		if (!CurrentStateTags.HasAll(Requirement.RequiredStateTags))
+		for (const FLxInteractionStateRequirement& StateRequirement : Requirement.StateRequirements)
 		{
-			return false;
+			if (!EvaluateCondition(StateRequirement.Mode, CurrentStateTags.HasTag(StateRequirement.StateTag)))
+			{
+				return false;
+			}
 		}
 	}
 
-	return true;
+	return !bHasOptional || bAnyOptionalSatisfied;
 }
 
 bool ULxInteractionNode::ValidateInteractionFeatureType() const

@@ -15,6 +15,9 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
+	/** 交互树资产的内容浏览器入口。 */
+	TSharedPtr<IAssetTypeActions> InteractionTreeAssetTypeActions;
+
 	/** 任务系列资产在内容浏览器中的类型操作。 */
 	TSharedPtr<IAssetTypeActions> QuestSeriesAssetTypeActions;
 };

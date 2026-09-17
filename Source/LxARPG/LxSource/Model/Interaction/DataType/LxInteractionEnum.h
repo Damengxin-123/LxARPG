@@ -3,6 +3,14 @@
 #include "CoreMinimal.h"
 #include "LxInteractionEnum.generated.h"
 
+/** 必要条件必须全部满足；配置可选条件时，还必须至少满足其中一项。 */
+UENUM(BlueprintType, meta=(DisplayName="交互限制生效方式"))
+enum class ELxInteractionRequirementMode : uint8
+{
+	Required UMETA(DisplayName="必要"),
+	Optional UMETA(DisplayName="可选"),
+};
+
 /** 交互行为的分类，用于节点、功能组件和UI之间做类型分发。 */
 UENUM(BlueprintType)
 enum class ELxInteractionActionType : uint8

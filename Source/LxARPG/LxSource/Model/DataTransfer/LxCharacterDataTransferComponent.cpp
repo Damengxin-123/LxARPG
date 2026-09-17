@@ -451,6 +451,11 @@ bool ULxCharacterDataTransferComponent::RemoveItemListFromBackpack(const TArray<
 	return BackpackComponent != nullptr && BackpackComponent->RemoveItemList(InItemList);
 }
 
+TArray<FLxQuestRuntimeRecord> ULxCharacterDataTransferComponent::GetAllQuestRecords() const
+{
+	return QuestComponent ? QuestComponent->GetAllQuestRecords() : TArray<FLxQuestRuntimeRecord>();
+}
+
 ELxQuestRuntimeState ULxCharacterDataTransferComponent::GetQuestState(
 	FGameplayTag InQuestSeriesId, FGameplayTag InQuestId) const
 {

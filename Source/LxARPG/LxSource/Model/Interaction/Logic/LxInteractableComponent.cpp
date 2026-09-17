@@ -1,8 +1,10 @@
 #include "LxInteractableComponent.h"
+#include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionTreeAsset.h"
 
 #include "Engine/ActorChannel.h"
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SphereComponent.h"
 #include "GameFramework/Actor.h"
 #include "LxARPG/LxSource/Model/Interaction/Interface/LxInteractionReceiverInterface.h"
 #include "LxFunctionPageInteractionComponent.h"
@@ -37,6 +39,42 @@ void ULxInteractableComponent::BeginPlay()
 	}
 	InitializeInteractionFeatures();
 	BindInteractionRangeColliders();
+	RefreshAssetInteractionRange();
+	RefreshAutomaticInteractionRange();
+}
+
+void ULxInteractableComponent::RefreshAssetInteractionRange()
+{
+	if (!HasBegunPlay()) return;
+	if ((!LoadedInteractionTreeAsset || !bCreateAssetInteractionRange) && AssetInteractionRange)
+	{
+		TArray<UPrimitiveComponent*> Remaining;
+		for (UPrimitiveComponent* Collider : InteractionRangeColliders)
+			if (Collider && Collider != AssetInteractionRange) Remaining.Add(Collider);
+		SetInteractionRangeColliders(Remaining);
+		AssetInteractionRange->DestroyComponent();
+		AssetInteractionRange = nullptr;
+	}
+	if (LoadedInteractionTreeAsset && bCreateAssetInteractionRange && InteractionRangeColliders.IsEmpty() && GetOwner())
+	{
+		// 手动解除绑定后重载资产时复用原球体，避免遗留无法清理的碰撞组件。
+		if (!IsValid(AssetInteractionRange))
+		{
+			AssetInteractionRange = NewObject<USphereComponent>(GetOwner(),
+				MakeUniqueObjectName(GetOwner(), USphereComponent::StaticClass(), TEXT("交互范围")));
+			AssetInteractionRange->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			AssetInteractionRange->SetCollisionResponseToAllChannels(ECR_Ignore);
+			AssetInteractionRange->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+			AssetInteractionRange->SetGenerateOverlapEvents(true);
+			AssetInteractionRange->SetCanEverAffectNavigation(false);
+			AssetInteractionRange->SetHiddenInGame(true);
+			if (GetOwner()->GetRootComponent()) AssetInteractionRange->SetupAttachment(GetOwner()->GetRootComponent());
+			else GetOwner()->SetRootComponent(AssetInteractionRange);
+			AssetInteractionRange->RegisterComponent();
+		}
+		AssetInteractionRange->SetSphereRadius(FMath::Max(1.0f, AssetInteractionRangeRadius));
+		SetInteractionRangeColliders({AssetInteractionRange});
+	}
 	RefreshAutomaticInteractionRange();
 }
 
@@ -45,7 +83,16 @@ void ULxInteractableComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	OnInteractableComponentEndPlayNative.Broadcast();
 	OnInteractableComponentEndPlayNative.Clear();
 	SetInteractionRangeColliders({});
+	if (AssetInteractionRange)
+	{
+		AssetInteractionRange->DestroyComponent();
+		AssetInteractionRange = nullptr;
+	}
 	ShutdownInteractionFeatures();
+	RootInteractionNodes.Reset();
+	RuntimeNodeIndex.Reset();
+	LoadedInteractionTreeAsset = nullptr;
+	LoadedInteractionTreeRevision = INDEX_NONE;
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -53,6 +100,9 @@ void ULxInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ULxInteractableComponent, InteractionFeatures);
+	DOREPLIFETIME(ULxInteractableComponent, FeatureConfig);
+	DOREPLIFETIME(ULxInteractableComponent, InteractionTreeAsset);
+	DOREPLIFETIME(ULxInteractableComponent, InteractionTreeRevision);
 }
 
 bool ULxInteractableComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch,
@@ -69,42 +119,6 @@ bool ULxInteractableComponent::ReplicateSubobjects(UActorChannel* Channel, FOutB
 	return bWroteSomething;
 }
 
-void ULxInteractableComponent::SetRootInteractionNodes(const TArray<ULxInteractionNode*>& InRootNodes)
-{
-	RootInteractionNodes.Reset();
-	for (ULxInteractionNode* RootNode : InRootNodes)
-	{
-		if (!RootNode || RootInteractionNodes.Contains(RootNode))
-		{
-			continue;
-		}
-
-		RootNode->SetParentNode(nullptr);
-		RootInteractionNodes.Add(RootNode);
-	}
-
-	InitializeInteractionFeatures();
-	RefreshInteractionOptions();
-}
-
-void ULxInteractableComponent::BuildInteractionTree(TArray<ULxInteractionNode*> RootNodes)
-{
-	SetRootInteractionNodes(RootNodes);
-}
-
-void ULxInteractableComponent::AddRootInteractionNode(ULxInteractionNode* InRootNode)
-{
-	if (!InRootNode || RootInteractionNodes.Contains(InRootNode))
-	{
-		return;
-	}
-
-	InRootNode->SetParentNode(nullptr);
-	RootInteractionNodes.Add(InRootNode);
-	InitializeInteractionFeatures();
-	RefreshInteractionOptions();
-}
-
 TArray<ULxInteractionNode*> ULxInteractableComponent::GetRootInteractionNodes() const
 {
 	TArray<ULxInteractionNode*> Result;
@@ -116,6 +130,105 @@ TArray<ULxInteractionNode*> ULxInteractableComponent::GetRootInteractionNodes() 
 }
 
 void ULxInteractableComponent::InitializeInteractionFeatures()
+{
+	if (LoadedInteractionTreeAsset == InteractionTreeAsset && LoadedInteractionTreeRevision == InteractionTreeRevision)
+	{
+		return;
+	}
+	if (GetOwner() && !GetOwner()->HasAuthority()) RebuildInteractionTree();
+	else LoadInteractionTreeAsset();
+}
+
+bool ULxInteractableComponent::SetInteractionTreeAsset(ULxInteractionTreeAsset* InAsset)
+{
+	if (GetOwner() && !GetOwner()->HasAuthority()) return false;
+	if (InteractionTreeAsset == InAsset && LoadedInteractionTreeAsset == InAsset
+		&& LoadedInteractionTreeRevision == InteractionTreeRevision) return true;
+	InteractionTreeAsset = InAsset;
+	return LoadInteractionTreeAsset();
+}
+
+bool ULxInteractableComponent::LoadInteractionTreeAsset()
+{
+	if (GetOwner() && !GetOwner()->HasAuthority()) return false;
+	++InteractionTreeRevision;
+	const bool bResult = RebuildInteractionTree();
+	if (GetOwner()) GetOwner()->ForceNetUpdate();
+	return bResult;
+}
+
+void ULxInteractableComponent::ClearInteractionTree()
+{
+	// 客户端保留已复制的子对象列表，允许资产和子对象以任意顺序到达。
+	const bool bAuthority = !GetOwner() || GetOwner()->HasAuthority();
+	if (bAuthority) ShutdownInteractionFeatures();
+	else
+	{
+		TSet<ULxInteractionActionComponentBase*> BoundFeatures;
+		// 复制数组可能已经切换，仍需从旧节点找到原模块并解除其监听。
+		for (const auto& Pair : RuntimeNodeIndex)
+		{
+			if (Pair.Value)
+			{
+				if (ULxInteractionActionComponentBase* Feature = Pair.Value->GetInteractionFeature())
+					BoundFeatures.Add(Feature);
+				Pair.Value->SetInteractionFeature(nullptr);
+			}
+		}
+		for (ULxInteractionActionComponentBase* Feature : InteractionFeatures)
+			if (Feature && Feature->GetOwnerInteractionNode()) BoundFeatures.Add(Feature);
+		for (ULxInteractionActionComponentBase* Feature : BoundFeatures) Feature->ShutdownInteractionFeature();
+	}
+	RootInteractionNodes.Reset();
+	RuntimeNodeIndex.Reset();
+	LoadedInteractionTreeAsset = nullptr;
+	LoadedInteractionTreeRevision = INDEX_NONE;
+	RefreshInteractionOptions();
+}
+
+bool ULxInteractableComponent::RebuildInteractionTree()
+{
+	ClearInteractionTree();
+	LoadedInteractionTreeRevision = InteractionTreeRevision;
+	if (!InteractionTreeAsset)
+	{
+		RefreshAssetInteractionRange();
+		return true;
+	}
+	TArray<ULxInteractionNode*> NewRoots;
+	FText Error;
+	if (!InteractionTreeAsset->CreateRuntimeTree(this, NewRoots, Error))
+	{
+		UE_LOG(LogTemp, Error, TEXT("交互树资产 %s 无法加载：%s"), *GetNameSafe(InteractionTreeAsset), *Error.ToString());
+		RefreshAssetInteractionRange();
+		return false;
+	}
+	RootInteractionNodes.Reset();
+	for (ULxInteractionNode* Root : NewRoots) RootInteractionNodes.Add(Root);
+	LoadedInteractionTreeAsset = InteractionTreeAsset;
+	InitializeBuiltTreeFeatures();
+	RefreshAssetInteractionRange();
+	RefreshInteractionOptions();
+	return true;
+}
+
+void ULxInteractableComponent::OnRep_InteractionTree()
+{
+	if (LoadedInteractionTreeAsset != InteractionTreeAsset || LoadedInteractionTreeRevision != InteractionTreeRevision)
+		RebuildInteractionTree();
+}
+
+void ULxInteractableComponent::RefreshReplicatedInteractionFeatures()
+{
+	if (GetOwner() && !GetOwner()->HasAuthority())
+	{
+		OnRep_InteractionTree();
+		BindReplicatedFeaturesToNodes();
+		RefreshInteractionOptions();
+	}
+}
+
+void ULxInteractableComponent::InitializeBuiltTreeFeatures()
 {
 	const AActor* OwnerActor = GetOwner();
 	const bool bCanCreateRuntimeFeatures = OwnerActor == nullptr || OwnerActor->HasAuthority();
@@ -148,7 +261,9 @@ TArray<ULxInteractionActionComponentBase*> ULxInteractableComponent::GetInteract
 	TArray<ULxInteractionActionComponentBase*> Result;
 	for (ULxInteractionActionComponentBase* InteractionFeature : InteractionFeatures)
 	{
-		Result.Add(InteractionFeature);
+		if (InteractionFeature && OwnsInteractionNode(InteractionFeature->GetOwnerInteractionNode())
+			&& InteractionFeature->GetInteractionTreeRevision() == LoadedInteractionTreeRevision)
+			Result.Add(InteractionFeature);
 	}
 	return Result;
 }
@@ -434,57 +549,40 @@ ULxInteractionActionComponentBase* ULxInteractableComponent::CreateInteractionFe
 
 bool ULxInteractableComponent::IsInteractionFeatureEnabled(ELxInteractionActionType InteractionType) const
 {
-	switch (InteractionType)
-	{
-	case ELxInteractionActionType::TreasureChest:
-		return bEnableTreasureChest;
-	case ELxInteractionActionType::Warehouse:
-		return bEnableWarehouse;
-	case ELxInteractionActionType::TradeContainer:
-		return bEnableTradeContainer;
-	case ELxInteractionActionType::TriggerMechanism:
-		return bEnableTriggerMechanism;
-	case ELxInteractionActionType::ItemTransfer:
-		return bEnableItemTransfer;
-	case ELxInteractionActionType::FunctionPage:
-		return bEnableFunctionPage;
-	case ELxInteractionActionType::Quest:
-		return bEnableQuestInteraction;
-	default:
-		return false;
-	}
+	return LoadedInteractionTreeAsset && LoadedInteractionTreeAsset->Features.IsEnabled(InteractionType)
+		&& FeatureConfig.IsEnabled(InteractionType);
 }
 
 void ULxInteractableComponent::ApplyFeatureConfigToFeature(
 	ULxInteractionActionComponentBase* InteractionFeature, const ULxInteractionNode* InteractionNode) const
 {
-	if (!InteractionFeature)
+	if (!InteractionFeature || !LoadedInteractionTreeAsset)
 	{
 		return;
 	}
 	if (ULxTreasureChestInteractionComponent* TreasureChestFeature = Cast<ULxTreasureChestInteractionComponent>(InteractionFeature))
 	{
-		TreasureChestFeature->ApplyConfig(TreasureChestConfig);
+		TreasureChestFeature->ApplyConfig(FeatureConfig.TreasureChestConfig);
 	}
 	else if (ULxWarehouseInteractionComponent* WarehouseFeature = Cast<ULxWarehouseInteractionComponent>(InteractionFeature))
 	{
-		WarehouseFeature->ApplyConfig(WarehouseConfig);
+		WarehouseFeature->ApplyConfig(FeatureConfig.WarehouseConfig);
 	}
 	else if (ULxTradeContainerInteractionComponent* TradeFeature = Cast<ULxTradeContainerInteractionComponent>(InteractionFeature))
 	{
-		TradeFeature->ApplyConfig(TradeContainerConfig);
+		TradeFeature->ApplyConfig(FeatureConfig.TradeContainerConfig);
 	}
 	else if (ULxTriggerMechanismInteractionComponent* MechanismFeature = Cast<ULxTriggerMechanismInteractionComponent>(InteractionFeature))
 	{
-		MechanismFeature->ApplyConfig(TriggerMechanismConfig);
+		MechanismFeature->ApplyConfig(FeatureConfig.TriggerMechanismConfig);
 	}
 	else if (ULxItemTransferInteractionComponent* ItemTransferFeature = Cast<ULxItemTransferInteractionComponent>(InteractionFeature))
 	{
-		ItemTransferFeature->ApplyConfig(ItemTransferConfig);
+		ItemTransferFeature->ApplyConfig(FeatureConfig.ItemTransferConfig);
 	}
 	else if (ULxFunctionPageInteractionComponent* FunctionPageFeature = Cast<ULxFunctionPageInteractionComponent>(InteractionFeature))
 	{
-		FunctionPageFeature->ApplyConfig(FunctionPageConfig);
+		FunctionPageFeature->ApplyConfig(FeatureConfig.FunctionPageConfig);
 	}
 	else if (ULxQuestInteractionComponent* QuestFeature = Cast<ULxQuestInteractionComponent>(InteractionFeature))
 	{
@@ -496,23 +594,34 @@ void ULxInteractableComponent::ApplyFeatureConfigToFeature(
 
 void ULxInteractableComponent::BindReplicatedFeaturesToNodes()
 {
+	if (!LoadedInteractionTreeAsset || LoadedInteractionTreeRevision != InteractionTreeRevision) return;
 	for (ULxInteractionActionComponentBase* InteractionFeature : InteractionFeatures)
 	{
-		if (!InteractionFeature)
+		if (!InteractionFeature || InteractionFeature->GetInteractionTreeRevision() != LoadedInteractionTreeRevision)
 		{
 			continue;
 		}
 
 		ULxInteractionNode* InteractionNode = FindInteractionNodeByRuntimeIndex(InteractionFeature->GetRuntimeNodeIndex());
-		if (!InteractionNode)
+		if (!InteractionNode || InteractionNode->GetInteractionActionType() != InteractionFeature->GetInteractionActionType())
 		{
+			continue;
+		}
+		// 组件配置可能晚于子对象到达，等开关与内容到齐后再初始化客户端模块。
+		if (!IsInteractionFeatureEnabled(InteractionNode->GetInteractionActionType()))
+		{
+			if (InteractionNode->GetInteractionFeature() == InteractionFeature)
+			{
+				InteractionNode->SetInteractionFeature(nullptr);
+				InteractionFeature->ShutdownInteractionFeature();
+			}
 			continue;
 		}
 
 		InteractionNode->SetInteractionFeature(InteractionFeature);
-		ApplyFeatureConfigToFeature(InteractionFeature, InteractionNode);
 		if (InteractionFeature->GetOwnerInteractionNode() != InteractionNode)
 		{
+			ApplyFeatureConfigToFeature(InteractionFeature, InteractionNode);
 			InteractionFeature->InitializeInteractionFeature(this, InteractionNode,
 				InteractionNode->GetRuntimeNodeIndex());
 		}
@@ -521,6 +630,16 @@ void ULxInteractableComponent::BindReplicatedFeaturesToNodes()
 
 void ULxInteractableComponent::OnRep_InteractionFeatures()
 {
-	BindReplicatedFeaturesToNodes();
-	RefreshInteractionOptions();
+	RefreshReplicatedInteractionFeatures();
+}
+
+void ULxInteractableComponent::OnRep_FeatureConfig()
+{
+	for (ULxInteractionActionComponentBase* Feature : InteractionFeatures)
+	{
+		if (Feature && Feature->GetOwnerInteractionNode()
+			&& Feature->GetInteractionTreeRevision() == LoadedInteractionTreeRevision)
+			ApplyFeatureConfigToFeature(Feature, Feature->GetOwnerInteractionNode());
+	}
+	RefreshReplicatedInteractionFeatures();
 }

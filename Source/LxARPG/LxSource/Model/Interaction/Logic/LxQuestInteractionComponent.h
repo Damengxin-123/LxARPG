@@ -6,6 +6,7 @@
 
 class ULxCharacterDataTransferComponent;
 class ULxPlayerInteractionModule;
+struct FLxQuestNodeDefinition;
 
 /** NPC任务交互功能模块，根据玩家任务状态自动执行接取或提交。 */
 UCLASS(Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="任务交互模块")
@@ -38,8 +39,8 @@ private:
 	static ULxCharacterDataTransferComponent* ResolveDataTransferComponent(
 		ULxPlayerInteractionModule* PlayerInteractionComponent);
 
-	/** 在存在游戏实例静态数据服务时验证任务系列和任务节点确实已经登记。 */
-	bool IsStaticQuestConfigurationAvailable() const;
+	/** 从静态任务索引读取当前节点定义，供交互校验和提交奖励使用。 */
+	bool GetQuestDefinition(FLxQuestNodeDefinition& OutQuestNode) const;
 
 	/** 当前功能节点独立引用的任务系列和任务ID。 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Replicated, Category="交互|任务",

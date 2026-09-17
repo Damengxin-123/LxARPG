@@ -9,7 +9,7 @@ class ULxInteractionActionComponentBase;
 class ULxPlayerInteractionModule;
 
 /** 运行时交互树节点，负责保存交互结构、显示文本和可选功能组件。 */
-UCLASS(BlueprintType, Blueprintable, EditInlineNew, DefaultToInstanced, DisplayName="交互节点")
+UCLASS(BlueprintType, NotBlueprintable, Transient, DisplayName="运行时交互节点")
 class LXARPG_API ULxInteractionNode : public UObject
 {
 	GENERATED_BODY()
@@ -49,9 +49,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取NPC发言文本")
 	FText GetNpcDialogueText() const { return NpcDialogueText; }
 
-	/** 设置NPC发言文本，主要用于对话节点运行时补充或调整发言内容。 */
-	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="设置NPC发言文本")
+	/** 由资产实例化流程设置NPC发言文本。 */
 	void SetNpcDialogueText(FText InNpcDialogueText) { NpcDialogueText = InNpcDialogueText; }
+
+	/** 由资产实例化流程设置节点执行后的对话关闭策略。 */
+	void SetCloseInteractionDialogue(bool bInCloseInteractionDialogue) { bCloseInteractionDialogue = bInCloseInteractionDialogue; }
+
+	/** 入口始终继续，退出始终结束，其他节点由配置决定。 */
+	UFUNCTION(BlueprintPure, Category="交互", DisplayName="是否关闭交互对话框")
+	bool ShouldCloseInteractionDialogue() const
+	{
+		return InteractionActionType == ELxInteractionActionType::InteractionExit
+			|| (InteractionActionType != ELxInteractionActionType::Entrance && bCloseInteractionDialogue);
+	}
 
 	/** 获取节点声明的交互行为类型。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="获取交互行为类型")
@@ -76,7 +86,6 @@ public:
 	FLxInteractionRequirement GetInteractionRequirement() const { return Requirement; }
 
 	/** 设置当前任务功能节点独立持有的任务标识配置。 */
-	UFUNCTION(BlueprintCallable, Category="交互|任务", DisplayName="设置任务交互配置")
 	void SetQuestInteractionConfig(const FLxQuestInteractionConfig& InQuestInteractionConfig)
 	{
 		QuestInteractionConfig = InQuestInteractionConfig;
@@ -124,9 +133,13 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="提示文本", meta=(AllowPrivateAccess="true"))
 	FText PromptText;
 
-	/** NPC发言文本。仅对Dialogue节点有语义，入口/对话UI可用它展示NPC说的话。 */
+	/** NPC发言文本，供入口、对话及继续交互的任务节点显示。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="NPC发言文本", meta=(AllowPrivateAccess="true", MultiLine="true"))
 	FText NpcDialogueText;
+
+	/** 节点执行成功后是否结束交互，由静态资产提供。 */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="交互", DisplayName="是否关闭交互对话框", meta=(AllowPrivateAccess="true"))
+	bool bCloseInteractionDialogue = false;
 
 	/** 节点对应的交互行为类型。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互", DisplayName="交互行为类型", meta=(AllowPrivateAccess="true"))

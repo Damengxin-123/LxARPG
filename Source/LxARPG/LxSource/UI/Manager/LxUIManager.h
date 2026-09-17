@@ -16,6 +16,8 @@ class ULxInteractionUIManager;
 class ULxPersistentUIManager;
 class ULxPopupUIManager;
 class ULxProfessionWidget;
+class ULxQuestDetailWidget;
+class ULxQuestSummaryWidget;
 class ULxTogglePanelUIManager;
 class ULxTooltipUIManager;
 class ULxTradeContainerWidget;
@@ -73,6 +75,14 @@ public:
 	/** 注册职业 UI，并由按键面板管理器使用职业界面输入行为开关显示。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="注册职业UI")
 	void RegisterProfessionWidget(ULxProfessionWidget* InProfessionWidget, bool bInShowCursorWhenVisible = true, bool bInCloseOtherPanelsWhenOpened = false);
+
+	/** 注册任务详细界面，使用任务输入行为手动开关。 */
+	UFUNCTION(BlueprintCallable, Category="UI管理器|任务", DisplayName="注册任务详细界面")
+	void RegisterQuestDetailWidget(ULxQuestDetailWidget* InQuestWidget);
+
+	/** 注册任务简要界面为常驻 HUD，不绑定开关输入。 */
+	UFUNCTION(BlueprintCallable, Category="UI管理器|任务", DisplayName="注册任务简要界面")
+	void RegisterQuestSummaryWidget(ULxQuestSummaryWidget* InQuestWidget);
 
 	/** 注册物品悬浮提示 UI。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="注册物品提示界面")

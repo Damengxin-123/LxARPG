@@ -55,7 +55,7 @@ bool ULxItemTransferInteractionComponent::ExecuteInteraction_Implementation(ULxP
 			return false;
 		}
 
-		PlayerController->ServerExecuteItemTransfer(OwnerActor, GetRuntimeNodeIndex());
+		PlayerController->ServerExecuteItemTransfer(OwnerActor, GetRuntimeNodeIndex(), GetInteractionTreeRevision());
 		return true;
 	}
 

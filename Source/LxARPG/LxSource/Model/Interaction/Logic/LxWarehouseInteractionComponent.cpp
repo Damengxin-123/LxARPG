@@ -21,6 +21,12 @@ void ULxWarehouseInteractionComponent::OnInitializeInteractionFeature_Implementa
 	if (AActor* OwnerActor = GetOwner())
 	{
 		OwnerActor->SetReplicates(true);
+		if (!OwnerActor->HasAuthority())
+		{
+			// 槽位快照可能先于资产配置到达，绑定后按正确容量重放快照，避免重建为空仓库。
+			ApplyReplicatedWarehouseSlots();
+			return;
+		}
 	}
 	InitializeWarehouseSlots();
 }

@@ -206,7 +206,7 @@ bool ULxTreasureChestInteractionComponent::MoveTreasureChestSlotToBackpack(ULxCh
 		}
 
 		PlayerController->ServerMoveTreasureChestSlotToBackpack(
-			OwnerActor, GetRuntimeNodeIndex(), TreasureChestSlotIndex, BackpackSlotIndex);
+			OwnerActor, GetRuntimeNodeIndex(), GetInteractionTreeRevision(), TreasureChestSlotIndex, BackpackSlotIndex);
 		return true;
 	}
 

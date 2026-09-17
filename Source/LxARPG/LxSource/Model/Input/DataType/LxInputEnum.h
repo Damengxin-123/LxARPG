@@ -44,7 +44,10 @@ enum class ELxInputActionID : uint8
 	ShortcutSwitch UMETA(DisplayName="快捷栏切换"),
 
 	/** 职业界面快捷键输入。 */
-	Profession UMETA(DisplayName="职业界面")
+	Profession UMETA(DisplayName="职业界面"),
+
+	/** 任务详细界面的手动开关输入，追加以保持既有枚举值。 */
+	Quest UMETA(DisplayName="任务界面")
 };
 
 FORCEINLINE uint32 GetTypeHash(const ELxInputActionID InInputActionID)

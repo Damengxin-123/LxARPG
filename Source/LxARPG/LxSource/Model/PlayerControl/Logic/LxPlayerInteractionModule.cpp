@@ -208,7 +208,7 @@ void ULxPlayerInteractionModule::RefreshCurrentInteractionOptions()
 
 void ULxPlayerInteractionModule::SelectEntranceOptionByIndex(int32 OptionIndex)
 {
-	if (!CachedEntranceOptions.IsValidIndex(OptionIndex))
+	if (!CanSelectEntranceOption() || !CachedEntranceOptions.IsValidIndex(OptionIndex))
 	{
 		return;
 	}
@@ -221,17 +221,35 @@ void ULxPlayerInteractionModule::SelectInteractionOption(const FLxInteractionOpt
 	ActivateInteractionOption(Option);
 }
 
-bool ULxPlayerInteractionModule::ActivateInteractionOption(const FLxInteractionOption& Option)
+bool ULxPlayerInteractionModule::ActivateInteractionOption(const FLxInteractionOption& InOption)
 {
-	if (!Option.IsValid())
+	// 功能执行和界面回调会重建选项缓存，先复制参数以免缓存元素的引用失效。
+	const FLxInteractionOption Option = InOption;
+	// 缓存选项可能来自已经替换的资产，普通节点与返回选项也必须校验所属树和范围。
+	if (!Option.IsValid() || !IsValid(Option.SourceInteractionComponent)
+		|| !IsValid(Option.InteractionNode)
+		|| !IsInteractableComponentInRange(Option.SourceInteractionComponent)
+		|| !Option.SourceInteractionComponent->OwnsInteractionNode(Option.InteractionNode))
 	{
+		RefreshEntranceOptions();
 		return false;
 	}
 
 	if (Option.bIsBackOption)
 	{
+		if (CurrentInteractableComponent != Option.SourceInteractionComponent
+			|| !CurrentInteractionNode || CurrentInteractionNode->GetParentNode() != Option.InteractionNode)
+		{
+			return false;
+		}
 		BackToParentInteractionNode();
 		return true;
+	}
+
+	// 缓存根选项和蓝图直接调用也不能打断当前交互；返回父节点走独立导航路径。
+	if (!Option.InteractionNode->GetParentNode() && !CanSelectEntranceOption())
+	{
+		return false;
 	}
 
 	CurrentInteractableComponent = Option.SourceInteractionComponent;
@@ -250,7 +268,17 @@ bool ULxPlayerInteractionModule::ActivateInteractionOption(const FLxInteractionO
 		return false;
 	}
 
-	if (CurrentInteractionNode->GetInteractionActionType() == ELxInteractionActionType::InteractionExit)
+	const ELxInteractionActionType ActivatedType = CurrentInteractionNode->GetInteractionActionType();
+	// 回调可同步替换资产或取消交互，后续流程只允许继续处理原选项所属的有效实例。
+	const auto IsActivatedOptionCurrent = [this, &Option]()
+	{
+		return CurrentInteractableComponent == Option.SourceInteractionComponent
+			&& CurrentInteractionNode == Option.InteractionNode
+			&& IsValid(Option.SourceInteractionComponent) && IsValid(Option.InteractionNode)
+			&& Option.SourceInteractionComponent->OwnsInteractionNode(Option.InteractionNode);
+	};
+
+	if (ActivatedType == ELxInteractionActionType::InteractionExit)
 	{
 		OnInteractionOptionExecuted.Broadcast(Option);
 		CancelInteraction();
@@ -269,10 +297,19 @@ bool ULxPlayerInteractionModule::ActivateInteractionOption(const FLxInteractionO
 
 	if (!CurrentInteractionNode->IsFunctionNode())
 	{
+		if (CurrentInteractionNode->ShouldCloseInteractionDialogue())
+		{
+			OnInteractionOptionExecuted.Broadcast(Option);
+			if (!IsActivatedOptionCurrent()) return false;
+			CancelInteraction();
+			RefreshEntranceOptions();
+			return true;
+		}
 		// 普通节点只负责导航：选中后显示其子项，不接触任何具体功能数据。
 		InteractionPhase = ELxPlayerInteractionPhase::Navigation;
 		RefreshCurrentInteractionOptions();
-		OnInteractionOptionActivated.Broadcast(Option, CurrentInteractionNode->GetInteractionActionType());
+		if (!IsActivatedOptionCurrent()) return false;
+		OnInteractionOptionActivated.Broadcast(Option, ActivatedType);
 		return true;
 	}
 
@@ -281,21 +318,41 @@ bool ULxPlayerInteractionModule::ActivateInteractionOption(const FLxInteractionO
 	{
 		return false;
 	}
-
 	if (bShouldOpenFunctionUI)
 	{
+		if (!IsActivatedOptionCurrent()) return false;
 		// 发起方只分发界面路由事件，功能数据由交互提供组件与功能模块管理。
 		InteractionPhase = ELxPlayerInteractionPhase::Function;
-		CachedCurrentOptions.Reset();
-		OnCurrentInteractionOptionsUpdated.Broadcast(CachedCurrentOptions);
-		OnInteractionOptionActivated.Broadcast(Option, CurrentInteractionNode->GetInteractionActionType());
+		if (CurrentInteractionNode->ShouldCloseInteractionDialogue())
+		{
+			CachedCurrentOptions.Reset();
+			OnCurrentInteractionOptionsUpdated.Broadcast(CachedCurrentOptions);
+		}
+		else
+		{
+			RefreshCurrentInteractionOptions();
+		}
+		if (!IsActivatedOptionCurrent()) return false;
+		OnInteractionOptionActivated.Broadcast(Option, ActivatedType);
 		return true;
 	}
 
+	if (!IsActivatedOptionCurrent()) return false;
 	OnInteractionOptionExecuted.Broadcast(Option);
-	// 即时功能执行完毕后统一结束交互，通知对话窗口关闭并恢复鼠标状态。
-	CancelInteraction();
-	RefreshEntranceOptions();
+	if (!IsActivatedOptionCurrent()) return false;
+	if (CurrentInteractionNode->ShouldCloseInteractionDialogue())
+	{
+		CancelInteraction();
+		RefreshEntranceOptions();
+	}
+	else
+	{
+		// 即时功能完成后进入子项导航，任务状态变化不会强制关闭对话。
+		InteractionPhase = ELxPlayerInteractionPhase::Navigation;
+		RefreshCurrentInteractionOptions();
+		if (!IsActivatedOptionCurrent()) return false;
+		OnInteractionOptionActivated.Broadcast(Option, ActivatedType);
+	}
 	return true;
 }
 
@@ -314,7 +371,22 @@ void ULxPlayerInteractionModule::BackToParentInteractionNode()
 		return;
 	}
 
-	ActivateInteractionOption(BuildOption(CurrentInteractableComponent, ParentNode));
+	// 返回只恢复父节点的子项，不重复执行父任务或触发父节点的关闭策略。
+	if (!IsValid(CurrentInteractableComponent)
+		|| !IsInteractableComponentInRange(CurrentInteractableComponent)
+		|| !CurrentInteractableComponent->OwnsInteractionNode(ParentNode))
+	{
+		CancelInteraction();
+		return;
+	}
+	CurrentInteractionNode = ParentNode;
+	InteractionPhase = ELxPlayerInteractionPhase::Navigation;
+	const FLxInteractionOption ParentOption = BuildOption(CurrentInteractableComponent, ParentNode);
+	RefreshCurrentInteractionOptions();
+	if (CurrentInteractionNode == ParentNode && CurrentInteractableComponent == ParentOption.SourceInteractionComponent)
+	{
+		OnInteractionOptionActivated.Broadcast(ParentOption, ParentNode->GetInteractionActionType());
+	}
 }
 
 void ULxPlayerInteractionModule::CancelInteraction()
@@ -397,6 +469,13 @@ void ULxPlayerInteractionModule::RemoveInvalidInteractables()
 
 void ULxPlayerInteractionModule::HandleInteractableOptionsChanged()
 {
+	// 资产切换或卸载后，旧运行时节点不能继续持有对话和功能窗口。
+	if (CurrentInteractableComponent && (!IsValid(CurrentInteractableComponent)
+		|| !IsValid(CurrentInteractionNode)
+		|| !CurrentInteractableComponent->OwnsInteractionNode(CurrentInteractionNode)))
+	{
+		CancelInteraction();
+	}
 	RefreshEntranceOptions();
 	RefreshCurrentInteractionOptions();
 }

@@ -26,6 +26,8 @@ public class LxARPGEditor : ModuleRules
 		{
 			"ApplicationCore",
 			"AssetTools",
+			"BlueprintGraph",
+			"KismetCompiler",
 			"EditorFramework",
 			"GraphEditor",
 			"GameplayTags",

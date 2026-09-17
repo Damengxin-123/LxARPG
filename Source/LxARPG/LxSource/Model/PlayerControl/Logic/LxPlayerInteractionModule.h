@@ -50,6 +50,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="交互", DisplayName="获取当前交互阶段")
 	ELxPlayerInteractionPhase GetInteractionPhase() const { return InteractionPhase; }
 
+	/** 仅在没有进行中的交互时允许通过范围入口发起新交互。 */
+	UFUNCTION(BlueprintPure, Category="交互", DisplayName="是否允许选择交互入口")
+	bool CanSelectEntranceOption() const { return InteractionPhase == ELxPlayerInteractionPhase::None; }
+
 	/** 刷新入口交互选项，并广播给UI。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="刷新入口选项")
 	void RefreshEntranceOptions();

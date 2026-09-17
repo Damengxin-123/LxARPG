@@ -33,20 +33,7 @@ ULxTradeContainerInteractionComponent::ULxTradeContainerInteractionComponent()
 void ULxTradeContainerInteractionComponent::ApplyConfig(const FLxTradeContainerInteractionConfig& InConfig)
 {
 	TradeItemConfigs = InConfig.TradeItems;
-	if (TradeItemConfigs.IsEmpty())
-	{
-		// 旧配置中正数表示有限库存；历史上使用负数表达无限商品时按单件无限库存迁移。
-		for (const FLxItemQuote& LegacyItem : InConfig.ItemList)
-		{
-			FLxTradeItemConfig MigratedItem;
-			MigratedItem.ItemIDTag = LegacyItem.ItemIDTag;
-			MigratedItem.ItemCount = FMath::Max(1, LegacyItem.ItemCount);
-			MigratedItem.bLimitedStock = LegacyItem.ItemCount >= 0;
-			TradeItemConfigs.Add(MigratedItem);
-		}
-	}
-	// 兼容旧蓝图中尚未填写金币标签的配置，避免所有有价格的买卖被静默拒绝。
-	GoldItemIDTag = InConfig.GoldItemIDTag.IsValid() ? InConfig.GoldItemIDTag : LxTag_Item_Material_Currency_Gold;
+	GoldItemIDTag = InConfig.GoldItemIDTag;
 	TradeItemValueRate = FMath::Max(0.0f, InConfig.SellValueRate);
 	PurchaseValueRate = FMath::Max(0.0f, InConfig.PurchaseValueRate);
 }
@@ -165,7 +152,7 @@ bool ULxTradeContainerInteractionComponent::BuyTradeSlot(ULxItemSlotData* TradeS
 			return false;
 		}
 
-		PlayerController->ServerBuyTradeSlot(OwnerActor, GetRuntimeNodeIndex(), TradeSlot->GetSlotIndex());
+		PlayerController->ServerBuyTradeSlot(OwnerActor, GetRuntimeNodeIndex(), GetInteractionTreeRevision(), TradeSlot->GetSlotIndex());
 		return true;
 	}
 
@@ -216,7 +203,7 @@ bool ULxTradeContainerInteractionComponent::BuyTradeSlotToBackpackSlot(ULxItemSl
 		}
 
 		PlayerController->ServerBuyTradeSlotToBackpackSlot(
-			OwnerActor, GetRuntimeNodeIndex(), TradeSlot->GetSlotIndex(), TargetBackpackSlot->GetSlotIndex());
+			OwnerActor, GetRuntimeNodeIndex(), GetInteractionTreeRevision(), TradeSlot->GetSlotIndex(), TargetBackpackSlot->GetSlotIndex());
 		return true;
 	}
 
@@ -272,7 +259,7 @@ bool ULxTradeContainerInteractionComponent::SellBackpackSlot(ULxItemSlotData* Ba
 		}
 
 		PlayerController->ServerSellBackpackSlot(
-			OwnerActor, GetRuntimeNodeIndex(), BackpackSlot->GetSlotIndex());
+			OwnerActor, GetRuntimeNodeIndex(), GetInteractionTreeRevision(), BackpackSlot->GetSlotIndex());
 		return true;
 	}
 

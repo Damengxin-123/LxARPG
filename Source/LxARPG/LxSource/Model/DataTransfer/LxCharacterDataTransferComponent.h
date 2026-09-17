@@ -121,6 +121,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="角色数据中转|职业", DisplayName="增加同类型职业经验")
 	void AddProfessionExperienceByType(ELxProfessionType InProfessionType, float InExperience);
 
+	/** 复制角色持有的全部任务记录，供任务界面生成列表。 */
+	UFUNCTION(BlueprintPure, Category="角色数据中转|任务", DisplayName="获取全部任务记录")
+	TArray<FLxQuestRuntimeRecord> GetAllQuestRecords() const;
+
 	/** 获取指定任务当前在角色上的运行状态。 */
 	UFUNCTION(BlueprintPure, Category="角色数据中转|任务", DisplayName="获取任务状态")
 	ELxQuestRuntimeState GetQuestState(FGameplayTag InQuestSeriesId, FGameplayTag InQuestId) const;

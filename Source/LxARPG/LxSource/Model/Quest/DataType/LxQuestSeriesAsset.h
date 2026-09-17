@@ -4,6 +4,7 @@
 #include "Engine/DataTable.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxQuestSeriesAsset.generated.h"
 
 class UEdGraph;
@@ -44,6 +45,10 @@ struct LXARPG_API FLxQuestNodeDefinition
 	/** 当前节点承载的任务内容，后续可替换为专用任务配置结构。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="任务|内容", DisplayName="任务内容", meta=(MultiLine="true"))
 	FText QuestContent;
+
+	/** 提交任务时由任务交互模块给予提交者的物品及数量；为空时不发放物品。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="任务|奖励", DisplayName="奖励物品列表")
+	TArray<FLxItemQuote> RewardItemList;
 
 	/** 用于任务类型筛选、交互条件和运行时查询的标签集合。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="任务|标识", DisplayName="任务标签")
