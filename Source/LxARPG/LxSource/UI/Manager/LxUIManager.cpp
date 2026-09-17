@@ -3,6 +3,10 @@
 #include "LxARPG/LxSource/UI/Quest/LxQuestDetailWidget.h"
 #include "LxARPG/LxSource/UI/Quest/LxQuestSummaryWidget.h"
 
+#include "LxARPG/LxSource/UI/CharacterHUD/LxCharacterStatusWidget.h"
+#include "LxARPG/LxSource/UI/ShortcutBar/LxShortcutBarWidget.h"
+#include "LxARPG/LxSource/UI/Buff/LxBuffWidget.h"
+
 #include "Components/CanvasPanelSlot.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -23,6 +27,31 @@
 #include "LxARPG/LxSource/UI/Trade/LxTradeContainerWidget.h"
 #include "LxARPG/LxSource/UI/TreasureChest/LxTreasureChestWidget.h"
 #include "LxARPG/LxSource/UI/Warehouse/LxWarehouseWidget.h"
+
+/** 内部派发数据，不暴露给蓝图；各层公开注册项只投影本层需要的字段。 */
+struct FLxUIRegistrationData
+{
+	/** 本次注册的控件，仅在同步派发期间使用。 */
+	ULxUIBaseObject* UIWidget = nullptr;
+	/** HUD 功能，仅在 HUD 层读取。 */
+	ELxHUDUIFunction HUDFunction = ELxHUDUIFunction::Custom;
+	/** 角色面板功能，仅在角色面板层读取。 */
+	ELxCharacterPanelUIFunction CharacterPanelFunction = ELxCharacterPanelUIFunction::Custom;
+	/** 交互功能；旧入口无法识别类型时保留无效值以明确报错。 */
+	ELxInteractionUIFunction InteractionFunction = static_cast<ELxInteractionUIFunction>(MAX_uint8);
+	/** 弹窗功能，仅在弹窗层读取。 */
+	ELxPopupUIFunction PopupFunction = ELxPopupUIFunction::Custom;
+	/** 自定义角色面板的开关输入。 */
+	ELxInputActionID InputActionID = ELxInputActionID::None;
+	/** 面板或提示显示时是否开启鼠标；提示新入口采用固定默认值。 */
+	bool bShowCursorWhenVisible = true;
+	/** 是否关闭其他角色面板。 */
+	bool bCloseOtherPanelsWhenOpened = false;
+	/** 是否同步角色数据；HUD 新入口固定同步，聊天除外。 */
+	bool bUpdateWithCharacterData = true;
+	/** 普通弹窗新入口固定初始隐藏；旧入口保留已有参数语义。 */
+	bool bHideOnRegister = true;
+};
 
 void ULxUIManager::NativeConstruct()
 {
@@ -94,127 +123,308 @@ void ULxUIManager::RefreshUI()
 	UpdateCursorState();
 }
 
+int32 ULxUIManager::RegisterHUDWidgets(const TArray<FLxHUDUIRegistration>& InRegistrations)
+{
+	TArray<FLxUIRegistrationData> Registrations;
+	Registrations.Reserve(InRegistrations.Num());
+	for (const FLxHUDUIRegistration& Entry : InRegistrations)
+	{
+		FLxUIRegistrationData& Registration = Registrations.AddDefaulted_GetRef();
+		Registration.UIWidget = Entry.UIWidget;
+		Registration.HUDFunction = Entry.FunctionType;
+	}
+	return RegisterLayerWidgets(ELxUILayerType::HUD, Registrations);
+}
+
+int32 ULxUIManager::RegisterCharacterPanelWidgets(const TArray<FLxCharacterPanelUIRegistration>& InRegistrations)
+{
+	TArray<FLxUIRegistrationData> Registrations;
+	Registrations.Reserve(InRegistrations.Num());
+	for (const FLxCharacterPanelUIRegistration& Entry : InRegistrations)
+	{
+		FLxUIRegistrationData& Registration = Registrations.AddDefaulted_GetRef();
+		Registration.UIWidget = Entry.UIWidget;
+		Registration.CharacterPanelFunction = Entry.FunctionType;
+		Registration.InputActionID = Entry.InputActionID;
+		Registration.bShowCursorWhenVisible = Entry.bShowCursorWhenVisible;
+		Registration.bCloseOtherPanelsWhenOpened = Entry.bCloseOtherPanelsWhenOpened;
+		Registration.bUpdateWithCharacterData = Entry.bUpdateWithCharacterData;
+	}
+	return RegisterLayerWidgets(ELxUILayerType::Panel, Registrations);
+}
+
+int32 ULxUIManager::RegisterInteractionWidgets(const TArray<FLxInteractionUIRegistration>& InRegistrations)
+{
+	TArray<FLxUIRegistrationData> Registrations;
+	Registrations.Reserve(InRegistrations.Num());
+	for (const FLxInteractionUIRegistration& Entry : InRegistrations)
+	{
+		FLxUIRegistrationData& Registration = Registrations.AddDefaulted_GetRef();
+		Registration.UIWidget = Entry.UIWidget;
+		Registration.InteractionFunction = Entry.FunctionType;
+	}
+	return RegisterLayerWidgets(ELxUILayerType::Interaction, Registrations);
+}
+
+int32 ULxUIManager::RegisterPopupWidgets(const TArray<FLxPopupUIRegistration>& InRegistrations)
+{
+	TArray<FLxUIRegistrationData> Registrations;
+	Registrations.Reserve(InRegistrations.Num());
+	for (const FLxPopupUIRegistration& Entry : InRegistrations)
+	{
+		FLxUIRegistrationData& Registration = Registrations.AddDefaulted_GetRef();
+		Registration.UIWidget = Entry.UIWidget;
+		Registration.PopupFunction = Entry.FunctionType;
+	}
+	return RegisterLayerWidgets(ELxUILayerType::Popup, Registrations);
+}
+
+int32 ULxUIManager::RegisterLayerWidgets(ELxUILayerType InLayer, const TArray<FLxUIRegistrationData>& InRegistrations)
+{
+	EnsureDefaultManagementObjects();
+	InitializeManagementObjects();
+	int32 RegisteredCount = 0;
+	for (const FLxUIRegistrationData& Registration : InRegistrations)
+	{
+		if (RegisterLayerWidget(InLayer, Registration))
+		{
+			++RegisteredCount;
+		}
+	}
+	UpdateCursorState();
+	return RegisteredCount;
+}
+
+bool ULxUIManager::RegisterLayerWidget(ELxUILayerType InLayer, const FLxUIRegistrationData& InRegistration)
+{
+	ULxUIBaseObject* Widget = InRegistration.UIWidget;
+	if (!IsValid(Widget))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UI注册失败：控件为空或已失效。"));
+		return false;
+	}
+
+	UClass* RequiredClass = ULxUIBaseObject::StaticClass();
+	ELxInputActionID InputAction = InRegistration.InputActionID;
+	bool bKnownFunction = true;
+	switch (InLayer)
+	{
+	case ELxUILayerType::HUD:
+		switch (InRegistration.HUDFunction)
+		{
+		case ELxHUDUIFunction::Custom:
+			break;
+		case ELxHUDUIFunction::CharacterStatus:
+			RequiredClass = ULxCharacterStatusWidget::StaticClass();
+			break;
+		case ELxHUDUIFunction::ShortcutBar:
+			RequiredClass = ULxShortcutBarWidget::StaticClass();
+			break;
+		case ELxHUDUIFunction::Buff:
+			RequiredClass = ULxBuffWidget::StaticClass();
+			break;
+		case ELxHUDUIFunction::Aim:
+			break;
+		case ELxHUDUIFunction::Chat:
+			RequiredClass = ULxChatWidget::StaticClass();
+			break;
+		case ELxHUDUIFunction::QuestSummary:
+			RequiredClass = ULxQuestSummaryWidget::StaticClass();
+			break;
+		default:
+			bKnownFunction = false;
+			break;
+		}
+		break;
+	case ELxUILayerType::Panel:
+		switch (InRegistration.CharacterPanelFunction)
+		{
+		case ELxCharacterPanelUIFunction::Custom:
+			break;
+		case ELxCharacterPanelUIFunction::Backpack:
+			InputAction = ELxInputActionID::Backpack;
+			break;
+		case ELxCharacterPanelUIFunction::CharacterAttribute:
+			InputAction = ELxInputActionID::CharacterAttribute;
+			break;
+		case ELxCharacterPanelUIFunction::SkillBackpack:
+			RequiredClass = ULxSkillBackpackWidget::StaticClass();
+			InputAction = ELxInputActionID::SkillBackpack;
+			break;
+		case ELxCharacterPanelUIFunction::Profession:
+			RequiredClass = ULxProfessionWidget::StaticClass();
+			InputAction = ELxInputActionID::Profession;
+			break;
+		case ELxCharacterPanelUIFunction::QuestDetail:
+			RequiredClass = ULxQuestDetailWidget::StaticClass();
+			InputAction = ELxInputActionID::Quest;
+			break;
+		default:
+			bKnownFunction = false;
+			break;
+		}
+		break;
+	case ELxUILayerType::Interaction:
+		switch (InRegistration.InteractionFunction)
+		{
+		case ELxInteractionUIFunction::InteractionEntrance:
+			RequiredClass = ULxInteractionEntranceWidget::StaticClass();
+			break;
+		case ELxInteractionUIFunction::Dialogue:
+			RequiredClass = ULxDialogueInteractionWidget::StaticClass();
+			break;
+		case ELxInteractionUIFunction::Warehouse:
+			RequiredClass = ULxWarehouseWidget::StaticClass();
+			break;
+		case ELxInteractionUIFunction::TreasureChest:
+			RequiredClass = ULxTreasureChestWidget::StaticClass();
+			break;
+		case ELxInteractionUIFunction::TradeContainer:
+			RequiredClass = ULxTradeContainerWidget::StaticClass();
+			break;
+		default:
+			bKnownFunction = false;
+			break;
+		}
+		break;
+	case ELxUILayerType::Popup:
+		switch (InRegistration.PopupFunction)
+		{
+		case ELxPopupUIFunction::Custom:
+			break;
+		case ELxPopupUIFunction::ItemTooltip:
+			RequiredClass = ULxItemTooltipWidget::StaticClass();
+			break;
+		default:
+			bKnownFunction = false;
+			break;
+		}
+		break;
+	default:
+		bKnownFunction = false;
+		break;
+	}
+	if (!bKnownFunction || !Widget->IsA(RequiredClass))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UI注册失败：%s 的功能类型无效或控件类型不匹配，所需类型为 %s。"),
+			*GetNameSafe(Widget), *RequiredClass->GetName());
+		return false;
+	}
+
+	// 同一实例不能同时归属多个管理器，避免刷新和显隐状态互相覆盖。
+	const bool bTooltip = InLayer == ELxUILayerType::Popup && InRegistration.PopupFunction == ELxPopupUIFunction::ItemTooltip;
+	if ((HUDUIManager->ContainsWidget(Widget) && InLayer != ELxUILayerType::HUD)
+		|| (TogglePanelUIManager->ContainsWidget(Widget) && InLayer != ELxUILayerType::Panel)
+		|| (InteractionUIManager->ContainsWidget(Widget) && InLayer != ELxUILayerType::Interaction)
+		|| (PopupUIManager->ContainsWidget(Widget) && (InLayer != ELxUILayerType::Popup || bTooltip))
+		|| (TooltipUIManager->ContainsWidget(Widget) && !bTooltip))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UI注册失败：%s 已注册到其他管理器。"), *GetNameSafe(Widget));
+		return false;
+	}
+
+	InitializeRegisteredUIWidget(Widget);
+	switch (InLayer)
+	{
+	case ELxUILayerType::HUD:
+		if (InRegistration.HUDFunction == ELxHUDUIFunction::QuestSummary)
+		{
+			Widget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		}
+		HUDUIManager->RegisterPersistentWidget(Widget,
+			InRegistration.HUDFunction != ELxHUDUIFunction::Chat && InRegistration.bUpdateWithCharacterData);
+		return true;
+	case ELxUILayerType::Panel:
+		if (InRegistration.CharacterPanelFunction == ELxCharacterPanelUIFunction::QuestDetail)
+		{
+			Widget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		TogglePanelUIManager->RegisterPanelWidget(Widget, InputAction, InRegistration.bShowCursorWhenVisible,
+			InRegistration.bCloseOtherPanelsWhenOpened, InRegistration.bUpdateWithCharacterData);
+		return true;
+	case ELxUILayerType::Popup:
+		if (bTooltip)
+		{
+			TooltipUIManager->SetItemTooltipWidget(CastChecked<ULxItemTooltipWidget>(Widget), InRegistration.bShowCursorWhenVisible);
+		}
+		else
+		{
+			PopupUIManager->RegisterPopupWidget(Widget, InRegistration.bHideOnRegister);
+		}
+		return true;
+	case ELxUILayerType::Interaction:
+		switch (InRegistration.InteractionFunction)
+		{
+		case ELxInteractionUIFunction::InteractionEntrance:
+			InteractionUIManager->RegisterEntranceWidget(CastChecked<ULxInteractionEntranceWidget>(Widget));
+			return true;
+		case ELxInteractionUIFunction::Dialogue:
+			InteractionUIManager->RegisterDialogueInteractionWidget(CastChecked<ULxDialogueInteractionWidget>(Widget));
+			return true;
+		case ELxInteractionUIFunction::Warehouse:
+			InteractionUIManager->RegisterWarehouseWidget(CastChecked<ULxWarehouseWidget>(Widget));
+			return true;
+		case ELxInteractionUIFunction::TreasureChest:
+			InteractionUIManager->RegisterTreasureChestWidget(CastChecked<ULxTreasureChestWidget>(Widget));
+			return true;
+		case ELxInteractionUIFunction::TradeContainer:
+			InteractionUIManager->RegisterTradeContainerWidget(CastChecked<ULxTradeContainerWidget>(Widget));
+			return true;
+		default:
+			return false;
+		}
+	default:
+		return false;
+	}
+}
+
 void ULxUIManager::RegisterChildUIWidget(ULxUIBaseObject* InChildUIWidget, ELxInputActionID InInputActionID, bool bInShowCursorWhenVisible)
 {
-	if (!InChildUIWidget)
+	FLxUIWidgetRegistration Registration;
+	Registration.UIWidget = InChildUIWidget;
+	Registration.InputActionID = InInputActionID;
+	Registration.bShowCursorWhenVisible = bInShowCursorWhenVisible;
+	if (Cast<ULxProfessionWidget>(InChildUIWidget))
 	{
-		return;
+		Registration.InputActionID = ELxInputActionID::Profession;
 	}
-
-	if (ULxItemTooltipWidget* ItemTooltipWidget = Cast<ULxItemTooltipWidget>(InChildUIWidget))
-	{
-		EnsureDefaultManagementObjects();
-		if (TooltipUIManager)
-		{
-			TooltipUIManager->SetItemTooltipWidget(ItemTooltipWidget, bInShowCursorWhenVisible);
-		}
-		UpdateCursorState();
-		return;
-	}
-
-	if (ULxProfessionWidget* ProfessionWidget = Cast<ULxProfessionWidget>(InChildUIWidget))
-	{
-		RegisterProfessionWidget(ProfessionWidget, bInShowCursorWhenVisible);
-		return;
-	}
-
-	if (ULxChatWidget* ChatWidget = Cast<ULxChatWidget>(InChildUIWidget))
-	{
-		RegisterChatWidget(ChatWidget);
-		return;
-	}
-
-	RegisterTogglePanelWidget(InChildUIWidget, InInputActionID, bInShowCursorWhenVisible);
+	RegisterUIWidget(Registration);
 }
 
 void ULxUIManager::RegisterUIWidget(const FLxUIWidgetRegistration& InRegistration)
 {
-	if (!InRegistration.UIWidget)
+	// 旧蓝图只在此适配类型推断；新入口完全由显式功能枚举决定。
+	if (!InRegistration.UIWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InRegistration.UIWidget;
+	Registration.InputActionID = InRegistration.InputActionID;
+	Registration.bShowCursorWhenVisible = InRegistration.bShowCursorWhenVisible;
+	Registration.bCloseOtherPanelsWhenOpened = InRegistration.bCloseOtherPanelsWhenOpened;
+	Registration.bUpdateWithCharacterData = InRegistration.bUpdateWithCharacterData;
+	ELxUILayerType Layer = InRegistration.LayerType;
+	if (Cast<ULxItemTooltipWidget>(Registration.UIWidget))
 	{
-		return;
+		Layer = ELxUILayerType::Popup;
+		Registration.PopupFunction = ELxPopupUIFunction::ItemTooltip;
 	}
-
-	EnsureDefaultManagementObjects();
-	InitializeManagementObjects();
-	InitializeRegisteredUIWidget(InRegistration.UIWidget);
-
-	if (ULxItemTooltipWidget* ItemTooltipWidget = Cast<ULxItemTooltipWidget>(InRegistration.UIWidget))
+	else if (Cast<ULxChatWidget>(Registration.UIWidget))
 	{
-		EnsureDefaultManagementObjects();
-		if (TooltipUIManager)
-		{
-			TooltipUIManager->SetItemTooltipWidget(ItemTooltipWidget, InRegistration.bShowCursorWhenVisible);
-		}
-		UpdateCursorState();
-		return;
+		Layer = ELxUILayerType::HUD;
+		Registration.HUDFunction = ELxHUDUIFunction::Chat;
 	}
-
-	if (ULxChatWidget* ChatWidget = Cast<ULxChatWidget>(InRegistration.UIWidget))
+	else if (Layer == ELxUILayerType::Interaction)
 	{
-		RegisterChatWidget(ChatWidget);
-		return;
+		if (Cast<ULxInteractionEntranceWidget>(Registration.UIWidget)) Registration.InteractionFunction = ELxInteractionUIFunction::InteractionEntrance;
+		else if (Cast<ULxDialogueInteractionWidget>(Registration.UIWidget)) Registration.InteractionFunction = ELxInteractionUIFunction::Dialogue;
+		else if (Cast<ULxWarehouseWidget>(Registration.UIWidget)) Registration.InteractionFunction = ELxInteractionUIFunction::Warehouse;
+		else if (Cast<ULxTreasureChestWidget>(Registration.UIWidget)) Registration.InteractionFunction = ELxInteractionUIFunction::TreasureChest;
+		else if (Cast<ULxTradeContainerWidget>(Registration.UIWidget)) Registration.InteractionFunction = ELxInteractionUIFunction::TradeContainer;
 	}
-
-	switch (InRegistration.LayerType)
+	else if (Layer == ELxUILayerType::Custom)
 	{
-	case ELxUILayerType::HUD:
-		if (HUDUIManager)
-		{
-			HUDUIManager->RegisterPersistentWidget(InRegistration.UIWidget, InRegistration.bUpdateWithCharacterData);
-		}
-		break;
-	case ELxUILayerType::Panel:
-		if (TogglePanelUIManager)
-		{
-			TogglePanelUIManager->RegisterPanelWidget(
-				InRegistration.UIWidget,
-				InRegistration.InputActionID,
-				InRegistration.bShowCursorWhenVisible,
-				InRegistration.bCloseOtherPanelsWhenOpened,
-				InRegistration.bUpdateWithCharacterData);
-		}
-		break;
-	case ELxUILayerType::Popup:
-		if (PopupUIManager)
-		{
-			PopupUIManager->RegisterPopupWidget(InRegistration.UIWidget);
-		}
-		break;
-	case ELxUILayerType::Tooltip:
-		RegisterItemTooltipWidget(Cast<ULxItemTooltipWidget>(InRegistration.UIWidget));
-		break;
-	case ELxUILayerType::Interaction:
-		if (ULxInteractionEntranceWidget* EntranceWidget = Cast<ULxInteractionEntranceWidget>(InRegistration.UIWidget))
-		{
-			RegisterInteractionEntranceWidget(EntranceWidget);
-		}
-		else if (ULxDialogueInteractionWidget* DialogueWidget = Cast<ULxDialogueInteractionWidget>(InRegistration.UIWidget))
-		{
-			RegisterDialogueInteractionWidget(DialogueWidget);
-		}
-		else if (ULxWarehouseWidget* WarehouseWidget = Cast<ULxWarehouseWidget>(InRegistration.UIWidget))
-		{
-			RegisterWarehouseWidget(WarehouseWidget);
-		}
-		else if (ULxTreasureChestWidget* TreasureChestWidget = Cast<ULxTreasureChestWidget>(InRegistration.UIWidget))
-		{
-			RegisterTreasureChestWidget(TreasureChestWidget);
-		}
-		else if (ULxTradeContainerWidget* TradeContainerWidget = Cast<ULxTradeContainerWidget>(InRegistration.UIWidget))
-		{
-			RegisterTradeContainerWidget(TradeContainerWidget);
-		}
-		break;
-	case ELxUILayerType::Custom:
-	default:
-		if (HUDUIManager)
-		{
-			HUDUIManager->RegisterPersistentWidget(InRegistration.UIWidget, InRegistration.bUpdateWithCharacterData);
-		}
-		break;
+		Layer = ELxUILayerType::HUD;
 	}
-
-	UpdateCursorState();
+	RegisterLayerWidgets(Layer, {Registration});
 }
 
 void ULxUIManager::RegisterHUDWidget(ULxUIBaseObject* InChildUIWidget)
@@ -226,147 +436,129 @@ void ULxUIManager::RegisterHUDWidget(ULxUIBaseObject* InChildUIWidget)
 	RegisterUIWidget(Registration);
 }
 
-void ULxUIManager::RegisterChatWidget(ULxChatWidget* InChatWidget)
-{
-	if (!InChatWidget)
-	{
-		return;
-	}
-
-	EnsureDefaultManagementObjects();
-	InitializeRegisteredUIWidget(InChatWidget);
-	if (HUDUIManager)
-	{
-		HUDUIManager->RegisterPersistentWidget(InChatWidget, false);
-	}
-	UpdateCursorState();
-}
-
 void ULxUIManager::RegisterTogglePanelWidget(ULxUIBaseObject* InChildUIWidget, ELxInputActionID InInputActionID,
 	bool bInShowCursorWhenVisible, bool bInCloseOtherPanelsWhenOpened)
 {
 	FLxUIWidgetRegistration Registration;
 	Registration.UIWidget = InChildUIWidget;
-	Registration.LayerType = ELxUILayerType::Panel;
 	Registration.InputActionID = InInputActionID;
 	Registration.bShowCursorWhenVisible = bInShowCursorWhenVisible;
 	Registration.bCloseOtherPanelsWhenOpened = bInCloseOtherPanelsWhenOpened;
 	RegisterUIWidget(Registration);
 }
 
-void ULxUIManager::RegisterSkillBackpackWidget(ULxSkillBackpackWidget* InSkillBackpackWidget,
-	bool bInShowCursorWhenVisible, bool bInCloseOtherPanelsWhenOpened)
+void ULxUIManager::RegisterChatWidget(ULxChatWidget* InWidget)
 {
-	RegisterTogglePanelWidget(
-		InSkillBackpackWidget,
-		ELxInputActionID::SkillBackpack,
-		bInShowCursorWhenVisible,
-		bInCloseOtherPanelsWhenOpened);
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.HUDFunction = ELxHUDUIFunction::Chat;
+	RegisterLayerWidgets(ELxUILayerType::HUD, {Registration});
 }
 
-void ULxUIManager::RegisterProfessionWidget(ULxProfessionWidget* InProfessionWidget,
-	bool bInShowCursorWhenVisible, bool bInCloseOtherPanelsWhenOpened)
+void ULxUIManager::RegisterQuestSummaryWidget(ULxQuestSummaryWidget* InWidget)
 {
-	RegisterTogglePanelWidget(
-		InProfessionWidget,
-		ELxInputActionID::Profession,
-		bInShowCursorWhenVisible,
-		bInCloseOtherPanelsWhenOpened);
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.HUDFunction = ELxHUDUIFunction::QuestSummary;
+	RegisterLayerWidgets(ELxUILayerType::HUD, {Registration});
 }
 
-void ULxUIManager::RegisterQuestDetailWidget(ULxQuestDetailWidget* InQuestWidget)
+void ULxUIManager::RegisterQuestDetailWidget(ULxQuestDetailWidget* InWidget)
 {
-	if (InQuestWidget)
-	{
-		InQuestWidget->SetVisibility(ESlateVisibility::Collapsed);
-		RegisterTogglePanelWidget(InQuestWidget, ELxInputActionID::Quest, true, true);
-	}
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.CharacterPanelFunction = ELxCharacterPanelUIFunction::QuestDetail;
+	Registration.bCloseOtherPanelsWhenOpened = true;
+	RegisterLayerWidgets(ELxUILayerType::Panel, {Registration});
 }
 
-void ULxUIManager::RegisterQuestSummaryWidget(ULxQuestSummaryWidget* InQuestWidget)
+void ULxUIManager::RegisterSkillBackpackWidget(ULxSkillBackpackWidget* InWidget, bool bInShowCursorWhenVisible, bool bInCloseOtherPanelsWhenOpened)
 {
-	if (InQuestWidget)
-	{
-		InQuestWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-		RegisterHUDWidget(InQuestWidget);
-	}
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.CharacterPanelFunction = ELxCharacterPanelUIFunction::SkillBackpack;
+	Registration.bShowCursorWhenVisible = bInShowCursorWhenVisible;
+	Registration.bCloseOtherPanelsWhenOpened = bInCloseOtherPanelsWhenOpened;
+	RegisterLayerWidgets(ELxUILayerType::Panel, {Registration});
 }
 
-void ULxUIManager::RegisterItemTooltipWidget(ULxItemTooltipWidget* InItemTooltipWidget)
+void ULxUIManager::RegisterProfessionWidget(ULxProfessionWidget* InWidget, bool bInShowCursorWhenVisible, bool bInCloseOtherPanelsWhenOpened)
 {
-	EnsureDefaultManagementObjects();
-	InitializeRegisteredUIWidget(InItemTooltipWidget);
-	if (TooltipUIManager)
-	{
-		TooltipUIManager->SetItemTooltipWidget(InItemTooltipWidget);
-	}
-	UpdateCursorState();
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.CharacterPanelFunction = ELxCharacterPanelUIFunction::Profession;
+	Registration.bShowCursorWhenVisible = bInShowCursorWhenVisible;
+	Registration.bCloseOtherPanelsWhenOpened = bInCloseOtherPanelsWhenOpened;
+	RegisterLayerWidgets(ELxUILayerType::Panel, {Registration});
 }
 
-void ULxUIManager::RegisterInteractionEntranceWidget(ULxInteractionEntranceWidget* InEntranceWidget)
+void ULxUIManager::RegisterItemTooltipWidget(ULxItemTooltipWidget* InWidget)
 {
-	EnsureDefaultManagementObjects();
-	InitializeRegisteredUIWidget(InEntranceWidget);
-	if (InteractionUIManager)
-	{
-		InteractionUIManager->RegisterEntranceWidget(InEntranceWidget);
-	}
-	UpdateCursorState();
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.PopupFunction = ELxPopupUIFunction::ItemTooltip;
+	RegisterLayerWidgets(ELxUILayerType::Popup, {Registration});
 }
 
-void ULxUIManager::RegisterDialogueInteractionWidget(ULxDialogueInteractionWidget* InDialogueInteractionWidget)
+void ULxUIManager::RegisterInteractionEntranceWidget(ULxInteractionEntranceWidget* InWidget)
 {
-	EnsureDefaultManagementObjects();
-	InitializeRegisteredUIWidget(InDialogueInteractionWidget);
-	if (InteractionUIManager)
-	{
-		InteractionUIManager->RegisterDialogueInteractionWidget(InDialogueInteractionWidget);
-	}
-	UpdateCursorState();
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.InteractionFunction = ELxInteractionUIFunction::InteractionEntrance;
+	RegisterLayerWidgets(ELxUILayerType::Interaction, {Registration});
 }
 
-void ULxUIManager::RegisterWarehouseWidget(ULxWarehouseWidget* InWarehouseWidget)
+void ULxUIManager::RegisterDialogueInteractionWidget(ULxDialogueInteractionWidget* InWidget)
 {
-	EnsureDefaultManagementObjects();
-	InitializeRegisteredUIWidget(InWarehouseWidget);
-	if (InteractionUIManager)
-	{
-		InteractionUIManager->RegisterWarehouseWidget(InWarehouseWidget);
-	}
-	UpdateCursorState();
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.InteractionFunction = ELxInteractionUIFunction::Dialogue;
+	RegisterLayerWidgets(ELxUILayerType::Interaction, {Registration});
 }
 
-void ULxUIManager::RegisterTreasureChestWidget(ULxTreasureChestWidget* InTreasureChestWidget)
+void ULxUIManager::RegisterWarehouseWidget(ULxWarehouseWidget* InWidget)
 {
-	EnsureDefaultManagementObjects();
-	InitializeRegisteredUIWidget(InTreasureChestWidget);
-	if (InteractionUIManager)
-	{
-		InteractionUIManager->RegisterTreasureChestWidget(InTreasureChestWidget);
-	}
-	UpdateCursorState();
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.InteractionFunction = ELxInteractionUIFunction::Warehouse;
+	RegisterLayerWidgets(ELxUILayerType::Interaction, {Registration});
 }
 
-void ULxUIManager::RegisterTradeContainerWidget(ULxTradeContainerWidget* InTradeContainerWidget)
+void ULxUIManager::RegisterTreasureChestWidget(ULxTreasureChestWidget* InWidget)
 {
-	EnsureDefaultManagementObjects();
-	InitializeRegisteredUIWidget(InTradeContainerWidget);
-	if (InteractionUIManager)
-	{
-		InteractionUIManager->RegisterTradeContainerWidget(InTradeContainerWidget);
-	}
-	UpdateCursorState();
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.InteractionFunction = ELxInteractionUIFunction::TreasureChest;
+	RegisterLayerWidgets(ELxUILayerType::Interaction, {Registration});
 }
 
-void ULxUIManager::RegisterPopupWidget(ULxUIBaseObject* InPopupWidget, bool bInHideOnRegister)
+void ULxUIManager::RegisterTradeContainerWidget(ULxTradeContainerWidget* InWidget)
 {
-	EnsureDefaultManagementObjects();
-	InitializeRegisteredUIWidget(InPopupWidget);
-	if (PopupUIManager)
-	{
-		PopupUIManager->RegisterPopupWidget(InPopupWidget, bInHideOnRegister);
-	}
-	UpdateCursorState();
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.InteractionFunction = ELxInteractionUIFunction::TradeContainer;
+	RegisterLayerWidgets(ELxUILayerType::Interaction, {Registration});
+}
+
+void ULxUIManager::RegisterPopupWidget(ULxUIBaseObject* InWidget, bool bInHideOnRegister)
+{
+	if (!InWidget) return;
+	FLxUIRegistrationData Registration;
+	Registration.UIWidget = InWidget;
+	Registration.PopupFunction = ELxPopupUIFunction::Custom;
+	Registration.bHideOnRegister = bInHideOnRegister;
+	RegisterLayerWidgets(ELxUILayerType::Popup, {Registration});
 }
 
 void ULxUIManager::SetChildUIVisible(ULxUIBaseObject* InChildUIWidget, bool bInVisible)
