@@ -106,9 +106,17 @@ void ULxBackpackWidget::SwitchItemType(ELxItemType NewType)
 
 	if (m_pCharacterDataTransferComponent)
 	{
-		TArray<ULxItemSlotData*> FilteredItems;
-		m_pCharacterDataTransferComponent->QueryBackpackItemsByFilter(NewType, ELxItemRarityType::None, FilteredItems);
-		HandleBackpackItemsChanged(FilteredItems);
+		TArray<ULxItemSlotData*> BackpackItems;
+		if (NewType == ELxItemType::None)
+		{
+			// 全部分类保留空槽位，与背包初次刷新使用相同的数据入口。
+			m_pCharacterDataTransferComponent->GetAllBackpackItems(BackpackItems);
+		}
+		else
+		{
+			m_pCharacterDataTransferComponent->QueryBackpackItemsByFilter(NewType, ELxItemRarityType::None, BackpackItems);
+		}
+		HandleBackpackItemsChanged(BackpackItems);
 		return;
 	}
 

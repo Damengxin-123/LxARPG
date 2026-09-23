@@ -8,6 +8,7 @@
 
 class ULxAIBehaviorModule;
 class ULxAIControlComponent;
+class ULxAIBehaviorTreeAsset;
 struct FLxDamageReceiveResult;
 
 /** 由配置驱动的AI角色类型，继承角色通用属性、技能和战斗组件。 */
@@ -34,6 +35,10 @@ public:
 	/** 获取无需连接蓝图节点即可运行的AI控制参数。 */
 	UFUNCTION(BlueprintPure, Category="角色配置|AI", DisplayName="获取AI控制配置")
 	const FLxAIControlConfig& GetAIControlConfig() const { return AIControlConfig; }
+
+	/** 获取角色类型选用的四入口分析配置；未配置时沿用旧控制模式。 */
+	UFUNCTION(BlueprintPure, Category="角色配置|AI", DisplayName="获取AI分析配置资产")
+	ULxAIBehaviorTreeAsset* GetAIBehaviorTreeAsset() const { return AIBehaviorTreeAsset; }
 
 	/** 根据自身配置和目标阵营属性计算基础目标关系。 */
 	UFUNCTION(BlueprintPure, Category="AI|感知", DisplayName="分析目标基础关系")
@@ -67,6 +72,10 @@ protected:
 	TObjectPtr<ULxAIControlComponent> AIControlComponent;
 
 	/** 当前角色独立感知、数值对比、行为匹配和执行使用的参数。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|AI", DisplayName="AI控制配置")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|AI", DisplayName="旧版AI参数（含自动控制开关）")
 	FLxAIControlConfig AIControlConfig;
+
+	/** 角色类型共享的四入口分析配置；仅类默认值可设置，不提供场景实例覆盖。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|AI", DisplayName="AI控制配置资产")
+	TObjectPtr<ULxAIBehaviorTreeAsset> AIBehaviorTreeAsset = nullptr;
 };

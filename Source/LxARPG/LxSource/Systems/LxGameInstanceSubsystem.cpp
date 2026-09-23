@@ -6,6 +6,7 @@
 #include "LxARPG/LxSource/Core/Tools/LxString.h"
 #include "SettingSystem/LxGameSettings.h"
 #include "StaticDataSystem/LxGlobalStaticDataManager.h"
+#include "NavigationSystem/LxAINavigationRegistry.h"
 
 ULxGameInstanceSubsystem* ULxGameInstanceSubsystem::GetInstance(const UWorld* InWorldPtr)
 {
@@ -29,10 +30,16 @@ void ULxGameInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	LoadDataTables();
 	InitializeGlobalStaticDataManager();
+	AINavigationRegistry = NewObject<ULxAINavigationRegistry>(this, TEXT("AI导航注册表"));
 }
 
 void ULxGameInstanceSubsystem::Deinitialize()
 {
+	if (AINavigationRegistry)
+	{
+		AINavigationRegistry->Deinitialize();
+		AINavigationRegistry = nullptr;
+	}
 	if (GlobalStaticDataManager)
 	{
 		GlobalStaticDataManager->Deinitialize();
@@ -55,6 +62,11 @@ const ULxGameDataTablesManager* ULxGameInstanceSubsystem::GetGameDataManager() c
 ULxGlobalStaticDataManager* ULxGameInstanceSubsystem::GetGlobalStaticDataManager() const
 {
 	return GlobalStaticDataManager;
+}
+
+ULxAINavigationRegistry* ULxGameInstanceSubsystem::GetAINavigationRegistry() const
+{
+	return AINavigationRegistry;
 }
 
 void ULxGameInstanceSubsystem::InitializeGlobalStaticDataManager()

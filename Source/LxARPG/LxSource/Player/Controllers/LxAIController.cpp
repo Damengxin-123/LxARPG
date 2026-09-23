@@ -4,8 +4,12 @@
 #include "Perception/AISense.h"
 #include "Perception/AISenseConfig_Damage.h"
 #include "Perception/AISenseConfig_Sight.h"
+#include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISense_Damage.h"
 #include "Perception/AISense_Sight.h"
+#include "Perception/AISense_Hearing.h"
+#include "Navigation/PathFollowingComponent.h"
+#include "LxARPG/LxSource/Model/AI/DataType/LxAIBehaviorTreeAsset.h"
 #include "TimerManager.h"
 #include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorModule.h"
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
@@ -13,6 +17,9 @@
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Player/Characters/LxAICharacter.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
+#include "LxARPG/LxSource/Systems/NavigationSystem/LxAINavigationRegistry.h"
+#include "LxARPG/LxSource/World/AINavigation/LxAIRouteActor.h"
 
 namespace
 {
@@ -50,6 +57,12 @@ ALxAIController::ALxAIController()
 	SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
 	AIPerceptionComponent->ConfigureSense(*SightConfig);
 	AIPerceptionComponent->SetDominantSense(SightConfig->GetSenseImplementation());
+	HearingConfig = CreateDefaultSubobject<UAISenseConfig_Hearing>(TEXT("HearingConfig"));
+	HearingConfig->HearingRange = 20.0f * MetersToCentimeters;
+	HearingConfig->DetectionByAffiliation.bDetectEnemies = true;
+	HearingConfig->DetectionByAffiliation.bDetectFriendlies = true;
+	HearingConfig->DetectionByAffiliation.bDetectNeutrals = true;
+	AIPerceptionComponent->ConfigureSense(*HearingConfig);
 
 	DamageConfig = CreateDefaultSubobject<UAISenseConfig_Damage>(TEXT("DamageConfig"));
 	AIPerceptionComponent->ConfigureSense(*DamageConfig);
@@ -58,6 +71,7 @@ ALxAIController::ALxAIController()
 
 void ALxAIController::OnPossess(APawn* InPawn)
 {
+	ResetPerceptionForPawnChange();
 	Super::OnPossess(InPawn);
 	ALxAICharacter* AICharacter = GetAICharacter();
 	if (!AICharacter)
@@ -71,6 +85,29 @@ void ALxAIController::OnPossess(APawn* InPawn)
 	CurrentAction = ELxAIActionType::None;
 	CurrentActionStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	CurrentBattleSnapshot = FLxAIBattleSnapshot();
+	AnalysisSession = nullptr;
+	ActiveFleeRoute.Reset();
+	RouteFleePhaseId.Invalidate();
+	bRouteFleeCompleted = false;
+	LastAnalysisTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	if (ULxAIBehaviorTreeAsset* Asset = AICharacter->GetAIBehaviorTreeAsset())
+	{
+		FText Error;
+		if (!Asset->ValidateConfiguration(Error))
+		{
+			UE_LOG(LogTemp, Error, TEXT("AI分析配置无效，已禁用自动决策：%s：%s"), *GetNameSafe(AICharacter), *Error.ToString());
+			return;
+		}
+		ApplyPerceptionConfiguration();
+		AnalysisSession = NewObject<ULxAIControlAnalysis>(this);
+		AnalysisSession->Initialize(Asset);
+		if (AICharacter->GetAIControlConfig().bEnableAutomaticControl)
+		{
+			RunAnalysisDecision();
+			GetWorldTimerManager().SetTimer(AutomaticDecisionTimer, this, &ALxAIController::RunAnalysisDecision, 0.1f, true);
+		}
+		return;
+	}
 	ApplyPerceptionConfiguration();
 
 	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
@@ -99,13 +136,36 @@ void ALxAIController::OnUnPossess()
 	CurrentSituation = ELxAISituationLevel::NoThreat;
 	CurrentAction = ELxAIActionType::None;
 	CurrentBattleSnapshot = FLxAIBattleSnapshot();
+	AnalysisSession = nullptr;
+	ActiveFleeRoute.Reset();
+	RouteFleePhaseId.Invalidate();
+	bRouteFleeCompleted = false;
+	LastAnalysisTime = 0.0;
 	Super::OnUnPossess();
+	ResetPerceptionForPawnChange();
 }
 
 void ALxAIController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(AutomaticDecisionTimer);
+	AnalysisSession = nullptr;
+	TargetMemory.Reset();
+	DynamicHostileTargets.Reset();
+	ResetPerceptionForPawnChange();
 	Super::EndPlay(EndPlayReason);
+}
+
+void ALxAIController::ResetPerceptionForPawnChange()
+{
+	if (!AIPerceptionComponent)
+	{
+		return;
+	}
+	// UE 的 ForgetAll 仅清 PerceptualData；先排空尚未处理的刺激，避免换 Pawn 后重建旧缓存。
+	AIPerceptionComponent->OnTargetPerceptionUpdated.RemoveDynamic(this, &ALxAIController::HandleTargetPerceptionUpdated);
+	AIPerceptionComponent->ProcessStimuli();
+	AIPerceptionComponent->ForgetAll();
+	AIPerceptionComponent->OnTargetPerceptionUpdated.AddUniqueDynamic(this, &ALxAIController::HandleTargetPerceptionUpdated);
 }
 
 void ALxAIController::ReportPerceivedTarget(AActor* InTargetActor, const ELxAIPerceptionSource InPerceptionSource,
@@ -118,11 +178,61 @@ void ALxAIController::ReportPerceivedTarget(AActor* InTargetActor, const ELxAIPe
 		return;
 	}
 
+	StorePerceivedTarget(InTargetActor, InPerceptionSource, TargetCharacter->GetActorLocation(), bInMarkAsHostile);
+}
+
+void ALxAIController::StorePerceivedTarget(AActor* InTargetActor, const ELxAIPerceptionSource InPerceptionSource,
+	const FVector& InLocation, const bool bInMarkAsHostile)
+{
+	ALxBaseCharacter* TargetCharacter = Cast<ALxBaseCharacter>(InTargetActor);
+	const ALxAICharacter* AICharacter = GetAICharacter();
+	if (!IsValid(TargetCharacter) || !AICharacter || TargetCharacter == AICharacter)
+	{
+		return;
+	}
+	if (AICharacter->GetAIBehaviorTreeAsset() && !AnalysisSession)
+	{
+		return;
+	}
+	if (AnalysisSession && (InPerceptionSource == ELxAIPerceptionSource::Sight || InPerceptionSource == ELxAIPerceptionSource::Hearing))
+	{
+		const FLxAIPerceptionConfig& Perception = AICharacter->GetAIBehaviorTreeAsset()->Perception;
+		if ((InPerceptionSource == ELxAIPerceptionSource::Sight && !Perception.bEnableSight) ||
+			(InPerceptionSource == ELxAIPerceptionSource::Hearing && !Perception.bEnableHearing))
+		{
+			return;
+		}
+		const ELxAITargetRelation Relation = ResolveTargetRelation(TargetCharacter);
+		if ((Relation == ELxAITargetRelation::Hostile && !Perception.bDetectEnemies) ||
+			(Relation == ELxAITargetRelation::Assist && !Perception.bDetectFriendlies) ||
+			(Relation == ELxAITargetRelation::Ignore && !Perception.bDetectNeutrals))
+		{
+			return;
+		}
+	}
 	FLxAITargetMemoryRecord& Record = TargetMemory.FindOrAdd(InTargetActor);
 	Record.TargetCharacter = TargetCharacter;
 	Record.PerceptionSource = InPerceptionSource;
 	Record.LastSensedTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	Record.bHostileByDamage |= bInMarkAsHostile;
+	if (InPerceptionSource == ELxAIPerceptionSource::Sight)
+	{
+		Record.SightLocation = InLocation;
+		Record.SightTime = Record.LastSensedTime;
+		Record.bHasSight = true;
+	}
+	else if (InPerceptionSource == ELxAIPerceptionSource::Hearing)
+	{
+		Record.HearingLocation = InLocation;
+		Record.HearingTime = Record.LastSensedTime;
+		Record.bHasHearing = true;
+	}
+	else
+	{
+		Record.OtherLocation = InLocation;
+		Record.OtherTime = Record.LastSensedTime;
+		Record.bHasOther = true;
+	}
 	if (bInMarkAsHostile)
 	{
 		DynamicHostileTargets.Add(InTargetActor);
@@ -138,15 +248,20 @@ void ALxAIController::HandleTargetPerceptionUpdated(AActor* InActor, const FAISt
 
 	const bool bDamageSource = InStimulus.Type == UAISense::GetSenseID<UAISense_Damage>();
 	const bool bSightSource = InStimulus.Type == UAISense::GetSenseID<UAISense_Sight>();
+	const bool bHearingSource = InStimulus.Type == UAISense::GetSenseID<UAISense_Hearing>();
 	const ELxAIPerceptionSource PerceptionSource = bDamageSource ? ELxAIPerceptionSource::Damage :
-		(bSightSource ? ELxAIPerceptionSource::Sight : ELxAIPerceptionSource::Unknown);
-	ReportPerceivedTarget(InActor, PerceptionSource, bDamageSource);
+		(bSightSource ? ELxAIPerceptionSource::Sight : (bHearingSource ? ELxAIPerceptionSource::Hearing : ELxAIPerceptionSource::Unknown));
+	StorePerceivedTarget(InActor, PerceptionSource, InStimulus.StimulusLocation, bDamageSource);
 }
 
 void ALxAIController::RunAutomaticDecision()
 {
 	ALxAICharacter* AICharacter = GetAICharacter();
 	if (!AICharacter || !AICharacter->HasAuthority() || !AICharacter->GetAIControlConfig().bEnableAutomaticControl)
+	{
+		return;
+	}
+	if (AICharacter->GetAIBehaviorTreeAsset())
 	{
 		return;
 	}
@@ -157,17 +272,192 @@ void ALxAIController::RunAutomaticDecision()
 	SelectAndExecuteAction(NewSituation);
 }
 
+void ALxAIController::NotifyReceivedAttack()
+{
+	if (AnalysisSession)
+	{
+		LastAnalysisTime = GetWorld() ? GetWorld()->GetTimeSeconds() : LastAnalysisTime;
+		AnalysisSession->NotifyAttacked();
+		RunAnalysisDecision();
+	}
+}
+
+void ALxAIController::CompleteAttackedResponse()
+{
+	if (AnalysisSession)
+	{
+		AnalysisSession->CompleteAttackedResponse();
+		RunAnalysisDecision();
+	}
+}
+
+FLxAIAnalysisDecision ALxAIController::GetCurrentAnalysisDecision() const
+{
+	return AnalysisSession ? AnalysisSession->GetCurrentDecision() : FLxAIAnalysisDecision();
+}
+
+void ALxAIController::RunAnalysisDecision()
+{
+	ALxAICharacter* AICharacter = GetAICharacter();
+	if (!AnalysisSession || !AICharacter || !AICharacter->HasAuthority() || !AICharacter->GetAIControlConfig().bEnableAutomaticControl)
+	{
+		return;
+	}
+	RefreshActivePerceptionMemory();
+	PruneTargetMemory();
+	AActor* NearestEnemy = nullptr;
+	float NearestDistance = TNumericLimits<float>::Max();
+	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	const FVector SelfLocation = AICharacter->GetActorLocation();
+	for (const TPair<TWeakObjectPtr<AActor>, FLxAITargetMemoryRecord>& Pair : TargetMemory)
+	{
+		const FLxAITargetMemoryRecord& Record = Pair.Value;
+		if (ResolveTargetRelation(Record.TargetCharacter.Get()) != ELxAITargetRelation::Hostile)
+		{
+			continue;
+		}
+		FVector LastLocation = FVector::ZeroVector;
+		if (Record.bHasSight && (!Record.bHasHearing || Record.SightTime >= Record.HearingTime) &&
+			(!Record.bHasOther || Record.SightTime >= Record.OtherTime))
+		{
+			LastLocation = Record.SightLocation;
+		}
+		else if (Record.bHasHearing && (!Record.bHasOther || Record.HearingTime >= Record.OtherTime))
+		{
+			LastLocation = Record.HearingLocation;
+		}
+		else if (Record.bHasOther)
+		{
+			LastLocation = Record.OtherLocation;
+		}
+		const float Distance = FVector::Dist(SelfLocation, LastLocation) / MetersToCentimeters;
+		if (Distance < NearestDistance || (Distance == NearestDistance &&
+			(!NearestEnemy || Pair.Key.Get()->GetUniqueID() < NearestEnemy->GetUniqueID())))
+		{
+			NearestEnemy = Pair.Key.Get();
+			NearestDistance = Distance;
+		}
+	}
+	const FLxAIAnalysisDecision OldDecision = AnalysisSession->GetCurrentDecision();
+	const FLxAIAnalysisDecision NewDecision = AnalysisSession->Evaluate(NearestEnemy,
+		NearestEnemy ? NearestDistance : 0.0f, AICharacter->GetCurrentHealthRatio(),
+		FMath::Max(0.0f, static_cast<float>(Now - LastAnalysisTime)));
+	LastAnalysisTime = Now;
+	UpdateRouteFlee(NewDecision, NewDecision.bStartNewBehavior ||
+		OldDecision.PhaseId != NewDecision.PhaseId || OldDecision.EntryId != NewDecision.EntryId);
+	if (NewDecision.bStartNewBehavior || OldDecision.bHasBranch != NewDecision.bHasBranch ||
+		OldDecision.EntryId != NewDecision.EntryId || OldDecision.StateId != NewDecision.StateId || OldDecision.PhaseId != NewDecision.PhaseId)
+	{
+		// 固定路线逃跑由本控制器执行，其余具体叶行为仍由外部消费者处理。
+		OnAIAnalysisDecisionChanged.Broadcast(NewDecision);
+	}
+}
+
+void ALxAIController::UpdateRouteFlee(const FLxAIAnalysisDecision& Decision, const bool bStartNewBehavior)
+{
+	ALxAICharacter* AICharacter = GetAICharacter();
+	const ULxAIBehaviorTreeAsset* Asset = AICharacter ? AICharacter->GetAIBehaviorTreeAsset() : nullptr;
+	const ULxAIBehaviorTreeNodeData* Phase = Asset ? Asset->FindNode(Decision.PhaseId) : nullptr;
+	const ULxAIBehaviorTreeNodeData* FleeAction = nullptr;
+	if (Decision.bHasBranch && Phase && Phase->Kind == ELxAIBehaviorNodeKind::Phase)
+	{
+		const ULxAIBehaviorTreeNodeData* FirstAction = Phase->Children.IsEmpty() ? nullptr : Asset->FindNode(Phase->Children[0]);
+		if (FirstAction && FirstAction->Kind == ELxAIBehaviorNodeKind::Action &&
+			FirstAction->Action == ELxAIBehaviorAction::RouteFlee)
+		{
+			FleeAction = FirstAction;
+		}
+	}
+	if (!FleeAction)
+	{
+		if (ActiveFleeRoute.IsValid()) StopMovement();
+		ActiveFleeRoute.Reset();
+		RouteFleePhaseId.Invalidate();
+		bRouteFleeCompleted = false;
+		return;
+	}
+	if (RouteFleePhaseId != Decision.PhaseId || (bStartNewBehavior && !bRouteFleeCompleted))
+	{
+		if (ActiveFleeRoute.IsValid()) StopMovement();
+		ActiveFleeRoute.Reset();
+		RouteFleePhaseId = Decision.PhaseId;
+		RouteFleePointIndex = 0;
+		bRouteFleeMoveRequested = false;
+		bRouteFleeCompleted = false;
+	}
+	if (bRouteFleeCompleted) return;
+	if (!ActiveFleeRoute.IsValid())
+	{
+		const ULxGameInstanceSubsystem* Subsystem = ULxGameInstanceSubsystem::GetInstance(GetWorld());
+		ULxAINavigationRegistry* Registry = Subsystem ? Subsystem->GetAINavigationRegistry() : nullptr;
+		ActiveFleeRoute = Registry ? Registry->FindRoute(this, FleeAction->RouteId) : nullptr;
+		if (!ActiveFleeRoute.IsValid()) return;
+	}
+	const TArray<FVector> Points = ActiveFleeRoute->GetWorldRoutePoints();
+	if (Points.IsEmpty()) return;
+	while (RouteFleePointIndex < Points.Num() &&
+		FVector::Dist(AICharacter->GetActorLocation(), Points[RouteFleePointIndex]) <= 75.0f)
+	{
+		++RouteFleePointIndex;
+		bRouteFleeMoveRequested = false;
+	}
+	if (RouteFleePointIndex >= Points.Num())
+	{
+		bRouteFleeCompleted = true;
+		ActiveFleeRoute.Reset();
+		if (Decision.Entry == ELxAIBehaviorEntry::Attacked && AnalysisSession)
+		{
+			AnalysisSession->CompleteAttackedResponse();
+		}
+		return;
+	}
+	if (bRouteFleeMoveRequested && GetMoveStatus() == EPathFollowingStatus::Idle)
+	{
+		bRouteFleeMoveRequested = false;
+	}
+	if (!bRouteFleeMoveRequested)
+	{
+		bRouteFleeMoveRequested = MoveToLocation(Points[RouteFleePointIndex], 75.0f, true, true, false, true, nullptr, false) !=
+			EPathFollowingRequestResult::Failed;
+	}
+}
+
 void ALxAIController::ApplyPerceptionConfiguration()
 {
 	const ALxAICharacter* AICharacter = GetAICharacter();
-	if (!AICharacter || !SightConfig || !DamageConfig || !AIPerceptionComponent)
+	if (!AICharacter || !SightConfig || !HearingConfig || !DamageConfig || !AIPerceptionComponent)
 	{
 		return;
 	}
 
+	if (const ULxAIBehaviorTreeAsset* Asset = AICharacter->GetAIBehaviorTreeAsset())
+	{
+		const FLxAIPerceptionConfig& Config = Asset->Perception;
+		if (Config.bEnableSight)
+		{
+			SightConfig->SightRadius = Config.SightRadiusMeters * MetersToCentimeters;
+			SightConfig->LoseSightRadius = Config.LoseSightRadiusMeters * MetersToCentimeters;
+			SightConfig->PeripheralVisionAngleDegrees = Config.SightHalfAngleDegrees;
+			SightConfig->SetMaxAge(Config.SightMemorySeconds);
+			AIPerceptionComponent->ConfigureSense(*SightConfig);
+		}
+		if (Config.bEnableHearing)
+		{
+			HearingConfig->HearingRange = Config.HearingRadiusMeters * MetersToCentimeters;
+			HearingConfig->SetMaxAge(Config.HearingMemorySeconds);
+			AIPerceptionComponent->ConfigureSense(*HearingConfig);
+		}
+		AIPerceptionComponent->SetSenseEnabled(UAISense_Sight::StaticClass(), Config.bEnableSight);
+		AIPerceptionComponent->SetSenseEnabled(UAISense_Hearing::StaticClass(), Config.bEnableHearing);
+		AIPerceptionComponent->RequestStimuliListenerUpdate();
+		return;
+	}
+	AIPerceptionComponent->SetSenseEnabled(UAISense_Sight::StaticClass(), true);
+	AIPerceptionComponent->SetSenseEnabled(UAISense_Hearing::StaticClass(), false);
 	const FLxAIControlConfig& Config = AICharacter->GetAIControlConfig();
 	SightConfig->SightRadius = FMath::Max(0.0f, Config.SightRadius) * MetersToCentimeters;
 	SightConfig->LoseSightRadius = FMath::Max(Config.SightRadius, Config.LoseSightRadius) * MetersToCentimeters;
+	SightConfig->PeripheralVisionAngleDegrees = 90.0f;
 	SightConfig->SetMaxAge(FMath::Max(0.1f, Config.TargetMemoryMaxAge));
 	DamageConfig->SetMaxAge(FMath::Max(0.1f, Config.TargetMemoryMaxAge));
 	AIPerceptionComponent->ConfigureSense(*SightConfig);
@@ -195,11 +485,23 @@ void ALxAIController::PruneTargetMemory()
 	const ALxAICharacter* AICharacter = GetAICharacter();
 	const double CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	const double MaxAge = AICharacter ? FMath::Max(0.1f, AICharacter->GetAIControlConfig().TargetMemoryMaxAge) : 0.1;
+	const ULxAIBehaviorTreeAsset* Asset = AICharacter ? AICharacter->GetAIBehaviorTreeAsset() : nullptr;
 
 	for (auto Iterator = TargetMemory.CreateIterator(); Iterator; ++Iterator)
 	{
-		const FLxAITargetMemoryRecord& Record = Iterator.Value();
-		if (!Record.TargetCharacter.IsValid() || CurrentTime - Record.LastSensedTime > MaxAge)
+		FLxAITargetMemoryRecord& Record = Iterator.Value();
+		if (Asset)
+		{
+			const FLxAIPerceptionConfig& Config = Asset->Perception;
+			Record.bHasSight &= Config.bEnableSight && (Config.SightMemorySeconds == 0.0f ||
+				CurrentTime - Record.SightTime <= Config.SightMemorySeconds);
+			Record.bHasHearing &= Config.bEnableHearing && (Config.HearingMemorySeconds == 0.0f ||
+				CurrentTime - Record.HearingTime <= Config.HearingMemorySeconds);
+			Record.bHasOther &= CurrentTime - Record.OtherTime <= Asset->Analysis.AttackedAlertSeconds;
+		}
+		if (!Record.TargetCharacter.IsValid() || (Asset ?
+			!Record.bHasSight && !Record.bHasHearing && !Record.bHasOther :
+			CurrentTime - Record.LastSensedTime > MaxAge))
 		{
 			DynamicHostileTargets.Remove(Iterator.Key());
 			Iterator.RemoveCurrent();

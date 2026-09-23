@@ -7,6 +7,7 @@
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectComponent.h"
+#include "LxARPG/LxSource/Model/Damage/DataType/LxDamageCalculationTypes.h"
 #include "LxARPG/LxSource/Player/Controllers/LxAIController.h"
 #include "LxARPG/LxSource/UI/WorldSpace/AICharacterInfo/LxAICharacterInfoWidget.h"
 
@@ -61,13 +62,23 @@ void ALxAICharacter::InitialCharacterInformation()
 	}
 }
 
-void ALxAICharacter::HandleAIReceivedDamage(const FLxDamageReceiveResult&, AActor* AttackerActor)
+void ALxAICharacter::HandleAIReceivedDamage(const FLxDamageReceiveResult& DamageReceiveResult, AActor* AttackerActor)
 {
-	if (ALxAIController* AIController = Cast<ALxAIController>(GetController());
-		AIController && IsValid(AttackerActor) && AttackerActor != this)
+	ALxAIController* AIController = Cast<ALxAIController>(GetController());
+	if (!AIController)
+	{
+		return;
+	}
+	const bool bValidDamage = !DamageReceiveResult.bIgnoredDamage &&
+		FMath::IsFinite(DamageReceiveResult.GetTotalDamageValue()) && DamageReceiveResult.GetTotalDamageValue() > 0.0f;
+	if (IsValid(AttackerActor) && AttackerActor != this && (!AIBehaviorTreeAsset || bValidDamage))
 	{
 		// 不依赖伤害感知的异步派发，保证低生命决策的这一轮已经有可用逃跑目标。
 		AIController->ReportPerceivedTarget(AttackerActor, ELxAIPerceptionSource::Damage, true);
+	}
+	if (AIBehaviorTreeAsset && bValidDamage)
+	{
+		AIController->NotifyReceivedAttack();
 	}
 }
 

@@ -24,6 +24,7 @@ public class LxARPGEditor : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
+			"AIModule",
 			"ApplicationCore",
 			"AssetTools",
 			"BlueprintGraph",
@@ -33,6 +34,7 @@ public class LxARPGEditor : ModuleRules
 			"GameplayTags",
 			"GameplayTagsEditor",
 			"InputCore",
+			"ImageCore",
 			"PropertyEditor",
 			"Slate",
 			"SlateCore",

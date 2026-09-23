@@ -35,7 +35,8 @@ enum class ELxAIPerceptionSource : uint8
 	Range UMETA(DisplayName="范围感知"),
 	Damage UMETA(DisplayName="受击感知"),
 	Interaction UMETA(DisplayName="交互感知"),
-	Effect UMETA(DisplayName="效果感知")
+	Effect UMETA(DisplayName="效果感知"),
+	Hearing UMETA(DisplayName="听觉感知")
 };
 
 /** 第一版AI行为组件能够独立检查并执行的行为。 */

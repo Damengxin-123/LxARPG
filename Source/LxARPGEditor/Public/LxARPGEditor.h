@@ -20,4 +20,7 @@ private:
 
 	/** 任务系列资产在内容浏览器中的类型操作。 */
 	TSharedPtr<IAssetTypeActions> QuestSeriesAssetTypeActions;
+
+	/** AI行为树资产的内容浏览器入口。 */
+	TSharedPtr<IAssetTypeActions> AIBehaviorTreeAssetTypeActions;
 };

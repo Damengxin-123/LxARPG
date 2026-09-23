@@ -3,6 +3,7 @@
 #include "AssetToolsModule.h"
 #include "LxQuestSeriesAssetTypeActions.h"
 #include "LxInteractionTreeAssetTypeActions.h"
+#include "LxAIBehaviorTreeAssetTypeActions.h"
 
 void FLxARPGEditorModule::StartupModule()
 {
@@ -11,10 +12,17 @@ void FLxARPGEditorModule::StartupModule()
 	AssetTools.RegisterAssetTypeActions(QuestSeriesAssetTypeActions.ToSharedRef());
 	InteractionTreeAssetTypeActions = MakeShared<FLxInteractionTreeAssetTypeActions>();
 	AssetTools.RegisterAssetTypeActions(InteractionTreeAssetTypeActions.ToSharedRef());
+	AIBehaviorTreeAssetTypeActions = MakeShared<FLxAIBehaviorTreeAssetTypeActions>();
+	AssetTools.RegisterAssetTypeActions(AIBehaviorTreeAssetTypeActions.ToSharedRef());
 }
 
 void FLxARPGEditorModule::ShutdownModule()
 {
+	if (AIBehaviorTreeAssetTypeActions.IsValid() && FModuleManager::Get().IsModuleLoaded(TEXT("AssetTools")))
+	{
+		FModuleManager::GetModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get().UnregisterAssetTypeActions(AIBehaviorTreeAssetTypeActions.ToSharedRef());
+	}
+	AIBehaviorTreeAssetTypeActions.Reset();
 	if (InteractionTreeAssetTypeActions.IsValid() && FModuleManager::Get().IsModuleLoaded(TEXT("AssetTools")))
 	{
 		FModuleManager::GetModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get().UnregisterAssetTypeActions(InteractionTreeAssetTypeActions.ToSharedRef());

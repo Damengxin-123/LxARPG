@@ -8,6 +8,7 @@
 
 class ULxGameDataTablesManager;
 class ULxGlobalStaticDataManager;
+class ULxAINavigationRegistry;
 /**
  * 
  */
@@ -46,6 +47,10 @@ public:
 	/** 获取游戏实例持有的全局静态数据管理器。 */
 	UFUNCTION(BlueprintPure, Category="静态数据|全局", DisplayName="获取全局静态数据管理器")
 	ULxGlobalStaticDataManager* GetGlobalStaticDataManager() const;
+
+	/** 获取游戏实例持有的 AI 导航场景对象注册表。 */
+	UFUNCTION(BlueprintPure, Category="AI导航", DisplayName="获取AI导航注册表")
+	ULxAINavigationRegistry* GetAINavigationRegistry() const;
 private:
 	/** 使用现有数据表管理器配置创建全局静态数据管理器。 */
 	void InitializeGlobalStaticDataManager();
@@ -64,4 +69,8 @@ private:
 	/** 游戏实例生命周期内持有的全局静态数据管理器。 */
 	UPROPERTY(Transient, VisibleAnywhere, Category="静态数据|全局", DisplayName="全局静态数据管理器")
 	TObjectPtr<ULxGlobalStaticDataManager> GlobalStaticDataManager = nullptr;
+
+	/** 游戏实例生命周期内持有的 AI 路线与点位注册表。 */
+	UPROPERTY(Transient, VisibleAnywhere, Category="AI导航", DisplayName="AI导航注册表")
+	TObjectPtr<ULxAINavigationRegistry> AINavigationRegistry = nullptr;
 };
