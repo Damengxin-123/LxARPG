@@ -38,8 +38,7 @@ void ULxCharacterAnimationProcessComponent::ReceiveBaseMotionSignal(const FLxCha
 	}
 
 	CurrentBaseAnimationSignal = ConvertMotionSignalToAnimationSignal(InMotionSignal);
-	EnsureAnimationInstanceCached();
-	if (AnimInstance)
+	if (!EnsureAnimationInstanceCached() && AnimInstance)
 	{
 		AnimInstance->ApplyBaseAnimationSignal(CurrentBaseAnimationSignal);
 	}
@@ -54,8 +53,7 @@ void ULxCharacterAnimationProcessComponent::ReceiveActionMotionSignal(const FLxC
 
 	CurrentActionAnimationSignal = ConvertMotionSignalToAnimationSignal(InMotionSignal);
 	CurrentActionAnimationSignal.SkillId = InMotionSignal.SkillId;
-	EnsureAnimationInstanceCached();
-	if (AnimInstance)
+	if (!EnsureAnimationInstanceCached() && AnimInstance)
 	{
 		AnimInstance->ApplyActionAnimationSignal(CurrentActionAnimationSignal);
 	}
@@ -136,7 +134,7 @@ void ULxCharacterAnimationProcessComponent::UnbindBehaviorControlEvents()
 	}
 }
 
-void ULxCharacterAnimationProcessComponent::EnsureAnimationInstanceCached()
+bool ULxCharacterAnimationProcessComponent::EnsureAnimationInstanceCached()
 {
 	const ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
 	ULxAnimInstanceBase* NewInstance = OwnerCharacter && OwnerCharacter->GetMesh()
@@ -148,6 +146,8 @@ void ULxCharacterAnimationProcessComponent::EnsureAnimationInstanceCached()
 		{
 			AnimInstance->ApplyBaseAnimationSignal(CurrentBaseAnimationSignal);
 			AnimInstance->ApplyActionAnimationSignal(CurrentActionAnimationSignal);
+			return true;
 		}
 	}
+	return false;
 }

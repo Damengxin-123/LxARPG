@@ -67,6 +67,18 @@ bool FLxAINavigationRegistryTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("点位查询应按世界隔离"), Registry->FindPoint(WorldA, SharedPointId), PointA);
 	Registry->UnregisterPoint(DuplicatePointA);
 	TestEqual(TEXT("按未注册对象注销不得移除同ID点位"), Registry->FindPoint(WorldA, SharedPointId), PointA);
+	RouteB->Destroy();
+	PointB->Destroy();
+	TestNull(TEXT("路线弱引用失效后查询应立即返回空"), Registry->FindRoute(WorldB, SharedRouteId));
+	TestNull(TEXT("点位弱引用失效后查询应立即返回空"), Registry->FindPoint(WorldB, SharedPointId));
+	ALxAIRouteActor* ReplacementRouteB = WorldB->SpawnActor<ALxAIRouteActor>();
+	ALxAIPointActor* ReplacementPointB = WorldB->SpawnActor<ALxAIPointActor>();
+	ReplacementRouteB->RouteId = SharedRouteId;
+	ReplacementPointB->PointId = SharedPointId;
+	TestTrue(TEXT("失效路线的ID允许重新注册"), Registry->RegisterRoute(ReplacementRouteB));
+	TestTrue(TEXT("失效点位的ID允许重新注册"), Registry->RegisterPoint(ReplacementPointB));
+	TestEqual(TEXT("失效记录不会遮蔽同ID新路线"), Registry->FindRoute(WorldB, SharedRouteId), ReplacementRouteB);
+	TestEqual(TEXT("失效记录不会遮蔽同ID新点位"), Registry->FindPoint(WorldB, SharedPointId), ReplacementPointB);
 	Registry->Deinitialize();
 	TestNull(TEXT("反初始化后路线缓存应为空"), Registry->FindRoute(WorldB, SharedRouteId));
 	TestNull(TEXT("反初始化后点位缓存应为空"), Registry->FindPoint(WorldB, SharedPointId));

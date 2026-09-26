@@ -52,14 +52,8 @@ void ULxItemBase::InitItemObject(const FLxItemQuote& InItemQuote)
 
 bool ULxItemBase::ItemIsStackable()
 {
-	if (ItemBase())
-	{
-		if (ItemBase() && ItemBase()->ItemCountMax > 1 && ItemBase()->ItemCount < ItemBase()->ItemCountMax)
-		{
-			return true;
-		}
-	}
-	return false;
+	const FLxItemInformationBase* ItemInfo = ItemBase();
+	return ItemInfo && ItemInfo->ItemCountMax > 1 && ItemInfo->ItemCount < ItemInfo->ItemCountMax;
 }
 
 FGameplayTag ULxItemBase::ItemIDTag()
@@ -167,14 +161,8 @@ bool ULxItemBase::ItemStack(ULxItemBase* InItem)
 
 bool ULxItemBase::ItemIsValid()
 {
-	if (ItemBase())
-	{
-		if (ItemBase()->ItemCount > 0)
-		{
-			return true;
-		}
-	}
-	return false;
+	const FLxItemInformationBase* ItemInfo = ItemBase();
+	return ItemInfo && ItemInfo->ItemCount > 0;
 }
 
 bool ULxItemBase::operator<(ULxItemBase& InItem)

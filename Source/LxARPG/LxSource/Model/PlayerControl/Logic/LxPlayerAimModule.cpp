@@ -53,7 +53,7 @@ void ULxPlayerAimModule::TickModule(float DeltaTime)
 			}
 			if (bIsAiming)
 			{
-				UpdateAimRotation(DeltaTime);
+				UpdateAimRotation();
 			}
 		}
 	}
@@ -354,17 +354,17 @@ void ULxPlayerAimModule::UpdateAimCamera(float DeltaTime)
 		AimCameraInterpSpeed);
 }
 
-void ULxPlayerAimModule::UpdateAimRotation(float DeltaTime)
+void ULxPlayerAimModule::UpdateAimRotation()
 {
 	if (!bRotateCharacterWhileAiming || !OwnerPlayerCharacter)
 	{
 		return;
 	}
 
-	RotateCharacterToAimResult(CurrentAimResult, false, DeltaTime);
+	RotateCharacterToAimResult(CurrentAimResult, false);
 }
 
-void ULxPlayerAimModule::RotateCharacterToAimResult(const FLxPlayerAimResult& InAimResult, bool bInstantRotation, float DeltaTime)
+void ULxPlayerAimModule::RotateCharacterToAimResult(const FLxPlayerAimResult& InAimResult, bool bInstantRotation)
 {
 	if (!OwnerPlayerCharacter)
 	{
@@ -406,4 +406,3 @@ void ULxPlayerAimModule::RotateCharacterToAimResult(const FLxPlayerAimResult& In
 		}
 	}
 }
-

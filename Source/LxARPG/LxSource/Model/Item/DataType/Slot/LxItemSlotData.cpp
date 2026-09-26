@@ -14,18 +14,7 @@ void ULxItemSlotData::ItemUse()
 		return;
 	}
 
-	ULxItemBase* UsedItem = m_pItemData;
-	const FLxItemCount OldItemCount = UsedItem->ItemCount();
-	const ELxItemUseState UseState = UsedItem->ItemUse();
-	if (UseState == ELxItemUseState::Failed)
-	{
-		return;
-	}
-	//
-	// if (OldItemCount != UsedItem->ItemCount())
-	// {
-	// 	UsedItem->BroadcastItemCountChanged();
-	// }
+	m_pItemData->ItemUse();
 }
 
 void ULxItemSlotData::StartUseItem()

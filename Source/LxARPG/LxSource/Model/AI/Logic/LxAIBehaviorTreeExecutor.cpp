@@ -108,15 +108,6 @@ bool ULxAIBehaviorTreeExecutor::TickExecution(const ULxAIBehaviorTreeAsset* InAs
 	{
 		if (!EnterPhase(InAsset, InDecision))
 		{
-			if (InDecision.Entry == ELxAIBehaviorEntry::CharacterDeath)
-			{
-				if (ULxCharacterAttributeComponent* Attributes = Character->GetCharacterAttributeComponent())
-				{
-					if (ULxCharacterLifecycleAttributeObject* Lifecycle = Attributes->GetLifecycleAttributeObject()) Lifecycle->SetDeferDeathForAI(false);
-					Attributes->SetCharacterDead();
-				}
-				bDeathActionCompleted = true;
-			}
 			return false;
 		}
 	}
@@ -226,7 +217,8 @@ ULxAIBehaviorTreeExecutor::ELeafResult ULxAIBehaviorTreeExecutor::TickLeaf(
 	case ELxAIBehaviorAction::PointPatrol:
 	case ELxAIBehaviorAction::PointFlee:
 	{
-		ALxAIPointActor* Point = GetNavigationRegistry() ? GetNavigationRegistry()->FindPoint(this, InNode.PointId) : nullptr;
+		ULxAINavigationRegistry* Registry = GetNavigationRegistry();
+		ALxAIPointActor* Point = Registry ? Registry->FindPoint(this, InNode.PointId) : nullptr;
 		if (!Point)
 		{
 			if (!bLoggedNavigationFailure)
@@ -266,7 +258,11 @@ ULxAIBehaviorTreeExecutor::ELeafResult ULxAIBehaviorTreeExecutor::TickLeaf(
 	{
 		if (CachedRoutePoints.IsEmpty())
 		{
-			if (!ActiveRoute.IsValid()) ActiveRoute = GetNavigationRegistry() ? GetNavigationRegistry()->FindRoute(this, InNode.RouteId) : nullptr;
+			if (!ActiveRoute.IsValid())
+			{
+				ULxAINavigationRegistry* Registry = GetNavigationRegistry();
+				ActiveRoute = Registry ? Registry->FindRoute(this, InNode.RouteId) : nullptr;
+			}
 			if (ActiveRoute.IsValid())
 			{
 				CachedRoutePoints = ActiveRoute->GetWorldRoutePoints();
@@ -417,7 +413,7 @@ void ULxAIBehaviorTreeExecutor::ChangeLeaf(const ULxAIBehaviorTreeNodeData* InNo
 	CurrentActionNodeId = NewId;
 	CurrentAction = NewAction;
 	LeafStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
-	OnLeafChanged.ExecuteIfBound(CurrentAction, CurrentActionNodeId);
+	OnLeafChanged.ExecuteIfBound(CurrentAction);
 }
 
 void ULxAIBehaviorTreeExecutor::ResetLeafProgress(const bool bStopMovement)
@@ -557,11 +553,12 @@ ULxAIBehaviorTreeExecutor::ELeafResult ULxAIBehaviorTreeExecutor::ReleaseSkill(
 	ULxSkillCastModule* Cast = Character->GetSkillCastComponent();
 	if (!Backpack || !Cast) return ELeafResult::Failed;
 	if (!Cast->IsSkillCastIdle()) return ELeafResult::Running;
-	if (!Backpack->FindSkillItemByTagID(InNode.SkillItemId))
+	ULxSkillItem* Item = Backpack->FindSkillItemByTagID(InNode.SkillItemId);
+	if (!Item)
 	{
 		Backpack->AddSkillItemsByTagID({InNode.SkillItemId});
+		Item = Backpack->FindSkillItemByTagID(InNode.SkillItemId);
 	}
-	ULxSkillItem* Item = Backpack->FindSkillItemByTagID(InNode.SkillItemId);
 	if (!Item) return ELeafResult::Failed;
 	const FVector Direction = (InTargetLocation - Character->GetActorLocation()).GetSafeNormal();
 	const FLxSkillCastContext Context = Cast->MakeSkillCastContext(Character, InTarget, InTargetLocation, true, Direction, !Direction.IsNearlyZero());

@@ -6,7 +6,6 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
 #include "LxCharacterBackpackComponent.generated.h"
 
-class ALxBaseCharacter;
 class ULxItemBase;
 class ULxItemSlotData;
 
@@ -25,9 +24,6 @@ class LXARPG_API ULxCharacterBackpackModule : public ULxCharacterContentModuleBa
 	GENERATED_BODY()
 
 public:
-	/** 创建背包组件，并关闭 Tick。 */
-	ULxCharacterBackpackModule();
-
 	/** 背包物品使用事件。 */
 	UPROPERTY(BlueprintAssignable, DisplayName="背包物品使用事件")
 	FOnBackpackItemUsed OnItemUsed;
@@ -67,7 +63,7 @@ public:
 	void SyncReplicatedBackpackSlots();
 
 protected:
-	/** 初始化背包槽位和角色缓存。 */
+	/** 初始化背包槽位。 */
 	virtual void OnModuleInitialize() override;
 
 	/** 默认背包槽位数量。 */
@@ -99,7 +95,7 @@ private:
 	void RefreshTrackedBindings();
 
 	/** 清理无效物品和空引用。 */
-	bool CleanupInvalidItems();
+	void CleanupInvalidItems();
 
 	/** 初始化背包槽位。 */
 	void InitializeBackpack();
@@ -121,10 +117,6 @@ private:
 	/** 用于网络复制的背包槽位引用数组。 */
 	UPROPERTY(ReplicatedUsing=OnRep_BackpackSlots)
 	TArray<FLxItemQuote> ReplicatedBackpackSlots;
-
-	/** 当前组件所属角色。 */
-	UPROPERTY()
-	TObjectPtr<ALxBaseCharacter> m_pOwnerCharacter = nullptr;
 
 	/** 复制回调，当服务器同步背包槽位数据到客户端时调用。 */
 	UFUNCTION()

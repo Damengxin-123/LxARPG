@@ -191,7 +191,7 @@ bool ULxCharacterTestComponent::ApplyTestDamageFromAttacker(AActor* InAttackerAc
 		return false;
 	}
 
-	OutFinalDamageValue = CalculateFinalDamageValueFromReceiveResult(DamageReceiveResult);
+	OutFinalDamageValue = DamageReceiveResult.GetTotalDamageValue();
 	OutAttackerActor = InAttackerActor;
 	return true;
 }
@@ -235,13 +235,9 @@ ULxCharacterEffectProcessModule* ULxCharacterTestComponent::GetEffectProcessComp
 	return OwnerCharacter != nullptr ? OwnerCharacter->GetCharacterEffectProcessComponent() : nullptr;
 }
 
-float ULxCharacterTestComponent::CalculateFinalDamageValueFromReceiveResult(const FLxDamageReceiveResult& InDamageReceiveResult)
-{
-	return InDamageReceiveResult.GetTotalDamageValue();
-}
 void ULxCharacterTestComponent::HandleCharacterDamageReceived(const FLxDamageReceiveResult& InDamageReceiveResult, AActor* InAttackerActor)
 {
-	const float FinalDamageValue = CalculateFinalDamageValueFromReceiveResult(InDamageReceiveResult);
+	const float FinalDamageValue = InDamageReceiveResult.GetTotalDamageValue();
 	OnTestReceivedDamageValueOutput.Broadcast(FinalDamageValue);
 	OnTestReceivedDamageAttackerOutput.Broadcast(InAttackerActor);
 }

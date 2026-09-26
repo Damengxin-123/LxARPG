@@ -46,11 +46,6 @@ void ULxCharacterEffectTransferModule::SendEffectPackageToTargets(const FLxEffec
 {
 	for (AActor* TargetActor : TargetActors)
 	{
-		if (TargetActor == nullptr)
-		{
-			continue;
-		}
-
 		SendEffectPackageToTarget(InEffectPackage, TargetActor);
 	}
 }

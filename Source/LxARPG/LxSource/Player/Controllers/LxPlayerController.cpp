@@ -27,19 +27,19 @@ namespace
 {
 	/** 根据对象、资产实例版本和节点序号获取功能，拒绝树切换前发出的过期请求。 */
 	template <typename TFeature>
-	TFeature* FindInteractionFeature(ALxPlayerController* PlayerController, AActor* InteractionOwner,
+	TFeature* FindInteractionFeature(const ALxPlayerController& PlayerController, AActor* InteractionOwner,
 		int32 RuntimeNodeIndex, int32 InteractionTreeRevision,
 		ELxInteractionActionType ExpectedType)
 	{
-		const ALxPlayerCharacter* PlayerCharacter = PlayerController
-			? Cast<ALxPlayerCharacter>(PlayerController->GetPawn())
-			: nullptr;
+		if (!InteractionOwner)
+		{
+			return nullptr;
+		}
+		const ALxPlayerCharacter* PlayerCharacter = Cast<ALxPlayerCharacter>(PlayerController.GetPawn());
 		ULxPlayerInteractionModule* PlayerInteractionModule = PlayerCharacter
 			? PlayerCharacter->GetPlayerInteractionComponent()
 			: nullptr;
-		ULxInteractableComponent* InteractableComponent = InteractionOwner
-			? InteractionOwner->FindComponentByClass<ULxInteractableComponent>()
-			: nullptr;
+		ULxInteractableComponent* InteractableComponent = InteractionOwner->FindComponentByClass<ULxInteractableComponent>();
 		if (!PlayerInteractionModule || !InteractableComponent
 			|| InteractableComponent->GetInteractionTreeRevision() != InteractionTreeRevision
 			|| !PlayerInteractionModule->IsInteractableComponentInRange(InteractableComponent))
@@ -47,9 +47,7 @@ namespace
 			return nullptr;
 		}
 
-		ULxInteractionNode* InteractionNode = InteractableComponent
-			? InteractableComponent->FindInteractionNodeByRuntimeIndex(RuntimeNodeIndex)
-			: nullptr;
+		ULxInteractionNode* InteractionNode = InteractableComponent->FindInteractionNodeByRuntimeIndex(RuntimeNodeIndex);
 		if (!InteractionNode || InteractionNode->GetInteractionActionType() != ExpectedType
 			|| !InteractionNode->CanProcessActiveInteractionRequest(PlayerInteractionModule))
 		{
@@ -77,13 +75,6 @@ void ALxPlayerController::BeginPlay()
 		LocalPlayerSubsystem->SetPlayerControllerQuote(this);
 		LocalPlayerSubsystem->SetControlledCharacter(m_pCurrentCharacter);
 	}
-	if (m_pInputComponent)
-	{
-		if (ULxLocalPlayerSubsystem* LocalPlayerSubsystem = GET_LOCAL_PLAYER_SYSTEM())
-		{
-			LocalPlayerSubsystem->SetInputComponentQuote(m_pInputComponent);
-		}
-	}
 	if (m_pSystemOperateComponent)
 	{
 		m_pSystemOperateComponent->BaseComponentInitialize();
@@ -109,7 +100,7 @@ void ALxPlayerController::CreatePlayerCharacter()
 {
 	if (GetNetMode() == NM_Standalone)
 	{
-		CreateLocalPlayerCharacter();
+		SpawnAndPossessPlayerCharacter();
 		return;
 	}
 
@@ -119,13 +110,8 @@ void ALxPlayerController::CreatePlayerCharacter()
 void ALxPlayerController::ServerMoveItemBetweenBackpackAndWarehouse_Implementation(AActor* WarehouseOwner,
 	int32 RuntimeNodeIndex, int32 InteractionTreeRevision, int32 SourceSlotIndex, int32 TargetSlotIndex, bool bMoveToWarehouse)
 {
-	if (WarehouseOwner == nullptr)
-	{
-		return;
-	}
-
 	ULxWarehouseInteractionComponent* WarehouseComponent = FindInteractionFeature<ULxWarehouseInteractionComponent>(
-		this, WarehouseOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::Warehouse);
+		*this, WarehouseOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::Warehouse);
 	const ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
 	ULxCharacterBackpackModule* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
 	if (WarehouseComponent == nullptr || BackpackComponent == nullptr)
@@ -155,13 +141,8 @@ void ALxPlayerController::ServerMoveBackpackSlot_Implementation(int32 SourceSlot
 void ALxPlayerController::ServerMoveWarehouseSlot_Implementation(AActor* WarehouseOwner,
 	int32 RuntimeNodeIndex, int32 InteractionTreeRevision, int32 SourceSlotIndex, int32 TargetSlotIndex)
 {
-	if (WarehouseOwner == nullptr)
-	{
-		return;
-	}
-
 	if (ULxWarehouseInteractionComponent* WarehouseComponent = FindInteractionFeature<ULxWarehouseInteractionComponent>(
-		this, WarehouseOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::Warehouse))
+		*this, WarehouseOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::Warehouse))
 	{
 		WarehouseComponent->MoveWarehouseSlot(SourceSlotIndex, TargetSlotIndex);
 	}
@@ -170,13 +151,8 @@ void ALxPlayerController::ServerMoveWarehouseSlot_Implementation(AActor* Warehou
 void ALxPlayerController::ServerMoveTreasureChestSlotToBackpack_Implementation(AActor* TreasureChestOwner,
 	int32 RuntimeNodeIndex, int32 InteractionTreeRevision, int32 TreasureChestSlotIndex, int32 BackpackSlotIndex)
 {
-	if (TreasureChestOwner == nullptr)
-	{
-		return;
-	}
-
 	ULxTreasureChestInteractionComponent* TreasureChestComponent = FindInteractionFeature<ULxTreasureChestInteractionComponent>(
-		this, TreasureChestOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::TreasureChest);
+		*this, TreasureChestOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::TreasureChest);
 	const ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
 	ULxCharacterBackpackModule* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
 	if (TreasureChestComponent && BackpackComponent)
@@ -188,13 +164,8 @@ void ALxPlayerController::ServerMoveTreasureChestSlotToBackpack_Implementation(A
 void ALxPlayerController::ServerBuyTradeSlot_Implementation(AActor* TradeOwner, int32 RuntimeNodeIndex, int32 InteractionTreeRevision,
 	int32 TradeSlotIndex)
 {
-	if (TradeOwner == nullptr)
-	{
-		return;
-	}
-
 	ULxTradeContainerInteractionComponent* TradeComponent = FindInteractionFeature<ULxTradeContainerInteractionComponent>(
-		this, TradeOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::TradeContainer);
+		*this, TradeOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::TradeContainer);
 	const ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
 	ULxCharacterDataTransferComponent* DataTransferComponent = CurrentCharacter ? CurrentCharacter->GetCharacterDataTransferComponent() : nullptr;
 	if (TradeComponent && DataTransferComponent)
@@ -206,13 +177,8 @@ void ALxPlayerController::ServerBuyTradeSlot_Implementation(AActor* TradeOwner, 
 void ALxPlayerController::ServerBuyTradeSlotToBackpackSlot_Implementation(AActor* TradeOwner,
 	int32 RuntimeNodeIndex, int32 InteractionTreeRevision, int32 TradeSlotIndex, int32 BackpackSlotIndex)
 {
-	if (TradeOwner == nullptr)
-	{
-		return;
-	}
-
 	ULxTradeContainerInteractionComponent* TradeComponent = FindInteractionFeature<ULxTradeContainerInteractionComponent>(
-		this, TradeOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::TradeContainer);
+		*this, TradeOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::TradeContainer);
 	const ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
 	ULxCharacterDataTransferComponent* DataTransferComponent = CurrentCharacter ? CurrentCharacter->GetCharacterDataTransferComponent() : nullptr;
 	ULxCharacterBackpackModule* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
@@ -228,13 +194,8 @@ void ALxPlayerController::ServerBuyTradeSlotToBackpackSlot_Implementation(AActor
 void ALxPlayerController::ServerSellBackpackSlot_Implementation(AActor* TradeOwner, int32 RuntimeNodeIndex, int32 InteractionTreeRevision,
 	int32 BackpackSlotIndex)
 {
-	if (TradeOwner == nullptr)
-	{
-		return;
-	}
-
 	ULxTradeContainerInteractionComponent* TradeComponent = FindInteractionFeature<ULxTradeContainerInteractionComponent>(
-		this, TradeOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::TradeContainer);
+		*this, TradeOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::TradeContainer);
 	const ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
 	ULxCharacterDataTransferComponent* DataTransferComponent = CurrentCharacter ? CurrentCharacter->GetCharacterDataTransferComponent() : nullptr;
 	ULxCharacterBackpackModule* BackpackComponent = CurrentCharacter ? CurrentCharacter->GetCharacterBackpackComponent() : nullptr;
@@ -246,15 +207,9 @@ void ALxPlayerController::ServerSellBackpackSlot_Implementation(AActor* TradeOwn
 
 void ALxPlayerController::ServerExecuteItemTransfer_Implementation(AActor* ItemTransferOwner, int32 RuntimeNodeIndex, int32 InteractionTreeRevision)
 {
-	if (ItemTransferOwner == nullptr)
-	{
-		return;
-	}
-
 	ULxItemTransferInteractionComponent* ItemTransferComponent = FindInteractionFeature<ULxItemTransferInteractionComponent>(
-		this, ItemTransferOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::ItemTransfer);
-	ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
-	const ALxPlayerCharacter* PlayerCharacter = Cast<ALxPlayerCharacter>(CurrentCharacter);
+		*this, ItemTransferOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::ItemTransfer);
+	const ALxPlayerCharacter* PlayerCharacter = Cast<ALxPlayerCharacter>(GetPawn());
 	ULxPlayerInteractionModule* PlayerInteractionComponent = PlayerCharacter ? PlayerCharacter->GetPlayerInteractionComponent() : nullptr;
 	if (ItemTransferComponent && PlayerInteractionComponent)
 	{
@@ -264,15 +219,9 @@ void ALxPlayerController::ServerExecuteItemTransfer_Implementation(AActor* ItemT
 
 void ALxPlayerController::ServerTriggerMechanism_Implementation(AActor* MechanismOwner, int32 RuntimeNodeIndex, int32 InteractionTreeRevision)
 {
-	if (MechanismOwner == nullptr)
-	{
-		return;
-	}
-
 	ULxTriggerMechanismInteractionComponent* TriggerMechanismComponent = FindInteractionFeature<ULxTriggerMechanismInteractionComponent>(
-		this, MechanismOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::TriggerMechanism);
-	ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
-	const ALxPlayerCharacter* PlayerCharacter = Cast<ALxPlayerCharacter>(CurrentCharacter);
+		*this, MechanismOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::TriggerMechanism);
+	const ALxPlayerCharacter* PlayerCharacter = Cast<ALxPlayerCharacter>(GetPawn());
 	ULxPlayerInteractionModule* PlayerInteractionComponent = PlayerCharacter ? PlayerCharacter->GetPlayerInteractionComponent() : nullptr;
 	if (TriggerMechanismComponent && PlayerInteractionComponent)
 	{
@@ -283,14 +232,9 @@ void ALxPlayerController::ServerTriggerMechanism_Implementation(AActor* Mechanis
 void ALxPlayerController::ServerExecuteQuestInteraction_Implementation(
 	AActor* QuestOwner, int32 RuntimeNodeIndex, int32 InteractionTreeRevision)
 {
-	if (!QuestOwner)
-	{
-		return;
-	}
-
 	ULxQuestInteractionComponent* QuestInteractionComponent =
 		FindInteractionFeature<ULxQuestInteractionComponent>(
-			this, QuestOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::Quest);
+			*this, QuestOwner, RuntimeNodeIndex, InteractionTreeRevision, ELxInteractionActionType::Quest);
 	const ALxPlayerCharacter* PlayerCharacter = Cast<ALxPlayerCharacter>(GetPawn());
 	ULxPlayerInteractionModule* PlayerInteractionComponent = PlayerCharacter
 		? PlayerCharacter->GetPlayerInteractionComponent()
@@ -338,7 +282,7 @@ void ALxPlayerController::SyncControlledCharacter(APawn* InPawn)
 	}
 }
 
-void ALxPlayerController::CreateLocalPlayerCharacter()
+void ALxPlayerController::SpawnAndPossessPlayerCharacter()
 {
 	if (ALxARPGGameMode* GameMode = GetWorld() ? Cast<ALxARPGGameMode>(GetWorld()->GetAuthGameMode()) : nullptr)
 	{
@@ -371,11 +315,5 @@ void ALxPlayerController::HideCursorFun()
 
 void ALxPlayerController::CreateServerPlayerCharacter_Implementation()
 {
-	if (ALxARPGGameMode* GameMode = GetWorld() ? Cast<ALxARPGGameMode>(GetWorld()->GetAuthGameMode()) : nullptr)
-	{
-		if (APawn* NewPawn = GameMode->SpawnPlayerCharacter(this))
-		{
-			Possess(NewPawn);
-		}
-	}
+	SpawnAndPossessPlayerCharacter();
 }

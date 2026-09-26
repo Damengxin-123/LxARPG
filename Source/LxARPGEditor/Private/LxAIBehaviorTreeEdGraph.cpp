@@ -251,18 +251,7 @@ void ULxAIBehaviorTreeEdGraph::InitializeDefaultTree()
 			LinkTemplateNodes(PhaseNode, ActionNode);
 		}
 	}
-	ULxAIBehaviorTreeEdGraphNode* DeathState = CreateTemplateNode(*this, *Asset, ELxAIBehaviorNodeKind::State,
-		ELxAIBehaviorState::Idle, ELxAIBehaviorAction::Wait, Templates.Num(), 350, 1980);
-	DeathState->Data->Label = NSLOCTEXT("AI行为树编辑器", "死亡状态名称", "死亡");
-	ULxAIBehaviorTreeEdGraphNode* DeathPhase = CreateTemplateNode(*this, *Asset, ELxAIBehaviorNodeKind::Phase,
-		ELxAIBehaviorState::Idle, ELxAIBehaviorAction::Wait, 0, 700, 1980);
-	DeathPhase->Data->Label = NSLOCTEXT("AI行为树编辑器", "死亡阶段名称", "进入死亡");
-	ULxAIBehaviorTreeEdGraphNode* DeathAction = CreateTemplateNode(*this, *Asset, ELxAIBehaviorNodeKind::Action,
-		ELxAIBehaviorState::Idle, ELxAIBehaviorAction::EnterDeath, 0, 1050, 1980);
-	DeathAction->Data->Label = NSLOCTEXT("AI行为树编辑器", "死亡行为名称", "进入死亡");
-	if (ULxAIBehaviorTreeEdGraphNode** DeathEntry = Entries.Find(ELxAIBehaviorEntry::CharacterDeath)) LinkTemplateNodes(*DeathEntry, DeathState);
-	LinkTemplateNodes(DeathState, DeathPhase);
-	LinkTemplateNodes(DeathPhase, DeathAction);
+	// 死亡专属分支已由 EnsureEntryNodes 补齐，模板只追加普通状态分支。
 	SynchronizeAsset();
 	NotifyGraphChanged();
 }
@@ -306,10 +295,8 @@ void ULxAIBehaviorTreeEdGraph::SynchronizeAsset()
 	for (const auto Entry : {ELxAIBehaviorEntry::Calm, ELxAIBehaviorEntry::EnemyFound, ELxAIBehaviorEntry::EnemyNear, ELxAIBehaviorEntry::Attacked, ELxAIBehaviorEntry::CharacterDeath})
 		for (const ULxAIBehaviorTreeNodeData* Node : Asset->Nodes)
 			if (Node && Node->Kind == ELxAIBehaviorNodeKind::Entry && Node->Entry == Entry) Asset->Roots.Add(Node->NodeId);
-	Asset->Nodes.Sort([](const TObjectPtr<ULxAIBehaviorTreeNodeData>& APtr, const TObjectPtr<ULxAIBehaviorTreeNodeData>& BPtr)
+	Asset->Nodes.Sort([](const ULxAIBehaviorTreeNodeData& A, const ULxAIBehaviorTreeNodeData& B)
 	{
-		const ULxAIBehaviorTreeNodeData& A = *APtr;
-		const ULxAIBehaviorTreeNodeData& B = *BPtr;
 		if (A.Kind != B.Kind) return static_cast<uint8>(A.Kind) < static_cast<uint8>(B.Kind);
 		if (A.GetState() != B.GetState()) return static_cast<uint8>(A.GetState()) < static_cast<uint8>(B.GetState());
 		return A.Order != B.Order ? A.Order < B.Order : A.NodeId < B.NodeId;
@@ -488,9 +475,6 @@ const FPinConnectionResponse ULxAIBehaviorTreeEdGraphSchema::CanCreateConnection
 	if (Parent->Data->Kind == ELxAIBehaviorNodeKind::Entry && Parent->Data->Entry == ELxAIBehaviorEntry::CharacterDeath
 		&& Child->Data->Label.ToString() != TEXT("死亡"))
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, NSLOCTEXT("AI行为树编辑器", "死亡入口专属", "角色死亡入口只能连接死亡专属状态"));
-	if (Parent->Data->Kind == ELxAIBehaviorNodeKind::Phase && Parent->Data->State == ELxAIBehaviorState::Idle
-		&& Parent->Data->Label.ToString() == TEXT("进入死亡") && Child->Data->Action != ELxAIBehaviorAction::EnterDeath)
-		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, NSLOCTEXT("AI行为树编辑器", "死亡阶段专属", "进入死亡阶段只能连接进入死亡行为"));
 	return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, NSLOCTEXT("AI行为树编辑器", "连接子项", "连接子项"));
 }
 

@@ -82,7 +82,6 @@ void ULxAINavigationRegistry::UnregisterPoint(const ALxAIPointActor* PointActor)
 
 ALxAIRouteActor* ULxAINavigationRegistry::FindRoute(const UObject* WorldContextObject, const FGameplayTag RouteId)
 {
-	RemoveStaleEntries();
 	const UWorld* World = GEngine && WorldContextObject
 		? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull)
 		: nullptr;
@@ -103,7 +102,6 @@ ALxAIRouteActor* ULxAINavigationRegistry::FindRoute(const UObject* WorldContextO
 
 ALxAIPointActor* ULxAINavigationRegistry::FindPoint(const UObject* WorldContextObject, const FGameplayTag PointId)
 {
-	RemoveStaleEntries();
 	const UWorld* World = GEngine && WorldContextObject
 		? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull)
 		: nullptr;

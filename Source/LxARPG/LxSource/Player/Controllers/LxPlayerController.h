@@ -142,12 +142,8 @@ private:
  	 */
 	void SyncControlledCharacter(APawn* InPawn);
 
-	/**
-	 * @brief 创建本地玩家角色。
-	 *
-	 * 该函数专门用于在本地（单机或客户端）环境中创建并初始化玩家角色。它会根据当前的上下文环境设置必要的参数，确保角色能够正确地在游戏中生成和配置。
-	 */
-	void CreateLocalPlayerCharacter();
+	/** 在单机或服务器上通过游戏模式生成角色并接管控制。 */
+	void SpawnAndPossessPlayerCharacter();
 
 	/**
 	 * @brief 在服务器上创建玩家角色。

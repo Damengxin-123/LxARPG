@@ -51,8 +51,4 @@ private:
 	/** 玩家交互模块。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Instanced, Category="玩家|操控", DisplayName="玩家交互模块", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<ULxPlayerInteractionModule> InteractionModule;
-
-	/** 玩家操控组件是否已经初始化。 */
-	bool bControlInitialized = false;
 };
-

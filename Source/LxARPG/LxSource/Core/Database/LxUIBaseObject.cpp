@@ -14,11 +14,6 @@ void ULxUIBaseObject::UpdateUIComponents(ULxCharacterDataTransferComponent* Char
 	m_pCharacterDataTransferComponent = CharacterDataTransferComponent;
 }
 
-void ULxUIBaseObject::NativeConstruct()
-{
-	Super::NativeConstruct();
-}
-
 void ULxUIBaseObject::NativeDestruct()
 {
 	UnregisterAllInputActionReceives();
@@ -28,10 +23,6 @@ void ULxUIBaseObject::NativeDestruct()
 void ULxUIBaseObject::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
 {
 	HandleInputEvent(InInputActionID, InValue);
-}
-
-void ULxUIBaseObject::InitMonitorRegistration()
-{
 }
 
 void ULxUIBaseObject::RegisterInputActionReceive(ELxInputActionID InInputActionID)

@@ -20,9 +20,6 @@ struct FAIStimulus;
 struct FLxAITargetMemoryRecord
 {
 	TWeakObjectPtr<ALxBaseCharacter> TargetCharacter;
-	ELxAIPerceptionSource PerceptionSource = ELxAIPerceptionSource::Unknown;
-	double LastSensedTime = 0.0;
-	bool bHostileByDamage = false;
 	FVector SightLocation = FVector::ZeroVector;
 	FVector HearingLocation = FVector::ZeroVector;
 	FVector OtherLocation = FVector::ZeroVector;
@@ -91,7 +88,8 @@ private:
 	ELxAITargetRelation ResolveTargetRelation(const ALxBaseCharacter* InTargetCharacter) const;
 	ALxAICharacter* GetAICharacter() const;
 	FVector GetLatestRememberedLocation(const FLxAITargetMemoryRecord& InRecord) const;
-	void HandleLeafChanged(ELxAIBehaviorAction InAction, FGuid InNodeId);
+	/** 将执行器的叶行为变化转发给蓝图监听者。 */
+	void HandleLeafChanged(ELxAIBehaviorAction InAction);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|感知", DisplayName="AI感知组件", meta=(AllowPrivateAccess="true"))
 	TObjectPtr<UAIPerceptionComponent> AIPerceptionComponent;

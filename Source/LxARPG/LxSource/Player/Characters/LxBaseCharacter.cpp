@@ -3,7 +3,6 @@
 #include "LxCharacterIDTags.h"
 #include "LxCharacterNameTags.h"
 
-#include "GameFramework/CharacterMovementComponent.h"
 #include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationProcessComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Buff/Logic/LxCharacterBuffComponent.h"
@@ -281,14 +280,4 @@ void ALxBaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	InitialCharacterInformation();
-}
-
-void ALxBaseCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
-
-void ALxBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
 }

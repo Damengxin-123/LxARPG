@@ -60,8 +60,8 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 	if (!TestNotNull(TEXT("工厂创建专用图"), Graph)) return false;
 	Graph->InitializeDefaultTree();
 	Graph->EnsureEntryNodes();
-	TestEqual(TEXT("重复初始化保留五入口、五状态、五阶段和十四行为"), Graph->Nodes.Num(), 28);
-	TestEqual(TEXT("资产包含二十八个配置节点"), Asset->Nodes.Num(), 28);
+	TestEqual(TEXT("重复初始化保留五入口、六状态、六阶段和十二行为"), Graph->Nodes.Num(), 29);
+	TestEqual(TEXT("资产包含二十九个配置节点"), Asset->Nodes.Num(), 29);
 	TestEqual(TEXT("五个固定入口"), Asset->Roots.Num(), 5);
 	FText Error;
 	TestFalse(TEXT("未指定点位路线技能ID的模板提示待配置"), Asset->ValidateTree(Error));
@@ -76,6 +76,7 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 	ULxAIBehaviorTreeEdGraphNode* CalmEntry = nullptr;
 	ULxAIBehaviorTreeEdGraphNode* EnemyNearEntry = nullptr;
 	ULxAIBehaviorTreeEdGraphNode* AttackedEntry = nullptr;
+	ULxAIBehaviorTreeEdGraphNode* DeathEntry = nullptr;
 	ULxAIBehaviorTreeEdGraphNode* IdleState = nullptr;
 	ULxAIBehaviorTreeEdGraphNode* CombatState = nullptr;
 	ULxAIBehaviorTreeEdGraphNode* IdlePhase = nullptr;
@@ -83,6 +84,10 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 	ULxAIBehaviorTreeEdGraphNode* CombatPhase = nullptr;
 	ULxAIBehaviorTreeEdGraphNode* FleePhase = nullptr;
 	ULxAIBehaviorTreeEdGraphNode* CombatAction = nullptr;
+	ULxAIBehaviorTreeEdGraphNode* DeathPhase = nullptr;
+	int32 DeathStateCount = 0;
+	int32 DeathPhaseCount = 0;
+	int32 DeathActionCount = 0;
 	for (UEdGraphNode* RawNode : Graph->Nodes)
 	{
 		ULxAIBehaviorTreeEdGraphNode* Node = CastChecked<ULxAIBehaviorTreeEdGraphNode>(RawNode);
@@ -91,27 +96,50 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 			if (Node->Data->Entry == ELxAIBehaviorEntry::Calm) CalmEntry = Node;
 			if (Node->Data->Entry == ELxAIBehaviorEntry::EnemyNear) EnemyNearEntry = Node;
 			if (Node->Data->Entry == ELxAIBehaviorEntry::Attacked) AttackedEntry = Node;
+			if (Node->Data->Entry == ELxAIBehaviorEntry::CharacterDeath) DeathEntry = Node;
 			continue;
 		}
-		if (Node->Data->Kind == ELxAIBehaviorNodeKind::State && Node->Data->State == ELxAIBehaviorState::Idle) IdleState = Node;
+		if (Node->Data->Kind == ELxAIBehaviorNodeKind::State && Node->Data->State == ELxAIBehaviorState::Idle)
+		{
+			if (Node->Data->Label.ToString() == TEXT("死亡")) ++DeathStateCount;
+			else IdleState = Node;
+		}
 		if (Node->Data->Kind == ELxAIBehaviorNodeKind::State && Node->Data->State == ELxAIBehaviorState::Combat) CombatState = Node;
-		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Phase && Node->Data->State == ELxAIBehaviorState::Idle) IdlePhase = Node;
+		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Phase && Node->Data->State == ELxAIBehaviorState::Idle)
+		{
+			if (Node->Data->Label.ToString() == TEXT("进入死亡")) { DeathPhase = Node; ++DeathPhaseCount; }
+			else IdlePhase = Node;
+		}
 		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Phase && Node->Data->State == ELxAIBehaviorState::Combat) CombatPhase = Node;
 		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Phase && Node->Data->State == ELxAIBehaviorState::Flee) FleePhase = Node;
 		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Action && Node->Data->Action == ELxAIBehaviorAction::Wait) Wait = Node;
 		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Action && Node->Data->Action == ELxAIBehaviorAction::MeleeSkill) CombatAction = Node;
+		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Action && Node->Data->Action == ELxAIBehaviorAction::EnterDeath) ++DeathActionCount;
 	}
-	if (!CalmEntry || !EnemyNearEntry || !AttackedEntry || !IdleState || !CombatState || !IdlePhase || !CombatPhase || !FleePhase || !CombatAction || !Wait)
+	if (!CalmEntry || !EnemyNearEntry || !AttackedEntry || !DeathEntry || !DeathPhase
+		|| !IdleState || !CombatState || !IdlePhase || !CombatPhase || !FleePhase || !CombatAction || !Wait)
 	{
 		AddError(TEXT("默认模板缺少预期节点"));
 		return false;
 	}
+	TestEqual(TEXT("重复初始化只保留一个死亡状态"), DeathStateCount, 1);
+	TestEqual(TEXT("重复初始化只保留一个死亡阶段"), DeathPhaseCount, 1);
+	TestEqual(TEXT("重复初始化只保留一个死亡行为"), DeathActionCount, 1);
+	TestEqual(TEXT("死亡入口只连接一条专属分支"), DeathEntry->Data->Children.Num(), 1);
 	TestFalse(TEXT("固定事件入口不能删除"), CalmEntry->CanUserDeleteNode());
 	TestNull(TEXT("事件入口没有输入"), FindBehaviorPin(CalmEntry, EGPD_Input));
 	TestTrue(TEXT("靠近与受击共享同一战斗状态"), CombatState->Data->NodeId.IsValid()
 		&& FindBehaviorPin(CombatState, EGPD_Input)->LinkedTo.Num() == 2);
 	TestNull(TEXT("行为叶节点没有输出"), FindBehaviorPin(Wait, EGPD_Output));
 	const UEdGraphSchema* Schema = Graph->GetSchema();
+	TestTrue(TEXT("普通闲置阶段允许待机行为"), ULxAIBehaviorTreeAsset::CanAttach(*IdlePhase->Data, *Wait->Data));
+	TestFalse(TEXT("死亡专属阶段禁止待机行为"), ULxAIBehaviorTreeAsset::CanAttach(*DeathPhase->Data, *Wait->Data));
+	TestEqual(TEXT("编辑器禁止死亡阶段连接待机行为"), Schema->CanCreateConnection(
+		FindBehaviorPin(DeathPhase, EGPD_Output), FindBehaviorPin(Wait, EGPD_Input)).Response, CONNECT_RESPONSE_DISALLOW);
+	DeathPhase->Data->Children.Add(Wait->Data->NodeId);
+	TestFalse(TEXT("绕过编辑器写入的死亡待机连接仍被运行时验证拒绝"), Asset->ValidateTree(Error));
+	DeathPhase->Data->Children.Pop();
+	TestTrue(TEXT("恢复死亡专属行为后配置有效"), Asset->ValidateTree(Error));
 	FGraphContextMenuBuilder FleeMenu(Graph);
 	FleeMenu.FromPin = FindBehaviorPin(FleePhase, EGPD_Output);
 	Schema->GetGraphContextActions(FleeMenu);
@@ -310,28 +338,38 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("磁盘保留五入口"), Loaded->Roots.Num(), 5);
 		TestTrue(TEXT("重载后的总控制配置有效"), Loaded->ValidateConfiguration(Error));
 	}
-	// 构造并保存真实旧格式包：保留原状态、阶段、行为图，只用旧开始节点连接状态。
+	// 构造死亡入口引入前的旧格式包：保留普通业务图，只用旧开始节点连接状态。
 	UPackage* LegacyPackage = CreatePackage(*(TEXT("/Temp/AI旧图保存_") + Suffix));
 	ULxAIBehaviorTreeAsset* LegacyAsset = DuplicateObject<ULxAIBehaviorTreeAsset>(Asset, LegacyPackage, TEXT("旧行为树迁移测试"));
 	LegacyAsset->SetFlags(RF_Public | RF_Standalone);
 	ULxAIBehaviorTreeEdGraph* LegacyGraph = CastChecked<ULxAIBehaviorTreeEdGraph>(LegacyAsset->EditorGraph);
-	TArray<ULxAIBehaviorTreeEdGraphNode*> LegacyEntries;
+	TArray<ULxAIBehaviorTreeEdGraphNode*> LegacyRemovedNodes;
+	TSet<FGuid> LegacyRemovedIds;
 	TArray<ULxAIBehaviorTreeEdGraphNode*> LegacyStates;
 	TMap<FGuid, FIntPoint> LegacyPositions;
 	for (UEdGraphNode* RawNode : LegacyGraph->Nodes)
 	{
 		ULxAIBehaviorTreeEdGraphNode* Node = CastChecked<ULxAIBehaviorTreeEdGraphNode>(RawNode);
-		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Entry) LegacyEntries.Add(Node);
+		const bool bDeathNode = (Node->Data->Kind == ELxAIBehaviorNodeKind::State && Node->Data->Label.ToString() == TEXT("死亡"))
+			|| (Node->Data->Kind == ELxAIBehaviorNodeKind::Phase && Node->Data->Label.ToString() == TEXT("进入死亡"))
+			|| (Node->Data->Kind == ELxAIBehaviorNodeKind::Action && Node->Data->Action == ELxAIBehaviorAction::EnterDeath);
+		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Entry || bDeathNode)
+		{
+			LegacyRemovedNodes.Add(Node);
+			LegacyRemovedIds.Add(Node->Data->NodeId);
+		}
 		else
 		{
 			LegacyPositions.Add(Node->Data->NodeId, FIntPoint(Node->NodePosX, Node->NodePosY));
 			if (Node->Data->Kind == ELxAIBehaviorNodeKind::State) LegacyStates.Add(Node);
 		}
 	}
-	for (ULxAIBehaviorTreeEdGraphNode* EntryNode : LegacyEntries) EntryNode->DestroyNode();
-	LegacyAsset->Nodes.RemoveAll([](const TObjectPtr<ULxAIBehaviorTreeNodeData>& Data)
+	TestEqual(TEXT("旧格式夹具保留五个普通状态"), LegacyStates.Num(), 5);
+	TestEqual(TEXT("旧格式夹具保留二十一个业务节点"), LegacyPositions.Num(), 21);
+	for (ULxAIBehaviorTreeEdGraphNode* RemovedNode : LegacyRemovedNodes) RemovedNode->DestroyNode();
+	LegacyAsset->Nodes.RemoveAll([&LegacyRemovedIds](const TObjectPtr<ULxAIBehaviorTreeNodeData>& Data)
 	{
-		return Data && Data->Kind == ELxAIBehaviorNodeKind::Entry;
+		return Data && LegacyRemovedIds.Contains(Data->NodeId);
 	});
 	LegacyAsset->Roots.Reset();
 	FGraphNodeCreator<ULxAIBehaviorTreeEdGraphNode> OldStartCreator(*LegacyGraph);
@@ -354,7 +392,7 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 		ULxAIBehaviorTreeEdGraph* MigratedGraph = CastChecked<ULxAIBehaviorTreeEdGraph>(Migrated->EditorGraph);
 		MigratedGraph->EnsureEntryNodes();
 		TestEqual(TEXT("旧图升级为五个事件入口"), Migrated->Roots.Num(), 5);
-		TestEqual(TEXT("旧图升级后保留原二十三个业务节点并新增五入口和三死亡节点"), Migrated->Nodes.Num(), 31);
+		TestEqual(TEXT("旧图升级后保留二十一个业务节点并新增五入口和三死亡节点"), Migrated->Nodes.Num(), 29);
 		TestTrue(TEXT("旧图升级后分支配置仍有效"), Migrated->ValidateTree(Error));
 		for (UEdGraphNode* RawNode : MigratedGraph->Nodes)
 		{
@@ -369,7 +407,7 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 			}
 		}
 		const FString MigratedFile = TestDirectory / TEXT("AI旧图迁移后保存测试.uasset");
-		if (TestTrue(TEXT("迁移后的四入口图可以再次保存"), UPackage::SavePackage(MigratedPackage, Migrated, *MigratedFile, SaveArgs)))
+		if (TestTrue(TEXT("迁移后的五入口图可以再次保存"), UPackage::SavePackage(MigratedPackage, Migrated, *MigratedFile, SaveArgs)))
 		{
 			UPackage* ReopenedPackage = LoadPackage(CreatePackage(*(TEXT("/Temp/AI旧图再重载_") + Suffix)), *MigratedFile, LOAD_None);
 			ULxAIBehaviorTreeAsset* Reopened = ReopenedPackage ? FindObject<ULxAIBehaviorTreeAsset>(ReopenedPackage, TEXT("旧行为树迁移测试")) : nullptr;

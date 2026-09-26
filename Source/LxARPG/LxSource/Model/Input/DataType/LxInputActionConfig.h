@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "LxInputData.h"
@@ -21,7 +21,6 @@ namespace LxInputActionConfig
 	ELxInputActionID GetInputActionIDByAction(const UInputAction* InInputAction);
 
 	void RegisterInputReceive(ELxInputActionID InInputActionID, TScriptInterface<ILxInputReceiveInterface> InRegisterObj);
-	void UnregisterInputReceive(ELxInputActionID InInputActionID);
 	void UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj);
 
 	void SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue, const APlayerController* SourcePlayerController);

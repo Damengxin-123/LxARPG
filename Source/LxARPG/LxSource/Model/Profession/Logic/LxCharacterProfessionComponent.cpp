@@ -179,15 +179,12 @@ void ULxCharacterProfessionModule::BuildAllProfessionEffectPackages(TArray<FLxEf
 			continue;
 		}
 
-		TArray<FLxProfessionInfluenceResult> InfluenceResults;
-		BuildInfluenceResults(ProfessionDefinition, InfluenceResults);
-
 		FLxProfessionEffectBuildContext BuildContext;
 		BuildContext.ProfessionIDTag = ProfessionData.ProfessionIDTag;
 		BuildContext.Level = ProfessionData.Level;
 		BuildContext.Experience = ProfessionData.Experience;
-		BuildContext.InfluenceResults = InfluenceResults;
-		BuildContext.TotalEffectScale = CalculateTotalEffectScale(InfluenceResults);
+		BuildInfluenceResults(ProfessionDefinition, BuildContext.InfluenceResults);
+		BuildContext.TotalEffectScale = CalculateTotalEffectScale(BuildContext.InfluenceResults);
 
 		FLxEffectPackage EffectPackage;
 		ProfessionDefinition->BuildProfessionEffectPackage(BuildContext, EffectPackage);

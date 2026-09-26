@@ -35,26 +35,20 @@ namespace
 		}
 	}
 
-	bool ResolveDamageValueFromSourceAttribute(ULxCharacterDataTransferComponent* SourceDataTransferComponent, FLxDamageValue& InOutDamageValue)
+	/** 按来源属性生成伤害；属性缺失时查询函数直接返回零。 */
+	void ResolveDamageValueFromSourceAttribute(ULxCharacterDataTransferComponent* SourceDataTransferComponent, FLxDamageValue& InOutDamageValue)
 	{
 		if (!InOutDamageValue.SourceAttributeIDTag.IsValid())
 		{
-			return false;
-		}
-
-		float SourceAttributeValue = 0.f;
-		if (SourceDataTransferComponent == nullptr || !SourceDataTransferComponent->QueryCharacterAttributeValue(InOutDamageValue.SourceAttributeIDTag, SourceAttributeValue))
-		{
-			InOutDamageValue.DamageValue = 0.f;
-			return true;
+			return;
 		}
 
 		const float SourceValue = FMath::Max(0.f, GetDamageSourceValue(SourceDataTransferComponent, InOutDamageValue.SourceAttributeIDTag));
 		InOutDamageValue.DamageValue = SourceValue * FMath::Max(0.f, InOutDamageValue.SourceAttributeRatio);
-		return true;
 	}
 
-	float RefreshDamageEffectTotalValue(FLxDamageEffect& InOutDamageEffect)
+	/** 归一化伤害明细并更新总伤害缓存。 */
+	void RefreshDamageEffectTotalValue(FLxDamageEffect& InOutDamageEffect)
 	{
 		NormalizeDamageEffect(InOutDamageEffect);
 		float TotalDamageValue = 0.f;
@@ -64,7 +58,6 @@ namespace
 		}
 
 		InOutDamageEffect.DamageValue = TotalDamageValue;
-		return TotalDamageValue;
 	}
 
 	float GetTotalDamageValue(const TArray<FLxDamageEffect>& DamageEffects)
@@ -79,26 +72,6 @@ namespace
 		}
 
 		return TotalDamageValue;
-	}
-
-	void EnsureOutputPackageMetadata(FLxDamageCalculationContext& InOutContext)
-	{
-		if (InOutContext.OutputEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::None)
-		{
-			InOutContext.OutputEffectPackage.SourceContext = InOutContext.InputEffectPackage.SourceContext;
-		}
-
-		if (InOutContext.OutputEffectPackage.SourceContext.SourceActor == nullptr)
-		{
-			InOutContext.OutputEffectPackage.SourceContext.SourceActor = InOutContext.SourceActor;
-		}
-
-		if (InOutContext.OutputEffectPackage.TargetActor == nullptr)
-		{
-			InOutContext.OutputEffectPackage.TargetActor = InOutContext.TargetActor;
-		}
-
-		InOutContext.OutputEffectPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::Instant;
 	}
 }
 
@@ -130,14 +103,13 @@ FLxDamageCalculationContext ULxDamageCalculationFlow::GenerateDamageFromSourceAt
 		ResultContext.DamageEffects = ResultContext.InputEffectPackage.DamageEffects;
 	}
 
-	bool bGeneratedAnyDamage = false;
 	for (FLxDamageEffect& DamageEffect : ResultContext.DamageEffects)
 	{
 		ResultContext.bCriticalHit |= DamageEffect.bCriticalHit;
 
 		for (FLxDamageValue& DamageValue : DamageEffect.DamageValues)
 		{
-			bGeneratedAnyDamage |= ResolveDamageValueFromSourceAttribute(ResultContext.SourceDataTransferComponent, DamageValue);
+			ResolveDamageValueFromSourceAttribute(ResultContext.SourceDataTransferComponent, DamageValue);
 		}
 
 		RefreshDamageEffectTotalValue(DamageEffect);

@@ -1,14 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LxARPG/LxSource/Model/Input/DataType/LxInputReceiveInterface.h"
 #include "LxGameStateTypes.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "LxLocalPlayerSubsystem.generated.h"
 
 class ALxBaseCharacter;
 class ALxPlayerController;
-class ULxInputComponent;
 class ULxInteractionUIManager;
 class ULxUIManager;
 
@@ -21,20 +19,12 @@ class LXARPG_API ULxLocalPlayerSubsystem : public ULocalPlayerSubsystem
 	GENERATED_BODY()
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
 	static ULxLocalPlayerSubsystem* GetFromLocalPlayer(const ULocalPlayer* LocalPlayer);
 
-	void RegisterInputReceive(ELxInputActionID InInputActionID, TScriptInterface<ILxInputReceiveInterface> InRegisterObj);
-	void UnregisterInputReceive(ELxInputActionID InInputActionID);
-	void UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj);
-
-	void SetInputComponentQuote(ULxInputComponent* InUInputComponentQuote);
 	void SetPlayerControllerQuote(ALxPlayerController* InPlayerController);
 	void SetControlledCharacter(ALxBaseCharacter* InCharacter);
-
-	bool HasInputComponentQuote() const { return m_pInputComponentQuote != nullptr; }
 
 	/** 获取主 UI 管理器。 */
 	UFUNCTION(BlueprintCallable, Category="本地玩家子系统", DisplayName="获取UI管理器")
@@ -65,9 +55,6 @@ private:
 	UPROPERTY(VisibleInstanceOnly, BlueprintGetter=GetGameState, Category="本地玩家子系统|游戏状态",
 		DisplayName="当前游戏状态")
 	ELxGameState m_GameState = ELxGameState::OpeningGame;
-
-	UPROPERTY()
-	TObjectPtr<ULxInputComponent> m_pInputComponentQuote = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<ALxPlayerController> m_pPlayerController = nullptr;

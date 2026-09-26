@@ -36,9 +36,6 @@ public:
 	/** 获取模块使用的世界。 */
 	virtual UWorld* GetWorld() const override;
 
-	/** 默认不注册额外监听，具体模块可按需重写。 */
-	virtual void InitMonitorRegistration() override {}
-
 protected:
 	/** 注册一个输入行为监听。 */
 	void RegisterInputActionReceive(ELxInputActionID InInputActionID);

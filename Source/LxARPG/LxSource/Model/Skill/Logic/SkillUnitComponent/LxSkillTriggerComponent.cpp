@@ -63,13 +63,7 @@ void ULxSkillTriggerComponent::RequestTrigger(const FLxSkillDetectionResult& Det
 		}
 	}
 
-	if (TriggeredTargets.Num() == 0 && DetectionResult.bHitWorld)
-	{
-		BroadcastTriggerResult(DetectionResult, TriggeredTargets);
-		return;
-	}
-
-	if (TriggeredTargets.Num() > 0)
+	if (!TriggeredTargets.IsEmpty() || DetectionResult.bHitWorld)
 	{
 		BroadcastTriggerResult(DetectionResult, TriggeredTargets);
 	}
@@ -101,17 +95,17 @@ bool ULxSkillTriggerComponent::CanTriggerTarget(AActor* InTarget) const
 	}
 
 	const TWeakObjectPtr<AActor> TargetKey(InTarget);
-	const int32 CurrentHitCount = TargetHitCounts.Contains(TargetKey) ? TargetHitCounts[TargetKey] : 0;
-	if (HitLimitSpec.MaxHitCountPerTarget > 0 && CurrentHitCount >= HitLimitSpec.MaxHitCountPerTarget)
+	if (HitLimitSpec.MaxHitCountPerTarget > 0
+		&& TargetHitCounts.FindRef(TargetKey) >= HitLimitSpec.MaxHitCountPerTarget)
 	{
 		return false;
 	}
 
 	const UWorld* World = GetWorld();
-	if (World && HitLimitSpec.HitIntervalPerTarget > 0.0f && TargetLastTriggerTimes.Contains(TargetKey))
+	if (World && HitLimitSpec.HitIntervalPerTarget > 0.0f)
 	{
-		const float LastTime = TargetLastTriggerTimes[TargetKey];
-		if (World->GetTimeSeconds() - LastTime < HitLimitSpec.HitIntervalPerTarget)
+		const float* LastTime = TargetLastTriggerTimes.Find(TargetKey);
+		if (LastTime && World->GetTimeSeconds() - *LastTime < HitLimitSpec.HitIntervalPerTarget)
 		{
 			return false;
 		}

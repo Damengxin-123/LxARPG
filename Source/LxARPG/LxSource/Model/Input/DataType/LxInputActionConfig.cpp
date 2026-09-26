@@ -1,4 +1,4 @@
-﻿#include "LxInputActionConfig.h"
+#include "LxInputActionConfig.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Components/ActorComponent.h"
@@ -9,7 +9,6 @@
 namespace
 {
 	TMap<ELxInputActionID, FLxInputActionInfo> GInputActionInfoMap;
-	TMap<ELxInputActionID, TWeakObjectPtr<UInputAction>> GInputActionObjectMap;
 	TMap<const UInputAction*, ELxInputActionID> GInputActionIDByActionMap;
 	// 输入监听对象可能随角色或 UI 销毁，使用弱引用避免全局注册表保留失效对象。
 	TMap<ELxInputActionID, TArray<TWeakObjectPtr<UObject>>> GInputReceivedObjectMap;
@@ -116,7 +115,6 @@ namespace LxInputActionConfig
 			return;
 		}
 
-		GInputActionObjectMap.Add(InInputActionID, InInputAction);
 		GInputActionIDByActionMap.Add(InInputAction, InInputActionID);
 	}
 
@@ -153,10 +151,6 @@ namespace LxInputActionConfig
 		}
 
 		ReceivedObjects.Add(RegisterObject);
-	}
-	void UnregisterInputReceive(ELxInputActionID InInputActionID)
-	{
-		GInputReceivedObjectMap.Remove(InInputActionID);
 	}
 
 	void UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj)

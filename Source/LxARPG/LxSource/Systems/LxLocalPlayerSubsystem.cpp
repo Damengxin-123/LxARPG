@@ -1,17 +1,11 @@
 #include "LxLocalPlayerSubsystem.h"
 
 #include "Blueprint/UserWidget.h"
-#include "LxARPG/LxSource/Model/Input/Logic/LxInputComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 #include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
 #include "LxARPG/LxSource/UI/Interaction/LxInteractionUIManager.h"
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
-
-void ULxLocalPlayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
-{
-	Super::Initialize(Collection);
-}
 
 void ULxLocalPlayerSubsystem::Deinitialize()
 {
@@ -23,7 +17,6 @@ void ULxLocalPlayerSubsystem::Deinitialize()
 	m_pUIManager = nullptr;
 	m_pControlledCharacter = nullptr;
 	m_pPlayerController = nullptr;
-	m_pInputComponentQuote = nullptr;
 
 	Super::Deinitialize();
 }
@@ -36,37 +29,6 @@ ULxLocalPlayerSubsystem* ULxLocalPlayerSubsystem::GetFromLocalPlayer(const ULoca
 	}
 
 	return LocalPlayer->GetSubsystem<ULxLocalPlayerSubsystem>();
-}
-
-void ULxLocalPlayerSubsystem::RegisterInputReceive(ELxInputActionID InInputActionID,
-	TScriptInterface<ILxInputReceiveInterface> InRegisterObj)
-{
-	if (!m_pInputComponentQuote)
-	{
-		return;
-	}
-
-	m_pInputComponentQuote->RegisterInputReceive(InInputActionID, InRegisterObj);
-}
-
-void ULxLocalPlayerSubsystem::UnregisterInputReceive(ELxInputActionID InInputActionID)
-{
-	if (!m_pInputComponentQuote)
-	{
-		return;
-	}
-
-	m_pInputComponentQuote->UnregisterInputReceive(InInputActionID);
-}
-
-void ULxLocalPlayerSubsystem::UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj)
-{
-	if (!m_pInputComponentQuote)
-	{
-		return;
-	}
-
-	m_pInputComponentQuote->UnregisterInputReceive(InInputActionID, InRegisterObj);
 }
 
 ULxInteractionUIManager* ULxLocalPlayerSubsystem::GetInteractionUIManager() const
@@ -89,16 +51,6 @@ void ULxLocalPlayerSubsystem::SetGameState(const ELxGameState InGameState)
 bool ULxLocalPlayerSubsystem::IsCharacterFeatureAvailable() const
 {
 	return m_GameState == ELxGameState::InGame || m_GameState == ELxGameState::InOnlineGame;
-}
-
-void ULxLocalPlayerSubsystem::SetInputComponentQuote(ULxInputComponent* InUInputComponentQuote)
-{
-	if (!InUInputComponentQuote)
-	{
-		return;
-	}
-
-	m_pInputComponentQuote = InUInputComponentQuote;
 }
 
 void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPlayerController)

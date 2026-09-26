@@ -13,7 +13,7 @@
 
 ULxInputComponent::ULxInputComponent()
 {
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
 void ULxInputComponent::BaseComponentInitialize()
@@ -116,11 +116,6 @@ void ULxInputComponent::BaseComponentInitialize()
 	}
 }
 
-void ULxInputComponent::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
 void ULxInputComponent::HandleContinuousAction(const FInputActionInstance& Instance)
 {
 	const UInputAction* Action = Instance.GetSourceAction();
@@ -128,7 +123,7 @@ void ULxInputComponent::HandleContinuousAction(const FInputActionInstance& Insta
 	ELxInputActionID ActionID = LxInputActionConfig::GetInputActionIDByAction(Action);
 
 	FLxInputValue InputValue(Value.Get<bool>(), Value.Get<float>(), Value.Get<FVector2D>(), Value.Get<FVector>());
-	SendInputEvent(ActionID, InputValue, Cast<APlayerController>(GetOwner()));
+	LxInputActionConfig::SendInputEvent(ActionID, InputValue, Cast<APlayerController>(GetOwner()));
 }
 
 void ULxInputComponent::HandlePressAndReleaseAction(const FInputActionInstance& Instance, ETriggerEvent Trigge)
@@ -139,26 +134,5 @@ void ULxInputComponent::HandlePressAndReleaseAction(const FInputActionInstance& 
 
 	FLxInputValue InputValue(Value.Get<bool>(), Value.Get<float>(), Value.Get<FVector2D>(), Value.Get<FVector>());
 	InputValue.m_blValue = Trigge == ETriggerEvent::Started;
-	SendInputEvent(ActionID, InputValue, Cast<APlayerController>(GetOwner()));
-}
-
-void ULxInputComponent::RegisterInputReceive(ELxInputActionID InInputActionID,
-	TScriptInterface<ILxInputReceiveInterface> InRegisterObj)
-{
-	LxInputActionConfig::RegisterInputReceive(InInputActionID, InRegisterObj);
-}
-
-void ULxInputComponent::UnregisterInputReceive(ELxInputActionID InInputActionID)
-{
-	LxInputActionConfig::UnregisterInputReceive(InInputActionID);
-}
-
-void ULxInputComponent::UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj)
-{
-	LxInputActionConfig::UnregisterInputReceive(InInputActionID, InRegisterObj);
-}
-
-void ULxInputComponent::SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue, const APlayerController* SourcePlayerController)
-{
-	LxInputActionConfig::SendInputEvent(InInputActionID, InInputValue, SourcePlayerController);
+	LxInputActionConfig::SendInputEvent(ActionID, InputValue, Cast<APlayerController>(GetOwner()));
 }

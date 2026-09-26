@@ -9,12 +9,6 @@
 #include "LxGameDataTablesManager.generated.h"
 
 class UDataTable;
-class ULxDataTableConfigBase;
-class ULxTextLineStyleDataConfig;
-class ULxItemEntryDefineTableConfig;
-class ULxBuffDefineTableConfig;
-
-// class ULxImageManage;
 
 
 UCLASS(Blueprintable, DisplayName="数据表格管理对象")

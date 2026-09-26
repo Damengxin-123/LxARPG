@@ -131,9 +131,6 @@ private:
 	virtual void OnModuleShutdown() override;
 
 	/** 根据 Buff 对象查找运行时缓存。 */
-	FLxBuffRuntimeInfo* FindRuntimeInfo(ULxBuff* InBuffLogic);
-
-	/** 根据 Buff 对象查找运行时缓存。 */
 	const FLxBuffRuntimeInfo* FindRuntimeInfo(ULxBuff* InBuffLogic) const;
 
 	/** 根据 Buff 标签 ID 查找第一个运行时缓存。 */

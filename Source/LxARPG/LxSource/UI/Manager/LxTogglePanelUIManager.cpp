@@ -48,12 +48,7 @@ bool ULxTogglePanelUIManager::SetPanelVisible(ULxUIBaseObject* InWidget, bool bI
 
 bool ULxTogglePanelUIManager::TogglePanelWidget(ULxUIBaseObject* InWidget)
 {
-	if (!InWidget || !ContainsWidget(InWidget))
-	{
-		return false;
-	}
-
-	return SetPanelVisible(InWidget, !IsWidgetVisible(InWidget));
+	return InWidget && SetPanelVisible(InWidget, !IsWidgetVisible(InWidget));
 }
 
 bool ULxTogglePanelUIManager::HandleInputValue(ELxInputActionID InInputActionID, const FLxInputValue& InValue)

@@ -57,7 +57,7 @@ void ULxPlayerAimComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 			}
 			if (bIsAiming)
 			{
-				UpdateAimRotation(DeltaTime);
+				UpdateAimRotation();
 			}
 		}
 	}
@@ -358,17 +358,17 @@ void ULxPlayerAimComponent::UpdateAimCamera(float DeltaTime)
 		AimCameraInterpSpeed);
 }
 
-void ULxPlayerAimComponent::UpdateAimRotation(float DeltaTime)
+void ULxPlayerAimComponent::UpdateAimRotation()
 {
 	if (!bRotateCharacterWhileAiming || !OwnerPlayerCharacter)
 	{
 		return;
 	}
 
-	RotateCharacterToAimResult(CurrentAimResult, false, DeltaTime);
+	RotateCharacterToAimResult(CurrentAimResult, false);
 }
 
-void ULxPlayerAimComponent::RotateCharacterToAimResult(const FLxPlayerAimResult& InAimResult, bool bInstantRotation, float DeltaTime)
+void ULxPlayerAimComponent::RotateCharacterToAimResult(const FLxPlayerAimResult& InAimResult, bool bInstantRotation)
 {
 	if (!OwnerPlayerCharacter)
 	{

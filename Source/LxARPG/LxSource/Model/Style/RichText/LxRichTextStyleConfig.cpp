@@ -7,7 +7,6 @@ namespace
 {
 	TWeakObjectPtr<UDataTable> GRichTextStyleDataTable;
 	TMap<FGameplayTag, FLxRichTextStyleRow> GRichTextStyleRowMap;
-	TMap<FGameplayTag, FName> GRichTextStyleTagMap;
 
 	bool IsValidRichTextStyleRowHandle(const FDataTableRowHandle& InStyleRow)
 	{
@@ -27,7 +26,6 @@ namespace LxRichTextStyleConfig
 	{
 		GRichTextStyleDataTable.Reset();
 		GRichTextStyleRowMap.Empty();
-		GRichTextStyleTagMap.Empty();
 	}
 
 	void SetRichTextStyleDataTable(UDataTable* InDataTable)
@@ -48,7 +46,6 @@ namespace LxRichTextStyleConfig
 		}
 
 		GRichTextStyleRowMap.Add(InStyleRow.StyleIDTag, InStyleRow);
-		GRichTextStyleTagMap.Add(InStyleRow.StyleIDTag, InStyleRow.TextStyleRow.RowName);
 	}
 
 	const TMap<FGameplayTag, FLxRichTextStyleRow>& GetRichTextStyleRowMap()
@@ -63,7 +60,8 @@ namespace LxRichTextStyleConfig
 
 	FName GetRichTextStyleTag(FGameplayTag InStyleIDTag)
 	{
-		return GRichTextStyleTagMap.FindRef(InStyleIDTag);
+		const FLxRichTextStyleRow* StyleRow = GetRichTextStyleRow(InStyleIDTag);
+		return StyleRow ? StyleRow->TextStyleRow.RowName : NAME_None;
 	}
 
 	bool ResolveRichTextStyleTag(FGameplayTag InStyleIDTag, FName& OutTextStyleTag)

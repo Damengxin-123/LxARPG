@@ -173,6 +173,20 @@ bool FLxAnimationActionNodeTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("攻击结束后基础节点继续匹配"), BasePlayer->IsMatched());
 		TestFalse(TEXT("攻击结束后攻击节点失配"), AttackPlayer->IsMatched());
 		if (Asset == Montage) TestFalse(TEXT("攻击结束停止所属蒙太奇"), Instance->Montage_IsPlaying(Montage));
+
+		Mesh->SetAnimInstanceClass(nullptr);
+		Mesh->SetAnimInstanceClass(Blueprint->GeneratedClass);
+		ULxAnimInstanceBase* Replacement = Cast<ULxAnimInstanceBase>(Mesh->GetAnimInstance());
+		if (!TestNotNull(TEXT("运行中更换动画实例"), Replacement)) return false;
+		const int32 RequestBeforeRefresh = Replacement->ActionAnimationPlayRequestId;
+		AttackSignal.MotionType = ELxCharacterMotionType::RangedAttack;
+		AttackSignal.SkillId = Skill;
+		Process->ReceiveActionMotionSignal(AttackSignal);
+		TestEqual(TEXT("新实例只接收一次当前攻击请求"), Replacement->ActionAnimationPlayRequestId, RequestBeforeRefresh + 1);
+		TestEqual(TEXT("更换实例保留基础通道"), Replacement->BaseMotionType, ELxCharacterMotionType::MediumMove);
+		TestEqual(TEXT("更换实例接收当前攻击技能"), Replacement->CurrentAttackSkillId, Skill);
+		Process->ReceiveActionMotionSignal(AttackSignal);
+		TestEqual(TEXT("同技能后续重放仍逐次推进请求"), Replacement->ActionAnimationPlayRequestId, RequestBeforeRefresh + 2);
 		Character->Destroy();
 	}
 	return true;

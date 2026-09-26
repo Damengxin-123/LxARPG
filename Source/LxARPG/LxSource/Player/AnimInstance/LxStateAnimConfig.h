@@ -7,17 +7,17 @@
 #include "UObject/Object.h"
 #include "LxStateAnimConfig.generated.h"
 
-/**
- * 
- */
-USTRUCT(BlueprintType)
+/** 角色状态对应的动画序列配置。 */
+USTRUCT(BlueprintType, DisplayName="状态动画配置")
 struct FLxStateAnimConfig
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, DisplayName="角色状态")
-	ELxCharacterState State;
+	/** 该动画对应的角色状态。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="状态动画", DisplayName="角色状态")
+	ELxCharacterState State = ELxCharacterState::Idle;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, DisplayName="动画序列")
+	/** 进入状态后使用的动画序列。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="状态动画", DisplayName="动画序列")
 	TObjectPtr<UAnimSequence> AnimSequence;
 };

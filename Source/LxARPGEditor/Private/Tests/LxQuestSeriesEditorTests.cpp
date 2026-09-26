@@ -91,6 +91,22 @@ bool FLxQuestSeriesAssetTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("应能通过任务ID标签取得静态任务配置"),
 		QuestSeriesAsset->GetQuestNode(SecondQuestId, QueriedQuestNode));
 	TestEqual(TEXT("查询到的任务节点开发名称应一致"), QueriedQuestNode.DeveloperName, FName(TEXT("SecondQuest")));
+
+	// 未修复的重复或无效编辑器标识不能改变连线对应的任务。
+	FLxQuestNodeDefinition DuplicateNode = QuestSeriesAsset->GetQuestNodes()[0];
+	DuplicateNode.QuestId = SecondQuestId;
+	QuestSeriesAsset->EditQuestNodes().Add(DuplicateNode);
+	QuestGraph->SynchronizeLinksToAsset();
+	if (!TestEqual(TEXT("重复编辑器标识仍保留一条连线"), QuestSeriesAsset->GetQuestLinks().Num(), 1))
+	{
+		return false;
+	}
+	TestEqual(TEXT("重复编辑器标识仍优先使用首个任务"),
+		QuestSeriesAsset->GetQuestLinks()[0].FromQuestId, FirstQuestId);
+	QuestSeriesAsset->EditQuestNodes()[1].EditorNodeId.Invalidate();
+	SecondGraphNode->SetQuestEditorNodeId(FGuid());
+	QuestGraph->SynchronizeLinksToAsset();
+	TestTrue(TEXT("无效编辑器标识不能生成运行时连线"), QuestSeriesAsset->GetQuestLinks().IsEmpty());
 	return true;
 }
 

@@ -78,10 +78,10 @@ protected:
 	void UpdateAimCamera(float DeltaTime);
 
 	/** 瞄准状态下把角色水平朝向转到瞄准点。 */
-	void UpdateAimRotation(float DeltaTime);
+	void UpdateAimRotation();
 
 	/** 释放技能时立即让角色水平转向本次瞄准方向，瞄准态持续转向时使用插值。 */
-	void RotateCharacterToAimResult(const FLxPlayerAimResult& InAimResult, bool bInstantRotation, float DeltaTime = 0.f);
+	void RotateCharacterToAimResult(const FLxPlayerAimResult& InAimResult, bool bInstantRotation);
 
 	/** 瞄准输入行为，默认用于鼠标右键按下和松开。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="玩家|瞄准", DisplayName="瞄准输入行为")

@@ -13,7 +13,7 @@ class ULxAIBehaviorTreeAsset;
 class ULxAIBehaviorTreeNodeData;
 
 /** 行为树叶节点变化时使用的原生回调。 */
-DECLARE_DELEGATE_TwoParams(FLxAIBehaviorTreeLeafChanged, ELxAIBehaviorAction, FGuid);
+DECLARE_DELEGATE_OneParam(FLxAIBehaviorTreeLeafChanged, ELxAIBehaviorAction);
 
 /**
  * 每个 AI 控制器独立持有的行为树执行器。

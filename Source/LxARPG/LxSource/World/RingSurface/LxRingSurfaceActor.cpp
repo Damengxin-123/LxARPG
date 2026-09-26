@@ -60,6 +60,10 @@ void ALxRingSurfaceActor::RebuildRingSurface()
 	TArray<FProcMeshTangent> Tangents;
 	Vertices.Reserve(SafeSegmentCount * 16);
 	Triangles.Reserve(SafeSegmentCount * 24);
+	Normals.Reserve(SafeSegmentCount * 16);
+	UV0.Reserve(SafeSegmentCount * 16);
+	VertexColors.Reserve(SafeSegmentCount * 16);
+	Tangents.Reserve(SafeSegmentCount * 16);
 
 	/** 向网格数据中添加一个具有独立法线、UV 和切线的顶点。 */
 	const auto AddVertex = [&Vertices, &Normals, &UV0, &VertexColors, &Tangents](

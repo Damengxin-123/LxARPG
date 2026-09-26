@@ -90,12 +90,6 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
-	/** 角色每帧更新。 */
-	virtual void Tick(float DeltaTime) override;
-
-	/** 绑定角色输入组件。 */
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
 	/** 获取统一管理移动、跳跃、朝向和即时状态的角色行为控制组件。 */
 	UFUNCTION(BlueprintCallable, Category="组件|角色行为", DisplayName="获取角色行为控制组件")
 	ULxCharacterBehaviorControlComponent* GetCharacterBehaviorControlComponent() const;

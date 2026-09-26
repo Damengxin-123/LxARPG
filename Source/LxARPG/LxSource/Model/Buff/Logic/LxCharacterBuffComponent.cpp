@@ -413,18 +413,6 @@ void ULxCharacterBuffModule::OnRep_ReplicatedBuffList()
 	ApplyReplicatedBuffList();
 }
 
-FLxBuffRuntimeInfo* ULxCharacterBuffModule::FindRuntimeInfo(ULxBuff* InBuffLogic)
-{
-	for (FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
-	{
-		if (RuntimeInfo.BuffLogic == InBuffLogic)
-		{
-			return &RuntimeInfo;
-		}
-	}
-	return nullptr;
-}
-
 const FLxBuffRuntimeInfo* ULxCharacterBuffModule::FindRuntimeInfo(ULxBuff* InBuffLogic) const
 {
 	for (const FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)

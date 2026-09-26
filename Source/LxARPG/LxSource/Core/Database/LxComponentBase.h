@@ -19,16 +19,11 @@ class LXARPG_API ULxComponentBase : public UActorComponent, public ILxInputRecei
 	GENERATED_BODY()
 
 public:
-	ULxComponentBase() {};
-
 	/** 子类可重写的组件初始化入口。 */
 	virtual void BaseComponentInitialize() {};
 
 	/** 组件数据变化时广播。 */
 	FOnComponentDataChange OnDataChange;
-
-	virtual void HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue) override {};
-	virtual void InitMonitorRegistration() override {};
 
 	UFUNCTION(BlueprintCallable, Category="Input", DisplayName="注册输入行为监听")
 	void RegisterInputActionReceive(ELxInputActionID InInputActionID);
@@ -39,8 +34,6 @@ public:
 	void UnregisterAllInputActionReceives();
 
 protected:
-	virtual void OnRegister() override { Super::OnRegister(); };
-	virtual void BeginPlay() override { Super::BeginPlay(); };
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:

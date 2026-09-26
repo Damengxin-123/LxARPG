@@ -7,7 +7,6 @@
 #include "LxCharacterEffectProcessComponent.generated.h"
 
 class ULxCharacterDataTransferComponent;
-class ULxCharacterAttributeComponent;
 class ULxDamageCalculationFlow;
 class ULxSkill;
 class ALxSkillUnitActor;
@@ -76,7 +75,4 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<ULxCharacterDataTransferComponent> DataTransferComponent = nullptr;
-
-	UPROPERTY()
-	TObjectPtr<ULxCharacterAttributeComponent> SpecialAttributeComponent = nullptr;
 };

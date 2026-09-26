@@ -24,5 +24,4 @@ class ILxInputReceiveInterface
 	 */
 public:
 	virtual void HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue) {}
-	virtual void InitMonitorRegistration() = 0;
 };

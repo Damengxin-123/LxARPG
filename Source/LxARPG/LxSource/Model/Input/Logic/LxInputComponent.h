@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -22,13 +22,6 @@ public:
 	/** 初始化输入映射上下文、输入配置和增强输入绑定。 */
 	virtual void BaseComponentInitialize() override;
 
-protected:
-	virtual void BeginPlay() override;
-
-public:
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
-		FActorComponentTickFunction* ThisTickFunction) override {};
-
 	/** 处理持续触发类型的输入事件。 */
 	UFUNCTION()
 	void HandleContinuousAction(const FInputActionInstance& Instance);
@@ -37,13 +30,7 @@ public:
 	UFUNCTION()
 	void HandlePressAndReleaseAction(const FInputActionInstance& Instance, ETriggerEvent Trigge);
 
-	void RegisterInputReceive(ELxInputActionID InInputActionID, TScriptInterface<ILxInputReceiveInterface> InRegisterObj);
-	void UnregisterInputReceive(ELxInputActionID InInputActionID);
-	void UnregisterInputReceive(ELxInputActionID InInputActionID, const UObject* InRegisterObj);
-
 private:
-	void SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InINputValue, const APlayerController* SourcePlayerController);
-
 	UPROPERTY()
 	TObjectPtr<UInputMappingContext> m_pDefaultMappingContext;
 

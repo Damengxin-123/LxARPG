@@ -7,7 +7,6 @@
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectComponent.h"
-#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkill.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitActor.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -139,26 +138,25 @@ bool ULxCharacterEffectProcessModule::BuildOutgoingEffectPackage(const FLxEffect
 		return false;
 	}
 
-	FLxEffectPackage RuntimeSourceEffectPackage = InSourceEffectPackage;
-	if (RuntimeSourceEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::None)
+	OutEffectPackage = InSourceEffectPackage;
+	if (OutEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::None)
 	{
-		RuntimeSourceEffectPackage.SourceContext.SourceType = ELxEffectPackageSource::Skill;
+		OutEffectPackage.SourceContext.SourceType = ELxEffectPackageSource::Skill;
 	}
 
-	if (RuntimeSourceEffectPackage.SourceContext.SourceActor == nullptr)
+	if (OutEffectPackage.SourceContext.SourceActor == nullptr)
 	{
-		RuntimeSourceEffectPackage.SourceContext.SourceActor = GetOwner();
+		OutEffectPackage.SourceContext.SourceActor = GetOwner();
 	}
 
-	if (RuntimeSourceEffectPackage.SourceContext.SourceObject == nullptr)
+	if (OutEffectPackage.SourceContext.SourceObject == nullptr)
 	{
-		RuntimeSourceEffectPackage.SourceContext.SourceObject = this;
+		OutEffectPackage.SourceContext.SourceObject = this;
 	}
 
-	RuntimeSourceEffectPackage.TargetActor = TargetActor;
-	OutEffectPackage = RuntimeSourceEffectPackage;
+	OutEffectPackage.TargetActor = TargetActor;
 
-	if (RuntimeSourceEffectPackage.DamageEffects.IsEmpty())
+	if (OutEffectPackage.DamageEffects.IsEmpty())
 	{
 		return !OutEffectPackage.IsEmpty() || OutEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource;
 	}
@@ -170,7 +168,7 @@ bool ULxCharacterEffectProcessModule::BuildOutgoingEffectPackage(const FLxEffect
 	}
 
 	FLxDamageCalculationContext DamageContext;
-	DamageContext.SourceActor = RuntimeSourceEffectPackage.SourceContext.SourceActor;
+	DamageContext.SourceActor = OutEffectPackage.SourceContext.SourceActor;
 	DamageContext.TargetActor = TargetActor;
 	DamageContext.SourceDataTransferComponent = DataTransferComponent;
 	if (const ALxBaseCharacter* TargetCharacter = Cast<ALxBaseCharacter>(TargetActor))
@@ -178,14 +176,14 @@ bool ULxCharacterEffectProcessModule::BuildOutgoingEffectPackage(const FLxEffect
 		DamageContext.TargetDataTransferComponent = TargetCharacter->GetCharacterDataTransferComponent();
 	}
 
-	DamageContext.InputEffectPackage = RuntimeSourceEffectPackage;
-	DamageContext.OutputEffectPackage = RuntimeSourceEffectPackage;
-	DamageContext.DamageEffects = RuntimeSourceEffectPackage.DamageEffects;
+	DamageContext.InputEffectPackage = OutEffectPackage;
+	DamageContext.OutputEffectPackage = OutEffectPackage;
+	DamageContext.DamageEffects = OutEffectPackage.DamageEffects;
 
 	DamageContext = DamageCalculationFlow->CalculateOutgoingDamage(DamageContext);
 	DamageCalculationFlow->OnDamageCalculationFinished.Broadcast(DamageContext);
-	OutEffectPackage = DamageContext.OutputEffectPackage;
-	OutEffectPackage.DamageEffects = DamageContext.DamageEffects;
+	OutEffectPackage = MoveTemp(DamageContext.OutputEffectPackage);
+	OutEffectPackage.DamageEffects = MoveTemp(DamageContext.DamageEffects);
 	return !OutEffectPackage.IsEmpty() || OutEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource;
 }
 
@@ -249,7 +247,6 @@ void ULxCharacterEffectProcessModule::CacheOwnerComponents()
 	}
 
 	DataTransferComponent = OwnerCharacter->GetCharacterDataTransferComponent();
-	SpecialAttributeComponent = OwnerCharacter->GetCharacterSpecialAttributeComponent();
 }
 
 void ULxCharacterEffectProcessModule::EnsureDamageCalculationFlow()
@@ -320,13 +317,13 @@ void ULxCharacterEffectProcessModule::BuildEffectPackagesFromSkillEntries(ULxSki
 
 		if (!EntryEffectPackage.IsEmpty())
 		{
-			OutEffectPackages.Add(EntryEffectPackage);
+			OutEffectPackages.Add(MoveTemp(EntryEffectPackage));
 		}
 	}
 
 	if (bPersistentEffect && OutEffectPackages.Num() > 1)
 	{
-		FLxEffectPackage CombinedPackage = OutEffectPackages[0];
+		FLxEffectPackage CombinedPackage = MoveTemp(OutEffectPackages[0]);
 		for (int32 PackageIndex = 1; PackageIndex < OutEffectPackages.Num(); ++PackageIndex)
 		{
 			const FLxEffectPackage& Package = OutEffectPackages[PackageIndex];

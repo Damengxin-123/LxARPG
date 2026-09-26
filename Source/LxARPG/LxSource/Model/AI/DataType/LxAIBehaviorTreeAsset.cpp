@@ -105,9 +105,6 @@ bool ULxAIBehaviorTreeNodeData::ValidateConfiguration(FText& OutError) const
 			if (!RouteId.IsValid()) Error = TEXT("请选择场景路线ID");
 			else if (Action == ELxAIBehaviorAction::RoutePatrol && RouteMode != ELxAIRoutePatrolMode::PingPong && RouteMode != ELxAIRoutePatrolMode::Loop) Error = TEXT("巡逻方式无效");
 			break;
-		case ELxAIBehaviorAction::EnterDeath:
-			if (GetState() != ELxAIBehaviorState::Idle) Error = TEXT("进入死亡行为只能用于死亡专属阶段");
-			break;
 		case ELxAIBehaviorAction::MeleeSkill:
 		case ELxAIBehaviorAction::RangedSkill:
 		case ELxAIBehaviorAction::BuffSkill:
@@ -146,7 +143,8 @@ bool ULxAIBehaviorTreeAsset::CanAttach(const ULxAIBehaviorTreeNodeData& Parent, 
 	if (Parent.Kind == ELxAIBehaviorNodeKind::Entry) return Child.Kind == ELxAIBehaviorNodeKind::State;
 	if (Child.Kind == ELxAIBehaviorNodeKind::Action && Child.Action == ELxAIBehaviorAction::EnterDeath)
 		return Parent.Kind == ELxAIBehaviorNodeKind::Phase && Parent.State == ELxAIBehaviorState::Idle;
-	if (Parent.Kind == ELxAIBehaviorNodeKind::Phase && Parent.State == ELxAIBehaviorState::Idle)
+	if (Parent.Kind == ELxAIBehaviorNodeKind::Phase && Parent.State == ELxAIBehaviorState::Idle
+		&& Parent.Label.ToString() == TEXT("进入死亡"))
 		return Child.Kind == ELxAIBehaviorNodeKind::Action && Child.Action == ELxAIBehaviorAction::EnterDeath;
 	return Parent.GetState() == Child.GetState()
 		&& ((Parent.Kind == ELxAIBehaviorNodeKind::State && Child.Kind == ELxAIBehaviorNodeKind::Phase)
@@ -167,18 +165,19 @@ bool ULxAIBehaviorTreeAsset::ValidateTree(FText& OutError) const
 		return false;
 	};
 	if (Roots.Num() != 4 && Roots.Num() != 5) return Fail(TEXT("必须保留平静、发现敌人、敌人靠近、受到攻击四个旧入口，或增加角色死亡入口"));
-	TSet<FGuid> Ids;
+	TMap<FGuid, const ULxAIBehaviorTreeNodeData*> NodesById;
+	NodesById.Reserve(Nodes.Num());
 	for (const ULxAIBehaviorTreeNodeData* Node : Nodes)
 	{
-		if (!Node || !Node->NodeId.IsValid() || Ids.Contains(Node->NodeId)) return Fail(TEXT("存在空节点、无效或重复的节点标识"));
-		Ids.Add(Node->NodeId);
+		if (!Node || !Node->NodeId.IsValid() || NodesById.Contains(Node->NodeId)) return Fail(TEXT("存在空节点、无效或重复的节点标识"));
+		NodesById.Add(Node->NodeId, Node);
 	}
 	const bool bHasDeathEntry = Roots.Num() == 5;
 	TSet<FGuid> Attached;
 	TSet<ELxAIBehaviorEntry> EntryTypes;
 	for (const FGuid& Id : Roots)
 	{
-		const ULxAIBehaviorTreeNodeData* Root = FindNode(Id);
+		const ULxAIBehaviorTreeNodeData* Root = NodesById.FindRef(Id);
 		if (!Root || Root->Kind != ELxAIBehaviorNodeKind::Entry || Root->Entry > ELxAIBehaviorEntry::CharacterDeath
 			|| Attached.Contains(Id) || EntryTypes.Contains(Root->Entry)) return Fail(TEXT("入口标识或入口类型无效、重复"));
 		Attached.Add(Id);
@@ -195,15 +194,12 @@ bool ULxAIBehaviorTreeAsset::ValidateTree(FText& OutError) const
 		TSet<FGuid> UniqueChildren;
 		for (const FGuid& Id : Parent->Children)
 		{
-			const ULxAIBehaviorTreeNodeData* Child = FindNode(Id);
+			const ULxAIBehaviorTreeNodeData* Child = NodesById.FindRef(Id);
 			if (!Child || !CanAttach(*Parent, *Child)) return Fail(TEXT("只能连接 入口 → 状态 → 同类阶段 → 同类行为；死亡阶段只能连接进入死亡行为"));
 			if (UniqueChildren.Contains(Id)) return Fail(TEXT("同一父节点不能重复连接同一子节点"));
 			UniqueChildren.Add(Id);
 			if (Child->Kind == ELxAIBehaviorNodeKind::Phase && Attached.Contains(Id)) return Fail(TEXT("阶段只能属于一个状态；状态和行为允许共享"));
 			Attached.Add(Id);
-			if (Parent->Kind == ELxAIBehaviorNodeKind::Phase && Parent->State == ELxAIBehaviorState::Idle
-				&& Parent->Label.ToString() == TEXT("进入死亡") && Child->Action != ELxAIBehaviorAction::EnterDeath)
-				return Fail(TEXT("进入死亡阶段只能连接进入死亡行为"));
 			if (Parent->Kind == ELxAIBehaviorNodeKind::State && !Parent->HealthRange.ContainsRange(Child->HealthRange))
 				return Fail(Child->GetDisplayLabel().ToString() + TEXT("：阶段生命值区间必须包含于父状态区间内"));
 		}
@@ -212,7 +208,7 @@ bool ULxAIBehaviorTreeAsset::ValidateTree(FText& OutError) const
 			if (Parent->Children.IsEmpty()) return Fail(TEXT("角色死亡入口必须连接死亡专属分支"));
 			for (const FGuid& ChildId : Parent->Children)
 			{
-				const ULxAIBehaviorTreeNodeData* DeathState = FindNode(ChildId);
+				const ULxAIBehaviorTreeNodeData* DeathState = NodesById.FindRef(ChildId);
 				if (!DeathState || DeathState->Label.ToString() != TEXT("死亡")) return Fail(TEXT("角色死亡入口只能连接死亡专属状态"));
 			}
 		}
@@ -349,14 +345,19 @@ bool ULxAIBehaviorTreeAsset::FindEligibleBranch(const ULxAIBehaviorTreeNodeData&
 		if (!State->HealthRange.Contains(HealthRatio)) continue;
 		for (const ULxAIBehaviorTreeNodeData* Phase : OrderedChildren(*State))
 		{
-			if (!State->HealthRange.ContainsRange(Phase->HealthRange) || !Phase->HealthRange.Contains(HealthRatio)
-				|| OrderedChildren(*Phase).IsEmpty()) continue;
+			if (!State->HealthRange.ContainsRange(Phase->HealthRange) || !Phase->HealthRange.Contains(HealthRatio)) continue;
 			// 已达到安全距离的随机逃跑阶段不再入选，避免完成后因生命值条件立即重入。
+			bool bHasAction = false;
 			float SafeDistanceMeters = 0.0f;
-			for (const ULxAIBehaviorTreeNodeData* Action : OrderedChildren(*Phase))
+			for (const FGuid& ActionId : Phase->Children)
+			{
+				const ULxAIBehaviorTreeNodeData* Action = FindNode(ActionId);
+				if (!Action || !CanAttach(*Phase, *Action)) continue;
+				bHasAction = true;
 				if (Action->Action == ELxAIBehaviorAction::RandomFlee)
 					SafeDistanceMeters = FMath::Max(SafeDistanceMeters, Action->FleeSafeDistanceMeters);
-			if (SafeDistanceMeters > 0.0f && EnemyDistanceMeters >= SafeDistanceMeters) continue;
+			}
+			if (!bHasAction || (SafeDistanceMeters > 0.0f && EnemyDistanceMeters >= SafeDistanceMeters)) continue;
 			OutState = State->NodeId;
 			OutPhase = Phase->NodeId;
 			return true;

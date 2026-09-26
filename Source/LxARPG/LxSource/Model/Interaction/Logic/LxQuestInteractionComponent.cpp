@@ -28,12 +28,8 @@ FText ULxQuestInteractionComponent::GetPromptText() const
 		return Super::GetPromptText();
 	}
 
-	ULxGameInstanceSubsystem* Subsystem = ULxGameInstanceSubsystem::GetInstance(GetWorld());
-	ULxGlobalStaticDataManager* Manager = Subsystem ? Subsystem->GetGlobalStaticDataManager() : nullptr;
-	ULxQuestStaticDataModule* QuestData = Manager ? Manager->GetQuestStaticDataModule() : nullptr;
 	FLxQuestNodeDefinition QuestNode;
-	if (QuestConfig.IsValid() && QuestData && QuestData->IsInitialized()
-		&& QuestData->GetQuestNode(QuestConfig.QuestSeriesId, QuestConfig.QuestId, QuestNode))
+	if (GetQuestDefinition(QuestNode))
 	{
 		return QuestNode.DisplayName;
 	}

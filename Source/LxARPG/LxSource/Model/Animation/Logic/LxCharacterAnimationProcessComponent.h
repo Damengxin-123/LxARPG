@@ -61,7 +61,8 @@ private:
 	void CacheOwnerComponents();
 	void BindBehaviorControlEvents();
 	void UnbindBehaviorControlEvents();
-	void EnsureAnimationInstanceCached();
+	/** 刷新网格动画实例并重放两通道缓存；返回是否已向新实例同步信号。 */
+	bool EnsureAnimationInstanceCached();
 
 	/** 当前角色的行为控制组件。 */
 	UPROPERTY(Transient)

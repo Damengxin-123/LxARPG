@@ -45,7 +45,7 @@ struct FLxRarityInfo : public FTableRowBase
 	 * 用于在UI中显示此稀有度的颜色。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "稀有度可视化", DisplayName="稀有度颜色")
-	FLinearColor RarityColor;
+	FLinearColor RarityColor = FLinearColor::White;
 
 	/**
 	 * @var TSoftObjectPtr<UTexture2D> RarityBackgroundImage

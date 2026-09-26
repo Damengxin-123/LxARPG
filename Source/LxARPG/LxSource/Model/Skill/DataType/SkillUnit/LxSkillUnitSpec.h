@@ -21,7 +21,7 @@ struct FLxSkillUnitSpec
 
 	/** 具体技能单元Actor类型，形态、视觉、默认运动方式和默认事件语义由该类型自身限定。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元", DisplayName="技能单元类型")
-	ELxSkillUnitType SkillUnitType;
+	ELxSkillUnitType SkillUnitType = ELxSkillUnitType::None;
 
 	/** 技能单元创建规则。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元", DisplayName="创建规则")

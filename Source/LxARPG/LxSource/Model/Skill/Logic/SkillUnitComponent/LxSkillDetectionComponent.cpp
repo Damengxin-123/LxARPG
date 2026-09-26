@@ -7,8 +7,6 @@
 
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
-#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitActor.h"
-#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 void ULxSkillDetectionComponent::SetTargetFilterSpec(const FLxSkillTargetFilterSpec& InTargetFilterSpec)
 {
@@ -295,15 +293,15 @@ bool ULxSkillDetectionComponent::MatchesTargetStateFilter(const ALxBaseCharacter
 		return false;
 	}
 
-	FGameplayTagContainer TargetStateTags;
-	TargetAttributeComponent->GetAllStateTags(TargetStateTags);
-	if (!TargetFilterSpec.RequiredTags.IsEmpty() && !TargetStateTags.HasAll(TargetFilterSpec.RequiredTags))
+	if (!TargetFilterSpec.RequiredTags.IsEmpty() || !TargetFilterSpec.BlockedTags.IsEmpty())
 	{
-		return false;
-	}
-	if (!TargetFilterSpec.BlockedTags.IsEmpty() && TargetStateTags.HasAny(TargetFilterSpec.BlockedTags))
-	{
-		return false;
+		FGameplayTagContainer TargetStateTags;
+		TargetAttributeComponent->GetAllStateTags(TargetStateTags);
+		if (!TargetStateTags.HasAll(TargetFilterSpec.RequiredTags)
+			|| TargetStateTags.HasAny(TargetFilterSpec.BlockedTags))
+		{
+			return false;
+		}
 	}
 
 	if (TargetFilterSpec.bRequireLineOfSight)
@@ -348,7 +346,8 @@ void ULxSkillDetectionComponent::PublishSingleActorResult(ELxSkillDetectionEvent
 	Result.bHitWorld = bHitWorld;
 	Result.TriggerCollision = InTriggerCollision;
 
-	if (IsTargetCandidateValid(InActor))
+	// 调用方已完成目标筛选；场景命中之外的事件均携带有效目标，避免重复执行视线检测。
+	if (!bHitWorld)
 	{
 		Result.CandidateTargets.Add(InActor);
 	}

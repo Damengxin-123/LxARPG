@@ -4,29 +4,12 @@
 #include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentComponent.h"
-#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "Algo/Sort.h"
 #include "GameFramework/Actor.h"
-#include "Misc/Crc.h"
 #include "Net/UnrealNetwork.h"
 
 namespace
 {
-	struct FLxBackpackItemKey
-	{
-		FGameplayTag ItemIDTag;
-
-		bool operator==(const FLxBackpackItemKey& Other) const
-		{
-			return ItemIDTag == Other.ItemIDTag;
-		}
-	};
-
-	uint32 GetTypeHash(const FLxBackpackItemKey& Key)
-	{
-		return FCrc::StrCrc32(*Key.ItemIDTag.ToString());
-	}
-
 	/** 查找第一个空背包槽位。 */
 	ULxItemSlotData* FindEmptyBackpackSlot(const TArray<TObjectPtr<ULxItemSlotData>>& InSlots)
 	{
@@ -49,13 +32,8 @@ namespace
 	}
 }
 
-ULxCharacterBackpackModule::ULxCharacterBackpackModule()
-{
-}
-
 void ULxCharacterBackpackModule::OnModuleInitialize()
 {
-	m_pOwnerCharacter = GetCharacterOwner();
 	InitializeBackpack();
 }
 
@@ -95,7 +73,7 @@ bool ULxCharacterBackpackModule::AddItemByTagID(FGameplayTag InItemIDTag, int32 
 
 	CleanupInvalidItems();
 
-	const int32 MaxStackCount = FMath::Max(1, ItemConfig->ItemCountMax);
+	const int32 MaxStackCount = ItemConfig->ItemCountMax;
 	int32 AvailableCount = 0;
 	int32 EmptySlotCount = 0;
 
@@ -200,14 +178,13 @@ bool ULxCharacterBackpackModule::CanAddItemList(const TArray<FLxItemQuote>& InIt
 		return false;
 	}
 
-	TMap<FLxBackpackItemKey, int32> RequiredCountMap;
-	TMap<FLxBackpackItemKey, int32> ExistingStackSpaceMap;
-	TMap<FLxBackpackItemKey, int32> MaxStackCountMap;
+	TMap<FGameplayTag, int32> RequiredCountMap;
+	TMap<FGameplayTag, int32> ExistingStackSpaceMap;
+	TMap<FGameplayTag, int32> MaxStackCountMap;
 	int32 EmptySlotCount = 0;
 
 	for (const FLxItemQuote& ItemQuote : InItemList)
 	{
-		const FLxBackpackItemKey ItemKey{ItemQuote.ItemIDTag};
 		if (!ItemQuote.ItemIDTag.IsValid() || ItemQuote.ItemCount <= 0)
 		{
 			return false;
@@ -219,8 +196,8 @@ bool ULxCharacterBackpackModule::CanAddItemList(const TArray<FLxItemQuote>& InIt
 			return false;
 		}
 
-		RequiredCountMap.FindOrAdd(ItemKey) += ItemQuote.ItemCount;
-		MaxStackCountMap.FindOrAdd(ItemKey) = FMath::Max(1, ItemConfig->ItemCountMax);
+		RequiredCountMap.FindOrAdd(ItemQuote.ItemIDTag) += ItemQuote.ItemCount;
+		MaxStackCountMap.FindOrAdd(ItemQuote.ItemIDTag) = ItemConfig->ItemCountMax;
 	}
 
 	for (ULxItemSlotData* Slot : m_vBackpackSlots)
@@ -232,12 +209,12 @@ bool ULxCharacterBackpackModule::CanAddItemList(const TArray<FLxItemQuote>& InIt
 		}
 
 		ULxItemBase* ExistingItem = Slot->GetItem();
-		if (ExistingItem == nullptr || !ExistingItem->ItemIsValid() || !ExistingItem->ItemIsStackable())
+		if (!ExistingItem->ItemIsStackable())
 		{
 			continue;
 		}
 
-		const FLxBackpackItemKey ItemKey{ExistingItem->ItemIDTag()};
+		const FGameplayTag ItemKey = ExistingItem->ItemIDTag();
 		if (const int32* MaxStackCount = MaxStackCountMap.Find(ItemKey))
 		{
 			ExistingStackSpaceMap.FindOrAdd(ItemKey) += FMath::Max(0, *MaxStackCount - ExistingItem->ItemCount());
@@ -245,7 +222,7 @@ bool ULxCharacterBackpackModule::CanAddItemList(const TArray<FLxItemQuote>& InIt
 	}
 
 	int32 RequiredEmptySlotCount = 0;
-	for (const TPair<FLxBackpackItemKey, int32>& RequiredPair : RequiredCountMap)
+	for (const TPair<FGameplayTag, int32>& RequiredPair : RequiredCountMap)
 	{
 		const int32 ExistingStackSpace = ExistingStackSpaceMap.FindRef(RequiredPair.Key);
 		const int32 RemainingCount = FMath::Max(0, RequiredPair.Value - ExistingStackSpace);
@@ -285,7 +262,7 @@ bool ULxCharacterBackpackModule::CheckHaveItemList(const TArray<FLxItemQuote>& I
 		return false;
 	}
 
-	TMap<FLxBackpackItemKey, int32> RequiredCountMap;
+	TMap<FGameplayTag, int32> RequiredCountMap;
 	for (const FLxItemQuote& ItemQuote : InItemList)
 	{
 		if (!ItemQuote.ItemIDTag.IsValid() || ItemQuote.ItemCount <= 0)
@@ -293,12 +270,12 @@ bool ULxCharacterBackpackModule::CheckHaveItemList(const TArray<FLxItemQuote>& I
 			return false;
 		}
 
-		RequiredCountMap.FindOrAdd(FLxBackpackItemKey{ItemQuote.ItemIDTag}) += ItemQuote.ItemCount;
+		RequiredCountMap.FindOrAdd(ItemQuote.ItemIDTag) += ItemQuote.ItemCount;
 	}
 
-	for (const TPair<FLxBackpackItemKey, int32>& RequiredPair : RequiredCountMap)
+	for (const TPair<FGameplayTag, int32>& RequiredPair : RequiredCountMap)
 	{
-		if (!CheckHaveItem(RequiredPair.Key.ItemIDTag, RequiredPair.Value))
+		if (!CheckHaveItem(RequiredPair.Key, RequiredPair.Value))
 		{
 			return false;
 		}
@@ -313,15 +290,15 @@ bool ULxCharacterBackpackModule::RemoveItemList(const TArray<FLxItemQuote>& InIt
 		return false;
 	}
 
-	TMap<FLxBackpackItemKey, int32> RequiredCountMap;
+	TMap<FGameplayTag, int32> RequiredCountMap;
 	for (const FLxItemQuote& ItemQuote : InItemList)
 	{
-		RequiredCountMap.FindOrAdd(FLxBackpackItemKey{ItemQuote.ItemIDTag}) += ItemQuote.ItemCount;
+		RequiredCountMap.FindOrAdd(ItemQuote.ItemIDTag) += ItemQuote.ItemCount;
 	}
 
-	for (const TPair<FLxBackpackItemKey, int32>& RequiredPair : RequiredCountMap)
+	for (const TPair<FGameplayTag, int32>& RequiredPair : RequiredCountMap)
 	{
-		if (!RemoveItemAt(RequiredPair.Key.ItemIDTag, RequiredPair.Value))
+		if (!RemoveItemAt(RequiredPair.Key, RequiredPair.Value))
 		{
 			return false;
 		}
@@ -534,16 +511,13 @@ void ULxCharacterBackpackModule::RefreshTrackedBindings()
 	}
 }
 
-bool ULxCharacterBackpackModule::CleanupInvalidItems()
+void ULxCharacterBackpackModule::CleanupInvalidItems()
 {
-	bool bChanged = false;
-
 	for (ULxItemSlotData* Slot : m_vBackpackSlots)
 	{
 		if (Slot != nullptr && Slot->GetItem() != nullptr && !Slot->GetItem()->ItemIsValid())
 		{
 			Slot->ClearItem();
-			bChanged = true;
 		}
 	}
 
@@ -555,8 +529,6 @@ bool ULxCharacterBackpackModule::CleanupInvalidItems()
 			m_vItemList.AddUnique(Slot->GetItem());
 		}
 	}
-
-	return bChanged;
 }
 
 void ULxCharacterBackpackModule::InitializeBackpack()
@@ -618,7 +590,7 @@ void ULxCharacterBackpackModule::ApplyReplicatedBackpackSlots()
 
 FLxItemQuote ULxCharacterBackpackModule::BuildItemQuoteFromSlot(ULxItemSlotData* SlotData) const
 {
-	if (!SlotData || !SlotData->IsValid() || !SlotData->GetItem())
+	if (!SlotData || !SlotData->IsValid())
 	{
 		return FLxItemQuote();
 	}

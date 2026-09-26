@@ -68,7 +68,7 @@ private:
 		TWeakObjectPtr<ALxAIPointActor> Actor;
 	};
 
-	/** 移除已经失效的路线和点位记录。 */
+	/** 注册时移除失效记录；查询直接通过弱引用过滤失效对象，避免每次扫描两类缓存。 */
 	void RemoveStaleEntries();
 
 	TArray<FRouteEntry> RouteEntries;

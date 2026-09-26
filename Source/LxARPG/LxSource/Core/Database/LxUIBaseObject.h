@@ -17,12 +17,10 @@ class LXARPG_API ULxUIBaseObject : public UUserWidget, public ILxInputReceiveInt
 
 public:
 	virtual void UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent);
-	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 	virtual bool HandleInputEvent(ELxInputActionID InputID, const FLxInputValue& Value){ return false; };
 	virtual void HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue) override;
-	virtual void InitMonitorRegistration() override;
 
 	UFUNCTION(BlueprintCallable, Category="Input", DisplayName="注册行为监听")
 	void RegisterInputActionReceive(ELxInputActionID InInputActionID);

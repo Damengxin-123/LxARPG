@@ -16,10 +16,7 @@ ULxGameInstanceSubsystem* ULxGameInstanceSubsystem::GetInstance(const UWorld* In
 	}
 	if (UGameInstance* GI = InWorldPtr->GetGameInstance())
 	{
-		if (ULxGameInstanceSubsystem* GameInstanceSubsystem = GI->GetSubsystem<ULxGameInstanceSubsystem>())
-		{
-			return GameInstanceSubsystem;
-		}
+		return GI->GetSubsystem<ULxGameInstanceSubsystem>();
 	}
 	return nullptr;
 }
@@ -52,11 +49,7 @@ void ULxGameInstanceSubsystem::Deinitialize()
 
 const ULxGameDataTablesManager* ULxGameInstanceSubsystem::GetGameDataManager() const
 {
-	if (m_vGameDataManager)
-	{
-		return m_vGameDataManager;
-	}
-	return nullptr;
+	return m_vGameDataManager;
 }
 
 ULxGlobalStaticDataManager* ULxGameInstanceSubsystem::GetGlobalStaticDataManager() const

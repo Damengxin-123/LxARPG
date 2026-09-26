@@ -130,24 +130,26 @@ void ALxAIController::RunAnalysisDecision()
 	PruneTargetMemory();
 	AActor* NearestEnemy = nullptr;
 	FVector NearestEnemyLocation = FVector::ZeroVector;
-	float NearestDistance = TNumericLimits<float>::Max();
+	const FVector SelfLocation = AICharacter->GetActorLocation();
+	double NearestDistanceSquared = TNumericLimits<double>::Max();
 	for (const TPair<TWeakObjectPtr<AActor>, FLxAITargetMemoryRecord>& Pair : TargetMemory)
 	{
 		if (ResolveTargetRelation(Pair.Value.TargetCharacter.Get()) != ELxAITargetRelation::Hostile) continue;
 		const FVector Location = GetLatestRememberedLocation(Pair.Value);
-		const float Distance = FVector::Dist(AICharacter->GetActorLocation(), Location) / MetersToCentimeters;
-		if (Distance < NearestDistance)
+		const double DistanceSquared = FVector::DistSquared(SelfLocation, Location);
+		if (DistanceSquared < NearestDistanceSquared)
 		{
 			NearestEnemy = Pair.Key.Get();
 			NearestEnemyLocation = Location;
-			NearestDistance = Distance;
+			NearestDistanceSquared = DistanceSquared;
 		}
 	}
 	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : LastAnalysisTime;
 	const FLxAIAnalysisDecision OldDecision = AnalysisSession->GetCurrentDecision();
-	AnalysisSession->SetSelfLocation(AICharacter->GetActorLocation());
+	AnalysisSession->SetSelfLocation(SelfLocation);
 	const FLxAIAnalysisDecision NewDecision = AnalysisSession->Evaluate(NearestEnemy,
-		NearestEnemy ? NearestDistance : 0.0f, AICharacter->GetCurrentHealthRatio(),
+		NearestEnemy ? static_cast<float>(FMath::Sqrt(NearestDistanceSquared) / MetersToCentimeters) : 0.0f,
+		AICharacter->GetCurrentHealthRatio(),
 		FMath::Max(0.0f, static_cast<float>(Now - LastAnalysisTime)), BehaviorTreeExecutor->CanInterruptCurrentAction());
 	LastAnalysisTime = Now;
 	if (BehaviorTreeExecutor->TickExecution(AICharacter->GetAIBehaviorTreeAsset(), NewDecision,
@@ -171,7 +173,7 @@ void ALxAIController::RunAnalysisDecision()
 	}
 }
 
-void ALxAIController::HandleLeafChanged(const ELxAIBehaviorAction InAction, const FGuid InNodeId)
+void ALxAIController::HandleLeafChanged(const ELxAIBehaviorAction InAction)
 {
 	OnAIBehaviorActionChanged.Broadcast(InAction);
 }
@@ -208,13 +210,11 @@ void ALxAIController::StorePerceivedTarget(AActor* InActor, const ELxAIPerceptio
 	}
 	FLxAITargetMemoryRecord& Record = TargetMemory.FindOrAdd(InActor);
 	Record.TargetCharacter = Target;
-	Record.PerceptionSource = InSource;
-	Record.LastSensedTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
-	Record.bHostileByDamage |= bHostile;
+	const double SensedTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	if (bHostile) DynamicHostileTargets.Add(InActor);
-	if (InSource == ELxAIPerceptionSource::Sight) { Record.SightLocation = InLocation; Record.SightTime = Record.LastSensedTime; Record.bHasSight = true; }
-	else if (InSource == ELxAIPerceptionSource::Hearing) { Record.HearingLocation = InLocation; Record.HearingTime = Record.LastSensedTime; Record.bHasHearing = true; }
-	else { Record.OtherLocation = InLocation; Record.OtherTime = Record.LastSensedTime; Record.bHasOther = true; }
+	if (InSource == ELxAIPerceptionSource::Sight) { Record.SightLocation = InLocation; Record.SightTime = SensedTime; Record.bHasSight = true; }
+	else if (InSource == ELxAIPerceptionSource::Hearing) { Record.HearingLocation = InLocation; Record.HearingTime = SensedTime; Record.bHasHearing = true; }
+	else { Record.OtherLocation = InLocation; Record.OtherTime = SensedTime; Record.bHasOther = true; }
 }
 
 void ALxAIController::HandleTargetPerceptionUpdated(AActor* InActor, FAIStimulus InStimulus)

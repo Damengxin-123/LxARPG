@@ -22,28 +22,6 @@
 namespace
 {
 
-	/** 将效果包来源转换为现有 Buff 组件可识别的词条来源。 */
-	ELxCharacterEntrySource ConvertToEntrySource(ELxEffectPackageSource InEffectSource)
-	{
-		switch (InEffectSource)
-		{
-		case ELxEffectPackageSource::Backpack:
-			return ELxCharacterEntrySource::Backpack;
-		case ELxEffectPackageSource::Equipment:
-			return ELxCharacterEntrySource::Equipment;
-		case ELxEffectPackageSource::Buff:
-			return ELxCharacterEntrySource::Buff;
-		case ELxEffectPackageSource::Skill:
-			return ELxCharacterEntrySource::Skill;
-		case ELxEffectPackageSource::Profession:
-			return ELxCharacterEntrySource::Profession;
-		case ELxEffectPackageSource::CharacterDefault:
-			return ELxCharacterEntrySource::CharacterDefault;
-		default:
-			return ELxCharacterEntrySource::Other;
-		}
-	}
-
 	/** 将旧词条来源转换为通用效果包来源。 */
 	ELxEffectPackageSource ConvertToEffectSource(ELxCharacterEntrySource InEntrySource)
 	{
@@ -66,17 +44,8 @@ namespace
 		}
 	}
 
-	/** 判断该来源的属性效果是否需要按来源刷新，空列表也会清空旧缓存。 */
-	bool ShouldRefreshAttributeModifierEffectCache(ELxEffectPackageSource InEffectSource)
-	{
-		return InEffectSource == ELxEffectPackageSource::Equipment
-			|| InEffectSource == ELxEffectPackageSource::Buff
-			|| InEffectSource == ELxEffectPackageSource::Profession
-			|| InEffectSource == ELxEffectPackageSource::CharacterDefault;
-	}
-
-	/** 判断该来源的属性修饰是否交由角色效果缓存组件统一接入。 */
-	bool ShouldRouteAttributeModifierEffectsToEffectCache(ELxEffectPackageSource InEffectSource)
+	/** 判断属性效果是否按持久来源维护缓存，空效果列表也需清除旧缓存。 */
+	bool IsPersistentAttributeEffectSource(ELxEffectPackageSource InEffectSource)
 	{
 		return InEffectSource == ELxEffectPackageSource::Equipment
 			|| InEffectSource == ELxEffectPackageSource::Buff
@@ -716,7 +685,7 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 
 	bool bAttributeModifierEffectsHandledByEffectCache = false;
 	if (EffectCacheModule != nullptr
-		&& ShouldRouteAttributeModifierEffectsToEffectCache(RuntimeEffectPackage.SourceContext.SourceType)
+		&& IsPersistentAttributeEffectSource(RuntimeEffectPackage.SourceContext.SourceType)
 		&& RuntimeEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource)
 	{
 		const FName EffectCacheHandle = ULxCharacterEffectCacheModule::MakeEffectCacheHandle(RuntimeEffectPackage.SourceContext);
@@ -737,7 +706,7 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 		if (!bAttributeModifierEffectsHandledByEffectCache
 			&& (!RuntimeEffectPackage.AttributeModifierEffects.IsEmpty()
 			|| (RuntimeEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource
-				&& ShouldRefreshAttributeModifierEffectCache(RuntimeEffectPackage.SourceContext.SourceType))))
+				&& IsPersistentAttributeEffectSource(RuntimeEffectPackage.SourceContext.SourceType))))
 		{
 			AttributeComponent->ReceiveAttributeModifierEffects(RuntimeEffectPackage.SourceContext, RuntimeEffectPackage.ApplyPolicy, RuntimeEffectPackage.AttributeModifierEffects);
 		}
@@ -1068,7 +1037,7 @@ void ULxCharacterDataTransferComponent::BuildEffectPackageFromEntryPackage(const
 	OutEffectPackage.SourceContext.SourceType = ConvertToEffectSource(InEntryPackage.EntrySource);
 	OutEffectPackage.SourceContext.SourceName = FName(*StaticEnum<ELxCharacterEntrySource>()->GetNameStringByValue(static_cast<int64>(InEntryPackage.EntrySource)));
 	OutEffectPackage.TargetActor = GetOwner();
-	OutEffectPackage.ApplyPolicy = ShouldRefreshAttributeModifierEffectCache(OutEffectPackage.SourceContext.SourceType)
+	OutEffectPackage.ApplyPolicy = IsPersistentAttributeEffectSource(OutEffectPackage.SourceContext.SourceType)
 		? ELxEffectPackageApplyPolicy::ReplaceSameSource
 		: ELxEffectPackageApplyPolicy::Instant;
 

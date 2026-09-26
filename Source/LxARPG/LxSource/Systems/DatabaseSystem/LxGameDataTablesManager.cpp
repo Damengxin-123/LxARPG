@@ -2,20 +2,19 @@
 
 #include "LxGameDataTablesManager.h"
 
-#include "LxARPG/LxSource/Core/Database/LxDataTableConfigBase.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntryTableConfig.h"
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputActionConfig.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTableConfig.h"
 #include "LxARPG/LxSource/Model/Profession/Logic/LxProfessionDefinition.h"
 #include "LxARPG/LxSource/Model/Style/RichText/LxRichTextStyleConfig.h"
-#include "LxARPG/LxSource/Model/Style/TableConfig/LxTextLineStyleDataConfig.h"
 #include "InputCoreTypes.h"
 
 namespace
 {
+	/** 统一遍历数据表；具体行的有效性由各配置写入接口检查。 */
 	template<typename RowType, typename SetterType>
-	void LoadEntryDataTable(const UDataTable* InDataTable, const TCHAR* InContextString, SetterType InSetter)
+	void LoadConfigDataTable(const UDataTable* InDataTable, const TCHAR* InContextString, SetterType InSetter)
 	{
 		if (InDataTable == nullptr)
 		{
@@ -83,50 +82,7 @@ namespace
 		EnsureDefaultProfessionInputActionInfo();
 	}
 
-	void LoadInputActionInfoDataTable(const UDataTable* InDataTable)
-	{
-		if (InDataTable == nullptr)
-		{
-			return;
-		}
-
-		TArray<FLxInputActionInfo*> Rows;
-		InDataTable->GetAllRows<FLxInputActionInfo>(TEXT("ULxGameDataTablesManager::LoadInputActionInfoDataTable"), Rows);
-
-		for (const FLxInputActionInfo* RowData : Rows)
-		{
-			if (RowData == nullptr || RowData->InputActionID == ELxInputActionID::None)
-			{
-				continue;
-			}
-
-			LxInputActionConfig::SetInputActionInfo(*RowData);
-		}
-
-		EnsureDefaultInputActionInfos();
-	}
-
-	void LoadProfessionDefinitionDataTable(const UDataTable* InDataTable)
-	{
-		if (InDataTable == nullptr)
-		{
-			return;
-		}
-
-		TArray<FLxProfessionDefinitionTableRow*> Rows;
-		InDataTable->GetAllRows<FLxProfessionDefinitionTableRow>(TEXT("ULxGameDataTablesManager::LoadProfessionDefinitionDataTable"), Rows);
-
-		for (const FLxProfessionDefinitionTableRow* RowData : Rows)
-		{
-			if (RowData == nullptr || !RowData->ProfessionIDTag.IsValid() || !RowData->ProfessionClass)
-			{
-				continue;
-			}
-
-			LxProfessionConfig::SetProfessionDefinitionTableRow(*RowData);
-		}
-	}
-
+	/** 加载富文本样式映射，并保留样式表类型检查。 */
 	void LoadRichTextStyleMappingDataTable(UDataTable* InDataTable)
 	{
 		if (InDataTable == nullptr)
@@ -153,29 +109,7 @@ namespace
 		}
 	}
 
-	template<typename RowType, typename SetterType>
-	void LoadItemDataTable(const UDataTable* InDataTable, const TCHAR* InContextString, SetterType InSetter)
-	{
-		if (InDataTable == nullptr)
-		{
-			return;
-		}
-
-		TArray<RowType*> Rows;
-		InDataTable->GetAllRows<RowType>(InContextString, Rows);
-
-		for (const RowType* RowData : Rows)
-		{
-			if (RowData == nullptr || !RowData->ItemIDTag.IsValid())
-			{
-				continue;
-			}
-
-			InSetter(*RowData);
-		}
-	}
 }
-
 
 void ULxGameDataTablesManager::LoadDataTables()
 {
@@ -186,128 +120,89 @@ void ULxGameDataTablesManager::LoadDataTables()
 	LxProfessionConfig::ClearProfessionConfig();
 	LxRichTextStyleConfig::ClearRichTextStyleConfig();
 
-	LoadInputActionInfoDataTable(m_pInputActionInfoTableConfig.Get());
+	LoadConfigDataTable<FLxInputActionInfo>(
+		m_pInputActionInfoTableConfig.Get(),
+		TEXT("ULxGameDataTablesManager::LoadInputActionInfoDataTable"),
+		LxInputActionConfig::SetInputActionInfo);
 	EnsureDefaultInputActionInfos();
-	LoadProfessionDefinitionDataTable(m_pProfessionDefinitionTable.Get());
+	LoadConfigDataTable<FLxProfessionDefinitionTableRow>(
+		m_pProfessionDefinitionTable.Get(),
+		TEXT("ULxGameDataTablesManager::LoadProfessionDefinitionDataTable"),
+		LxProfessionConfig::SetProfessionDefinitionTableRow);
 	LoadRichTextStyleMappingDataTable(m_pRichTextStyleTable.Get());
 
-	LoadEntryDataTable<FLxEntryAttributeGain>(
+	LoadConfigDataTable<FLxEntryAttributeGain>(
 		m_pAttributeGainEntryTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadAttributeGainEntryTable"),
-		[](const FLxEntryAttributeGain& RowData)
-		{
-			LxEntryConfig::SetAttributeGainEntryData(RowData);
-		});
+		LxEntryConfig::SetAttributeGainEntryData);
 
-	LoadEntryDataTable<FLxEntryAttributeInfluence>(
+	LoadConfigDataTable<FLxEntryAttributeInfluence>(
 		m_pAttributeInfluenceEntryTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadAttributeInfluenceEntryTable"),
-		[](const FLxEntryAttributeInfluence& RowData)
-		{
-			LxEntryConfig::SetAttributeInfluenceEntryData(RowData);
-		});
+		LxEntryConfig::SetAttributeInfluenceEntryData);
 
-	LoadEntryDataTable<FLxEntryAttributeRecovery>(
+	LoadConfigDataTable<FLxEntryAttributeRecovery>(
 		m_pAttributeRecoveryEntryTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadAttributeRecoveryEntryTable"),
-		[](const FLxEntryAttributeRecovery& RowData)
-		{
-			LxEntryConfig::SetAttributeRecoveryEntryData(RowData);
-		});
+		LxEntryConfig::SetAttributeRecoveryEntryData);
 
-	LoadEntryDataTable<FLxEntryChangeState>(
+	LoadConfigDataTable<FLxEntryChangeState>(
 		m_pChangeStateEntryTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadChangeStateEntryTable"),
-		[](const FLxEntryChangeState& RowData)
-		{
-			LxEntryConfig::SetChangeStateEntryData(RowData);
-		});
+		LxEntryConfig::SetChangeStateEntryData);
 
-	LoadEntryDataTable<FLxEntryCreateBuff>(
+	LoadConfigDataTable<FLxEntryCreateBuff>(
 		m_pCreateBuffEntryTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadCreateBuffEntryTable"),
-		[](const FLxEntryCreateBuff& RowData)
-		{
-			LxEntryConfig::SetCreateBuffEntryData(RowData);
-		});
+		LxEntryConfig::SetCreateBuffEntryData);
 
-	LoadEntryDataTable<FLxEntryMultiTarget>(
+	LoadConfigDataTable<FLxEntryMultiTarget>(
 		m_pMultiTargetEntryTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadMultiTargetEntryTable"),
-		[](const FLxEntryMultiTarget& RowData)
-		{
-			LxEntryConfig::SetMultiTargetEntryData(RowData);
-		});
+		LxEntryConfig::SetMultiTargetEntryData);
 
-	LoadEntryDataTable<FLxEntryDisplayText>(
+	LoadConfigDataTable<FLxEntryDisplayText>(
 		m_pDisplayTextEntryTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadDisplayTextEntryTable"),
-		[](const FLxEntryDisplayText& RowData)
-		{
-			LxEntryConfig::SetDisplayTextEntryData(RowData);
-		});
+		LxEntryConfig::SetDisplayTextEntryData);
 
-	LoadEntryDataTable<FLxEntryGrantSkill>(
+	LoadConfigDataTable<FLxEntryGrantSkill>(
 		m_pGrantSkillEntryTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadGrantSkillEntryTable"),
-		[](const FLxEntryGrantSkill& RowData)
-		{
-			LxEntryConfig::SetGrantSkillEntryData(RowData);
-		});
+		LxEntryConfig::SetGrantSkillEntryData);
 
-	LoadEntryDataTable<FLxEntryGrantProfession>(
+	LoadConfigDataTable<FLxEntryGrantProfession>(
 		m_pGrantProfessionEntryTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadGrantProfessionEntryTable"),
-		[](const FLxEntryGrantProfession& RowData)
-		{
-			LxEntryConfig::SetGrantProfessionEntryData(RowData);
-		});
+		LxEntryConfig::SetGrantProfessionEntryData);
 
-	LoadEntryDataTable<FLxEntryDamage>(
+	LoadConfigDataTable<FLxEntryDamage>(
 		m_pDamageEntryTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadDamageEntryTable"),
-		[](const FLxEntryDamage& RowData)
-		{
-			LxEntryConfig::SetDamageEntryData(RowData);
-		});
+		LxEntryConfig::SetDamageEntryData);
 
-	LoadItemDataTable<FLxEquipmentInformation>(
+	LoadConfigDataTable<FLxEquipmentInformation>(
 		m_pEquipmentItemTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadEquipmentItemTable"),
-		[](const FLxEquipmentInformation& RowData)
-		{
-			LxItemConfig::SetEquipmentItemData(RowData);
-		});
+		LxItemConfig::SetEquipmentItemData);
 
-	LoadItemDataTable<FLxConsumableInformation>(
+	LoadConfigDataTable<FLxConsumableInformation>(
 		m_pConsumableItemTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadConsumableItemTable"),
-		[](const FLxConsumableInformation& RowData)
-		{
-			LxItemConfig::SetConsumableItemData(RowData);
-		});
+		LxItemConfig::SetConsumableItemData);
 
-	LoadItemDataTable<FLxMaterialInformation>(
+	LoadConfigDataTable<FLxMaterialInformation>(
 		m_pMaterialItemTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadMaterialItemTable"),
-		[](const FLxMaterialInformation& RowData)
-		{
-			LxItemConfig::SetMaterialItemData(RowData);
-		});
+		LxItemConfig::SetMaterialItemData);
 
-	LoadItemDataTable<FLxBuffInformation>(
+	LoadConfigDataTable<FLxBuffInformation>(
 		m_pBuffItemTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadBuffItemTable"),
-		[](const FLxBuffInformation& RowData)
-		{
-			LxItemConfig::SetBuffItemData(RowData);
-		});
+		LxItemConfig::SetBuffItemData);
 
-	LoadItemDataTable<FLxSkillItemInformation>(
+	LoadConfigDataTable<FLxSkillItemInformation>(
 		m_pSkillItemTable.Get(),
 		TEXT("ULxGameDataTablesManager::LoadSkillItemTable"),
-		[](const FLxSkillItemInformation& RowData)
-		{
-			LxItemConfig::SetSkillItemData(RowData);
-		});
+		LxItemConfig::SetSkillItemData);
 }

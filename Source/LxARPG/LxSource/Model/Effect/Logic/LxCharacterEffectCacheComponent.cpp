@@ -7,7 +7,6 @@ ULxCharacterEffectCacheModule::ULxCharacterEffectCacheModule() = default;
 
 void ULxCharacterEffectCacheModule::OnModuleInitialize()
 {
-	CacheOwnerComponents();
 	RefreshCachedEffects();
 }
 

@@ -410,14 +410,12 @@ int32 ULxCharacterAttributeComponent::CalculateTotalStrength() const
 void ULxCharacterAttributeComponent::BroadcastAttributeTableChanged()
 {
 	RefreshCharacterMovementSpeed();
-	if (const AActor* OwnerActor = GetOwner(); OwnerActor != nullptr && OwnerActor->HasAuthority() && RuntimeAttributeSet != nullptr)
-	{
-		RuntimeAttributeSet->GetAllScalarAttributes(ReplicatedTypedAttributeSnapshot.ScalarAttributes);
-		RuntimeAttributeSet->GetAllResourceAttributes(ReplicatedTypedAttributeSnapshot.ResourceAttributes);
-		RuntimeAttributeSet->GetAllRangeAttributes(ReplicatedTypedAttributeSnapshot.RangeAttributes);
-	}
 	FLxTypedAttributeSnapshot CurrentSnapshot;
 	GetTypedAttributeSnapshot(CurrentSnapshot);
+	if (const AActor* OwnerActor = GetOwner(); OwnerActor != nullptr && OwnerActor->HasAuthority() && RuntimeAttributeSet != nullptr)
+	{
+		ReplicatedTypedAttributeSnapshot = CurrentSnapshot;
+	}
 	OnTypedAttributeSnapshotChanged.Broadcast(CurrentSnapshot);
 	OnDataChange.Broadcast();
 }

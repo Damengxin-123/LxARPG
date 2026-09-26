@@ -201,13 +201,7 @@ void ULxDialogueInteractionWidget::HandleInteractionOptionActivated(const FLxInt
 		return;
 	}
 
-	FText NpcDialogueText;
-	if (Option.InteractionNode)
-	{
-		NpcDialogueText = Option.InteractionNode->GetNpcDialogueText();
-	}
-
-	ShowDialogueInteraction(NpcDialogueText);
+	ShowDialogueInteraction(Option.InteractionNode->GetNpcDialogueText());
 }
 
 void ULxDialogueInteractionWidget::HandleInteractionCancelled()

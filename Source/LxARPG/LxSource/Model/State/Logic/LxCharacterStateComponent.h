@@ -22,9 +22,6 @@ public:
 	/** 创建角色状态组件，并关闭 Tick。 */
 	ULxCharacterStateComponent();
 
-	/** 初始化角色状态组件。 */
-	virtual void BaseComponentInitialize() override;
-
 	/** 注册需要网络同步的状态标签容器。 */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 

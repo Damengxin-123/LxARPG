@@ -42,15 +42,15 @@ struct FLxTextLineStyleData : public FTableRowBase
 	 * @var FLinearColor ShadowColor
 	 * @brief 阴影颜色
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="阴影颜色")
-	FLinearColor ShadowColor;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="文本样式", DisplayName="阴影颜色")
+	FLinearColor ShadowColor = FLinearColor::Transparent;
 
 	/**
 	 * @var FVector2D ShadowOffset
 	 * @brief 阴影大小
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="阴影大小")
-	FVector2D ShadowOffset;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="文本样式", DisplayName="阴影大小")
+	FVector2D ShadowOffset = FVector2D::ZeroVector;
 
 	/**
 	 * @var float LineHeightPercentage
@@ -63,6 +63,6 @@ struct FLxTextLineStyleData : public FTableRowBase
 	 * @var TEnumAsByte<ETextJustify::Type> Justification
 	 * @brief 对齐方式
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="对齐方式")
-	TEnumAsByte<ETextJustify::Type> Justification;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="文本样式", DisplayName="对齐方式")
+	TEnumAsByte<ETextJustify::Type> Justification = ETextJustify::Left;
 };

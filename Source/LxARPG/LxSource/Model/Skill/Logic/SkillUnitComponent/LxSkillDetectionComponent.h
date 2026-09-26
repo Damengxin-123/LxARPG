@@ -74,6 +74,7 @@ private:
 	/** 判断候选角色是否满足状态标签、存活状态和视线要求。 */
 	bool MatchesTargetStateFilter(const ALxBaseCharacter* InTargetCharacter) const;
 	bool ShouldIgnoreActor(AActor* InActor) const;
+	/** 发布已筛选的单个目标或场景命中结果，避免再次执行目标与视线检测。 */
 	void PublishSingleActorResult(ELxSkillDetectionEventType EventType, AActor* InActor,
 		UPrimitiveComponent* InTriggerCollision, const FVector& HitLocation, const FVector& HitNormal, bool bHitWorld);
 

@@ -149,12 +149,24 @@ TArray<ALxSkillUnitActor*> ULxSkillUnitGroup::GetSkillUnits() const
 
 int32 ULxSkillUnitGroup::GetValidSkillUnitCount() const
 {
-	return GetSkillUnits().Num();
+	int32 ValidCount = 0;
+	for (const ALxSkillUnitActor* SkillUnit : ManagedSkillUnits)
+	{
+		ValidCount += IsValid(SkillUnit) ? 1 : 0;
+	}
+	return ValidCount;
 }
 
 bool ULxSkillUnitGroup::IsSkillUnitGroupEmpty() const
 {
-	return GetValidSkillUnitCount() <= 0;
+	for (const ALxSkillUnitActor* SkillUnit : ManagedSkillUnits)
+	{
+		if (IsValid(SkillUnit))
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 void ULxSkillUnitGroup::ClearAccumulatedHitResult()

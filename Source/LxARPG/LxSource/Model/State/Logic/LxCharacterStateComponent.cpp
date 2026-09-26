@@ -9,11 +9,6 @@ ULxCharacterStateComponent::ULxCharacterStateComponent()
 	SetIsReplicatedByDefault(true);
 }
 
-void ULxCharacterStateComponent::BaseComponentInitialize()
-{
-	Super::BaseComponentInitialize();
-}
-
 void ULxCharacterStateComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

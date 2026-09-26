@@ -103,9 +103,6 @@ private:
 	/** 获取当前角色的效果处理模块。 */
 	ULxCharacterEffectProcessModule* GetEffectProcessComponent() const;
 
-	/** 从最终承伤结果中汇总 UI 显示用的伤害数值。 */
-	static float CalculateFinalDamageValueFromReceiveResult(const FLxDamageReceiveResult& InDamageReceiveResult);
-
 	/** 处理角色伤害组件的受伤事件，并转发测试输出事件。 */
 	UFUNCTION()
 	void HandleCharacterDamageReceived(const FLxDamageReceiveResult& InDamageReceiveResult, AActor* InAttackerActor);

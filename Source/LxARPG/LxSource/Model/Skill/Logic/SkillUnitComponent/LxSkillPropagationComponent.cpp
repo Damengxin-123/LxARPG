@@ -18,9 +18,6 @@ FLxSkillPropagationResult ULxSkillPropagationComponent::EvaluatePropagation(cons
 {
 	FLxSkillPropagationResult Result;
 	Result.TriggerResult = TriggerResult;
-	Result.RemainingPierceCount = RemainingPierceCount;
-	Result.RemainingBounceCount = RemainingBounceCount;
-	Result.RemainingChainCount = RemainingChainCount;
 	Result.SplitCount = PropagationSpec.SplitCount;
 
 	if (RemainingPierceCount > 0 && TriggerResult.TriggeredTargets.Num() > 0)

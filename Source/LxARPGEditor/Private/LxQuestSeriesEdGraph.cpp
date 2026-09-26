@@ -21,6 +21,17 @@ void ULxQuestSeriesEdGraph::SynchronizeLinksToAsset() const
 		return;
 	}
 
+	// 一次建立节点索引，避免同步每条连线时重复扫描整个任务系列。
+	TMap<FGuid, const FLxQuestNodeDefinition*> NodesByEditorId;
+	NodesByEditorId.Reserve(QuestSeriesAsset->GetQuestNodes().Num());
+	for (const FLxQuestNodeDefinition& QuestNode : QuestSeriesAsset->GetQuestNodes())
+	{
+		if (QuestNode.EditorNodeId.IsValid())
+		{
+			NodesByEditorId.FindOrAdd(QuestNode.EditorNodeId, &QuestNode);
+		}
+	}
+
 	TArray<FLxQuestNodeLink> NewLinks;
 	for (const UEdGraphNode* GraphNode : Nodes)
 	{
@@ -30,7 +41,7 @@ void ULxQuestSeriesEdGraph::SynchronizeLinksToAsset() const
 			continue;
 		}
 
-		const FLxQuestNodeDefinition* SourceQuestNode = QuestSeriesAsset->FindQuestNodeByEditorId(
+		const FLxQuestNodeDefinition* SourceQuestNode = NodesByEditorId.FindRef(
 			QuestGraphNode->GetQuestEditorNodeId());
 		if (!SourceQuestNode || !SourceQuestNode->QuestId.IsValid())
 		{
@@ -50,7 +61,7 @@ void ULxQuestSeriesEdGraph::SynchronizeLinksToAsset() const
 					? Cast<ULxQuestSeriesEdGraphNode>(LinkedPin->GetOwningNode())
 					: nullptr;
 				const FLxQuestNodeDefinition* TargetQuestNode = TargetNode
-					? QuestSeriesAsset->FindQuestNodeByEditorId(TargetNode->GetQuestEditorNodeId())
+					? NodesByEditorId.FindRef(TargetNode->GetQuestEditorNodeId())
 					: nullptr;
 				if (!TargetNode || TargetNode == QuestGraphNode || !TargetQuestNode || !TargetQuestNode->QuestId.IsValid())
 				{
