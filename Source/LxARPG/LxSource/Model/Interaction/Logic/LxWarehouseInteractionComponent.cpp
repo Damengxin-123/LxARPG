@@ -1,4 +1,6 @@
 #include "LxWarehouseInteractionComponent.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxInteractionSaveData.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxInteractionSaveHelpers.h"
 
 #include "GameFramework/Actor.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
@@ -8,6 +10,35 @@
 ULxWarehouseInteractionComponent::ULxWarehouseInteractionComponent()
 {
 	InteractionActionType = ELxInteractionActionType::Warehouse;
+}
+
+bool ULxWarehouseInteractionComponent::CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const
+{
+	if (!Super::CapturePersistentData(OutRecord)) return false;
+	LxItemSaveData::CaptureSlots(WarehouseItemSlotList, OutRecord.Slots);
+	return true;
+}
+
+bool ULxWarehouseInteractionComponent::RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord)
+{
+	if (!CanRestorePersistentData(InRecord)) return false;
+	TArray<TObjectPtr<ULxItemSlotData>> RestoredSlots;
+	if (!LxInteractionSaveHelpers::BuildRestoredSlots(this, InRecord.Slots, WarehouseSlotCount,
+		ELxItemSlotType::Warehouse, RestoredSlots)) return false;
+	for (ULxItemSlotData* Slot : WarehouseItemSlotList)
+	{
+		if (Slot) Slot->OnItemDataChanged.RemoveDynamic(this, &ULxWarehouseInteractionComponent::HandleWarehouseSlotChanged);
+	}
+	WarehouseItemSlotList = MoveTemp(RestoredSlots);
+	WarehouseSlotCount = WarehouseItemSlotList.Num();
+	for (ULxItemSlotData* Slot : WarehouseItemSlotList)
+	{
+		Slot->OnItemDataChanged.AddDynamic(this, &ULxWarehouseInteractionComponent::HandleWarehouseSlotChanged);
+	}
+	Super::RestorePersistentData(InRecord);
+	RefreshWarehouseSlots();
+	OnWarehouseStateChanged.Broadcast(GetInteractionState());
+	return true;
 }
 
 void ULxWarehouseInteractionComponent::ApplyConfig(const FLxWarehouseInteractionConfig& InConfig)

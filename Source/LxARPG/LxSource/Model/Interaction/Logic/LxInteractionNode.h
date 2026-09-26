@@ -102,6 +102,13 @@ public:
 	UFUNCTION(BlueprintPure, Category="交互", DisplayName="获取运行时节点序号")
 	int32 GetRuntimeNodeIndex() const { return RuntimeNodeIndex; }
 
+	/** 由静态资产传递节点标识，用于跨启动和节点重新排序后的存档匹配。 */
+	void SetPersistentNodeID(const FGuid& InNodeID) { PersistentNodeID = InNodeID; }
+
+	/** 获取与静态交互树节点一致的持久标识。 */
+	UFUNCTION(BlueprintPure, Category="交互|存档", DisplayName="获取节点存档ID")
+	FGuid GetPersistentNodeID() const { return PersistentNodeID; }
+
 	/** 判断节点是否存在子节点。 */
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="是否存在子节点")
 	bool HasChildNodes() const { return ChildNodes.Num() > 0; }
@@ -169,4 +176,8 @@ private:
 	/** 当前节点在所属交互树中的运行时序号，用于网络请求和功能模块关联。 */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="交互", DisplayName="运行时节点序号", meta=(AllowPrivateAccess="true"))
 	int32 RuntimeNodeIndex = INDEX_NONE;
+
+	/** 静态资产中不会随节点排序变化的标识。 */
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="交互|存档", DisplayName="节点存档ID", meta=(AllowPrivateAccess="true"))
+	FGuid PersistentNodeID;
 };

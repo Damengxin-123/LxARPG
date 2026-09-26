@@ -1,9 +1,40 @@
 #include "LxInteractionActionComponentBase.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxInteractionSaveData.h"
 
 #include "GameFramework/Actor.h"
 #include "LxInteractableComponent.h"
 #include "LxInteractionNode.h"
 #include "Net/UnrealNetwork.h"
+
+bool ULxInteractionActionComponentBase::CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const
+{
+	if (!OwnerInteractionNode || !OwnerInteractionNode->GetPersistentNodeID().IsValid()) return false;
+	OutRecord = FLxInteractionFeatureSaveRecord();
+	OutRecord.NodeID = OwnerInteractionNode->GetPersistentNodeID();
+	OutRecord.InteractionType = InteractionActionType;
+	OutRecord.InteractionState = InteractionState == ELxInteractionDataState::Interacting
+		|| InteractionState == ELxInteractionDataState::Occupied
+		? ELxInteractionDataState::Interactable : InteractionState;
+	return true;
+}
+
+bool ULxInteractionActionComponentBase::CanRestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord) const
+{
+	return (!GetOwner() || GetOwner()->HasAuthority()) && OwnerInteractionNode
+		&& InRecord.NodeID.IsValid() && OwnerInteractionNode->GetPersistentNodeID() == InRecord.NodeID
+		&& InteractionActionType == InRecord.InteractionType
+		&& StaticEnum<ELxInteractionDataState>()->IsValidEnumValue(static_cast<int64>(InRecord.InteractionState));
+}
+
+bool ULxInteractionActionComponentBase::RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord)
+{
+	if (!CanRestorePersistentData(InRecord)) return false;
+	SetInteractionState(InRecord.InteractionState == ELxInteractionDataState::Interacting
+		|| InRecord.InteractionState == ELxInteractionDataState::Occupied
+		? ELxInteractionDataState::Interactable : InRecord.InteractionState);
+	if (GetOwner()) GetOwner()->ForceNetUpdate();
+	return true;
+}
 
 void ULxInteractionActionComponentBase::InitializeInteractionFeature(
 	ULxInteractableComponent* InOwnerComponent, ULxInteractionNode* InOwnerNode, int32 InRuntimeNodeIndex)

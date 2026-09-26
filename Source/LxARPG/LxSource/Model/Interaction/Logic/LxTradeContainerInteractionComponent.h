@@ -23,6 +23,12 @@ public:
 	/** 应用功能节点提供的商城初始配置。 */
 	void ApplyConfig(const FLxTradeContainerInteractionConfig& InConfig);
 
+	/** 保存商品剩余库存、交互状态和运行时价格倍率。 */
+	virtual bool CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const override;
+
+	/** 恢复商店库存和价格设置，并刷新客户端需要的复制快照。 */
+	virtual bool RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord) override;
+
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
 
@@ -94,11 +100,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|商城", DisplayName="金币物品ID", meta=(Categories="物品"))
 	FGameplayTag GoldItemIDTag = LxTag_Item_Material_Currency_Gold;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="交互|商城", DisplayName="商品价值倍率", meta=(ClampMin="0.0", UIMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_ValueRates, Category="交互|商城", DisplayName="商品价值倍率", meta=(ClampMin="0.0", UIMin="0.0"))
 	float TradeItemValueRate = 1.0f;
 
 	/** 商城从玩家处收购物品时使用的价值倍率。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Replicated, Category="交互|商城", DisplayName="收购价值比例", meta=(ClampMin="0.0", UIMin="0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_ValueRates, Category="交互|商城", DisplayName="收购价值比例", meta=(ClampMin="0.0", UIMin="0.0"))
 	float PurchaseValueRate = 1.0f;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="交互|商城", DisplayName="交易物品对象列表")
@@ -111,6 +117,10 @@ protected:
 	TArray<FLxItemQuote> ReplicatedTradeSlots;
 
 private:
+	/** 服务端恢复或修改价格后，客户端统一刷新各槽位报价。 */
+	UFUNCTION(Category="交互|同步", DisplayName="同步商店价格倍率")
+	void OnRep_ValueRates();
+
 	void InitializeTradeSlots();
 	void RebuildTradeItemList();
 	void ApplyTradeItemValueRateToSlots();

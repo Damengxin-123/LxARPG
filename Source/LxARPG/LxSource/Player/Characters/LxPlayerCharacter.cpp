@@ -8,6 +8,7 @@
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerControlComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterFactionAttributeObject.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxCharacterSaveComponent.h"
 
 ALxPlayerCharacter::ALxPlayerCharacter()
 {
@@ -16,6 +17,7 @@ ALxPlayerCharacter::ALxPlayerCharacter()
 	bUseControllerRotationRoll = false;
 
 	m_pPlayerControlComponent = CreateDefaultSubobject<ULxPlayerControlComponent>(TEXT("玩家操控组件"));
+	CharacterSaveComponent = CreateDefaultSubobject<ULxCharacterSaveComponent>(TEXT("玩家存档组件"));
 
 	m_pCameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("相机弹簧臂"));
 	m_pCameraBoom->SetupAttachment(RootComponent);
@@ -64,6 +66,20 @@ void ALxPlayerCharacter::InitialCharacterInformation()
 	{
 		m_pPlayerControlComponent->BaseComponentInitialize();
 	}
+	if (CharacterSaveComponent)
+	{
+		CharacterSaveComponent->InitializeSaveComponent();
+	}
+}
+
+void ALxPlayerCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (CharacterSaveComponent)
+	{
+		CharacterSaveComponent->CacheSaveData();
+		CharacterSaveComponent->DetachFromSaveManager();
+	}
+	Super::EndPlay(EndPlayReason);
 }
 
 void ALxPlayerCharacter::ReceiveInteractableComponent_Implementation(ULxInteractableComponent* InInteractableComponent)

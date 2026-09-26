@@ -10,6 +10,53 @@ ULxCharacterProfessionModule::ULxCharacterProfessionModule()
 {
 }
 
+void ULxCharacterProfessionModule::CaptureProfessionSaveData(TArray<FLxProfessionSaveRecord>& OutRecords) const
+{
+	OutRecords.Reset(LearnedProfessions.Num());
+	for (const FLxProfessionRuntimeData& Runtime : LearnedProfessions)
+	{
+		FLxProfessionSaveRecord& Record = OutRecords.AddDefaulted_GetRef();
+		Record.ProfessionIDTag = Runtime.ProfessionIDTag;
+		Record.Level = Runtime.Level;
+		Record.Experience = Runtime.Experience;
+		Record.bCanUpgrade = Runtime.bCanUpgrade;
+	}
+}
+
+bool ULxCharacterProfessionModule::RestoreProfessionSaveData(const TArray<FLxProfessionSaveRecord>& InRecords, bool bApply)
+{
+	if (GetOwner() && !GetOwner()->HasAuthority())
+	{
+		return false;
+	}
+	TArray<FLxProfessionRuntimeData> RestoredProfessions;
+	TSet<FGameplayTag> ProfessionIds;
+	for (const FLxProfessionSaveRecord& Record : InRecords)
+	{
+		ULxProfessionDefinition* Definition = FindProfessionDefinition(Record.ProfessionIDTag);
+		if (!Record.ProfessionIDTag.IsValid() || !Definition || ProfessionIds.Contains(Record.ProfessionIDTag)
+			|| Record.Level < 0 || !FMath::IsFinite(Record.Experience) || Record.Experience < 0.f)
+		{
+			return false;
+		}
+		ProfessionIds.Add(Record.ProfessionIDTag);
+		FLxProfessionRuntimeData& Runtime = RestoredProfessions.AddDefaulted_GetRef();
+		Runtime.ProfessionIDTag = Record.ProfessionIDTag;
+		Runtime.ProfessionClass = Definition->GetClass();
+		Runtime.Level = Definition->GetMaxLevel() > 0 ? FMath::Clamp(Record.Level, 1, Definition->GetMaxLevel()) : 0;
+		Runtime.Experience = Record.Experience;
+		Runtime.bCanUpgrade = Record.bCanUpgrade;
+	}
+	if (!bApply)
+	{
+		return true;
+	}
+	LearnedProfessions = MoveTemp(RestoredProfessions);
+	OnProfessionChanged.Broadcast();
+	OnDataChange.Broadcast();
+	return true;
+}
+
 void ULxCharacterProfessionModule::OnModuleInitialize()
 {
 	CacheProfessionDefinitions();

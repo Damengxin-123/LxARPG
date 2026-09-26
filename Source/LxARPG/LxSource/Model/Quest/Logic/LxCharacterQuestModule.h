@@ -43,6 +43,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="角色|任务", DisplayName="获取全部任务记录")
 	TArray<FLxQuestRuntimeRecord> GetAllQuestRecords() const { return QuestRecords; }
 
+	/** 直接恢复任务状态，不重新接取、提交或发奖；关闭应用时只验证。 */
+	bool RestoreQuestSaveData(const TArray<FLxQuestRuntimeRecord>& InRecords, bool bApply = true);
+
 	/** 任务进度在本地或网络同步后发生变化时触发。 */
 	UPROPERTY(BlueprintAssignable, Category="角色|任务", DisplayName="任务进度变化事件")
 	FOnLxQuestProgressChanged OnQuestProgressChanged;

@@ -27,6 +27,12 @@ public:
 	/** 应用功能节点提供的仓库初始配置。 */
 	void ApplyConfig(const FLxWarehouseInteractionConfig& InConfig);
 
+	/** 导出所有仓库槽位和交互可用状态。 */
+	virtual bool CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const override;
+
+	/** 验证物品后整批替换仓库槽位，避免恢复中途触发数据刷新。 */
+	virtual bool RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord) override;
+
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	/** 仓库交互被触发时调用，进入交互中状态并通知外部表现。 */
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;

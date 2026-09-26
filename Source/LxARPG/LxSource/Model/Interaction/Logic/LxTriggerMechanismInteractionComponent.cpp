@@ -1,4 +1,5 @@
 #include "LxTriggerMechanismInteractionComponent.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxInteractionSaveData.h"
 
 #include "GameFramework/Actor.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
@@ -11,6 +12,23 @@ ULxTriggerMechanismInteractionComponent::ULxTriggerMechanismInteractionComponent
 {
 	InteractionActionType = ELxInteractionActionType::TriggerMechanism;
 	bOpenFunctionUI = false;
+}
+
+bool ULxTriggerMechanismInteractionComponent::CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const
+{
+	if (!Super::CapturePersistentData(OutRecord)) return false;
+	OutRecord.MechanismState = MechanismState;
+	return true;
+}
+
+bool ULxTriggerMechanismInteractionComponent::RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord)
+{
+	if (!CanRestorePersistentData(InRecord)
+		|| !StaticEnum<ELxMechanismState>()->IsValidEnumValue(static_cast<int64>(InRecord.MechanismState))) return false;
+	MechanismState = InRecord.MechanismState;
+	Super::RestorePersistentData(InRecord);
+	BroadcastMechanismStateChanged();
+	return true;
 }
 
 void ULxTriggerMechanismInteractionComponent::ApplyConfig(const FLxTriggerMechanismInteractionConfig& InConfig)

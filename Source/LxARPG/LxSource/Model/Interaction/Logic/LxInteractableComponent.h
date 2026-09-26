@@ -14,6 +14,7 @@ class ULxInteractionNode;
 class ULxInteractionTreeAsset;
 class USphereComponent;
 class ULxPlayerInteractionModule;
+class ULxInteractionSaveComponent;
 class FOutBunch;
 struct FReplicationFlags;
 
@@ -40,6 +41,14 @@ class LXARPG_API ULxInteractableComponent : public ULxComponentBase
 	GENERATED_BODY()
 
 public:
+	/** 此关卡实例独占的持久标签；需要保存的对象必须设置，跨关卡也不可重复。 */
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Replicated, Category="交互|存档", DisplayName="交互对象ID标签")
+	FGameplayTag InteractionIDTag;
+
+	/** 获取自动创建的交互存档适配组件。 */
+	UFUNCTION(BlueprintPure, Category="交互|存档", DisplayName="获取交互存档组件")
+	ULxInteractionSaveComponent* GetInteractionSaveComponent() const { return InteractionSaveComponent; }
+
 	/** 指定后自动从资产创建独立交互树和功能模块，无需蓝图手动构建。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, ReplicatedUsing=OnRep_InteractionTree, Category="交互|流程", DisplayName="交互树资产")
 	TObjectPtr<ULxInteractionTreeAsset> InteractionTreeAsset;
@@ -150,6 +159,16 @@ public:
 	FOnLxInteractableComponentEndPlayNative OnInteractableComponentEndPlayNative;
 
 private:
+	/** 在完整运行时功能已经构建后创建或重新连接存档适配组件。 */
+	void InitializeInteractionSaveComponent();
+
+	/** 在功能模块清理之前把当前状态提交到存档管理模块，并解除注册。 */
+	void CacheAndDetachInteractionSaveComponent();
+
+	/** 只处理本交互提供组件的存档适配器，不承担磁盘读写。 */
+	UPROPERTY(Transient, VisibleAnywhere, Category="交互|存档", DisplayName="交互存档组件")
+	TObjectPtr<ULxInteractionSaveComponent> InteractionSaveComponent;
+
 	/** 按当前资产重建本地节点，服务器额外创建独立功能实例。 */
 	bool RebuildInteractionTree();
 

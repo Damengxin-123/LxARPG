@@ -131,3 +131,29 @@ void ULxCharacterQuestModule::OnRep_QuestRecords()
 {
 	BroadcastQuestProgressChanged();
 }
+
+bool ULxCharacterQuestModule::RestoreQuestSaveData(const TArray<FLxQuestRuntimeRecord>& InRecords, bool bApply)
+{
+	if (!CanModifyQuestState())
+	{
+		return false;
+	}
+	TSet<FGameplayTag> QuestIds;
+	for (const FLxQuestRuntimeRecord& Record : InRecords)
+	{
+		if (!IsQuestIdentityValid(Record.QuestSeriesId, Record.QuestId)
+			|| QuestIds.Contains(Record.QuestId)
+			|| static_cast<uint8>(Record.State) > static_cast<uint8>(ELxQuestRuntimeState::Completed))
+		{
+			return false;
+		}
+		QuestIds.Add(Record.QuestId);
+	}
+	if (!bApply)
+	{
+		return true;
+	}
+	QuestRecords = InRecords;
+	BroadcastQuestProgressChanged();
+	return true;
+}

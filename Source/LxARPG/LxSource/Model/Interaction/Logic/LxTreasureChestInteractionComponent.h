@@ -26,6 +26,12 @@ public:
 	/** 应用功能节点提供的宝箱初始配置。 */
 	void ApplyConfig(const FLxTreasureChestInteractionConfig& InConfig);
 
+	/** 保存剩余槽位内容、交互状态和一次性完成标记。 */
+	virtual bool CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const override;
+
+	/** 整批恢复槽位，读档期间不会触发取走物品或获取完成事件。 */
+	virtual bool RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord) override;
+
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	/** 宝箱被交互时进入交互中状态，并通知外部 UI 打开。 */
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
@@ -111,4 +117,6 @@ private:
 	bool bTreasureChestInitialized = false;
 	/** 防止物品获取完成事件重复广播。 */
 	bool bCompletionBroadcasted = false;
+	/** 整批应用网络槽位时跳过中间态回调，避免尚未填充的空槽导致提前完成。 */
+	bool bApplyingTreasureChestSnapshot = false;
 };

@@ -4,6 +4,7 @@
 #include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentModuleBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxItemSaveData.h"
 #include "LxCharacterBackpackComponent.generated.h"
 
 class ULxItemBase;
@@ -61,6 +62,9 @@ public:
 
 	/** 将本地背包槽位数据同步到复制数组，用于网络同步。 */
 	void SyncReplicatedBackpackSlots();
+
+	/** 从存档整体替换背包容量及槽位；关闭应用时只验证，不执行奖励或使用逻辑。 */
+	bool RestoreBackpackSaveData(int32 InSlotCount, const TArray<FLxItemSlotSaveRecord>& InSlots, bool bApply = true);
 
 protected:
 	/** 初始化背包槽位。 */

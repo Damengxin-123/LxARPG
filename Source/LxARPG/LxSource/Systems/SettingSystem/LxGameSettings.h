@@ -20,6 +20,14 @@ public:
 	/** 创建游戏全局设置，并初始化默认的核心类型配置。 */
 	ULxGameSettings();
 
+	/** 自动存档使用的本地槽位名称，同一存档内交互对象ID必须全局唯一。 */
+	UPROPERTY(EditDefaultsOnly, config, Category="存档", DisplayName="存档槽名称")
+	FString SaveSlotName = TEXT("LxARPG_AutoSave");
+
+	/** 平台存档接口使用的本地用户索引。 */
+	UPROPERTY(EditDefaultsOnly, config, Category="存档", DisplayName="存档用户索引", meta=(ClampMin="0"))
+	int32 SaveUserIndex = 0;
+
 	/** 游戏数据表管理器类型，用于加载物品、词条、属性等数据表。 */
 	UPROPERTY(EditDefaultsOnly, config, Category="数据|管理器类型", DisplayName="游戏数据表管理器类型")
 	TSubclassOf<ULxGameDataTablesManager> GameDataTablesManagerClass;

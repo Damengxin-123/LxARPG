@@ -22,6 +22,12 @@ public:
 	/** 应用功能节点提供的机关初始配置。 */
 	void ApplyConfig(const FLxTriggerMechanismInteractionConfig& InConfig);
 
+	/** 导出机关开关和交互可用状态。 */
+	virtual bool CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const override;
+
+	/** 恢复机关状态并通知门、开关等表现更新。 */
+	virtual bool RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord) override;
+
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** 触发机关；默认在关闭和开启状态之间切换。 */

@@ -9,6 +9,13 @@
 class ULxGameDataTablesManager;
 class ULxGlobalStaticDataManager;
 class ULxAINavigationRegistry;
+class ULxSaveManager;
+class ULevel;
+
+/** 游戏生命周期发出的存档操作请求。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FLxSaveLifecycleRequested);
+/** 加载或保存完成后回报成功状态。 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLxSaveOperationFinished, bool, bSuccess);
 /**
  * 
  */
@@ -51,7 +58,57 @@ public:
 	/** 获取游戏实例持有的 AI 导航场景对象注册表。 */
 	UFUNCTION(BlueprintPure, Category="AI导航", DisplayName="获取AI导航注册表")
 	ULxAINavigationRegistry* GetAINavigationRegistry() const;
+
+	/** 获取统一持有玩家和交互对象存档的管理模块。 */
+	UFUNCTION(BlueprintPure, Category="存档", DisplayName="获取存档管理模块")
+	ULxSaveManager* GetSaveManager() const { return SaveManager; }
+
+	/** 发出加载请求并加载一次存档；后续调用不会重置当前游戏进度。 */
+	UFUNCTION(BlueprintCallable, Category="存档", DisplayName="请求加载存档")
+	bool RequestLoadSave();
+
+	/** 发出保存请求、采集当前对象并统一保存。 */
+	UFUNCTION(BlueprintCallable, Category="存档", DisplayName="请求保存存档")
+	bool RequestSaveGame();
+
+	/** 游戏实例启动时发出的加载事件，早于场景对象初始化。 */
+	UPROPERTY(BlueprintAssignable, Category="存档|事件", DisplayName="加载存档事件")
+	FLxSaveLifecycleRequested OnLoadSaveRequested;
+
+	/** 手动保存、切换地图与结束游戏时发出的保存事件。 */
+	UPROPERTY(BlueprintAssignable, Category="存档|事件", DisplayName="保存存档事件")
+	FLxSaveLifecycleRequested OnSaveGameRequested;
+
+	/** 存档加载完成及其结果；晚绑定者可查询管理器的已加载状态。 */
+	UPROPERTY(BlueprintAssignable, Category="存档|事件", DisplayName="存档加载完成")
+	FLxSaveOperationFinished OnLoadSaveFinished;
+
+	/** 存档保存完成及其结果。 */
+	UPROPERTY(BlueprintAssignable, Category="存档|事件", DisplayName="存档保存完成")
+	FLxSaveOperationFinished OnSaveGameFinished;
 private:
+	/** 过滤当前游戏实例，在世界对象开始销毁前采集并保存。 */
+	void HandleWorldBeginTearDown(UWorld* World);
+
+	/** 流式关卡卸载前缓存其中对象，后续再次加载时直接从内存恢复。 */
+	void HandleLevelRemovedFromWorld(ULevel* Level, UWorld* World);
+
+	/** 广播保存请求并执行存储；最终关闭阶段仅写入缓存。 */
+	bool PerformSave(bool bCacheOnly);
+
+	/** 世界拆除事件绑定句柄，游戏实例结束时解除。 */
+	FDelegateHandle WorldTearDownHandle;
+
+	/** 流式关卡卸载事件绑定句柄。 */
+	FDelegateHandle LevelRemovedHandle;
+
+	/** 防止蓝图存档事件回调再次请求相同操作造成递归。 */
+	bool bSaveOperationInProgress = false;
+
+	/** 跨地图持有全部存档记录与组件注册信息。 */
+	UPROPERTY(Transient, VisibleAnywhere, Category="存档", DisplayName="存档管理模块")
+	TObjectPtr<ULxSaveManager> SaveManager;
+
 	/** 使用现有数据表管理器配置创建全局静态数据管理器。 */
 	void InitializeGlobalStaticDataManager();
 

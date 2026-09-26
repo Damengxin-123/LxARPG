@@ -4,6 +4,7 @@
 #include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentModuleBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentEnum.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxItemSaveData.h"
 #include "LxCharacterEquipmentComponent.generated.h"
 
 class ULxItemBase;
@@ -23,6 +24,9 @@ class LXARPG_API ULxCharacterEquipmentModule : public ULxCharacterContentModuleB
 public:
 	/** 获取全部装备槽位。 */
 	TArray<TObjectPtr<ULxItemSlotData>>& GetEquipmentSlots();
+
+	/** 整体恢复装备槽位后只广播一次变化；关闭应用时只验证，由中转组件替换现有效果。 */
+	bool RestoreEquipmentSaveData(const TArray<FLxItemSlotSaveRecord>& InSlots, bool bApply = true);
 
 	/** 装备槽位配置，每个元素表示一个装备槽可接受的装备部位类型。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="装备槽位配置", meta=(Categories="物品.装备"))

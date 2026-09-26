@@ -10,6 +10,7 @@ class AActor;
 class ULxInteractableComponent;
 class ULxInteractionNode;
 class ULxPlayerInteractionModule;
+struct FLxInteractionFeatureSaveRecord;
 
 /** 交互行为状态变化事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxInteractionActionStateChanged, ELxInteractionDataState, NewState);
@@ -68,6 +69,15 @@ public:
 	/** 设置交互状态，并广播状态变化事件。 */
 	UFUNCTION(BlueprintCallable, Category="交互|功能模块", DisplayName="设置交互状态")
 	void SetInteractionState(ELxInteractionDataState InState);
+
+	/** 导出节点标识和持久状态，派生模块补充各自需要保存的数据。 */
+	virtual bool CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const;
+
+	/** 校验节点归属并恢复持久状态，不恢复上次运行的界面占用。 */
+	virtual bool RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord);
+
+	/** 检查存档数据是否对应当前静态节点和功能类型。 */
+	bool CanRestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord) const;
 
 	/** 获取该功能是否需要在执行成功后打开独立功能界面。 */
 	UFUNCTION(BlueprintPure, Category="交互|功能模块", DisplayName="是否需要打开功能界面")

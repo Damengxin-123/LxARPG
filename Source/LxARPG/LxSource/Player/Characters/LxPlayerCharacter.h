@@ -6,6 +6,7 @@
 #include "LxPlayerCharacter.generated.h"
 
 class UCameraComponent;
+class ULxCharacterSaveComponent;
 class ULxInteractableComponent;
 class ULxPlayerAimModule;
 class ULxPlayerControlComponent;
@@ -24,6 +25,13 @@ public:
 
 	/** 初始化玩家角色专属组件。 */
 	virtual void InitialCharacterInformation() override;
+
+	/** 在内容模块关闭前缓存角色数据，再解除存档管理模块注册。 */
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	/** 获取负责查询并恢复本地玩家记录的存档组件。 */
+	UFUNCTION(BlueprintPure, Category="角色|存档", DisplayName="获取玩家存档组件")
+	ULxCharacterSaveComponent* GetCharacterSaveComponent() const { return CharacterSaveComponent; }
 
 	UFUNCTION(BlueprintCallable, Category="角色|相机", DisplayName="获取相机弹簧臂")
 	USpringArmComponent* GetCameraBoom() const { return m_pCameraBoom; }
@@ -46,6 +54,10 @@ public:
 	virtual void RemoveInteractableComponent_Implementation(ULxInteractableComponent* InInteractableComponent) override;
 
 protected:
+	/** 角色存档适配组件，在全部角色内容初始化后才注册并恢复数据。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|存档", DisplayName="玩家存档组件")
+	TObjectPtr<ULxCharacterSaveComponent> CharacterSaveComponent;
+
 	/** 玩家操控组件，统一持有移动输入、瞄准和交互模块。 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="组件|玩家操控", DisplayName="玩家操控组件")
 	TObjectPtr<ULxPlayerControlComponent> m_pPlayerControlComponent;

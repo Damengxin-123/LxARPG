@@ -602,3 +602,47 @@ void ULxCharacterBackpackModule::OnRep_BackpackSlots()
 {
 	ApplyReplicatedBackpackSlots();
 }
+
+bool ULxCharacterBackpackModule::RestoreBackpackSaveData(int32 InSlotCount,
+	const TArray<FLxItemSlotSaveRecord>& InSlots, bool bApply)
+{
+	if ((GetOwner() && !GetOwner()->HasAuthority()) || InSlotCount < 0 || InSlotCount > 100000)
+	{
+		return false;
+	}
+	TArray<TObjectPtr<ULxItemSlotData>> RestoredSlots;
+	RestoredSlots.Reserve(InSlotCount);
+	for (int32 Index = 0; Index < InSlotCount; ++Index)
+	{
+		ULxItemSlotData* Slot = NewObject<ULxItemSlotData>(this);
+		Slot->SetSlotIndex(Index);
+		Slot->InitItemSlot(ELxItemSlotType::Backpack, LxTag_Item, nullptr);
+		RestoredSlots.Add(Slot);
+	}
+	if (!LxItemSaveData::RestoreSlots(this, InSlots, RestoredSlots))
+	{
+		return false;
+	}
+	if (!bApply)
+	{
+		return true;
+	}
+	for (ULxItemSlotData* OldSlot : m_vBackpackSlots)
+	{
+		if (OldSlot)
+		{
+			OldSlot->OnItemDataChanged.RemoveDynamic(this, &ULxCharacterBackpackModule::HandleBackpackSlotChanged);
+			if (ULxItemBase* OldItem = OldSlot->GetItem())
+			{
+				OldItem->OnItemCountChanged.RemoveDynamic(this, &ULxCharacterBackpackModule::HandleTrackedItemCountChanged);
+			}
+		}
+	}
+	BackpackSlotCount = InSlotCount;
+	m_vBackpackSlots = MoveTemp(RestoredSlots);
+	CleanupInvalidItems();
+	RefreshTrackedBindings();
+	SyncReplicatedBackpackSlots();
+	OnDataChange.Broadcast();
+	return true;
+}

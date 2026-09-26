@@ -1,4 +1,6 @@
 #include "LxTradeContainerInteractionComponent.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxInteractionSaveData.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxInteractionSaveHelpers.h"
 
 #include "GameFramework/Actor.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
@@ -30,12 +32,44 @@ ULxTradeContainerInteractionComponent::ULxTradeContainerInteractionComponent()
 	InteractionActionType = ELxInteractionActionType::TradeContainer;
 }
 
+bool ULxTradeContainerInteractionComponent::CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const
+{
+	if (!Super::CapturePersistentData(OutRecord)) return false;
+	LxItemSaveData::CaptureSlots(TradeItemSlotList, OutRecord.Slots);
+	OutRecord.TradeItemValueRate = TradeItemValueRate;
+	OutRecord.PurchaseValueRate = PurchaseValueRate;
+	return true;
+}
+
+bool ULxTradeContainerInteractionComponent::RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord)
+{
+	if (!CanRestorePersistentData(InRecord) || !FMath::IsFinite(InRecord.TradeItemValueRate)
+		|| !FMath::IsFinite(InRecord.PurchaseValueRate)
+		|| InRecord.TradeItemValueRate < 0.0f || InRecord.PurchaseValueRate < 0.0f) return false;
+	TArray<TObjectPtr<ULxItemSlotData>> RestoredSlots;
+	if (!LxInteractionSaveHelpers::BuildRestoredSlots(this, InRecord.Slots,
+		GetTradeDisplaySlotCount(TradeItemConfigs.Num()), ELxItemSlotType::Transaction, RestoredSlots)) return false;
+	UnbindPlayerDataTransfer();
+	TradeItemSlotList = MoveTemp(RestoredSlots);
+	bTradeContainerInitialized = true;
+	TradeItemValueRate = InRecord.TradeItemValueRate;
+	PurchaseValueRate = InRecord.PurchaseValueRate;
+	Super::RestorePersistentData(InRecord);
+	RefreshTradeSlots();
+	OnTradeContainerStateChanged.Broadcast(GetInteractionState());
+	return true;
+}
+
 void ULxTradeContainerInteractionComponent::ApplyConfig(const FLxTradeContainerInteractionConfig& InConfig)
 {
 	TradeItemConfigs = InConfig.TradeItems;
 	GoldItemIDTag = InConfig.GoldItemIDTag;
-	TradeItemValueRate = FMath::Max(0.0f, InConfig.SellValueRate);
-	PurchaseValueRate = FMath::Max(0.0f, InConfig.PurchaseValueRate);
+	// 客户端价格由服务器同步，延迟到达的资产配置不可覆盖存档恢复后的倍率。
+	if (!GetOwner() || GetOwner()->HasAuthority())
+	{
+		TradeItemValueRate = FMath::Max(0.0f, InConfig.SellValueRate);
+		PurchaseValueRate = FMath::Max(0.0f, InConfig.PurchaseValueRate);
+	}
 }
 
 void ULxTradeContainerInteractionComponent::OnInitializeInteractionFeature_Implementation()
@@ -44,6 +78,12 @@ void ULxTradeContainerInteractionComponent::OnInitializeInteractionFeature_Imple
 	if (AActor* OwnerActor = GetOwner())
 	{
 		OwnerActor->SetReplicates(true);
+		if (!OwnerActor->HasAuthority())
+		{
+			// 复制库存可能早于交互节点绑定，避免客户端按初始商品重新补货。
+			ApplyReplicatedTradeSlots();
+			return;
+		}
 	}
 	InitializeTradeSlots();
 }
@@ -53,7 +93,13 @@ void ULxTradeContainerInteractionComponent::GetLifetimeReplicatedProps(TArray<FL
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ULxTradeContainerInteractionComponent, ReplicatedTradeSlots);
+	DOREPLIFETIME(ULxTradeContainerInteractionComponent, TradeItemValueRate);
 	DOREPLIFETIME(ULxTradeContainerInteractionComponent, PurchaseValueRate);
+}
+
+void ULxTradeContainerInteractionComponent::OnRep_ValueRates()
+{
+	RefreshTradeSlots();
 }
 
 void ULxTradeContainerInteractionComponent::OnShutdownInteractionFeature_Implementation()

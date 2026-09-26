@@ -104,6 +104,9 @@ public:
 	/** 初始化物品词条对象，需在静态物品数据设置完成后调用。 */
 	void InitItemEntry();
 
+	/** 从存档替换实例词条，先校验全部引用再更新，不执行词条效果。 */
+	bool RestoreItemEntries(const TArray<FLxItemEntryConfig>& InEntries);
+
 	/** 获取物品词条对象列表。 */
 	TArray<TObjectPtr<ULxEntryObjectBase>>& GetItemEntryList();
 

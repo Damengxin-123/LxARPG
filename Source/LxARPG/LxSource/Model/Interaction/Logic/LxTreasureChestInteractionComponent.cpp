@@ -1,4 +1,6 @@
 #include "LxTreasureChestInteractionComponent.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxInteractionSaveData.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxInteractionSaveHelpers.h"
 
 #include "GameFramework/Actor.h"
 #include "LxInteractableComponent.h"
@@ -14,6 +16,38 @@ ULxTreasureChestInteractionComponent::ULxTreasureChestInteractionComponent()
 	InteractionActionType = ELxInteractionActionType::TreasureChest;
 }
 
+bool ULxTreasureChestInteractionComponent::CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const
+{
+	if (!Super::CapturePersistentData(OutRecord)) return false;
+	LxItemSaveData::CaptureSlots(TreasureChestItemSlotList, OutRecord.Slots);
+	OutRecord.bCompletionBroadcasted = bCompletionBroadcasted;
+	return true;
+}
+
+bool ULxTreasureChestInteractionComponent::RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord)
+{
+	if (!CanRestorePersistentData(InRecord)) return false;
+	TArray<TObjectPtr<ULxItemSlotData>> RestoredSlots;
+	if (!LxInteractionSaveHelpers::BuildRestoredSlots(this, InRecord.Slots, TreasureChestItemList.Num(),
+		ELxItemSlotType::TreasureChest, RestoredSlots)) return false;
+	for (ULxItemSlotData* Slot : TreasureChestItemSlotList)
+	{
+		if (Slot) Slot->OnItemDataChanged.RemoveDynamic(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
+	}
+	TreasureChestItemSlotList = MoveTemp(RestoredSlots);
+	for (ULxItemSlotData* Slot : TreasureChestItemSlotList)
+	{
+		Slot->OnItemDataChanged.AddDynamic(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
+	}
+	bTreasureChestInitialized = true;
+	bCompletionBroadcasted = InRecord.bCompletionBroadcasted
+		|| InRecord.InteractionState == ELxInteractionDataState::Finished;
+	Super::RestorePersistentData(InRecord);
+	RefreshTreasureChestSlots();
+	OnTreasureChestStateChanged.Broadcast(GetInteractionState());
+	return true;
+}
+
 void ULxTreasureChestInteractionComponent::ApplyConfig(const FLxTreasureChestInteractionConfig& InConfig)
 {
 	TreasureChestItemList = InConfig.ItemList;
@@ -26,6 +60,12 @@ void ULxTreasureChestInteractionComponent::OnInitializeInteractionFeature_Implem
 	if (AActor* OwnerActor = GetOwner())
 	{
 		OwnerActor->SetReplicates(true);
+		if (!OwnerActor->HasAuthority())
+		{
+			// 服务端读档后的库存可能先于节点绑定到达，客户端只能重放服务器快照。
+			ApplyReplicatedTreasureChestSlots();
+			return;
+		}
 	}
 	InitializeTreasureChestSlots();
 }
@@ -185,6 +225,7 @@ int32 ULxTreasureChestInteractionComponent::GetAcquireCompletionTargetCount() co
 
 void ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged(ULxItemBase* InItemData)
 {
+	if (bApplyingTreasureChestSnapshot) return;
 	RefreshTreasureChestSlots();
 	CheckAcquireCompletion();
 }
@@ -255,6 +296,7 @@ void ULxTreasureChestInteractionComponent::SyncReplicatedTreasureChestSlots()
 
 void ULxTreasureChestInteractionComponent::ApplyReplicatedTreasureChestSlots()
 {
+	TGuardValue<bool> SnapshotGuard(bApplyingTreasureChestSnapshot, true);
 	const int32 DesiredSlotCount = FMath::Max(TreasureChestItemList.Num(), ReplicatedTreasureChestSlots.Num());
 	if (TreasureChestItemSlotList.Num() != DesiredSlotCount)
 	{

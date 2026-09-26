@@ -147,6 +147,7 @@ bool ULxInteractionTreeAsset::CreateRuntimeTree(UObject* Outer, TArray<ULxIntera
 	{
 		ULxInteractionNode* Node = NewObject<ULxInteractionNode>(Outer);
 		Node->InitializeInteractionNode(Data->PromptText, Data->Type, {}, Data->Requirement, Data->NpcDialogueText);
+		Node->SetPersistentNodeID(Data->NodeId);
 		Node->SetQuestInteractionConfig(Data->QuestConfig);
 		Node->SetCloseInteractionDialogue(Data->bCloseInteractionDialogue);
 		Instances.Add(Data->NodeId, Node);

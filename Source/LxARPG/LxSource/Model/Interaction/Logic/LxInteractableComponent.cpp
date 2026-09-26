@@ -1,5 +1,6 @@
 #include "LxInteractableComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionTreeAsset.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxInteractionSaveComponent.h"
 
 #include "Engine/ActorChannel.h"
 #include "Engine/World.h"
@@ -41,6 +42,43 @@ void ULxInteractableComponent::BeginPlay()
 	BindInteractionRangeColliders();
 	RefreshAssetInteractionRange();
 	RefreshAutomaticInteractionRange();
+	InitializeInteractionSaveComponent();
+}
+
+void ULxInteractableComponent::InitializeInteractionSaveComponent()
+{
+	AActor* OwnerActor = GetOwner();
+	if (!HasBegunPlay() || !OwnerActor || !OwnerActor->HasAuthority()
+		|| !GetWorld() || !GetWorld()->IsGameWorld()) return;
+	bool bHasPersistentFeature = false;
+	for (ULxInteractionActionComponentBase* Feature : InteractionFeatures)
+	{
+		if (!Feature) continue;
+		const ELxInteractionActionType Type = Feature->GetInteractionActionType();
+		if (Type == ELxInteractionActionType::TriggerMechanism || Type == ELxInteractionActionType::TreasureChest
+			|| Type == ELxInteractionActionType::TradeContainer || Type == ELxInteractionActionType::Warehouse)
+		{
+			bHasPersistentFeature = true;
+			break;
+		}
+	}
+	if (!bHasPersistentFeature) return;
+	if (!IsValid(InteractionSaveComponent))
+	{
+		InteractionSaveComponent = NewObject<ULxInteractionSaveComponent>(OwnerActor,
+			MakeUniqueObjectName(OwnerActor, ULxInteractionSaveComponent::StaticClass(), TEXT("交互存档")));
+		InteractionSaveComponent->SetInteractableComponent(this);
+		OwnerActor->AddInstanceComponent(InteractionSaveComponent);
+		InteractionSaveComponent->RegisterComponent();
+	}
+	InteractionSaveComponent->InitializeSaveComponent();
+}
+
+void ULxInteractableComponent::CacheAndDetachInteractionSaveComponent()
+{
+	if (!IsValid(InteractionSaveComponent)) return;
+	InteractionSaveComponent->CacheSaveData();
+	InteractionSaveComponent->DetachFromSaveManager();
 }
 
 void ULxInteractableComponent::RefreshAssetInteractionRange()
@@ -80,6 +118,7 @@ void ULxInteractableComponent::RefreshAssetInteractionRange()
 
 void ULxInteractableComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	CacheAndDetachInteractionSaveComponent();
 	OnInteractableComponentEndPlayNative.Broadcast();
 	OnInteractableComponentEndPlayNative.Clear();
 	SetInteractionRangeColliders({});
@@ -103,6 +142,7 @@ void ULxInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	DOREPLIFETIME(ULxInteractableComponent, FeatureConfig);
 	DOREPLIFETIME(ULxInteractableComponent, InteractionTreeAsset);
 	DOREPLIFETIME(ULxInteractableComponent, InteractionTreeRevision);
+	DOREPLIFETIME(ULxInteractableComponent, InteractionIDTag);
 }
 
 bool ULxInteractableComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch,
@@ -159,6 +199,7 @@ bool ULxInteractableComponent::LoadInteractionTreeAsset()
 
 void ULxInteractableComponent::ClearInteractionTree()
 {
+	CacheAndDetachInteractionSaveComponent();
 	// 客户端保留已复制的子对象列表，允许资产和子对象以任意顺序到达。
 	const bool bAuthority = !GetOwner() || GetOwner()->HasAuthority();
 	if (bAuthority) ShutdownInteractionFeatures();
@@ -207,6 +248,7 @@ bool ULxInteractableComponent::RebuildInteractionTree()
 	for (ULxInteractionNode* Root : NewRoots) RootInteractionNodes.Add(Root);
 	LoadedInteractionTreeAsset = InteractionTreeAsset;
 	InitializeBuiltTreeFeatures();
+	InitializeInteractionSaveComponent();
 	RefreshAssetInteractionRange();
 	RefreshInteractionOptions();
 	return true;

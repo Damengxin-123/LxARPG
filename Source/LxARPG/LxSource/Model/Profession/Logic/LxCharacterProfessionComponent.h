@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentModuleBase.h"
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxCharacterSaveData.h"
 #include "LxCharacterProfessionComponent.generated.h"
 
 class ULxProfessionDefinition;
@@ -51,6 +52,12 @@ public:
 	/** 获取所有已学习职业运行时数据。 */
 	UFUNCTION(BlueprintCallable, Category="职业|角色职业", DisplayName="获取已学习职业")
 	void GetLearnedProfessions(TArray<FLxProfessionRuntimeData>& OutProfessionList) const;
+
+	/** 导出职业进度的纯属性记录，不保存职业定义类或效果对象。 */
+	void CaptureProfessionSaveData(TArray<FLxProfessionSaveRecord>& OutRecords) const;
+
+	/** 直接恢复职业进度并统一重建效果，不调用学习或增加经验；关闭应用时只验证。 */
+	bool RestoreProfessionSaveData(const TArray<FLxProfessionSaveRecord>& InRecords, bool bApply = true);
 
 	/** 获取所有可显示职业定义。 */
 	UFUNCTION(BlueprintCallable, Category="职业|角色职业", DisplayName="获取所有职业定义")

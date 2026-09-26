@@ -215,6 +215,37 @@ TArray<TObjectPtr<ULxEntryObjectBase>>& ULxItemBase::GetItemEntryList()
 	return ItemEntryArray;
 }
 
+bool ULxItemBase::RestoreItemEntries(const TArray<FLxItemEntryConfig>& InEntries)
+{
+	if (!ItemBase())
+	{
+		return false;
+	}
+	TArray<TObjectPtr<ULxEntryObjectBase>> RestoredEntries;
+	TArray<FLxItemEntryRuntimeInfo> RestoredRuntimeInfos;
+	for (const FLxItemEntryConfig& Config : InEntries)
+	{
+		if (!Config.EntryQuote.EntryID.IsValid() || !FMath::IsFinite(Config.EntryQuote.EntryProportion)
+			|| !FMath::IsFinite(Config.EntryQuote.EntryCD))
+		{
+			return false;
+		}
+		ULxEntryObjectBase* Entry = ULxEntryObjectBase::CreateEnterObject(this, Config.EntryQuote);
+		if (!Entry)
+		{
+			return false;
+		}
+		RestoredEntries.Add(Entry);
+		FLxItemEntryRuntimeInfo& Info = RestoredRuntimeInfos.AddDefaulted_GetRef();
+		Info.EntryObject = Entry;
+		Info.EntryLogicType = Config.EntryLogicType;
+	}
+	ItemBase()->ItemEntryConfigs = InEntries;
+	ItemEntryArray = MoveTemp(RestoredEntries);
+	ItemEntryRuntimeInfoArray = MoveTemp(RestoredRuntimeInfos);
+	return true;
+}
+
 const TArray<FLxItemEntryRuntimeInfo>& ULxItemBase::GetItemEntryRuntimeInfoList() const
 {
 	return ItemEntryRuntimeInfoArray;
