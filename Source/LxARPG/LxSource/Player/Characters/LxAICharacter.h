@@ -6,8 +6,6 @@
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxAICharacter.generated.h"
 
-class ULxAIBehaviorModule;
-class ULxAIControlComponent;
 class ULxAIBehaviorTreeAsset;
 struct FLxDamageReceiveResult;
 
@@ -18,39 +16,30 @@ class LXARPG_API ALxAICharacter : public ALxBaseCharacter
 	GENERATED_BODY()
 
 public:
-	/** 创建AI控制角色并配置默认控制器与局势行为候选。 */
+	/** 创建使用新行为树配置的AI控制角色。 */
 	ALxAICharacter();
 
-	/** 初始化AI专属行为组件。 */
+	/** 绑定受击事件及角色信息显示。 */
 	virtual void InitialCharacterInformation() override;
 
-	/** 获取负责组合调用角色通用组件的AI行为组件。 */
-	UFUNCTION(BlueprintPure, Category="AI|行为", DisplayName="获取AI行为组件")
-	ULxAIBehaviorModule* GetAIBehaviorComponent() const;
-
-	/** 获取统一管理 AI 行为模块的 AI 操控组件。 */
-	UFUNCTION(BlueprintPure, Category="AI|操控", DisplayName="获取AI操控组件")
-	ULxAIControlComponent* GetAIControlComponent() const { return AIControlComponent; }
-
-	/** 获取无需连接蓝图节点即可运行的AI控制参数。 */
-	UFUNCTION(BlueprintPure, Category="角色配置|AI", DisplayName="获取AI控制配置")
-	const FLxAIControlConfig& GetAIControlConfig() const { return AIControlConfig; }
-
-	/** 获取角色类型选用的四入口分析配置；未配置时沿用旧控制模式。 */
+	/** 获取角色类型选用的行为树配置。 */
 	UFUNCTION(BlueprintPure, Category="角色配置|AI", DisplayName="获取AI分析配置资产")
 	ULxAIBehaviorTreeAsset* GetAIBehaviorTreeAsset() const { return AIBehaviorTreeAsset; }
+
+	/** 当前角色是否由行为树自动控制。 */
+	UFUNCTION(BlueprintPure, Category="角色配置|AI", DisplayName="是否启用AI自动控制")
+	bool IsAIAutomaticControlEnabled() const { return bEnableAIAutomaticControl; }
 
 	/** 根据自身配置和目标阵营属性计算基础目标关系。 */
 	UFUNCTION(BlueprintPure, Category="AI|感知", DisplayName="分析目标基础关系")
 	ELxAITargetRelation ResolveBaseTargetRelation(const ALxBaseCharacter* InTargetCharacter) const;
 
-	/** 根据角色属性总强度、生命状态和AI倍率计算有效战力。 */
-	UFUNCTION(BlueprintPure, Category="AI|分析", DisplayName="计算AI有效战力")
-	float CalculateEffectiveCombatPower() const;
-
 	/** 获取角色当前生命值占上限的比例。 */
 	UFUNCTION(BlueprintPure, Category="AI|分析", DisplayName="获取AI生命比例")
 	float GetCurrentHealthRatio() const;
+
+	/** 生命值归零时是否由已启用的行为树接管死亡流程。 */
+	bool ShouldDeferDeathToBehaviorTree() const { return bEnableAIAutomaticControl && AIBehaviorTreeAsset != nullptr; }
 
 protected:
 	/** 收到实际伤害时立即将攻击者写入当前AI的敌对记忆。 */
@@ -67,13 +56,9 @@ protected:
 	/** 将当前生命比例推送给角色身上的全部AI角色信息界面。 */
 	void RefreshCharacterInfoWidgetsHealth() const;
 
-	/** AI 操控组件，统一持有 AI 行为执行模块。 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="AI|操控", DisplayName="AI操控组件")
-	TObjectPtr<ULxAIControlComponent> AIControlComponent;
-
-	/** 当前角色独立感知、数值对比、行为匹配和执行使用的参数。 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|AI", DisplayName="旧版AI参数（含自动控制开关）")
-	FLxAIControlConfig AIControlConfig;
+	/** 是否启用当前角色的自动行为树执行。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|AI", DisplayName="启用AI自动控制")
+	bool bEnableAIAutomaticControl = true;
 
 	/** 角色类型共享的四入口分析配置；仅类默认值可设置，不提供场景实例覆盖。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|AI", DisplayName="AI控制配置资产")

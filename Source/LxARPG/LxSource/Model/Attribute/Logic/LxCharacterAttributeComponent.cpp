@@ -1,6 +1,7 @@
 #include "LxCharacterAttributeComponent.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxCharacterBaseAttributeConfig.h"
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
@@ -347,7 +348,9 @@ void ULxCharacterAttributeComponent::RefreshCharacterMovementSpeed() const
 	if (UCharacterMovementComponent* MovementComponent = OwnerCharacter->GetCharacterMovement())
 	{
 		const float MovementSpeedMetersPerSecond = FMath::Max(0.f, BaseMovementSpeed.Value * (1.f + MovementSpeedBonus.Value));
-		MovementComponent->MaxWalkSpeed = MovementSpeedMetersPerSecond * AttributeMetersToCentimeters;
+		const ULxCharacterBehaviorControlComponent* Behavior = OwnerCharacter->GetCharacterBehaviorControlComponent();
+		const float MotionMultiplier = Behavior ? Behavior->GetMovementSpeedMultiplier() : 1.0f;
+		MovementComponent->MaxWalkSpeed = MovementSpeedMetersPerSecond * MotionMultiplier * AttributeMetersToCentimeters;
 	}
 }
 

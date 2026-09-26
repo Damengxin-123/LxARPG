@@ -19,12 +19,15 @@ public class LxARPGEditor : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
-			"LxARPG"
+			"LxARPG",
+			"AnimGraph",
+			"AnimGraphRuntime"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"AIModule",
+			"LxARPGAnimGraph",
 			"ApplicationCore",
 			"AssetTools",
 			"BlueprintGraph",

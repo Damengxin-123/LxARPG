@@ -47,6 +47,16 @@ public:
 	/** 注册需要网络同步的即时行为状态。 */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	/** 设置行为树当前动作标识及运动倍率；传入无可释放行为树覆盖。 */
+	void SetBehaviorMotion(ELxCharacterMotionType InMotionType, float InSpeedMultiplier);
+
+	/** 获取行为树与动画蓝图共用的当前动作类型；无覆盖时返回真实运动采样类型。 */
+	UFUNCTION(BlueprintPure, Category="角色|行为控制|运动", meta=(DisplayName="获取当前运动类型"))
+	ELxCharacterMotionType GetCurrentMotionType() const;
+
+	/** 获取应用于属性加成后速度的倍率。 */
+	float GetMovementSpeedMultiplier() const { return MovementSpeedMultiplier; }
+
 	/** 根据控制器朝向执行二维移动输入。 */
 	UFUNCTION(BlueprintCallable, Category="角色|行为控制|移动", DisplayName="执行角色移动输入")
 	void HandleMoveInput(const FVector2D& InMoveValue);
@@ -66,6 +76,9 @@ public:
 	/** 通过AI控制器请求寻路移动到世界位置。 */
 	UFUNCTION(BlueprintCallable, Category="角色|行为控制|寻路", DisplayName="请求移动到位置")
 	bool RequestMoveToLocation(FVector InTargetLocation, float InAcceptanceRadius);
+
+	/** 沿人工设置的路线直接前往目标点，不要求路径点位于导航网格。 */
+	bool RequestMoveToLocationDirect(FVector InTargetLocation, float InAcceptanceRadius);
 
 	/** 停止玩家或AI当前正在执行的移动。 */
 	UFUNCTION(BlueprintCallable, Category="角色|行为控制|移动", DisplayName="停止角色移动")
@@ -198,6 +211,18 @@ protected:
 	float DefaultFacingControlHoldDuration = 0.45f;
 
 private:
+	/** 同步倍率后重新计算属性速度，避免客户端保留旧的移动上限。 */
+	UFUNCTION()
+	void OnRep_MovementSpeedMultiplier();
+
+	/** 当前行为节点的语义运动类型，独立于实际速度及技能动画信号。 */
+	UPROPERTY(Transient, Replicated)
+	ELxCharacterMotionType BehaviorMotionType = ELxCharacterMotionType::None;
+
+	/** 当前行为选用的速度倍率，不在已有最大速度上累乘。 */
+	UPROPERTY(Transient, ReplicatedUsing=OnRep_MovementSpeedMultiplier)
+	float MovementSpeedMultiplier = 1.0f;
+
 	/** 将本地玩家新增的行为状态同步到服务端权威组件。 */
 	UFUNCTION(Server, Reliable)
 	void ServerAddBehaviorState(FGameplayTag InBehaviorStateTag);
@@ -223,6 +248,9 @@ private:
 
 	/** 更新当前行为控制的角色朝向。 */
 	void UpdateFacingControl(float DeltaTime);
+
+	/** AI由行为组件独占旋转，暂停引擎自动转向；离开AI控制时恢复原设置。 */
+	void UpdateAIRotationOwnership();
 
 	/** 根据移动输入方向更新自由移动朝向。 */
 	void UpdateMoveFacing(const FVector& InMoveDirection, float DeltaTime);
@@ -269,6 +297,15 @@ private:
 
 	/** 当前期望角色朝向的世界方向。 */
 	FVector DesiredFacingDirection = FVector::ZeroVector;
+
+	/** 是否已经接管当前AI角色的旋转。 */
+	bool bOwnsAIRotation = false;
+	/** 接管前角色是否跟随控制器偏航，交还控制时恢复。 */
+	bool bSavedUseControllerRotationYaw = false;
+	/** 接管前移动组件是否自动朝移动方向转身。 */
+	bool bSavedOrientRotationToMovement = false;
+	/** 接管前移动组件是否自动朝控制器方向转身。 */
+	bool bSavedUseControllerDesiredRotation = false;
 
 	/** 基础行为状态采样累计时间。 */
 	float BehaviorSampleAccumulator = 0.0f;

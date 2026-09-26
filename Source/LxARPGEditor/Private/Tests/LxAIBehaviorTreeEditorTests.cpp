@@ -60,9 +60,9 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 	if (!TestNotNull(TEXT("工厂创建专用图"), Graph)) return false;
 	Graph->InitializeDefaultTree();
 	Graph->EnsureEntryNodes();
-	TestEqual(TEXT("重复初始化保留四入口、五状态、五阶段、十行为"), Graph->Nodes.Num(), 24);
-	TestEqual(TEXT("资产包含二十四个配置节点"), Asset->Nodes.Num(), 24);
-	TestEqual(TEXT("四个固定入口"), Asset->Roots.Num(), 4);
+	TestEqual(TEXT("重复初始化保留五入口、五状态、五阶段和十四行为"), Graph->Nodes.Num(), 28);
+	TestEqual(TEXT("资产包含二十八个配置节点"), Asset->Nodes.Num(), 28);
+	TestEqual(TEXT("五个固定入口"), Asset->Roots.Num(), 5);
 	FText Error;
 	TestFalse(TEXT("未指定点位路线技能ID的模板提示待配置"), Asset->ValidateTree(Error));
 	FillBehaviorTestIds(Asset);
@@ -81,6 +81,7 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 	ULxAIBehaviorTreeEdGraphNode* IdlePhase = nullptr;
 	ULxAIBehaviorTreeEdGraphNode* Wait = nullptr;
 	ULxAIBehaviorTreeEdGraphNode* CombatPhase = nullptr;
+	ULxAIBehaviorTreeEdGraphNode* FleePhase = nullptr;
 	ULxAIBehaviorTreeEdGraphNode* CombatAction = nullptr;
 	for (UEdGraphNode* RawNode : Graph->Nodes)
 	{
@@ -96,10 +97,11 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 		if (Node->Data->Kind == ELxAIBehaviorNodeKind::State && Node->Data->State == ELxAIBehaviorState::Combat) CombatState = Node;
 		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Phase && Node->Data->State == ELxAIBehaviorState::Idle) IdlePhase = Node;
 		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Phase && Node->Data->State == ELxAIBehaviorState::Combat) CombatPhase = Node;
+		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Phase && Node->Data->State == ELxAIBehaviorState::Flee) FleePhase = Node;
 		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Action && Node->Data->Action == ELxAIBehaviorAction::Wait) Wait = Node;
 		if (Node->Data->Kind == ELxAIBehaviorNodeKind::Action && Node->Data->Action == ELxAIBehaviorAction::MeleeSkill) CombatAction = Node;
 	}
-	if (!CalmEntry || !EnemyNearEntry || !AttackedEntry || !IdleState || !CombatState || !IdlePhase || !CombatPhase || !CombatAction || !Wait)
+	if (!CalmEntry || !EnemyNearEntry || !AttackedEntry || !IdleState || !CombatState || !IdlePhase || !CombatPhase || !FleePhase || !CombatAction || !Wait)
 	{
 		AddError(TEXT("默认模板缺少预期节点"));
 		return false;
@@ -110,6 +112,18 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 		&& FindBehaviorPin(CombatState, EGPD_Input)->LinkedTo.Num() == 2);
 	TestNull(TEXT("行为叶节点没有输出"), FindBehaviorPin(Wait, EGPD_Output));
 	const UEdGraphSchema* Schema = Graph->GetSchema();
+	FGraphContextMenuBuilder FleeMenu(Graph);
+	FleeMenu.FromPin = FindBehaviorPin(FleePhase, EGPD_Output);
+	Schema->GetGraphContextActions(FleeMenu);
+	bool bHasRouteFleeMenuAction = false;
+	for (int32 ActionIndex = 0; ActionIndex < FleeMenu.GetNumActions(); ++ActionIndex)
+	{
+		const TSharedPtr<FEdGraphSchemaAction>& MenuAction = FleeMenu.GetSchemaAction(ActionIndex);
+		const TSharedPtr<FLxAIBehaviorTreeNewNodeAction> TreeAction = StaticCastSharedPtr<FLxAIBehaviorTreeNewNodeAction>(MenuAction);
+		if (TreeAction.IsValid() && TreeAction->Kind == ELxAIBehaviorNodeKind::Action &&
+			TreeAction->Action == ELxAIBehaviorAction::RouteFlee) bHasRouteFleeMenuAction = true;
+	}
+	TestTrue(TEXT("从逃跑阶段引脚可以创建固定路线逃跑节点"), bHasRouteFleeMenuAction);
 	UEdGraphPin* StateOutput = FindBehaviorPin(IdleState, EGPD_Output);
 	UEdGraphPin* PhaseInput = FindBehaviorPin(IdlePhase, EGPD_Input);
 	UEdGraphPin* PhaseOutput = FindBehaviorPin(IdlePhase, EGPD_Output);
@@ -202,7 +216,7 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("撤销恢复节点位置"), FIntPoint(IdleState->NodePosX, IdleState->NodePosY) == OriginalPosition);
 	GEditor->RedoTransaction();
 	TestTrue(TEXT("重做恢复节点位置"), FIntPoint(IdleState->NodePosX, IdleState->NodePosY) == MovedPosition);
-	TestTrue(TEXT("移动节点不改变显式状态顺序"), Asset->Roots.Num() == 4 && CalmEntry->Data->Children.Contains(IdleState->Data->NodeId));
+	TestTrue(TEXT("移动节点不改变显式状态顺序"), Asset->Roots.Num() == 5 && CalmEntry->Data->Children.Contains(IdleState->Data->NodeId));
 	const int32 OriginalPriority = CalmEntry->Data->EntryPriority;
 	{
 		const FScopedTransaction Transaction(NSLOCTEXT("AI控制配置测试", "修改入口优先级", "修改平静入口优先级"));
@@ -293,7 +307,7 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("新图节点位置保存后仍保留"), bFoundMovedState);
 		TestTrue(TEXT("感知开关、距离、角度、记忆和目标筛选均从磁盘恢复"), FLxAIPerceptionConfig::StaticStruct()->CompareScriptStruct(&Loaded->Perception, &CustomPerception, 0));
 		TestTrue(TEXT("分析参数从磁盘恢复"), FLxAIAnalysisConfig::StaticStruct()->CompareScriptStruct(&Loaded->Analysis, &CustomAnalysis, 0));
-		TestEqual(TEXT("磁盘保留四入口"), Loaded->Roots.Num(), 4);
+		TestEqual(TEXT("磁盘保留五入口"), Loaded->Roots.Num(), 5);
 		TestTrue(TEXT("重载后的总控制配置有效"), Loaded->ValidateConfiguration(Error));
 	}
 	// 构造并保存真实旧格式包：保留原状态、阶段、行为图，只用旧开始节点连接状态。
@@ -339,8 +353,8 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 	{
 		ULxAIBehaviorTreeEdGraph* MigratedGraph = CastChecked<ULxAIBehaviorTreeEdGraph>(Migrated->EditorGraph);
 		MigratedGraph->EnsureEntryNodes();
-		TestEqual(TEXT("旧图升级为四个事件入口"), Migrated->Roots.Num(), 4);
-		TestEqual(TEXT("旧图升级后保留原二十节点并新增四入口"), Migrated->Nodes.Num(), 24);
+		TestEqual(TEXT("旧图升级为五个事件入口"), Migrated->Roots.Num(), 5);
+		TestEqual(TEXT("旧图升级后保留原二十三个业务节点并新增五入口和三死亡节点"), Migrated->Nodes.Num(), 31);
 		TestTrue(TEXT("旧图升级后分支配置仍有效"), Migrated->ValidateTree(Error));
 		for (UEdGraphNode* RawNode : MigratedGraph->Nodes)
 		{
@@ -349,6 +363,7 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 			if (Node->Data && Node->Data->Kind != ELxAIBehaviorNodeKind::Entry)
 			{
 				const FIntPoint* Original = LegacyPositions.Find(Node->Data->NodeId);
+				if (!Original) continue;
 				TestTrue(TEXT("旧配置节点保留原GUID"), Original != nullptr);
 				if (Original) TestTrue(TEXT("旧配置节点保留原画布位置"), FIntPoint(Node->NodePosX, Node->NodePosY) == *Original);
 			}
@@ -360,7 +375,7 @@ bool FLxAIBehaviorTreeEditorTest::RunTest(const FString& Parameters)
 			ULxAIBehaviorTreeAsset* Reopened = ReopenedPackage ? FindObject<ULxAIBehaviorTreeAsset>(ReopenedPackage, TEXT("旧行为树迁移测试")) : nullptr;
 			if (TestNotNull(TEXT("迁移图保存后独立重载"), Reopened))
 			{
-				TestEqual(TEXT("再次重载仍是四个入口"), Reopened->Roots.Num(), 4);
+				TestEqual(TEXT("再次重载仍是五个入口"), Reopened->Roots.Num(), 5);
 				TestTrue(TEXT("再次重载的迁移图有效"), Reopened->ValidateTree(Error));
 			}
 		}

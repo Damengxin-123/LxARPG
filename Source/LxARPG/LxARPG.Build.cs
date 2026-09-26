@@ -14,6 +14,7 @@ public class LxARPG : ModuleRules
 			"Core", 
 			"CoreUObject", 
 			"Engine",
+			"AnimGraphRuntime",
 			"InputCore",
 			"EnhancedInput",
 			"UMG", 

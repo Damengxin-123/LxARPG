@@ -53,6 +53,7 @@ void ULxCharacterAnimationProcessComponent::ReceiveActionMotionSignal(const FLxC
 	}
 
 	CurrentActionAnimationSignal = ConvertMotionSignalToAnimationSignal(InMotionSignal);
+	CurrentActionAnimationSignal.SkillId = InMotionSignal.SkillId;
 	EnsureAnimationInstanceCached();
 	if (AnimInstance)
 	{
@@ -82,9 +83,11 @@ FLxCharacterAnimationSignal ULxCharacterAnimationProcessComponent::ConvertMotion
 {
 	FLxCharacterAnimationSignal AnimationSignal;
 	AnimationSignal.AnimationType = InMotionSignal.MotionType;
+	AnimationSignal.SkillId = InMotionSignal.SkillId;
 	AnimationSignal.bLoop = InMotionSignal.bLoop;
 	if (InMotionSignal.MotionType == ELxCharacterMotionType::Move
-		|| InMotionSignal.MotionType == ELxCharacterMotionType::Run)
+		|| InMotionSignal.MotionType == ELxCharacterMotionType::Run
+		|| InMotionSignal.MotionType == ELxCharacterMotionType::MediumMove)
 	{
 		AnimationSignal.PlayRate = FMath::Clamp(InMotionSignal.MotionSpeed / 600.0f, 0.1f, 3.0f);
 	}
@@ -135,16 +138,16 @@ void ULxCharacterAnimationProcessComponent::UnbindBehaviorControlEvents()
 
 void ULxCharacterAnimationProcessComponent::EnsureAnimationInstanceCached()
 {
-	if (AnimInstance)
-	{
-		return;
-	}
-
 	const ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
-	if (OwnerCharacter == nullptr || OwnerCharacter->GetMesh() == nullptr)
+	ULxAnimInstanceBase* NewInstance = OwnerCharacter && OwnerCharacter->GetMesh()
+		? Cast<ULxAnimInstanceBase>(OwnerCharacter->GetMesh()->GetAnimInstance()) : nullptr;
+	if (AnimInstance != NewInstance)
 	{
-		return;
+		AnimInstance = NewInstance;
+		if (AnimInstance)
+		{
+			AnimInstance->ApplyBaseAnimationSignal(CurrentBaseAnimationSignal);
+			AnimInstance->ApplyActionAnimationSignal(CurrentActionAnimationSignal);
+		}
 	}
-
-	AnimInstance = Cast<ULxAnimInstanceBase>(OwnerCharacter->GetMesh()->GetAnimInstance());
 }

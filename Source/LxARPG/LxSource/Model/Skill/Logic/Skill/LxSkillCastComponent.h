@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
 #include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Model/Combat/Logic/LxCharacterCombatModuleBase.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillCastContext.h"
@@ -127,7 +128,7 @@ private:
 		FVector_NetQuantizeNormal InAimDirection, bool bInHasAimDirection);
 
 	/** 在本机播放技能动作动画。 */
-	void PlaySkillActionAnimation(float InSkillReleaseDuration);
+	void PlaySkillActionAnimation(float InSkillReleaseDuration, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType);
 
 	/** 在本机停止技能动作动画。 */
 	void StopSkillActionAnimation();

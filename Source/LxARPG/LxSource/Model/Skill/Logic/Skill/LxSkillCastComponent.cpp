@@ -336,7 +336,7 @@ void ULxSkillCastModule::HandleSkillItemReleaseInputFromServer(FGameplayTag InSk
 	HandleSkillReleaseInputAuthority(Skill, InInputState, ServerContext);
 }
 
-void ULxSkillCastModule::PlaySkillActionAnimation(float InSkillReleaseDuration)
+void ULxSkillCastModule::PlaySkillActionAnimation(float InSkillReleaseDuration, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType)
 {
 	ALxBaseCharacter* OwnerCharacter = Cast<ALxBaseCharacter>(GetOwner());
 	ULxCharacterBehaviorControlComponent* BehaviorControlComponent = OwnerCharacter
@@ -348,10 +348,11 @@ void ULxSkillCastModule::PlaySkillActionAnimation(float InSkillReleaseDuration)
 	}
 
 	FLxCharacterMotionSignal ActionMotionSignal;
-	ActionMotionSignal.MotionType = ELxCharacterMotionType::Skill;
+	ActionMotionSignal.MotionType = InMotionType;
+	ActionMotionSignal.SkillId = InSkillId;
 	// 技能动作资产统一按一秒制作，通过播放速率把实际时长拉伸或压缩到技能释放时间。
 	ActionMotionSignal.MotionSpeed = 1.0f / FMath::Max(InSkillReleaseDuration, 0.1f);
-	ActionMotionSignal.bLoop = false;
+	ActionMotionSignal.bLoop = ActionMotionSignal.MotionType == ELxCharacterMotionType::Defend;
 	BehaviorControlComponent->SendActionAnimationMotionSignal(ActionMotionSignal);
 }
 
@@ -369,7 +370,7 @@ void ULxSkillCastModule::StopSkillActionAnimation()
 	FLxCharacterMotionSignal ActionMotionSignal;
 	ActionMotionSignal.MotionType = ELxCharacterMotionType::None;
 	ActionMotionSignal.MotionSpeed = 0.0f;
-	ActionMotionSignal.bLoop = false;
+	ActionMotionSignal.bLoop = ActionMotionSignal.MotionType == ELxCharacterMotionType::Defend;
 	BehaviorControlComponent->SendActionAnimationMotionSignal(ActionMotionSignal);
 }
 
@@ -389,7 +390,15 @@ void ULxSkillCastModule::BeginTimedSkillRelease(ULxSkill* InSkill,
 	ClearTimedSkillRelease(false);
 	PendingSkillReleaseExecution = InExecutionType;
 	const float ReleaseDuration = InSkill->GetSkillReleaseDuration();
-	if (OwnerComponent) OwnerComponent->RequestPlaySkillActionAnimation(ReleaseDuration);
+	ELxCharacterMotionType MotionType = InSkill->AnimationMotionType;
+	if (const ALxBaseCharacter* Character = Cast<ALxBaseCharacter>(GetOwner()))
+		if (const ULxCharacterBehaviorControlComponent* Behavior = Character->GetCharacterBehaviorControlComponent())
+		{
+			const ELxCharacterMotionType BehaviorType = Behavior->GetCurrentMotionType();
+			if (BehaviorType == ELxCharacterMotionType::Attack || BehaviorType == ELxCharacterMotionType::RangedAttack
+				|| BehaviorType == ELxCharacterMotionType::Defend) MotionType = BehaviorType;
+		}
+	if (OwnerComponent) OwnerComponent->RequestPlaySkillActionAnimation(ReleaseDuration, ResolveSkillItemIDTag(InSkill), MotionType);
 
 	GetWorld()->GetTimerManager().SetTimer(SkillReleaseExecutionTimerHandle, this,
 		&ULxSkillCastModule::ExecuteTimedSkillRelease, ReleaseDuration * 0.5f, false);

@@ -67,7 +67,7 @@ ULxAIBehaviorTreeAsset* MakeIntegrationAsset()
 }
 }
 
-/** 通过真实世界的控制器占有和公开感知入口验证新旧模式隔离与会话生命周期。 */
+/** 通过真实世界的控制器占有和公开感知入口验证行为树会话生命周期。 */
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxAIAnalysisControllerIntegrationTest,
 	"LxARPG.AIControlConfig.ControllerIntegration",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -112,8 +112,8 @@ bool FLxAIAnalysisControllerIntegrationTest::RunTest(const FString& Parameters)
 	AssetProperty->SetObjectPropertyValue_InContainer(SecondPawn, Asset);
 	if (!TestEqual(TEXT("第一角色确实持有测试资产"), FirstPawn->GetAIBehaviorTreeAsset(), Asset) ||
 		!TestEqual(TEXT("第二角色确实持有测试资产"), SecondPawn->GetAIBehaviorTreeAsset(), Asset) ||
-		!TestTrue(TEXT("第一角色自动控制总开关开启"), FirstPawn->GetAIControlConfig().bEnableAutomaticControl) ||
-		!TestTrue(TEXT("第二角色自动控制总开关开启"), SecondPawn->GetAIControlConfig().bEnableAutomaticControl)) return false;
+		!TestTrue(TEXT("第一角色自动控制总开关开启"), FirstPawn->IsAIAutomaticControlEnabled()) ||
+		!TestTrue(TEXT("第二角色自动控制总开关开启"), SecondPawn->IsAIAutomaticControlEnabled())) return false;
 	First->Possess(FirstPawn);
 	Second->Possess(SecondPawn);
 	if (!TestTrue(TEXT("第一控制器已初始化有效分析分支"), First->GetCurrentAnalysisDecision().bHasBranch) ||
@@ -121,22 +121,17 @@ bool FLxAIAnalysisControllerIntegrationTest::RunTest(const FString& Parameters)
 	auto ReportDecisionState = [this, World](const TCHAR* Stage, const ALxAIController* Controller)
 	{
 		const FLxAIAnalysisDecision Decision = Controller->GetCurrentAnalysisDecision();
-		AddInfo(FString::Printf(TEXT("%s: Entry=%d Branch=%d Memory=%d WorldTime=%.3f TimerActive=%d TimerPending=%d TimerTickedThisFrame=%d Frame=%llu"),
+		AddInfo(FString::Printf(TEXT("%s: Entry=%d Branch=%d Memory=%d WorldTime=%.3f TimerTickedThisFrame=%d Frame=%llu"),
 			Stage, static_cast<int32>(Decision.Entry), Decision.bHasBranch ? 1 : 0,
 			Controller->GetTargetMemoryCount(), World->GetTimeSeconds(),
-			World->GetTimerManager().IsTimerActive(Controller->AutomaticDecisionTimer) ? 1 : 0,
-			World->GetTimerManager().IsTimerPending(Controller->AutomaticDecisionTimer) ? 1 : 0,
 			World->GetTimerManager().HasBeenTickedThisFrame() ? 1 : 0,
 			static_cast<unsigned long long>(GFrameCounter)));
 	};
 	ReportDecisionState(TEXT("初次占有"), First);
-	if (!TestTrue(TEXT("第一控制器在世界计时器注册分析更新"),
-		World->GetTimerManager().TimerExists(First->AutomaticDecisionTimer)) ||
-		!TestTrue(TEXT("第二控制器在世界计时器注册分析更新"),
-			World->GetTimerManager().TimerExists(Second->AutomaticDecisionTimer))) return false;
 	TestEqual(TEXT("第一控制器初始平静入口"), First->GetCurrentAnalysisDecision().Entry, ELxAIBehaviorEntry::Calm);
 	TestEqual(TEXT("第二控制器独立平静入口"), Second->GetCurrentAnalysisDecision().Entry, ELxAIBehaviorEntry::Calm);
-	TestEqual(TEXT("新模式不启动旧行为"), First->GetCurrentAction(), ELxAIActionType::None);
+	TestTrue(TEXT("平静阶段已进入待机叶节点"), First->GetCurrentBehaviorActionNodeId().IsValid());
+	TestEqual(TEXT("平静阶段执行待机行为"), First->GetCurrentBehaviorAction(), ELxAIBehaviorAction::Wait);
 	Enemy->SetActorLocation(FirstPawn->GetActorLocation() + FVector(2000, 0, 0));
 	First->ReportPerceivedTarget(Enemy, ELxAIPerceptionSource::Damage, true);
 	Enemy->SetActorLocation(FirstPawn->GetActorLocation() + FVector(100, 0, 0));
@@ -145,6 +140,7 @@ bool FLxAIAnalysisControllerIntegrationTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("临时世界真实时间向前推进"), World->GetTimeSeconds() > BeforeFirstTick);
 	ReportDecisionState(TEXT("伤害来源记忆后"), First);
 	TestEqual(TEXT("记忆使用最后已知距离，不偷读移动后的位置"), First->GetCurrentAnalysisDecision().Entry, ELxAIBehaviorEntry::EnemyFound);
+	TestEqual(TEXT("发现敌人后执行警戒行为"), First->GetCurrentBehaviorAction(), ELxAIBehaviorAction::Alert);
 	TestEqual(TEXT("第二控制器未共享目标"), Second->GetCurrentAnalysisDecision().Entry, ELxAIBehaviorEntry::Calm);
 	UFunction* DamageFunction = FirstPawn->FindFunction(TEXT("HandleAIReceivedDamage"));
 	if (!TestNotNull(TEXT("角色效果受击入口可反射调用"), DamageFunction)) return false;
@@ -156,6 +152,7 @@ bool FLxAIAnalysisControllerIntegrationTest::RunTest(const FString& Parameters)
 	FirstPawn->ProcessEvent(DamageFunction, &DamageEvent);
 	ReportDecisionState(TEXT("有效无来源承伤后"), First);
 	TestEqual(TEXT("有效且无来源的承伤进入受击入口"), First->GetCurrentAnalysisDecision().Entry, ELxAIBehaviorEntry::Attacked);
+	TestEqual(TEXT("受击阶段执行防卫行为"), First->GetCurrentBehaviorAction(), ELxAIBehaviorAction::Defend);
 	First->CompleteAttackedResponse();
 	TestFalse(TEXT("响应完成后不继续保持受击入口"), First->GetCurrentAnalysisDecision().Entry == ELxAIBehaviorEntry::Attacked);
 	AdvanceIntegrationWorld(*World, 5.1f);
@@ -165,6 +162,7 @@ bool FLxAIAnalysisControllerIntegrationTest::RunTest(const FString& Parameters)
 	First->UnPossess();
 	TestFalse(TEXT("反占有清除会话决策"), First->GetCurrentAnalysisDecision().bHasBranch);
 	TestEqual(TEXT("反占有清除私有记忆"), First->GetTargetMemoryCount(), 0);
+	TestFalse(TEXT("反占有清除正在执行的行为叶"), First->GetCurrentBehaviorActionNodeId().IsValid());
 	ULxAIBehaviorTreeNodeData* FoundEntry = nullptr;
 	for (ULxAIBehaviorTreeNodeData* Node : Asset->Nodes)
 	{
@@ -247,14 +245,10 @@ bool FLxAIAnalysisControllerIntegrationTest::RunTest(const FString& Parameters)
 	if (!TestNotNull(TEXT("视觉配置对象"), Sight)) return false;
 	TestEqual(TEXT("新资产半角已应用"), Sight->PeripheralVisionAngleDegrees, 45.0f);
 	Second->UnPossess();
-	ALxAICharacter* LegacyPawn = World->SpawnActor<ALxAICharacter>();
-	if (!TestNotNull(TEXT("旧模式角色"), LegacyPawn)) return false;
-	AssetProperty->SetObjectPropertyValue_InContainer(LegacyPawn, nullptr);
-	if (!TestNull(TEXT("旧模式角色没有分析资产"), LegacyPawn->GetAIBehaviorTreeAsset())) return false;
-	Second->Possess(LegacyPawn);
-	TestEqual(TEXT("重新占有旧角色后恢复默认视觉半角"), Sight->PeripheralVisionAngleDegrees, 90.0f);
-	TestEqual(TEXT("重新占有旧角色后恢复旧视觉距离"), Sight->SightRadius,
-		LegacyPawn->GetAIControlConfig().SightRadius * 100.0f);
+	ALxAICharacter* UnconfiguredPawn = World->SpawnActor<ALxAICharacter>();
+	if (!TestNotNull(TEXT("未配置行为树的角色"), UnconfiguredPawn)) return false;
+	Second->Possess(UnconfiguredPawn);
+	TestFalse(TEXT("未配置行为树不会产生分支"), Second->GetCurrentAnalysisDecision().bHasBranch);
 	return true;
 }
 

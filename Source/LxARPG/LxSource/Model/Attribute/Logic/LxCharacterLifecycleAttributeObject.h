@@ -29,6 +29,9 @@ public:
 	/** 设置角色当前存活状态，并通知统一属性组件。 */
 	void SetCharacterAliveState(bool bInAlive);
 
+	/** 设置生命值归零后是否等待AI行为树明确进入死亡。 */
+	void SetDeferDeathForAI(bool bInDefer) { bDeferDeathForAI = bInDefer; }
+
 	/** 注册存活状态网络复制字段。 */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
@@ -83,6 +86,8 @@ private:
 
 	/** 当前死亡表现和销毁倒计时是否已经启动。 */
 	bool bDeathSequenceStarted = false;
+	/** AI角色等待行为树执行进入死亡时保持存活状态。 */
+	bool bDeferDeathForAI = false;
 
 	/** 当前角色是否存活。 */
 	UPROPERTY(VisibleAnywhere, ReplicatedUsing=OnRep_IsAlive, Category="角色|属性|生命周期", DisplayName="角色是否存活")

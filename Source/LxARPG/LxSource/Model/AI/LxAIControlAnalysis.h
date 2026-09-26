@@ -74,7 +74,25 @@ public:
 	/** 当前是否保留一个等待完成确认的受击响应。 */
 	UFUNCTION(BlueprintPure, Category="AI|分析", meta=(DisplayName="受击响应是否进行中"))
 	bool IsAttackedResponseActive() const { return bAttackedResponseActive; }
+	/** 标记角色已进入死亡动作，后续分析保持停止状态。 */
+	void CompleteCharacterDeath() { bCharacterDeathCompleted = true; }
+	/** 更新当前角色位置，供追击距离判断；由控制器在每次分析前调用。 */
+	void SetSelfLocation(const FVector& InLocation) { SelfLocation = InLocation; bHasSelfLocation = true; }
+	/** 是否正在追击超距后的返回过程中，此时不响应敌人触发的再次追击。 */
+	bool IsReturningFromChase() const { return bReturningFromChase; }
+	/** 到达巡逻目的地后解除返回保护，允许下一轮重新分析敌情。 */
+	void CompleteChaseReturn() { bReturningFromChase = false; }
 private:
+	/** 当前角色的世界坐标。 */
+	FVector SelfLocation = FVector::ZeroVector;
+	/** 是否已经收到角色位置，旧的独立分析调用未提供位置时不启用追击限制。 */
+	bool bHasSelfLocation = false;
+	/** 本轮进入战斗时的起点；切换战斗阶段或受击入口不会重置。 */
+	FVector ChaseOrigin = FVector::ZeroVector;
+	/** 当前战斗周期是否已记录追击起点。 */
+	bool bHasChaseOrigin = false;
+	/** 达到追击上限后保持返回，防止感知到原敌人立即重新进入战斗。 */
+	bool bReturningFromChase = false;
 	/** 共享配置引用，分析会话只读。 */
 	UPROPERTY(Transient)
 	TObjectPtr<ULxAIBehaviorTreeAsset> Configuration;
@@ -94,4 +112,6 @@ private:
 	bool bEnemyNear = false;
 	/** 前次响应已完成；下一分支即使相同也应重新开始。 */
 	bool bResponseCompleted = false;
+	/** 防止死亡行为完成后再次启动死亡响应。 */
+	bool bCharacterDeathCompleted = false;
 };

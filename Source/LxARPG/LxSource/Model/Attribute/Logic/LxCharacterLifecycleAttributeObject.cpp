@@ -7,6 +7,7 @@
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Characters/LxAICharacter.h"
 #include "Net/UnrealNetwork.h"
 
 ULxCharacterLifecycleAttributeObject::ULxCharacterLifecycleAttributeObject()
@@ -117,7 +118,9 @@ void ULxCharacterLifecycleAttributeObject::HandleCharacterAttributesChanged(cons
 void ULxCharacterLifecycleAttributeObject::EvaluateDeathFromAttributeSnapshot(const FLxTypedAttributeSnapshot& AttributeSnapshot) const
 {
 	ALxBaseCharacter* OwnerCharacter = GetCharacterOwner();
-	if (OwnerCharacter == nullptr || !OwnerCharacter->HasAuthority() || OwnerComponent == nullptr || !bIsAlive)
+	const ALxAICharacter* AICharacter = Cast<ALxAICharacter>(OwnerCharacter);
+	if (OwnerCharacter == nullptr || !OwnerCharacter->HasAuthority() || OwnerComponent == nullptr || !bIsAlive
+		|| bDeferDeathForAI || (AICharacter && AICharacter->ShouldDeferDeathToBehaviorTree()))
 	{
 		return;
 	}

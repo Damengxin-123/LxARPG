@@ -6,6 +6,7 @@
 
 class ULxAIBehaviorTreeAsset;
 class ULxAIBehaviorTreeEdGraph;
+class ULxAIBehaviorTreeEdGraphNode;
 class IDetailsView;
 class SGraphEditor;
 struct FPropertyChangedEvent;
@@ -19,7 +20,7 @@ public:
 	void Init(EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& Host, ULxAIBehaviorTreeAsset* Asset);
 	/** 选中并聚焦指定状态的状态、阶段与行为组，详情停留在阶段或状态。 */
 	void FocusState(ELxAIBehaviorState State);
-	/** 聚焦四个固定事件入口，便于同时检查入口名称和优先级。 */
+	/** 聚焦五个固定事件入口，便于同时检查入口名称和优先级。 */
 	void FocusEntries();
 	/** 显示独立事件分析配置标签，供编辑器视觉检查使用。 */
 	void FocusAnalysisTab();
@@ -48,6 +49,12 @@ private:
 	TSharedRef<SDockTab> SpawnPerceptionTab(const FSpawnTabArgs& Args);
 	/** 创建单独的事件分析配置面板。 */
 	TSharedRef<SDockTab> SpawnAnalysisTab(const FSpawnTabArgs& Args);
+	/** 创建角色三档速度倍率配置面板。 */
+	TSharedRef<SDockTab> SpawnMovementTab(const FSpawnTabArgs& Args);
+	/** 显示运动倍率校验结果与计算顺序。 */
+	FText GetMovementValidationText() const;
+	/** 独立运动能力详情视图。 */
+	TSharedPtr<IDetailsView> MovementDetails;
 	/** 返回感知能力独立校验结果，不被未配置的行为节点遮蔽。 */
 	FText GetPerceptionValidationText() const;
 	/** 返回事件分析参数的独立校验结果。 */
@@ -72,8 +79,10 @@ private:
 	TSharedPtr<IDetailsView> PerceptionDetails;
 	/** 角色类型共用事件分析配置的详情视图。 */
 	TSharedPtr<IDetailsView> AnalysisDetails;
+	/** 当前详情面板绑定的图节点。 */
+	TWeakObjectPtr<ULxAIBehaviorTreeEdGraphNode> SelectedGraphNode;
 	/** 删除等通用命令。 */
 	TSharedPtr<FUICommandList> Commands;
-	/** 本次打开时是否把旧开始节点替换为四事件入口。 */
+	/** 本次打开时是否把旧开始节点替换为五事件入口。 */
 	bool bMigratedLegacyGraph = false;
 };

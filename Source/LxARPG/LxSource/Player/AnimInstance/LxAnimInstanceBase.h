@@ -44,6 +44,26 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色动画|动画配置", DisplayName="默认动画资产")
 	TObjectPtr<UAnimationAsset> DefaultAnimationAsset;
 
+	/** 行为树与动画图共用的动作标识，每帧在游戏线程从行为控制组件同步。 */
+	UPROPERTY(BlueprintReadOnly, Transient, Category="角色动画|运动", meta=(DisplayName="当前运动类型"))
+	ELxCharacterMotionType CurrentMotionType = ELxCharacterMotionType::Idle;
+
+	/** 基础通道的实时运动类型，攻击开始或结束不会覆盖此值。 */
+	UPROPERTY(BlueprintReadOnly, Transient, Category="角色动画|基础动作", meta=(DisplayName="基础动作运动类型"))
+	ELxCharacterMotionType BaseMotionType = ELxCharacterMotionType::Idle;
+
+	/** 攻击通道的实时运动类型，无表示当前没有攻击或防御。 */
+	UPROPERTY(BlueprintReadOnly, Transient, Category="角色动画|攻击动作", meta=(DisplayName="攻击动作运动类型"))
+	ELxCharacterMotionType AttackMotionType = ELxCharacterMotionType::None;
+
+	/** 当前正在释放的技能ID，供动作节点精确匹配。 */
+	UPROPERTY(BlueprintReadOnly, Transient, Category="角色动画|攻击动作", meta=(DisplayName="当前攻击技能ID", Categories="物品.技能"))
+	FGameplayTag CurrentAttackSkillId;
+
+	/** 检查节点是否匹配；攻击技能ID留空时只检查类型，填写时精确匹配。 */
+	UFUNCTION(BlueprintPure, Category="角色动画|动作匹配", meta=(DisplayName="动作节点是否匹配", BlueprintThreadSafe))
+	bool MatchesMotion(bool bAttackChannel, ELxCharacterMotionType MotionType, FGameplayTag SkillId) const;
+
 	/** 当前基础动画播放信号，由外部动画处理组件推送。 */
 	UPROPERTY(BlueprintReadOnly, Transient, Category="角色动画|基础动画", DisplayName="当前基础动画信号")
 	FLxCharacterAnimationSignal CurrentBaseAnimationSignal;

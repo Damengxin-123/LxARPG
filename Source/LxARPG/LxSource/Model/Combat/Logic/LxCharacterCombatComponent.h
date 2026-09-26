@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
 #include "LxARPG/LxSource/Core/Database/LxComponentBase.h"
 #include "LxARPG/LxSource/Model/CloseCombat/Logic/LxCharacterCloseCombatComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
@@ -40,7 +41,7 @@ public:
 	void NotifyCombatModuleDataChanged();
 
 	/** 请求广播技能动作动画。 */
-	void RequestPlaySkillActionAnimation(float InSkillReleaseDuration);
+	void RequestPlaySkillActionAnimation(float InSkillReleaseDuration, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType);
 
 	/** 请求广播技能动作动画结束。 */
 	void RequestStopSkillActionAnimation();
@@ -70,7 +71,7 @@ private:
 
 	/** 广播技能动作动画。 */
 	UFUNCTION(NetMulticast, Reliable, Category="角色|战斗|网络", DisplayName="广播技能动作动画")
-	void MulticastPlaySkillActionAnimation(float InSkillReleaseDuration);
+	void MulticastPlaySkillActionAnimation(float InSkillReleaseDuration, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType);
 
 	/** 广播技能动作动画结束。 */
 	UFUNCTION(NetMulticast, Reliable, Category="角色|战斗|网络", DisplayName="广播技能动作动画结束")

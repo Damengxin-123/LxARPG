@@ -1,6 +1,7 @@
 #include "LxCharacterCloseCombatComponent.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationProcessComponent.h"
 #include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/Combat/Logic/LxCharacterCombatComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitGroup.h"
@@ -50,6 +51,9 @@ bool ULxCharacterCloseCombatModule::StartAttack(const FLxMeleeAttackRequest& InA
 	CurrentAttackHitCount = 0;
 	CurrentHitTargets.Reset();
 	CloseCombatState = ELxCloseCombatState::Attacking;
+	const ULxCharacterAnimationProcessComponent* AnimationProcess = OwnerCharacter ? OwnerCharacter->GetCharacterAnimationProcessComponent() : nullptr;
+	bOwnsActionAnimation = !AnimationProcess || AnimationProcess->GetCurrentActionAnimationSignal().AnimationType == ELxCharacterMotionType::None;
+	if (bOwnsActionAnimation) OwnerComponent->RequestPlaySkillActionAnimation(1.0f, CurrentAttackRequest.SkillIDTag, ELxCharacterMotionType::Attack);
 	if (OwnerCharacter)
 	{
 		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
@@ -97,6 +101,9 @@ bool ULxCharacterCloseCombatModule::StartBlock(const FLxBlockRequest& InBlockReq
 
 	CurrentBlockRequest = InBlockRequest;
 	CloseCombatState = ELxCloseCombatState::Blocking;
+	const ULxCharacterAnimationProcessComponent* AnimationProcess = OwnerCharacter ? OwnerCharacter->GetCharacterAnimationProcessComponent() : nullptr;
+	bOwnsActionAnimation = !AnimationProcess || AnimationProcess->GetCurrentActionAnimationSignal().AnimationType == ELxCharacterMotionType::None;
+	if (bOwnsActionAnimation) OwnerComponent->RequestPlaySkillActionAnimation(1.0f, FGameplayTag(), ELxCharacterMotionType::Defend);
 	if (OwnerCharacter)
 	{
 		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
@@ -232,6 +239,8 @@ void ULxCharacterCloseCombatModule::InterruptCurrentAttackByBlock()
 
 void ULxCharacterCloseCombatModule::FinishAttack()
 {
+	if (bOwnsActionAnimation && OwnerComponent) OwnerComponent->RequestStopSkillActionAnimation();
+	bOwnsActionAnimation = false;
 	if (OwnerCharacter)
 	{
 		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
@@ -261,6 +270,8 @@ void ULxCharacterCloseCombatModule::FinishAttack()
 
 void ULxCharacterCloseCombatModule::FinishBlock()
 {
+	if (bOwnsActionAnimation && OwnerComponent) OwnerComponent->RequestStopSkillActionAnimation();
+	bOwnsActionAnimation = false;
 	if (OwnerCharacter)
 	{
 		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =

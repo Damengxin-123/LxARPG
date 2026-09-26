@@ -5,6 +5,7 @@
 #include "GameplayTagContainer.h"
 #include "LxAIPerceptionConfig.h"
 #include "LxAIAnalysisConfig.h"
+#include "LxAIMovementConfig.h"
 #include "LxAIBehaviorTreeAsset.generated.h"
 
 class UEdGraph;
@@ -44,7 +45,8 @@ enum class ELxAIBehaviorAction : uint8
 	Defend UMETA(DisplayName="防卫"),
 	RandomFlee UMETA(DisplayName="随机逃跑"),
 	PointFlee UMETA(DisplayName="定点逃跑"),
-	RouteFlee UMETA(DisplayName="固定路线逃跑")
+	RouteFlee UMETA(DisplayName="固定路线逃跑"),
+	EnterDeath UMETA(DisplayName="进入死亡")
 };
 
 /** 开放路线抵达末点后的巡逻方式。 */
@@ -99,9 +101,27 @@ public:
 	UPROPERTY(VisibleAnywhere, Category="节点", meta=(DisplayName="所属状态", EditCondition="Kind == ELxAIBehaviorNodeKind::State || Kind == ELxAIBehaviorNodeKind::Phase", EditConditionHides))
 	ELxAIBehaviorState State = ELxAIBehaviorState::Idle;
 
+	/** 从进入战斗状态的位置计算的最大水平追击半径，单位为米；零表示不限制。 */
+	UPROPERTY(EditAnywhere, Category="状态配置", meta=(DisplayName="追击距离", ClampMin="0.0", Units="m", EditCondition="Kind == ELxAIBehaviorNodeKind::State && State == ELxAIBehaviorState::Combat", EditConditionHides))
+	float ChaseDistanceMeters = 100.0f;
+
 	/** 具体行为由新增菜单确定。 */
 	UPROPERTY(VisibleAnywhere, Category="节点", meta=(DisplayName="行为类型", EditCondition="Kind == ELxAIBehaviorNodeKind::Action", EditConditionHides))
 	ELxAIBehaviorAction Action = ELxAIBehaviorAction::Wait;
+
+	/** 行为与动画蓝图共用的动作标识；无表示按具体行为推导默认值。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="行为配置", meta=(DisplayName="运动类型", EditCondition="Kind == ELxAIBehaviorNodeKind::Action", EditConditionHides))
+	ELxCharacterMotionType MotionType = ELxCharacterMotionType::None;
+
+	/** 获取已配置类型，未配置的旧资产按行为类型自动回退。 */
+	UFUNCTION(BlueprintPure, Category="AI|行为树", meta=(DisplayName="获取行为运动类型"))
+	ELxCharacterMotionType GetMotionType() const;
+	/** 加载旧行为节点时填充运动类型，不覆盖用户已保存的选择。 */
+	virtual void PostLoad() override;
+
+	/** 关闭后，正在运行的行为保持到完成或失败；受击及其他分析事件不能抢占，角色死亡除外。 */
+	UPROPERTY(EditAnywhere, Category="行为配置", meta=(DisplayName="可以打断", EditCondition="Kind == ELxAIBehaviorNodeKind::Action", EditConditionHides))
+	bool bCanInterrupt = true;
 
 	/** 可选说明，便于区分同类阶段或不同技能。 */
 	UPROPERTY(EditAnywhere, Category="节点", meta=(DisplayName="节点名称"))
@@ -122,6 +142,14 @@ public:
 	/** 路线巡逻或固定路线逃跑使用的场景路线标签。 */
 	UPROPERTY(EditAnywhere, Category="行为配置", meta=(DisplayName="路线ID", Categories="AI.路线", EditCondition="Kind == ELxAIBehaviorNodeKind::Action && (Action == ELxAIBehaviorAction::RoutePatrol || Action == ELxAIBehaviorAction::RouteFlee)", EditConditionHides))
 	FGameplayTag RouteId;
+
+	/** 固定路线逃跑抵达终点后结束本次逃跑；关闭后从路线起点继续循环。 */
+	UPROPERTY(EditAnywhere, Category="行为配置", meta=(DisplayName="仅使用一次", EditCondition="Kind == ELxAIBehaviorNodeKind::Action && Action == ELxAIBehaviorAction::RouteFlee", EditConditionHides))
+	bool bRouteFleeUseOnce = true;
+
+	/** 固定路线逃跑时，每个路径点周围随机导航目标的最大偏离距离，单位为米；零表示使用原路径点。 */
+	UPROPERTY(EditAnywhere, Category="行为配置", meta=(DisplayName="导航可偏离范围", ClampMin="0.0", Units="m", EditCondition="Kind == ELxAIBehaviorNodeKind::Action && Action == ELxAIBehaviorAction::RouteFlee", EditConditionHides))
+	float RouteFleeDeviationMeters = 0.0f;
 
 	/** 决定路线末端是折返还是重新前往首点。 */
 	UPROPERTY(EditAnywhere, Category="行为配置", meta=(DisplayName="巡逻方式", EditCondition="Kind == ELxAIBehaviorNodeKind::Action && Action == ELxAIBehaviorAction::RoutePatrol", EditConditionHides))
@@ -150,6 +178,10 @@ public:
 	/** 随机逃跑每次向远离敌人的方向选取导航点的目标距离，单位为米。 */
 	UPROPERTY(EditAnywhere, Category="行为配置", meta=(DisplayName="单次逃跑距离", ClampMin="0.01", Units="m", EditCondition="Kind == ELxAIBehaviorNodeKind::Action && Action == ELxAIBehaviorAction::RandomFlee", EditConditionHides))
 	float FleeStepMeters = 10.0f;
+
+	/** 随机逃跑的安全距离，单位为米；最近的已知敌人达到此距离后退出对应逃跑阶段。 */
+	UPROPERTY(EditAnywhere, Category="行为配置", meta=(DisplayName="安全距离", ClampMin="0.01", Units="m", EditCondition="Kind == ELxAIBehaviorNodeKind::Action && Action == ELxAIBehaviorAction::RandomFlee", EditConditionHides))
+	float FleeSafeDistanceMeters = 20.0f;
 
 	/** 序列化稳定标识，不参与用户配置。 */
 	UPROPERTY()
@@ -181,11 +213,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="分析能力", meta=(DisplayName="分析能力", ShowOnlyInnerProperties))
 	FLxAIAnalysisConfig Analysis;
 
+	/** 角色三档移动速度相对于属性加成后基础速度的倍率。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="运动能力", meta=(DisplayName="运动能力", ShowOnlyInnerProperties))
+	FLxAIMovementConfig Movement;
+
 	/** 由可视化图维护的全部节点配置。 */
 	UPROPERTY(Instanced)
 	TArray<TObjectPtr<ULxAIBehaviorTreeNodeData>> Nodes;
 
-	/** 四个固定分析入口的标识；入口的Children连接可共享的状态。 */
+	/** 五个固定分析入口的标识；入口的Children连接可共享的状态。 */
 	UPROPERTY()
 	TArray<FGuid> Roots;
 
@@ -197,7 +233,7 @@ public:
 
 	/** 按稳定标识查找节点。 */
 	ULxAIBehaviorTreeNodeData* FindNode(const FGuid& Id) const;
-	/** 检查四入口、层级、共享边、生命值收窄和适用行为参数。 */
+	/** 检查五入口、层级、共享边、生命值收窄和适用行为参数。 */
 	bool ValidateTree(FText& OutError) const;
 	/** 检查资产级感知参数以及完整行为图配置。 */
 	bool ValidateConfiguration(FText& OutError) const;
@@ -215,8 +251,8 @@ public:
 	static TArray<ELxAIBehaviorEntry> GetDefaultEntriesForState(ELxAIBehaviorState State);
 	/** 获取按优先级降序排列的入口；不修改共享资产。 */
 	TArray<const ULxAIBehaviorTreeNodeData*> GetOrderedEntries() const;
-	/** 在指定入口内按排列序号选择满足两层生命条件的状态与阶段。 */
-	bool FindEligibleBranch(const ULxAIBehaviorTreeNodeData& EntryNode, float HealthRatio, FGuid& OutState, FGuid& OutPhase) const;
+	/** 按排列序号选择满足生命条件及逃跑安全距离的分支；敌人距离为负数时不筛选安全距离。 */
+	bool FindEligibleBranch(const ULxAIBehaviorTreeNodeData& EntryNode, float HealthRatio, FGuid& OutState, FGuid& OutPhase, float EnemyDistanceMeters = -1.0f, bool bAllowCombatStates = true) const;
 	/** 状态与阶段生命值同时满足时才通过；仅用于查询配置，不驱动AI。 */
 	UFUNCTION(BlueprintPure, Category="AI|行为树", meta=(DisplayName="阶段生命值条件是否满足"))
 	bool IsPhaseHealthEligible(FGuid PhaseId, float HealthRatio) const;

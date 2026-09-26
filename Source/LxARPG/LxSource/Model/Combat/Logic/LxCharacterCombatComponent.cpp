@@ -55,9 +55,9 @@ void ULxCharacterCombatComponent::NotifyCombatModuleDataChanged()
 	OnDataChange.Broadcast();
 }
 
-void ULxCharacterCombatComponent::RequestPlaySkillActionAnimation(const float InSkillReleaseDuration)
+void ULxCharacterCombatComponent::RequestPlaySkillActionAnimation(const float InSkillReleaseDuration, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType)
 {
-	MulticastPlaySkillActionAnimation(InSkillReleaseDuration);
+	MulticastPlaySkillActionAnimation(InSkillReleaseDuration, InSkillId, InMotionType);
 }
 
 void ULxCharacterCombatComponent::RequestStopSkillActionAnimation()
@@ -76,9 +76,9 @@ void ULxCharacterCombatComponent::ServerHandleSkillItemReleaseInput_Implementati
 	}
 }
 
-void ULxCharacterCombatComponent::MulticastPlaySkillActionAnimation_Implementation(const float InSkillReleaseDuration)
+void ULxCharacterCombatComponent::MulticastPlaySkillActionAnimation_Implementation(const float InSkillReleaseDuration, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType)
 {
-	if (SkillCastModule) SkillCastModule->PlaySkillActionAnimation(InSkillReleaseDuration);
+	if (SkillCastModule) SkillCastModule->PlaySkillActionAnimation(InSkillReleaseDuration, InSkillId, InMotionType);
 }
 
 void ULxCharacterCombatComponent::MulticastStopSkillActionAnimation_Implementation()

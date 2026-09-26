@@ -27,7 +27,7 @@ ULxAIBehaviorTreeAsset* MakeAnalysisTestConfig()
 {
 	ULxAIBehaviorTreeAsset* Asset = NewObject<ULxAIBehaviorTreeAsset>();
 	TArray<ULxAIBehaviorTreeNodeData*> Entries;
-	for (int32 Index = 0; Index < 4; ++Index)
+	for (int32 Index = 0; Index < 5; ++Index)
 	{
 		ULxAIBehaviorTreeNodeData* Entry = AddAnalysisTestNode(*Asset, ELxAIBehaviorNodeKind::Entry, ELxAIBehaviorState::Idle);
 		Entry->Entry = static_cast<ELxAIBehaviorEntry>(Index);

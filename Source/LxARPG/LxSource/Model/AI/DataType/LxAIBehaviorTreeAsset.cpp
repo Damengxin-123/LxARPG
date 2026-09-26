@@ -1,5 +1,32 @@
 #include "LxAIBehaviorTreeAsset.h"
 
+ELxCharacterMotionType ULxAIBehaviorTreeNodeData::GetMotionType() const
+{
+	if (MotionType != ELxCharacterMotionType::None) return MotionType;
+	switch (Action)
+	{
+	case ELxAIBehaviorAction::PointPatrol:
+	case ELxAIBehaviorAction::RoutePatrol: return ELxCharacterMotionType::Move;
+	case ELxAIBehaviorAction::RandomFlee:
+	case ELxAIBehaviorAction::PointFlee:
+	case ELxAIBehaviorAction::RouteFlee: return ELxCharacterMotionType::Run;
+	case ELxAIBehaviorAction::Alert: return ELxCharacterMotionType::Alert;
+	case ELxAIBehaviorAction::MeleeSkill: return ELxCharacterMotionType::Attack;
+	case ELxAIBehaviorAction::RangedSkill: return ELxCharacterMotionType::RangedAttack;
+	case ELxAIBehaviorAction::Defend: return ELxCharacterMotionType::Defend;
+	case ELxAIBehaviorAction::BuffSkill: return ELxCharacterMotionType::Skill;
+	case ELxAIBehaviorAction::EnterDeath: return ELxCharacterMotionType::Dead;
+	default: return ELxCharacterMotionType::Idle;
+	}
+}
+
+void ULxAIBehaviorTreeNodeData::PostLoad()
+{
+	Super::PostLoad();
+	if (Kind == ELxAIBehaviorNodeKind::Action && MotionType == ELxCharacterMotionType::None)
+		MotionType = GetMotionType();
+}
+
 bool FLxAIHealthRange::IsValid() const
 {
 	return FMath::IsFinite(Min) && FMath::IsFinite(Max) && Min >= 0.0f && Max <= 1.0f && Min <= Max;
@@ -27,6 +54,7 @@ ELxAIBehaviorState ULxAIBehaviorTreeAsset::GetActionState(ELxAIBehaviorAction Ac
 	case ELxAIBehaviorAction::Wait: return ELxAIBehaviorState::Idle;
 	case ELxAIBehaviorAction::PointPatrol:
 	case ELxAIBehaviorAction::RoutePatrol: return ELxAIBehaviorState::Patrol;
+	case ELxAIBehaviorAction::EnterDeath: return ELxAIBehaviorState::Idle;
 	case ELxAIBehaviorAction::Alert: return ELxAIBehaviorState::Alert;
 	case ELxAIBehaviorAction::RandomFlee:
 	case ELxAIBehaviorAction::PointFlee:
@@ -49,16 +77,20 @@ bool ULxAIBehaviorTreeNodeData::ValidateConfiguration(FText& OutError) const
 	OutError = FText();
 	FString Error;
 	if (Kind > ELxAIBehaviorNodeKind::Entry || (Kind != ELxAIBehaviorNodeKind::Entry && GetState() > ELxAIBehaviorState::Flee)
-		|| (Kind == ELxAIBehaviorNodeKind::Action && Action > ELxAIBehaviorAction::RouteFlee))
+		|| (Kind == ELxAIBehaviorNodeKind::Action && Action > ELxAIBehaviorAction::EnterDeath))
 		Error = TEXT("节点类型无效");
+	else if (Kind == ELxAIBehaviorNodeKind::Action && !StaticEnum<ELxCharacterMotionType>()->IsValidEnumValue(static_cast<int64>(MotionType)))
+		Error = TEXT("运动类型无效");
 	else if (Order < 0) Error = TEXT("排列序号不能小于零");
 	else if (Kind == ELxAIBehaviorNodeKind::Entry)
 	{
-		if (Entry > ELxAIBehaviorEntry::Attacked || EntryPriority < 0) Error = TEXT("入口类型或优先级无效");
+		if (Entry > ELxAIBehaviorEntry::CharacterDeath || EntryPriority < 0) Error = TEXT("入口类型或优先级无效");
 	}
 	else if (Kind != ELxAIBehaviorNodeKind::Action)
 	{
 		if (!HealthRange.IsValid()) Error = TEXT("生命值区间必须满足 0 ≤ 下限 ≤ 上限 ≤ 1");
+		else if (Kind == ELxAIBehaviorNodeKind::State && State == ELxAIBehaviorState::Combat &&
+			(!FMath::IsFinite(ChaseDistanceMeters) || ChaseDistanceMeters < 0.0f)) Error = TEXT("追击距离必须是非负有限值");
 	}
 	else
 	{
@@ -68,10 +100,13 @@ bool ULxAIBehaviorTreeNodeData::ValidateConfiguration(FText& OutError) const
 		case ELxAIBehaviorAction::PointFlee:
 			if (!PointId.IsValid()) Error = TEXT("请选择场景点位ID；范围由点位提供");
 			break;
-		case ELxAIBehaviorAction::RoutePatrol:
+	case ELxAIBehaviorAction::RoutePatrol:
 		case ELxAIBehaviorAction::RouteFlee:
 			if (!RouteId.IsValid()) Error = TEXT("请选择场景路线ID");
 			else if (Action == ELxAIBehaviorAction::RoutePatrol && RouteMode != ELxAIRoutePatrolMode::PingPong && RouteMode != ELxAIRoutePatrolMode::Loop) Error = TEXT("巡逻方式无效");
+			break;
+		case ELxAIBehaviorAction::EnterDeath:
+			if (GetState() != ELxAIBehaviorState::Idle) Error = TEXT("进入死亡行为只能用于死亡专属阶段");
 			break;
 		case ELxAIBehaviorAction::MeleeSkill:
 		case ELxAIBehaviorAction::RangedSkill:
@@ -89,6 +124,10 @@ bool ULxAIBehaviorTreeNodeData::ValidateConfiguration(FText& OutError) const
 			Error = TEXT("近战释放距离必须是正有限值");
 		if (Error.IsEmpty() && Action == ELxAIBehaviorAction::RandomFlee && (!FMath::IsFinite(FleeStepMeters) || FleeStepMeters <= 0.0f))
 			Error = TEXT("单次逃跑距离必须是正有限值");
+		if (Error.IsEmpty() && Action == ELxAIBehaviorAction::RandomFlee && (!FMath::IsFinite(FleeSafeDistanceMeters) || FleeSafeDistanceMeters <= 0.0f))
+			Error = TEXT("安全距离必须是正有限值");
+		if (Error.IsEmpty() && Action == ELxAIBehaviorAction::RouteFlee && (!FMath::IsFinite(RouteFleeDeviationMeters) || RouteFleeDeviationMeters < 0.0f))
+			Error = TEXT("导航可偏离范围必须是非负有限值");
 	}
 	if (Error.IsEmpty()) return true;
 	OutError = FText::Format(NSLOCTEXT("AI行为树", "节点错误", "{0}：{1}"), GetDisplayLabel(), FText::FromString(Error));
@@ -105,6 +144,10 @@ ULxAIBehaviorTreeNodeData* ULxAIBehaviorTreeAsset::FindNode(const FGuid& Id) con
 bool ULxAIBehaviorTreeAsset::CanAttach(const ULxAIBehaviorTreeNodeData& Parent, const ULxAIBehaviorTreeNodeData& Child)
 {
 	if (Parent.Kind == ELxAIBehaviorNodeKind::Entry) return Child.Kind == ELxAIBehaviorNodeKind::State;
+	if (Child.Kind == ELxAIBehaviorNodeKind::Action && Child.Action == ELxAIBehaviorAction::EnterDeath)
+		return Parent.Kind == ELxAIBehaviorNodeKind::Phase && Parent.State == ELxAIBehaviorState::Idle;
+	if (Parent.Kind == ELxAIBehaviorNodeKind::Phase && Parent.State == ELxAIBehaviorState::Idle)
+		return Child.Kind == ELxAIBehaviorNodeKind::Action && Child.Action == ELxAIBehaviorAction::EnterDeath;
 	return Parent.GetState() == Child.GetState()
 		&& ((Parent.Kind == ELxAIBehaviorNodeKind::State && Child.Kind == ELxAIBehaviorNodeKind::Phase)
 			|| (Parent.Kind == ELxAIBehaviorNodeKind::Phase && Child.Kind == ELxAIBehaviorNodeKind::Action));
@@ -112,7 +155,7 @@ bool ULxAIBehaviorTreeAsset::CanAttach(const ULxAIBehaviorTreeNodeData& Parent, 
 
 bool ULxAIBehaviorTreeAsset::ValidateConfiguration(FText& OutError) const
 {
-	return Perception.ValidateConfiguration(OutError) && Analysis.ValidateConfiguration(OutError) && ValidateTree(OutError);
+	return Perception.ValidateConfiguration(OutError) && Analysis.ValidateConfiguration(OutError) && Movement.ValidateConfiguration(OutError) && ValidateTree(OutError);
 }
 
 bool ULxAIBehaviorTreeAsset::ValidateTree(FText& OutError) const
@@ -123,39 +166,55 @@ bool ULxAIBehaviorTreeAsset::ValidateTree(FText& OutError) const
 		OutError = FText::FromString(Message);
 		return false;
 	};
-	if (Roots.Num() != 4) return Fail(TEXT("必须保留平静、发现敌人、敌人靠近、受到攻击四个固定入口"));
+	if (Roots.Num() != 4 && Roots.Num() != 5) return Fail(TEXT("必须保留平静、发现敌人、敌人靠近、受到攻击四个旧入口，或增加角色死亡入口"));
 	TSet<FGuid> Ids;
 	for (const ULxAIBehaviorTreeNodeData* Node : Nodes)
 	{
 		if (!Node || !Node->NodeId.IsValid() || Ids.Contains(Node->NodeId)) return Fail(TEXT("存在空节点、无效或重复的节点标识"));
 		Ids.Add(Node->NodeId);
 	}
+	const bool bHasDeathEntry = Roots.Num() == 5;
 	TSet<FGuid> Attached;
 	TSet<ELxAIBehaviorEntry> EntryTypes;
 	for (const FGuid& Id : Roots)
 	{
 		const ULxAIBehaviorTreeNodeData* Root = FindNode(Id);
-		if (!Root || Root->Kind != ELxAIBehaviorNodeKind::Entry || Root->Entry > ELxAIBehaviorEntry::Attacked
+		if (!Root || Root->Kind != ELxAIBehaviorNodeKind::Entry || Root->Entry > ELxAIBehaviorEntry::CharacterDeath
 			|| Attached.Contains(Id) || EntryTypes.Contains(Root->Entry)) return Fail(TEXT("入口标识或入口类型无效、重复"));
 		Attached.Add(Id);
 		EntryTypes.Add(Root->Entry);
 	}
+	if (bHasDeathEntry && (EntryTypes.Num() != 5 || !EntryTypes.Contains(ELxAIBehaviorEntry::CharacterDeath)))
+		return Fail(TEXT("五入口配置必须包含全部四个旧入口和角色死亡入口"));
 	for (const ULxAIBehaviorTreeNodeData* Parent : Nodes)
 	{
-		if ((Parent->Kind == ELxAIBehaviorNodeKind::State || Parent->Kind == ELxAIBehaviorNodeKind::Phase) && Parent->Children.IsEmpty())
+		if ((Parent->Kind == ELxAIBehaviorNodeKind::State || Parent->Kind == ELxAIBehaviorNodeKind::Phase) && Parent->Children.IsEmpty()
+			&& !(bHasDeathEntry && Parent->Kind == ELxAIBehaviorNodeKind::State && Parent->Label.ToString() == TEXT("死亡")))
 			return Fail(Parent->GetDisplayLabel().ToString() + TEXT("：请连接至少一个子节点"));
 		if (Parent->Kind == ELxAIBehaviorNodeKind::Action && !Parent->Children.IsEmpty()) return Fail(TEXT("行为节点不能包含子节点"));
 		TSet<FGuid> UniqueChildren;
 		for (const FGuid& Id : Parent->Children)
 		{
 			const ULxAIBehaviorTreeNodeData* Child = FindNode(Id);
-			if (!Child || !CanAttach(*Parent, *Child)) return Fail(TEXT("只能连接 入口 → 状态 → 同类阶段 → 同类行为"));
+			if (!Child || !CanAttach(*Parent, *Child)) return Fail(TEXT("只能连接 入口 → 状态 → 同类阶段 → 同类行为；死亡阶段只能连接进入死亡行为"));
 			if (UniqueChildren.Contains(Id)) return Fail(TEXT("同一父节点不能重复连接同一子节点"));
 			UniqueChildren.Add(Id);
 			if (Child->Kind == ELxAIBehaviorNodeKind::Phase && Attached.Contains(Id)) return Fail(TEXT("阶段只能属于一个状态；状态和行为允许共享"));
 			Attached.Add(Id);
+			if (Parent->Kind == ELxAIBehaviorNodeKind::Phase && Parent->State == ELxAIBehaviorState::Idle
+				&& Parent->Label.ToString() == TEXT("进入死亡") && Child->Action != ELxAIBehaviorAction::EnterDeath)
+				return Fail(TEXT("进入死亡阶段只能连接进入死亡行为"));
 			if (Parent->Kind == ELxAIBehaviorNodeKind::State && !Parent->HealthRange.ContainsRange(Child->HealthRange))
 				return Fail(Child->GetDisplayLabel().ToString() + TEXT("：阶段生命值区间必须包含于父状态区间内"));
+		}
+		if (bHasDeathEntry && Parent->Kind == ELxAIBehaviorNodeKind::Entry && Parent->Entry == ELxAIBehaviorEntry::CharacterDeath)
+		{
+			if (Parent->Children.IsEmpty()) return Fail(TEXT("角色死亡入口必须连接死亡专属分支"));
+			for (const FGuid& ChildId : Parent->Children)
+			{
+				const ULxAIBehaviorTreeNodeData* DeathState = FindNode(ChildId);
+				if (!DeathState || DeathState->Label.ToString() != TEXT("死亡")) return Fail(TEXT("角色死亡入口只能连接死亡专属状态"));
+			}
 		}
 	}
 	// 严格分层排除环；入口唯一、其他节点至少有父项，故每个节点都可从入口到达。
@@ -232,13 +291,14 @@ FText ULxAIBehaviorTreeAsset::GetEntryDescription(ELxAIBehaviorEntry Entry)
 	case ELxAIBehaviorEntry::EnemyFound: return FText::FromString(TEXT("存在已确认的敌人，包括仍在感知记忆中的敌人；持续条件。"));
 	case ELxAIBehaviorEntry::EnemyNear: return FText::FromString(TEXT("已知敌人进入靠近距离，超过退出距离才解除；使用最后已知位置，不透视丢失目标。"));
 	case ELxAIBehaviorEntry::Attacked: return FText::FromString(TEXT("有效受击触发一次响应；响应完成前的连续受击只刷新警觉时间，不重启或排队。"));
+	case ELxAIBehaviorEntry::CharacterDeath: return FText::FromString(TEXT("生命值降为零后触发；执行进入死亡行为后才启动角色死亡表现与销毁流程。"));
 	default: return FText();
 	}
 }
 
 int32 ULxAIBehaviorTreeAsset::GetDefaultEntryPriority(ELxAIBehaviorEntry Entry)
 {
-	return static_cast<int32>(Entry) * 100;
+	return Entry == ELxAIBehaviorEntry::CharacterDeath ? 1000 : static_cast<int32>(Entry) * 100;
 }
 
 TArray<ELxAIBehaviorEntry> ULxAIBehaviorTreeAsset::GetDefaultEntriesForState(ELxAIBehaviorState State)
@@ -266,7 +326,7 @@ TArray<const ULxAIBehaviorTreeNodeData*> ULxAIBehaviorTreeAsset::GetOrderedEntri
 	return Entries;
 }
 
-bool ULxAIBehaviorTreeAsset::FindEligibleBranch(const ULxAIBehaviorTreeNodeData& EntryNode, float HealthRatio, FGuid& OutState, FGuid& OutPhase) const
+bool ULxAIBehaviorTreeAsset::FindEligibleBranch(const ULxAIBehaviorTreeNodeData& EntryNode, float HealthRatio, FGuid& OutState, FGuid& OutPhase, const float EnemyDistanceMeters, const bool bAllowCombatStates) const
 {
 	OutState.Invalidate();
 	OutPhase.Invalidate();
@@ -285,11 +345,18 @@ bool ULxAIBehaviorTreeAsset::FindEligibleBranch(const ULxAIBehaviorTreeNodeData&
 	};
 	for (const ULxAIBehaviorTreeNodeData* State : OrderedChildren(EntryNode))
 	{
+		if (!bAllowCombatStates && State->State == ELxAIBehaviorState::Combat) continue;
 		if (!State->HealthRange.Contains(HealthRatio)) continue;
 		for (const ULxAIBehaviorTreeNodeData* Phase : OrderedChildren(*State))
 		{
 			if (!State->HealthRange.ContainsRange(Phase->HealthRange) || !Phase->HealthRange.Contains(HealthRatio)
 				|| OrderedChildren(*Phase).IsEmpty()) continue;
+			// 已达到安全距离的随机逃跑阶段不再入选，避免完成后因生命值条件立即重入。
+			float SafeDistanceMeters = 0.0f;
+			for (const ULxAIBehaviorTreeNodeData* Action : OrderedChildren(*Phase))
+				if (Action->Action == ELxAIBehaviorAction::RandomFlee)
+					SafeDistanceMeters = FMath::Max(SafeDistanceMeters, Action->FleeSafeDistanceMeters);
+			if (SafeDistanceMeters > 0.0f && EnemyDistanceMeters >= SafeDistanceMeters) continue;
 			OutState = State->NodeId;
 			OutPhase = Phase->NodeId;
 			return true;
@@ -320,9 +387,10 @@ FText ULxAIBehaviorTreeAsset::GetActionDescription(ELxAIBehaviorAction Action)
 	case ELxAIBehaviorAction::RangedSkill: return NSLOCTEXT("AI行为树", "远程说明", "调整与敌人的距离，在指定距离区间内释放技能。");
 	case ELxAIBehaviorAction::BuffSkill: return NSLOCTEXT("AI行为树", "增益说明", "在原地释放指定增益技能。");
 	case ELxAIBehaviorAction::Defend: return NSLOCTEXT("AI行为树", "防卫说明", "不释放技能，始终面朝敌人并保持指定距离。");
-	case ELxAIBehaviorAction::RandomFlee: return NSLOCTEXT("AI行为树", "随机逃跑说明", "反复向远离敌人的方向选取导航点并移动。");
+	case ELxAIBehaviorAction::RandomFlee: return NSLOCTEXT("AI行为树", "随机逃跑说明", "优先远离最近的已知敌人，选择无遮挡的随机导航点；受阻立即换点，达到安全距离后退出逃跑阶段。");
 	case ELxAIBehaviorAction::PointFlee: return NSLOCTEXT("AI行为树", "定点逃跑说明", "前往点位ID对应的目的地，进入点位共享范围即可视为到达。");
-	case ELxAIBehaviorAction::RouteFlee: return NSLOCTEXT("AI行为树", "固定路线逃跑说明", "按路线ID依次经过样条路径点，抵达末点后结束本次逃跑。");
+	case ELxAIBehaviorAction::RouteFlee: return NSLOCTEXT("AI行为树", "固定路线逃跑说明", "从最近的路线点开始，依次前往各点附近的随机导航目标；仅使用一次时抵达末点后结束，否则从起点继续循环。");
+	case ELxAIBehaviorAction::EnterDeath: return NSLOCTEXT("AI行为树", "进入死亡说明", "确认角色进入死亡状态，并启动角色原有死亡动画与销毁流程。");
 	default: return FText();
 	}
 }

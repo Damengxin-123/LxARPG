@@ -199,42 +199,27 @@ bool ULxCharacterTestComponent::ApplyTestDamageFromAttacker(AActor* InAttackerAc
 FString ULxCharacterTestComponent::GetCurrentAIBehaviorText() const
 {
 	const ALxAIController* AIController = BoundAIController.Get();
-	return ConvertAIActionToString(AIController ? AIController->GetCurrentAction() : ELxAIActionType::None);
+	return AIController && AIController->GetCurrentBehaviorActionNodeId().IsValid()
+		? ConvertAIActionToString(AIController->GetCurrentBehaviorAction()) : TEXT("无");
 }
 
-FString ULxCharacterTestComponent::ConvertAIActionToString(const ELxAIActionType InActionType)
+FString ULxCharacterTestComponent::ConvertAIActionToString(const ELxAIBehaviorAction InActionType)
 {
-	switch (InActionType)
-	{
-	case ELxAIActionType::Patrol:
-		return TEXT("巡逻");
-	case ELxAIActionType::Alert:
-		return TEXT("警戒");
-	case ELxAIActionType::Attack:
-		return TEXT("攻击");
-	case ELxAIActionType::Defend:
-		return TEXT("防守");
-	case ELxAIActionType::Heal:
-		return TEXT("治疗友方");
-	case ELxAIActionType::Retreat:
-		return TEXT("逃跑");
-	default:
-		return TEXT("无");
-	}
+	return ULxAIBehaviorTreeAsset::GetActionLabel(InActionType).ToString();
 }
 
 void ULxCharacterTestComponent::BindAIControllerActionEvent(ALxAIController* InAIController)
 {
 	if (BoundAIController)
 	{
-		BoundAIController->OnAIActionChanged.RemoveDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
+		BoundAIController->OnAIBehaviorActionChanged.RemoveDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
 	}
 	BoundAIController = InAIController;
 	if (BoundAIController)
 	{
-		BoundAIController->OnAIActionChanged.RemoveDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
-		BoundAIController->OnAIActionChanged.AddDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
-		OnTestAIBehaviorTextOutput.Broadcast(ConvertAIActionToString(BoundAIController->GetCurrentAction()));
+		BoundAIController->OnAIBehaviorActionChanged.RemoveDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
+		BoundAIController->OnAIBehaviorActionChanged.AddDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
+		OnTestAIBehaviorTextOutput.Broadcast(GetCurrentAIBehaviorText());
 	}
 }
 
@@ -266,7 +251,7 @@ void ULxCharacterTestComponent::HandleOwnerControllerChanged(APawn*, AController
 	BindAIControllerActionEvent(Cast<ALxAIController>(InNewController));
 }
 
-void ULxCharacterTestComponent::HandleAIActionChanged(const ELxAISituationLevel, const ELxAIActionType InActionType)
+void ULxCharacterTestComponent::HandleAIActionChanged(const ELxAIBehaviorAction)
 {
-	OnTestAIBehaviorTextOutput.Broadcast(ConvertAIActionToString(InActionType));
+	OnTestAIBehaviorTextOutput.Broadcast(GetCurrentAIBehaviorText());
 }

@@ -90,6 +90,9 @@ public:
 	virtual bool EvaluateBlockHit_Implementation(const FLxBlockHitResult& InBlockHit) const;
 
 private:
+	/** 仅结束本模块自己启动的动画，技能释放期间沿用技能速率和请求编号。 */
+	bool bOwnsActionAnimation = false;
+
 	/** 接收当前武器碰撞体产生的开始重叠事件。 */
 	UFUNCTION()
 	void HandleWeaponBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,

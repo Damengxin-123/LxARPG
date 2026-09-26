@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
 #include "UObject/Object.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillCastContext.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEnum.h"
@@ -48,6 +49,10 @@ class LXARPG_API ULxSkill : public UObject
 	GENERATED_BODY()
 
 public:
+	/** 玩家技能使用的动作类型；AI近战、远程、防御行为可覆盖该值。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="技能|动画", meta=(DisplayName="攻击动作类型", ValidEnumValues="Attack,RangedAttack,Defend,Skill"))
+	ELxCharacterMotionType AnimationMotionType = ELxCharacterMotionType::Attack;
+
 	/** 更新本次释放上下文，并确保技能初始化事件在技能对象生命周期内只执行一次。 */
 	void PrepareSkillForCast(const FLxSkillCastContext& InCastContext);
 

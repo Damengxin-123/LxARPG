@@ -41,7 +41,10 @@ void ULxCharacterBehaviorControlComponent::TickComponent(const float DeltaTime, 
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	PendingJumpStartRemaining = FMath::Max(0.0f, PendingJumpStartRemaining - DeltaTime);
+	UpdateAIRotationOwnership();
 	UpdateFacingControl(DeltaTime);
+	if (bOwnsAIRotation && CanRotateByMoveInput() && OwnerCharacter->GetVelocity().SizeSquared2D() > FMath::Square(5.0f))
+		UpdateMoveFacing(OwnerCharacter->GetVelocity().GetSafeNormal2D(), DeltaTime);
 
 	BehaviorSampleAccumulator += DeltaTime;
 	if (BehaviorSampleInterval <= 0.0f || BehaviorSampleAccumulator >= BehaviorSampleInterval)
@@ -56,6 +59,33 @@ void ULxCharacterBehaviorControlComponent::GetLifetimeReplicatedProps(
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ULxCharacterBehaviorControlComponent, ActiveBehaviorStateTags);
+	DOREPLIFETIME(ULxCharacterBehaviorControlComponent, BehaviorMotionType);
+	DOREPLIFETIME(ULxCharacterBehaviorControlComponent, MovementSpeedMultiplier);
+}
+
+void ULxCharacterBehaviorControlComponent::SetBehaviorMotion(ELxCharacterMotionType InMotionType, float InSpeedMultiplier)
+{
+	CacheOwnerCharacter();
+	if (!OwnerCharacter || !OwnerCharacter->HasAuthority()) return;
+	BehaviorMotionType = InMotionType;
+	const float NewMultiplier = FMath::IsFinite(InSpeedMultiplier) ? FMath::Max(0.0f, InSpeedMultiplier) : 1.0f;
+	if (MovementSpeedMultiplier != NewMultiplier)
+	{
+		MovementSpeedMultiplier = NewMultiplier;
+		OnRep_MovementSpeedMultiplier();
+	}
+}
+
+ELxCharacterMotionType ULxCharacterBehaviorControlComponent::GetCurrentMotionType() const
+{
+	return BehaviorMotionType != ELxCharacterMotionType::None ? BehaviorMotionType : LastBaseAnimationSignal.MotionType;
+}
+
+void ULxCharacterBehaviorControlComponent::OnRep_MovementSpeedMultiplier()
+{
+	CacheOwnerCharacter();
+	if (OwnerCharacter && OwnerCharacter->GetCharacterAttributeComponent())
+		OwnerCharacter->GetCharacterAttributeComponent()->RefreshCharacterMovementSpeed();
 }
 
 void ULxCharacterBehaviorControlComponent::HandleMoveInput(const FVector2D& InMoveValue)
@@ -145,7 +175,18 @@ bool ULxCharacterBehaviorControlComponent::RequestMoveToLocation(const FVector I
 	{
 		return false;
 	}
-	return AIController->MoveToLocation(InTargetLocation, InAcceptanceRadius, true, true, false, true, nullptr, true) !=
+	// 路径点以配置半径判断抵达；不叠加胶囊半径，并将普通目标投射到导航网格。
+	return AIController->MoveToLocation(InTargetLocation, InAcceptanceRadius, false, true, true, true, nullptr, true) !=
+		EPathFollowingRequestResult::Failed;
+}
+
+bool ULxCharacterBehaviorControlComponent::RequestMoveToLocationDirect(const FVector InTargetLocation,
+	const float InAcceptanceRadius)
+{
+	CacheOwnerCharacter();
+	AAIController* AIController = OwnerCharacter ? Cast<AAIController>(OwnerCharacter->GetController()) : nullptr;
+	if (!AIController) return false;
+	return AIController->MoveToLocation(InTargetLocation, InAcceptanceRadius, false, false, false, true, nullptr, true) !=
 		EPathFollowingRequestResult::Failed;
 }
 
@@ -384,6 +425,14 @@ void ULxCharacterBehaviorControlComponent::RefreshBaseBehaviorState()
 		MotionSignal.MotionSpeed = 0.0f;
 	}
 
+	if (!bIsFalling && !bWasFalling)
+	{
+		if (HorizontalSpeed > IdleSpeedThreshold && (BehaviorMotionType == ELxCharacterMotionType::Move
+			|| BehaviorMotionType == ELxCharacterMotionType::MediumMove || BehaviorMotionType == ELxCharacterMotionType::Run))
+			MotionSignal.MotionType = BehaviorMotionType;
+		else if (HorizontalSpeed <= IdleSpeedThreshold && BehaviorMotionType == ELxCharacterMotionType::Alert)
+			MotionSignal.MotionType = ELxCharacterMotionType::Alert;
+	}
 	bWasFalling = bIsFalling;
 	if (!ShouldSendBaseAnimationSignal(MotionSignal))
 	{
@@ -396,6 +445,7 @@ void ULxCharacterBehaviorControlComponent::RefreshBaseBehaviorState()
 		switch (MotionSignal.MotionType)
 		{
 		case ELxCharacterMotionType::Move:
+		case ELxCharacterMotionType::MediumMove:
 		case ELxCharacterMotionType::Run:
 			OwnerCharacter->SetCharacterState(ELxCharacterState::Moving);
 			break;
@@ -445,6 +495,35 @@ void ULxCharacterBehaviorControlComponent::CacheOwnerCharacter()
 	}
 }
 
+void ULxCharacterBehaviorControlComponent::UpdateAIRotationOwnership()
+{
+	CacheOwnerCharacter();
+	if (!OwnerCharacter) return;
+	UCharacterMovementComponent* Movement = OwnerCharacter->GetCharacterMovement();
+	if (!Movement) return;
+	const bool bAIControlled = OwnerCharacter->HasAuthority() && Cast<AAIController>(OwnerCharacter->GetController()) != nullptr;
+	if (bAIControlled)
+	{
+		if (!bOwnsAIRotation)
+		{
+			bSavedUseControllerRotationYaw = OwnerCharacter->bUseControllerRotationYaw;
+			bSavedOrientRotationToMovement = Movement->bOrientRotationToMovement;
+			bSavedUseControllerDesiredRotation = Movement->bUseControllerDesiredRotation;
+			bOwnsAIRotation = true;
+		}
+		OwnerCharacter->bUseControllerRotationYaw = false;
+		Movement->bOrientRotationToMovement = false;
+		Movement->bUseControllerDesiredRotation = false;
+	}
+	else if (bOwnsAIRotation)
+	{
+		OwnerCharacter->bUseControllerRotationYaw = bSavedUseControllerRotationYaw;
+		Movement->bOrientRotationToMovement = bSavedOrientRotationToMovement;
+		Movement->bUseControllerDesiredRotation = bSavedUseControllerDesiredRotation;
+		bOwnsAIRotation = false;
+	}
+}
+
 void ULxCharacterBehaviorControlComponent::UpdateFacingControl(const float DeltaTime)
 {
 	if (FacingControlRequestCount <= 0 && FacingControlHoldRemaining > 0.0f)
@@ -462,7 +541,7 @@ void ULxCharacterBehaviorControlComponent::UpdateFacingControl(const float Delta
 	}
 
 	CacheOwnerCharacter();
-	if (!OwnerCharacter)
+	if (!OwnerCharacter || (!OwnerCharacter->HasAuthority() && !OwnerCharacter->IsLocallyControlled()))
 	{
 		return;
 	}

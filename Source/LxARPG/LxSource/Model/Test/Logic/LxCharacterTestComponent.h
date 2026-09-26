@@ -7,7 +7,7 @@
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxARPG/LxSource/Model/Damage/DataType/LxDamageCalculationTypes.h"
-#include "LxARPG/LxSource/Model/AI/DataType/LxAITypes.h"
+#include "LxARPG/LxSource/Model/AI/DataType/LxAIBehaviorTreeAsset.h"
 #include "LxCharacterTestComponent.generated.h"
 
 class AActor;
@@ -92,7 +92,7 @@ public:
 
 private:
 	/** 将AI行为枚举转换为日志和角色头顶显示可直接使用的中文字符串。 */
-	static FString ConvertAIActionToString(ELxAIActionType InActionType);
+	static FString ConvertAIActionToString(ELxAIBehaviorAction InActionType);
 
 	/** 解除旧控制器并绑定新的AI行为变化事件。 */
 	void BindAIControllerActionEvent(ALxAIController* InAIController);
@@ -116,7 +116,7 @@ private:
 
 	/** 接收AI行为变化并向蓝图发布转换后的中文行为字符串。 */
 	UFUNCTION()
-	void HandleAIActionChanged(ELxAISituationLevel InSituation, ELxAIActionType InActionType);
+	void HandleAIActionChanged(ELxAIBehaviorAction InActionType);
 
 	/** 当前已绑定行为变化事件的AI控制器。 */
 	UPROPERTY(Transient)

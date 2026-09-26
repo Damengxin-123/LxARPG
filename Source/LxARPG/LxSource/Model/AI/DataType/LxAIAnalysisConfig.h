@@ -3,14 +3,15 @@
 #include "CoreMinimal.h"
 #include "LxAIAnalysisConfig.generated.h"
 
-/** 分析能力固定产生的行为入口；前三项是持续条件，受击是一次响应事件。 */
+/** 分析能力固定产生的行为入口；前三项是持续条件，其余为一次响应事件。 */
 UENUM(BlueprintType, meta=(DisplayName="AI分析入口"))
 enum class ELxAIBehaviorEntry : uint8
 {
 	Calm UMETA(DisplayName="平静状态"),
 	EnemyFound UMETA(DisplayName="发现敌人"),
 	EnemyNear UMETA(DisplayName="敌人靠近"),
-	Attacked UMETA(DisplayName="受到攻击")
+	Attacked UMETA(DisplayName="受到攻击"),
+	CharacterDeath UMETA(DisplayName="角色死亡")
 };
 
 /** 按角色类型共享的局势分析参数，不包含角色当前局势。 */

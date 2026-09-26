@@ -2,6 +2,7 @@
 
 
 #include "LxAnimInstanceBase.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
@@ -45,6 +46,14 @@ void ULxAnimInstanceBase::NativeUpdateAnimation(float DeltaSeconds)
 	}
 	if (m_pCharacter)
 	{
+		if (const ULxCharacterBehaviorControlComponent* Behavior = m_pCharacter->GetCharacterBehaviorControlComponent())
+		{
+			CurrentMotionType = Behavior->GetCurrentMotionType();
+			if (CurrentActionAnimationType == ELxCharacterMotionType::None)
+				AttackMotionType = CurrentMotionType == ELxCharacterMotionType::Defend
+					? ELxCharacterMotionType::Defend : ELxCharacterMotionType::None;
+		}
+		bShouldBlendActionAnimation = AttackMotionType != ELxCharacterMotionType::None;
 		// 同步角色复制状态，保证动画图表能够在生命值归零后读取 Dead（死亡状态）。
 		m_nCharacterState = m_pCharacter->GetCurrentState();
 	}
@@ -64,6 +73,7 @@ void ULxAnimInstanceBase::UpdateBaseAnimationPlayback(const FLxCharacterAnimatio
 {
 	CurrentBaseAnimationSignal = InAnimationSignal;
 	CurrentBaseAnimationType = InAnimationSignal.AnimationType;
+	BaseMotionType = InAnimationSignal.AnimationType;
 	CurrentBaseAnimationPlayRate = InAnimationSignal.PlayRate;
 	bCurrentBaseAnimationLoop = InAnimationSignal.bLoop;
 	CurrentBaseAnimationAsset = GetConfiguredAnimationAsset(CurrentBaseAnimationType);
@@ -80,12 +90,14 @@ void ULxAnimInstanceBase::UpdateActionAnimationPlayback(const FLxCharacterAnimat
 		: ActionAnimationPlayRequestId + 1;
 	CurrentActionAnimationSignal = InAnimationSignal;
 	CurrentActionAnimationType = InAnimationSignal.AnimationType;
+	AttackMotionType = InAnimationSignal.AnimationType;
+	CurrentAttackSkillId = InAnimationSignal.SkillId;
 	CurrentActionAnimationPlayRate = InAnimationSignal.PlayRate;
 	bCurrentActionAnimationLoop = InAnimationSignal.bLoop;
 	CurrentActionAnimationAsset = CurrentActionAnimationType == ELxCharacterMotionType::None
 		? nullptr
 		: GetConfiguredAnimationAsset(CurrentActionAnimationType);
-	bShouldBlendActionAnimation = CurrentActionAnimationAsset != nullptr;
+	bShouldBlendActionAnimation = AttackMotionType != ELxCharacterMotionType::None;
 }
 
 UAnimationAsset* ULxAnimInstanceBase::GetConfiguredAnimationAsset(ELxCharacterMotionType InAnimationType) const
@@ -105,4 +117,11 @@ UAnimationAsset* ULxAnimInstanceBase::GetConfiguredAnimationAsset(ELxCharacterMo
 	}
 
 	return nullptr;
+}
+
+bool ULxAnimInstanceBase::MatchesMotion(bool bAttackChannel, ELxCharacterMotionType MotionType, FGameplayTag SkillId) const
+{
+	return MotionType != ELxCharacterMotionType::None
+		&& MotionType == (bAttackChannel ? AttackMotionType : BaseMotionType)
+		&& (!bAttackChannel || !SkillId.IsValid() || SkillId == CurrentAttackSkillId);
 }

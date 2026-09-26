@@ -24,6 +24,9 @@ class LXARPG_API ULxCharacterAttributeComponent : public ULxCharacterComponentBa
 	GENERATED_BODY()
 
 public:
+	/** 按基础速度、属性加成、运动倍率的顺序刷新最大行走速度，并换算为厘米/秒。 */
+	void RefreshCharacterMovementSpeed() const;
+
 	/** 创建唯一角色属性组件及默认属性 UObject。 */
 	ULxCharacterAttributeComponent();
 
@@ -220,8 +223,7 @@ private:
 	/** 修正各分类属性的数值范围。 */
 	void NormalizeTypedAttributeValues();
 
-	/** 根据基础移动速度和移动速度加成刷新角色移动组件的最大行走速度，并将米/秒换算为厘米/秒。 */
-	void RefreshCharacterMovementSpeed() const;
+
 
 	/** 判断属性公共信息是否满足词条目标。 */
 	static bool AttributeMatchesEffect(const FLxCharacterAttributeCommonData& InAttributeData, FGameplayTag InAttributeIDTag,
