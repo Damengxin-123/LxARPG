@@ -30,7 +30,10 @@ void ULxQuestWidgetBase::BindQuestEvents()
 {
 	if (m_pCharacterDataTransferComponent)
 	{
-		m_pCharacterDataTransferComponent->OnQuestProgressChanged.AddUniqueDynamic(this, &ULxQuestWidgetBase::HandleQuestProgressChanged);
+		if (!m_pCharacterDataTransferComponent->OnQuestProgressChanged.IsBoundToObject(this))
+		{
+			m_pCharacterDataTransferComponent->OnQuestProgressChanged.AddUObject(this, &ULxQuestWidgetBase::HandleQuestProgressChanged);
+		}
 	}
 }
 
@@ -38,7 +41,7 @@ void ULxQuestWidgetBase::UnbindQuestEvents()
 {
 	if (m_pCharacterDataTransferComponent)
 	{
-		m_pCharacterDataTransferComponent->OnQuestProgressChanged.RemoveDynamic(this, &ULxQuestWidgetBase::HandleQuestProgressChanged);
+		m_pCharacterDataTransferComponent->OnQuestProgressChanged.RemoveAll(this);
 	}
 }
 

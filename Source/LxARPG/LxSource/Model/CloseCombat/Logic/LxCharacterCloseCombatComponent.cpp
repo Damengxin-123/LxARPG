@@ -53,7 +53,7 @@ bool ULxCharacterCloseCombatModule::StartAttack(const FLxMeleeAttackRequest& InA
 	CloseCombatState = ELxCloseCombatState::Attacking;
 	const ULxCharacterAnimationProcessComponent* AnimationProcess = OwnerCharacter ? OwnerCharacter->GetCharacterAnimationProcessComponent() : nullptr;
 	bOwnsActionAnimation = !AnimationProcess || AnimationProcess->GetCurrentActionAnimationSignal().AnimationType == ELxCharacterMotionType::None;
-	if (bOwnsActionAnimation) OwnerComponent->RequestPlaySkillActionAnimation(1.0f, CurrentAttackRequest.SkillIDTag, ELxCharacterMotionType::Attack);
+	if (bOwnsActionAnimation) OwnerComponent->RequestPlaySkillActionAnimation(FGuid(), CurrentAttackRequest.SkillIDTag, ELxCharacterMotionType::Attack);
 	if (OwnerCharacter)
 	{
 		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =
@@ -103,7 +103,7 @@ bool ULxCharacterCloseCombatModule::StartBlock(const FLxBlockRequest& InBlockReq
 	CloseCombatState = ELxCloseCombatState::Blocking;
 	const ULxCharacterAnimationProcessComponent* AnimationProcess = OwnerCharacter ? OwnerCharacter->GetCharacterAnimationProcessComponent() : nullptr;
 	bOwnsActionAnimation = !AnimationProcess || AnimationProcess->GetCurrentActionAnimationSignal().AnimationType == ELxCharacterMotionType::None;
-	if (bOwnsActionAnimation) OwnerComponent->RequestPlaySkillActionAnimation(1.0f, FGameplayTag(), ELxCharacterMotionType::Defend);
+	if (bOwnsActionAnimation) OwnerComponent->RequestPlaySkillActionAnimation(FGuid(), FGameplayTag(), ELxCharacterMotionType::Defend);
 	if (OwnerCharacter)
 	{
 		if (ULxCharacterBehaviorControlComponent* BehaviorControlComponent =

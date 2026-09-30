@@ -27,7 +27,7 @@ struct FLxRayVisualBaseTransform
 };
 
 /** 射线检测完成事件，无论是否命中目标都会返回本次检测结果。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxRayDetectionCompleted, ALxRaySkillUnitActor*, RaySkillUnit, const FLxSkillDetectionResult&, DetectionResult);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxRayDetectionCompleted, ALxRaySkillUnitActor*, const FLxSkillDetectionResult&);
 
 /** 抽象射线效果单元，统一执行直线检测和穿透规则，不直接用于创建对象。 */
 UCLASS(Abstract, Blueprintable, BlueprintType, DisplayName="射线效果单元基类")
@@ -48,7 +48,6 @@ public:
 	void InitializeRayParameters(const FLxSkillRaySpec& InRaySpec);
 
 	/** 每次射线检测完成时广播，未命中时也会广播。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|射线|事件", DisplayName="射线检测完成事件")
 	FOnLxRayDetectionCompleted OnRayDetectionCompleted;
 
 protected:

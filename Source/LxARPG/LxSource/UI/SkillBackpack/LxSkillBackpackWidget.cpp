@@ -71,8 +71,8 @@ void ULxSkillBackpackWidget::BindDataTransferComponent(ULxCharacterDataTransferC
 		return;
 	}
 
-	m_pCharacterDataTransferComponent->OnSkillBackpackChanged.RemoveDynamic(this, &ULxSkillBackpackWidget::HandleSkillSlotsChanged);
-	m_pCharacterDataTransferComponent->OnSkillBackpackChanged.AddDynamic(this, &ULxSkillBackpackWidget::HandleSkillSlotsChanged);
+	m_pCharacterDataTransferComponent->OnSkillBackpackChanged.RemoveAll(this);
+	m_pCharacterDataTransferComponent->OnSkillBackpackChanged.AddUObject(this, &ULxSkillBackpackWidget::HandleSkillSlotsChanged);
 }
 
 void ULxSkillBackpackWidget::UnbindDataTransferComponent()
@@ -82,7 +82,7 @@ void ULxSkillBackpackWidget::UnbindDataTransferComponent()
 		return;
 	}
 
-	m_pCharacterDataTransferComponent->OnSkillBackpackChanged.RemoveDynamic(this, &ULxSkillBackpackWidget::HandleSkillSlotsChanged);
+	m_pCharacterDataTransferComponent->OnSkillBackpackChanged.RemoveAll(this);
 	m_pCharacterDataTransferComponent = nullptr;
 }
 

@@ -99,11 +99,9 @@ public:
 	ULxCharacterSpecialAttributeObject* FindSpecialAttributeObject(TSubclassOf<ULxCharacterSpecialAttributeObject> InObjectClass) const;
 
 	/** 状态标签变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|特殊属性|状态", DisplayName="状态标签变化事件")
 	FOnLxSpecialAttributeStateTagsChanged OnStateTagsChanged;
 
 	/** 生命周期状态变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|特殊属性|生命周期", DisplayName="生命周期状态变化事件")
 	FOnLxSpecialAttributeLifecycleChanged OnLifecycleStateChanged;
 
 protected:

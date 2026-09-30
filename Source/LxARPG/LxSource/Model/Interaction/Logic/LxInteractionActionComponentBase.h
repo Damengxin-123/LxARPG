@@ -13,9 +13,9 @@ class ULxPlayerInteractionModule;
 struct FLxInteractionFeatureSaveRecord;
 
 /** 交互行为状态变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxInteractionActionStateChanged, ELxInteractionDataState, NewState);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxInteractionActionStateChanged, ELxInteractionDataState);
 /** 交互功能模块数据变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxInteractionFeatureDataChanged);
+DECLARE_MULTICAST_DELEGATE(FOnLxInteractionFeatureDataChanged);
 
 /** 具体交互功能模块的 UObject 基类，负责执行真正的交互业务逻辑。 */
 UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="交互功能模块基类")
@@ -115,11 +115,10 @@ public:
 	virtual UWorld* GetWorld() const override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	UPROPERTY(BlueprintAssignable, Category="交互|功能模块", DisplayName="交互状态变化事件")
+	/** 交互状态变化事件，仅供 C++ 监听。 */
 	FOnLxInteractionActionStateChanged OnInteractionStateChanged;
 
 	/** 功能模块配置或运行时数据变化时触发。 */
-	UPROPERTY(BlueprintAssignable, Category="交互|功能模块", DisplayName="功能模块数据变化事件")
 	FOnLxInteractionFeatureDataChanged OnDataChange;
 
 protected:

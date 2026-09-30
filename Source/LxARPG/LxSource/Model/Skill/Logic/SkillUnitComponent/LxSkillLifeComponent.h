@@ -6,8 +6,10 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitComponentTypes.h"
 #include "LxSkillLifeComponent.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillLifeStateChanged, ELxSkillAbilityComponentState, OldState, ELxSkillAbilityComponentState, NewState);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillLifeTick, float, RemainingTime);
+/** 技能生命周期状态变化事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxSkillLifeStateChanged, ELxSkillAbilityComponentState, ELxSkillAbilityComponentState);
+/** 技能生命周期周期事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxSkillLifeTick, float);
 
 /** 技能生命周期组件，只负责持续时间、周期时钟和生命周期状态通知。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="技能生命周期组件")
@@ -37,11 +39,9 @@ public:
 	float GetRemainingDuration() const;
 
 	/** 生命周期状态变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|生命周期", DisplayName="生命周期发生变化")
 	FOnLxSkillLifeStateChanged OnLifeStateChanged;
 
 	/** 生命周期周期事件，只表达时间到达，不直接代表命中或效果触发。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|生命周期", DisplayName="周期触发事件")
 	FOnLxSkillLifeTick OnLifeTick;
 
 private:

@@ -39,8 +39,10 @@ void ULxWaitMechanismStateChangedAsyncAction::Activate()
 		}
 	}
 
-	InteractableComponent->OnMechanismStateChanged.AddUniqueDynamic(
-		this, &ULxWaitMechanismStateChangedAsyncAction::HandleMechanismStateChanged);
+	if (!InteractableComponent->OnMechanismStateChanged.IsBoundToObject(this))
+	{
+		InteractableComponent->OnMechanismStateChanged.AddUObject(this, &ULxWaitMechanismStateChangedAsyncAction::HandleMechanismStateChanged);
+	}
 	InteractableComponent->OnInteractableComponentEndPlayNative.AddUObject(
 		this, &ULxWaitMechanismStateChangedAsyncAction::HandleInteractableComponentEndPlay);
 }
@@ -70,8 +72,7 @@ void ULxWaitMechanismStateChangedAsyncAction::FinishAsCancelled(ELxMechanismStat
 
 	if (IsValid(InteractableComponent))
 	{
-		InteractableComponent->OnMechanismStateChanged.RemoveDynamic(
-			this, &ULxWaitMechanismStateChangedAsyncAction::HandleMechanismStateChanged);
+		InteractableComponent->OnMechanismStateChanged.RemoveAll(this);
 		InteractableComponent->OnInteractableComponentEndPlayNative.RemoveAll(this);
 	}
 

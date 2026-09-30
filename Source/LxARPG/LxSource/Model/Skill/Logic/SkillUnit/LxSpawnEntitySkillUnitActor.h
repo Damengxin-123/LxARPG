@@ -7,8 +7,10 @@
 
 class ULxSkillLifeComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSpawnedEntityEvent, ALxSkillUnitActor*, SkillUnit, AActor*, EntityActor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLxSpawnedEntityTargetEvent, ALxSkillUnitActor*, SkillUnit, AActor*, EntityActor, AActor*, TargetActor);
+/** 召唤实体生命周期事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxSpawnedEntityEvent, ALxSkillUnitActor*, AActor*);
+/** 召唤实体目标事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnLxSpawnedEntityTargetEvent, ALxSkillUnitActor*, AActor*, AActor*);
 
 /** 召唤实体技能单元类型，负责协调生成实体的生命周期和事件转发。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="召唤实体技能单元")
@@ -39,16 +41,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能单元|召唤实体", DisplayName="通知实体销毁目标")
 	void NotifySpawnedEntityKilledTarget(AActor* InEntityActor, AActor* InTargetActor);
 
-	UPROPERTY(BlueprintAssignable, Category="技能单元|召唤实体", DisplayName="实体完成创建")
+	/** 实体完成创建，仅供 C++ 监听。 */
 	FOnLxSpawnedEntityEvent OnEntityCreated;
 
-	UPROPERTY(BlueprintAssignable, Category="技能单元|召唤实体", DisplayName="实体被销毁")
+	/** 实体被销毁，仅供 C++ 监听。 */
 	FOnLxSpawnedEntityEvent OnEntityDestroyed;
 
-	UPROPERTY(BlueprintAssignable, Category="技能单元|召唤实体", DisplayName="实体命中目标")
+	/** 实体命中目标，仅供 C++ 监听。 */
 	FOnLxSpawnedEntityTargetEvent OnEntityHitTarget;
 
-	UPROPERTY(BlueprintAssignable, Category="技能单元|召唤实体", DisplayName="实体销毁目标")
+	/** 实体销毁目标，仅供 C++ 监听。 */
 	FOnLxSpawnedEntityTargetEvent OnEntityKilledTarget;
 
 protected:

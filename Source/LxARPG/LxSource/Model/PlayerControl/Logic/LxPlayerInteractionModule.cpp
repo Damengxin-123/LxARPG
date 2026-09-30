@@ -32,10 +32,8 @@ void ULxPlayerInteractionModule::InitializeModule(ULxPlayerControlComponent* InO
 	if (ULxCharacterDataTransferComponent* DataTransferComponent =
 		OwnerCharacter->GetCharacterDataTransferComponent())
 	{
-		DataTransferComponent->OnQuestProgressChanged.RemoveDynamic(
-			this, &ULxPlayerInteractionModule::HandleQuestProgressChanged);
-		DataTransferComponent->OnQuestProgressChanged.AddDynamic(
-			this, &ULxPlayerInteractionModule::HandleQuestProgressChanged);
+		DataTransferComponent->OnQuestProgressChanged.RemoveAll(this);
+		DataTransferComponent->OnQuestProgressChanged.AddUObject(this, &ULxPlayerInteractionModule::HandleQuestProgressChanged);
 	}
 
 	InitMonitorRegistration();
@@ -48,8 +46,7 @@ void ULxPlayerInteractionModule::ShutdownModule()
 		if (ULxCharacterDataTransferComponent* DataTransferComponent =
 			OwnerCharacter->GetCharacterDataTransferComponent())
 		{
-			DataTransferComponent->OnQuestProgressChanged.RemoveDynamic(
-				this, &ULxPlayerInteractionModule::HandleQuestProgressChanged);
+			DataTransferComponent->OnQuestProgressChanged.RemoveAll(this);
 		}
 	}
 	ClearInteractableComponents();
@@ -441,8 +438,8 @@ void ULxPlayerInteractionModule::BindInteractableComponent(ULxInteractableCompon
 {
 	if (InInteractableComponent)
 	{
-		InInteractableComponent->OnInteractableOptionsChanged.RemoveDynamic(this, &ULxPlayerInteractionModule::HandleInteractableOptionsChanged);
-		InInteractableComponent->OnInteractableOptionsChanged.AddDynamic(this, &ULxPlayerInteractionModule::HandleInteractableOptionsChanged);
+		InInteractableComponent->OnInteractableOptionsChanged.RemoveAll(this);
+		InInteractableComponent->OnInteractableOptionsChanged.AddUObject(this, &ULxPlayerInteractionModule::HandleInteractableOptionsChanged);
 	}
 }
 
@@ -450,7 +447,7 @@ void ULxPlayerInteractionModule::UnbindInteractableComponent(ULxInteractableComp
 {
 	if (InInteractableComponent)
 	{
-		InInteractableComponent->OnInteractableOptionsChanged.RemoveDynamic(this, &ULxPlayerInteractionModule::HandleInteractableOptionsChanged);
+		InInteractableComponent->OnInteractableOptionsChanged.RemoveAll(this);
 	}
 }
 

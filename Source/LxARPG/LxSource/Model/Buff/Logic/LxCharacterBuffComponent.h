@@ -10,10 +10,10 @@ class ALxBaseCharacter;
 struct FLxEffectSourceContext;
 
 /** Buff 添加、移除等单个 Buff 变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuffLogicChanged, ULxBuff*, BuffLogic);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBuffLogicChanged, ULxBuff*);
 
 /** Buff 周期生效事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuffPeriodActivated, ULxBuff*, BuffLogic);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBuffPeriodActivated, ULxBuff*);
 
 /** 运行时 Buff 缓存信息。 */
 USTRUCT()
@@ -112,15 +112,12 @@ public:
 	float GetBuffEffectProportion(ULxBuff* InBuffLogic) const;
 
 	/** Buff 添加事件。 */
-	UPROPERTY(BlueprintAssignable, DisplayName="Buff添加事件")
 	FOnBuffLogicChanged OnBuffAdded;
 
 	/** Buff 移除事件。 */
-	UPROPERTY(BlueprintAssignable, DisplayName="Buff移除事件")
 	FOnBuffLogicChanged OnBuffRemoved;
 
 	/** Buff 周期生效事件。 */
-	UPROPERTY(BlueprintAssignable, DisplayName="Buff周期生效事件")
 	FOnBuffPeriodActivated OnBuffPeriodActivated;
 
 private:

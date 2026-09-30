@@ -12,13 +12,13 @@ class ULxProfessionLevelNodeUIData;
 class ULxProfessionListItemUIData;
 
 /** 职业列表显示数据更新事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxProfessionListUIDataUpdated, const TArray<UObject*>&, ProfessionUIDataList);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxProfessionListUIDataUpdated, const TArray<UObject*>&);
 
 /** 职业等级列表显示数据更新事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxProfessionLevelUIDataUpdated, const TArray<UObject*>&, LevelUIDataList);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxProfessionLevelUIDataUpdated, const TArray<UObject*>&);
 
 /** 选中职业详情显示数据更新事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxProfessionDetailUIDataUpdated, ULxProfessionDetailUIData*, ProfessionDetailUIData);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxProfessionDetailUIDataUpdated, ULxProfessionDetailUIData*);
 
 /**
  * 角色职业界面。
@@ -94,15 +94,12 @@ public:
 	bool IsOnlyShowLearnedProfessions() const { return bOnlyShowLearnedProfessions; }
 
 	/** 职业列表显示数据刷新事件。 */
-	UPROPERTY(BlueprintAssignable, Category="职业UI", DisplayName="职业列表显示数据刷新事件")
 	FOnLxProfessionListUIDataUpdated OnProfessionListUIDataUpdated;
 
 	/** 职业等级列表显示数据刷新事件。 */
-	UPROPERTY(BlueprintAssignable, Category="职业UI", DisplayName="职业等级列表显示数据刷新事件")
 	FOnLxProfessionLevelUIDataUpdated OnProfessionLevelUIDataUpdated;
 
 	/** 选中职业详情显示数据刷新事件。 */
-	UPROPERTY(BlueprintAssignable, Category="职业UI", DisplayName="选中职业详情显示数据刷新事件")
 	FOnLxProfessionDetailUIDataUpdated OnSelectedProfessionDetailUIDataUpdated;
 
 protected:

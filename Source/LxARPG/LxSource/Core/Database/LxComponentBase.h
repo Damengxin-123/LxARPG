@@ -7,7 +7,8 @@
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputReceiveInterface.h"
 #include "LxComponentBase.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnComponentDataChange);
+/** 组件数据变化事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE(FOnComponentDataChange);
 
 /**
  * 所有自定义 ActorComponent 的基础类型。

@@ -345,17 +345,26 @@ void ALxSkillUnitActor::BindSkillUnitComponentEvents()
 {
 	if (ULxSkillLifeComponent* LifeComponent = GetSkillLifeComponent())
 	{
-		LifeComponent->OnLifeStateChanged.AddUniqueDynamic(this, &ALxSkillUnitActor::HandleLifeStateChanged);
+		if (!LifeComponent->OnLifeStateChanged.IsBoundToObject(this))
+		{
+			LifeComponent->OnLifeStateChanged.AddUObject(this, &ALxSkillUnitActor::HandleLifeStateChanged);
+		}
 	}
 
 	if (ULxSkillTriggerComponent* TriggerComponent = GetSkillTriggerComponent())
 	{
-		TriggerComponent->OnTriggered.AddUniqueDynamic(this, &ALxSkillUnitActor::HandleSkillTriggered);
+		if (!TriggerComponent->OnTriggered.IsBoundToObject(this))
+		{
+			TriggerComponent->OnTriggered.AddUObject(this, &ALxSkillUnitActor::HandleSkillTriggered);
+		}
 	}
 
 	if (ULxSkillPropagationComponent* PropagationComponent = GetSkillPropagationComponent())
 	{
-		PropagationComponent->OnPropagationEvaluated.AddUniqueDynamic(this, &ALxSkillUnitActor::HandlePropagationEvaluated);
+		if (!PropagationComponent->OnPropagationEvaluated.IsBoundToObject(this))
+		{
+			PropagationComponent->OnPropagationEvaluated.AddUObject(this, &ALxSkillUnitActor::HandlePropagationEvaluated);
+		}
 	}
 }
 

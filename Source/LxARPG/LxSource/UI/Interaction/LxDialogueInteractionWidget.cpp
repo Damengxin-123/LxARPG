@@ -61,14 +61,14 @@ void ULxDialogueInteractionWidget::BindPlayerInteractionComponent()
 		return;
 	}
 
-	PlayerInteractionComponent->OnCurrentInteractionOptionsUpdated.RemoveDynamic(this, &ULxDialogueInteractionWidget::HandleCurrentInteractionOptionsUpdated);
-	PlayerInteractionComponent->OnCurrentInteractionOptionsUpdated.AddDynamic(this, &ULxDialogueInteractionWidget::HandleCurrentInteractionOptionsUpdated);
+	PlayerInteractionComponent->OnCurrentInteractionOptionsUpdated.RemoveAll(this);
+	PlayerInteractionComponent->OnCurrentInteractionOptionsUpdated.AddUObject(this, &ULxDialogueInteractionWidget::HandleCurrentInteractionOptionsUpdated);
 
-	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveDynamic(this, &ULxDialogueInteractionWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionOptionActivated.AddDynamic(this, &ULxDialogueInteractionWidget::HandleInteractionOptionActivated);
+	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionOptionActivated.AddUObject(this, &ULxDialogueInteractionWidget::HandleInteractionOptionActivated);
 
-	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxDialogueInteractionWidget::HandleInteractionCancelled);
-	PlayerInteractionComponent->OnInteractionCancelled.AddDynamic(this, &ULxDialogueInteractionWidget::HandleInteractionCancelled);
+	PlayerInteractionComponent->OnInteractionCancelled.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionCancelled.AddUObject(this, &ULxDialogueInteractionWidget::HandleInteractionCancelled);
 }
 
 void ULxDialogueInteractionWidget::UnbindPlayerInteractionComponent()
@@ -78,9 +78,9 @@ void ULxDialogueInteractionWidget::UnbindPlayerInteractionComponent()
 		return;
 	}
 
-	PlayerInteractionComponent->OnCurrentInteractionOptionsUpdated.RemoveDynamic(this, &ULxDialogueInteractionWidget::HandleCurrentInteractionOptionsUpdated);
-	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveDynamic(this, &ULxDialogueInteractionWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxDialogueInteractionWidget::HandleInteractionCancelled);
+	PlayerInteractionComponent->OnCurrentInteractionOptionsUpdated.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionCancelled.RemoveAll(this);
 }
 
 void ULxDialogueInteractionWidget::RebuildDialogueOptionViewData()

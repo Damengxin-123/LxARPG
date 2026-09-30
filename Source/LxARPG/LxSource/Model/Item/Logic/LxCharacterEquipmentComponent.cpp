@@ -31,7 +31,7 @@ void ULxCharacterEquipmentModule::InitializeEquipmentSlots()
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
 		NewSlot->SetSlotIndex(Index);
 		NewSlot->InitItemSlot(ELxItemSlotType::Equipment, EquipmentSlotsConfig[Index], nullptr);
-		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxCharacterEquipmentModule::HandleEquipmentSlotChanged);
+		NewSlot->OnItemDataChanged.AddUObject(this, &ULxCharacterEquipmentModule::HandleEquipmentSlotChanged);
 		m_vEquipmentSlots.Add(NewSlot);
 	}
 }
@@ -82,13 +82,13 @@ bool ULxCharacterEquipmentModule::RestoreEquipmentSaveData(const TArray<FLxItemS
 	{
 		if (OldSlot)
 		{
-			OldSlot->OnItemDataChanged.RemoveDynamic(this, &ULxCharacterEquipmentModule::HandleEquipmentSlotChanged);
+			OldSlot->OnItemDataChanged.RemoveAll(this);
 		}
 	}
 	m_vEquipmentSlots = MoveTemp(RestoredSlots);
 	for (ULxItemSlotData* Slot : m_vEquipmentSlots)
 	{
-		Slot->OnItemDataChanged.AddDynamic(this, &ULxCharacterEquipmentModule::HandleEquipmentSlotChanged);
+		Slot->OnItemDataChanged.AddUObject(this, &ULxCharacterEquipmentModule::HandleEquipmentSlotChanged);
 	}
 	OnDataChange.Broadcast();
 	return true;

@@ -60,20 +60,14 @@ void ULxCharacterBehaviorControlComponent::GetLifetimeReplicatedProps(
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ULxCharacterBehaviorControlComponent, ActiveBehaviorStateTags);
 	DOREPLIFETIME(ULxCharacterBehaviorControlComponent, BehaviorMotionType);
-	DOREPLIFETIME(ULxCharacterBehaviorControlComponent, MovementSpeedMultiplier);
 }
 
-void ULxCharacterBehaviorControlComponent::SetBehaviorMotion(ELxCharacterMotionType InMotionType, float InSpeedMultiplier)
+void ULxCharacterBehaviorControlComponent::SetBehaviorMotion(ELxCharacterMotionType InMotionType)
 {
 	CacheOwnerCharacter();
 	if (!OwnerCharacter || !OwnerCharacter->HasAuthority()) return;
 	BehaviorMotionType = InMotionType;
-	const float NewMultiplier = FMath::IsFinite(InSpeedMultiplier) ? FMath::Max(0.0f, InSpeedMultiplier) : 1.0f;
-	if (MovementSpeedMultiplier != NewMultiplier)
-	{
-		MovementSpeedMultiplier = NewMultiplier;
-		OnRep_MovementSpeedMultiplier();
-	}
+	OnRep_MovementSpeedMultiplier();
 }
 
 ELxCharacterMotionType ULxCharacterBehaviorControlComponent::GetCurrentMotionType() const
@@ -405,16 +399,11 @@ void ULxCharacterBehaviorControlComponent::RefreshBaseBehaviorState()
 		MotionSignal.MotionDirection = FVector::DownVector;
 		MotionSignal.bLoop = false;
 	}
-	else if (HorizontalSpeed > FMath::Max(RunSpeedThreshold, IdleSpeedThreshold))
-	{
-		SetLocomotionState(LxTag_CharacterState_Movement_Running);
-		MotionSignal.MotionType = ELxCharacterMotionType::Run;
-		MotionSignal.MotionDirection = Velocity.GetSafeNormal2D();
-	}
 	else if (HorizontalSpeed > IdleSpeedThreshold)
 	{
-		SetLocomotionState(LxTag_CharacterState_Movement_Moving);
-		MotionSignal.MotionType = ELxCharacterMotionType::Move;
+		MotionSignal.MotionType = ResolveGroundMotionType(HorizontalSpeed);
+		SetLocomotionState(MotionSignal.MotionType == ELxCharacterMotionType::Run
+			? LxTag_CharacterState_Movement_Running : LxTag_CharacterState_Movement_Moving);
 		MotionSignal.MotionDirection = Velocity.GetSafeNormal2D();
 	}
 	else
@@ -427,10 +416,7 @@ void ULxCharacterBehaviorControlComponent::RefreshBaseBehaviorState()
 
 	if (!bIsFalling && !bWasFalling)
 	{
-		if (HorizontalSpeed > IdleSpeedThreshold && (BehaviorMotionType == ELxCharacterMotionType::Move
-			|| BehaviorMotionType == ELxCharacterMotionType::MediumMove || BehaviorMotionType == ELxCharacterMotionType::Run))
-			MotionSignal.MotionType = BehaviorMotionType;
-		else if (HorizontalSpeed <= IdleSpeedThreshold && BehaviorMotionType == ELxCharacterMotionType::Alert)
+		if (HorizontalSpeed <= IdleSpeedThreshold && BehaviorMotionType == ELxCharacterMotionType::Alert)
 			MotionSignal.MotionType = ELxCharacterMotionType::Alert;
 	}
 	bWasFalling = bIsFalling;
@@ -471,6 +457,12 @@ void ULxCharacterBehaviorControlComponent::SendBaseAnimationMotionSignal(
 	const FLxCharacterMotionSignal& InMotionSignal)
 {
 	OnBaseMotionSignalChanged.Broadcast(InMotionSignal);
+}
+
+ELxCharacterMotionType ULxCharacterBehaviorControlComponent::ResolveGroundMotionType(float HorizontalSpeed) const
+{
+	return BehaviorMotionType == ELxCharacterMotionType::Run || BehaviorMotionType == ELxCharacterMotionType::MediumMove
+		? BehaviorMotionType : ELxCharacterMotionType::Move;
 }
 
 void ULxCharacterBehaviorControlComponent::SendActionAnimationMotionSignal(

@@ -21,7 +21,7 @@ class ULxCharacterEffectProcessModule;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTestReceivedDamageValueOutput, float, FinalDamageValue);
 
 /** 测试受伤攻击者输出事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTestReceivedDamageAttackerOutput, AActor*, AttackerActor);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxTestReceivedDamageAttackerOutput, AActor*);
 
 /** 当前AI行为转换为字符串后的蓝图输出事件。 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTestAIBehaviorTextOutput, const FString&, BehaviorText);
@@ -83,7 +83,6 @@ public:
 	FOnLxTestReceivedDamageValueOutput OnTestReceivedDamageValueOutput;
 
 	/** 测试受伤后输出攻击者。 */
-	UPROPERTY(BlueprintAssignable, Category="角色测试|伤害", DisplayName="测试受伤输出攻击者")
 	FOnLxTestReceivedDamageAttackerOutput OnTestReceivedDamageAttackerOutput;
 
 	/** AI行为发生变化时向蓝图输出对应的中文字符串。 */

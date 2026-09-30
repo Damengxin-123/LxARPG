@@ -8,7 +8,8 @@ class ULxBuff;
 class ULxCharacterDataTransferComponent;
 class ULxItemSlotData;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBuffUIDataListUpdated, const TArray<UObject*>&, BuffUIDataList);
+/** Buff 界面数据列表更新事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBuffUIDataListUpdated, const TArray<UObject*>&);
 
 /**
  * Buff UI 数据适配对象。
@@ -38,7 +39,6 @@ public:
 	TArray<ULxItemSlotData*> GetBuffSlotList() const;
 
 	/** Buff UI 数据列表刷新事件。 */
-	UPROPERTY(BlueprintAssignable, Category="Buff UI", DisplayName="Buff UI数据列表刷新事件")
 	FOnBuffUIDataListUpdated OnBuffUIDataListUpdated;
 
 protected:

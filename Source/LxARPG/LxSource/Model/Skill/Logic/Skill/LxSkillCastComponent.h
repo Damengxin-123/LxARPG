@@ -14,7 +14,7 @@ struct FLxPlayerAimResult;
 struct FLxSkillEntryPackage;
 class ULxSkillItem;
 
-/** 释放时间轴到达中点时需要执行的技能事件类型。 */
+/** 动画释放通知到达时需要执行的技能事件类型。 */
 enum class ELxPendingSkillReleaseExecution : uint8
 {
 	None,
@@ -128,7 +128,7 @@ private:
 		FVector_NetQuantizeNormal InAimDirection, bool bInHasAimDirection);
 
 	/** 在本机播放技能动作动画。 */
-	void PlaySkillActionAnimation(float InSkillReleaseDuration, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType);
+	void PlaySkillActionAnimation(FGuid InCastId, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType);
 
 	/** 在本机停止技能动作动画。 */
 	void StopSkillActionAnimation();
@@ -140,17 +140,17 @@ private:
 	bool HandleSkillReleaseInputAuthority(ULxSkill* InSkill, ELxSkillReleaseInputState InInputState,
 		const FLxSkillCastContext& InCastContext);
 
-	/** 启动技能释放时间轴，在百分之五十执行技能事件，在百分之百记录冷却起点。 */
-	void BeginTimedSkillRelease(ULxSkill* InSkill, ELxPendingSkillReleaseExecution InExecutionType);
+	/** 开始等待动画通知，由实际播放进度决定执行点和结束点。 */
+	void BeginAnimationSkillRelease(ULxSkill* InSkill, ELxPendingSkillReleaseExecution InExecutionType);
 
-	/** 释放时间轴到达百分之五十时执行对应技能蓝图事件。 */
-	void ExecuteTimedSkillRelease();
+	/** 收到技能释放通知时，执行一次对应技能蓝图事件。 */
+	void ExecuteAnimationSkillRelease();
 
-	/** 释放时间轴结束时记录技能冷却起点并解除一次性技能占用。 */
-	void CompleteTimedSkillRelease();
+	/** 收到技能结束通知时记录冷却起点并解除一次性技能占用。 */
+	void CompleteAnimationSkillRelease();
 
-	/** 清理释放时间轴定时器，可选择同时取消技能内部释放占用。 */
-	void ClearTimedSkillRelease(bool bCancelSkillTiming);
+	/** 使当前通知身份失效，可选择同时取消技能内部释放占用。 */
+	void ClearAnimationSkillRelease(bool bCancelSkillTiming);
 
 	FLxSkillCastContext NormalizeCastContext(const FLxSkillCastContext& InCastContext, UObject* SourceObject = nullptr) const;
 	void BeginSustainedAimTracking();
@@ -212,14 +212,17 @@ private:
 	UPROPERTY(Transient)
 	FLxSkillCastContext CurrentCastContext;
 
-	/** 当前释放时间轴中点需要执行的技能事件类型。 */
+	/** 当前等待动画执行的技能事件类型。 */
 	ELxPendingSkillReleaseExecution PendingSkillReleaseExecution = ELxPendingSkillReleaseExecution::None;
 
-	/** 技能释放时间轴百分之五十执行点定时器。 */
-	FTimerHandle SkillReleaseExecutionTimerHandle;
-
-	/** 技能释放时间轴结束点定时器。 */
-	FTimerHandle SkillReleaseCompletionTimerHandle;
+	/** 当前权威端释放编号，取消或完成时立即失效。 */
+	FGuid ActiveCastId;
+	/** 本次技能物品标签，与编号共同验证通知来源。 */
+	FGameplayTag ActiveSkillId;
+	/** 本次释放是否已经执行，阻止重叠、循环和混合空间的重复通知。 */
+	bool bReleaseExecuted = false;
+	/** 只由战斗组件调用，消费经过数据中转的动画通知。 */
+	void HandleAnimationEvent(const FLxCharacterAnimationEvent& Event);
 
 	/** 允许统一战斗组件调用模块的网络入口与本机动画处理。 */
 	friend class ULxCharacterCombatComponent;

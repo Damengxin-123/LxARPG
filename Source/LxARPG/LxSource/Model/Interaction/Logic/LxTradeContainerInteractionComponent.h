@@ -8,8 +8,10 @@ class ULxCharacterDataTransferComponent;
 class ULxItemBase;
 class ULxItemSlotData;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTradeContainerStateChanged, ELxInteractionDataState, NewState);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTradeContainerSlotListChanged, const TArray<ULxItemSlotData*>&, TradeSlots);
+/** 交易容器状态改变，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxTradeContainerStateChanged, ELxInteractionDataState);
+/** 交易槽位列表改变，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxTradeContainerSlotListChanged, const TArray<ULxItemSlotData*>&);
 
 /** 商城交易功能模块，负责商品列表、买入、卖出和交易状态。 */
 UCLASS(Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="商城交互模块")
@@ -81,10 +83,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="交互|商城", DisplayName="获取收购价值比例")
 	float GetPurchaseValueRate() const { return PurchaseValueRate; }
 
-	UPROPERTY(BlueprintAssignable, Category="交互|商城", DisplayName="交易容器状态改变")
+	/** 交易容器状态改变，仅供 C++ 监听。 */
 	FOnLxTradeContainerStateChanged OnTradeContainerStateChanged;
 
-	UPROPERTY(BlueprintAssignable, Category="交互|商城", DisplayName="交易槽位列表改变")
+	/** 交易槽位列表改变，仅供 C++ 监听。 */
 	FOnLxTradeContainerSlotListChanged OnTradeSlotListChanged;
 
 protected:

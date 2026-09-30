@@ -153,10 +153,10 @@ void ULxTreasureChestWidget::BindPlayerInteractionComponent()
 		return;
 	}
 
-	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveDynamic(this, &ULxTreasureChestWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionOptionActivated.AddDynamic(this, &ULxTreasureChestWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxTreasureChestWidget::HandleInteractionCancelled);
-	PlayerInteractionComponent->OnInteractionCancelled.AddDynamic(this, &ULxTreasureChestWidget::HandleInteractionCancelled);
+	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionOptionActivated.AddUObject(this, &ULxTreasureChestWidget::HandleInteractionOptionActivated);
+	PlayerInteractionComponent->OnInteractionCancelled.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionCancelled.AddUObject(this, &ULxTreasureChestWidget::HandleInteractionCancelled);
 }
 
 void ULxTreasureChestWidget::UnbindPlayerInteractionComponent()
@@ -166,8 +166,8 @@ void ULxTreasureChestWidget::UnbindPlayerInteractionComponent()
 		return;
 	}
 
-	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveDynamic(this, &ULxTreasureChestWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxTreasureChestWidget::HandleInteractionCancelled);
+	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionCancelled.RemoveAll(this);
 	PlayerInteractionComponent = nullptr;
 }
 
@@ -178,10 +178,10 @@ void ULxTreasureChestWidget::BindTreasureChestComponent()
 		return;
 	}
 
-	TreasureChestComponent->OnTreasureChestSlotListChanged.RemoveDynamic(this, &ULxTreasureChestWidget::HandleTreasureChestSlotListChanged);
-	TreasureChestComponent->OnTreasureChestSlotListChanged.AddDynamic(this, &ULxTreasureChestWidget::HandleTreasureChestSlotListChanged);
-	TreasureChestComponent->OnItemAcquireCompleted.RemoveDynamic(this, &ULxTreasureChestWidget::HandleTreasureChestCompleted);
-	TreasureChestComponent->OnItemAcquireCompleted.AddDynamic(this, &ULxTreasureChestWidget::HandleTreasureChestCompleted);
+	TreasureChestComponent->OnTreasureChestSlotListChanged.RemoveAll(this);
+	TreasureChestComponent->OnTreasureChestSlotListChanged.AddUObject(this, &ULxTreasureChestWidget::HandleTreasureChestSlotListChanged);
+	TreasureChestComponent->OnItemAcquireCompleted.RemoveAll(this);
+	TreasureChestComponent->OnItemAcquireCompleted.AddUObject(this, &ULxTreasureChestWidget::HandleTreasureChestCompleted);
 }
 
 void ULxTreasureChestWidget::UnbindTreasureChestComponent()
@@ -191,8 +191,8 @@ void ULxTreasureChestWidget::UnbindTreasureChestComponent()
 		return;
 	}
 
-	TreasureChestComponent->OnTreasureChestSlotListChanged.RemoveDynamic(this, &ULxTreasureChestWidget::HandleTreasureChestSlotListChanged);
-	TreasureChestComponent->OnItemAcquireCompleted.RemoveDynamic(this, &ULxTreasureChestWidget::HandleTreasureChestCompleted);
+	TreasureChestComponent->OnTreasureChestSlotListChanged.RemoveAll(this);
+	TreasureChestComponent->OnItemAcquireCompleted.RemoveAll(this);
 	TreasureChestComponent = nullptr;
 	TreasureChestItemSlotList.Reset();
 }

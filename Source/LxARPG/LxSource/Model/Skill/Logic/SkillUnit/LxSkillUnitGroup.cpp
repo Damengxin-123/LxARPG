@@ -212,16 +212,28 @@ void ULxSkillUnitGroup::BindSkillUnitEvents(ALxSkillUnitActor* InSkillUnit)
 		return;
 	}
 
-	InSkillUnit->OnSkillUnitHit.AddUniqueDynamic(this, &ULxSkillUnitGroup::HandleManagedSkillUnitHit);
-	InSkillUnit->OnSkillUnitFinished.AddUniqueDynamic(this, &ULxSkillUnitGroup::HandleManagedSkillUnitFinished);
+	if (!InSkillUnit->OnSkillUnitHit.IsBoundToObject(this))
+	{
+		InSkillUnit->OnSkillUnitHit.AddUObject(this, &ULxSkillUnitGroup::HandleManagedSkillUnitHit);
+	}
+	if (!InSkillUnit->OnSkillUnitFinished.IsBoundToObject(this))
+	{
+		InSkillUnit->OnSkillUnitFinished.AddUObject(this, &ULxSkillUnitGroup::HandleManagedSkillUnitFinished);
+	}
 	InSkillUnit->OnDestroyed.AddUniqueDynamic(this, &ULxSkillUnitGroup::HandleManagedSkillUnitDestroyed);
 	if (ALxAttachEffectSkillUnitActor* AttachEffect = Cast<ALxAttachEffectSkillUnitActor>(InSkillUnit))
 	{
-		AttachEffect->OnAttachEffectEnded.AddUniqueDynamic(this, &ULxSkillUnitGroup::HandleAttachEffectEnded);
+		if (!AttachEffect->OnAttachEffectEnded.IsBoundToObject(this))
+		{
+			AttachEffect->OnAttachEffectEnded.AddUObject(this, &ULxSkillUnitGroup::HandleAttachEffectEnded);
+		}
 	}
 	if (ALxContinuousAuraEffectSkillUnitActor* AuraEffect = Cast<ALxContinuousAuraEffectSkillUnitActor>(InSkillUnit))
 	{
-		AuraEffect->OnAuraTargetEffectRemoved.AddUniqueDynamic(this, &ULxSkillUnitGroup::HandleAuraTargetEffectRemoved);
+		if (!AuraEffect->OnAuraTargetEffectRemoved.IsBoundToObject(this))
+		{
+			AuraEffect->OnAuraTargetEffectRemoved.AddUObject(this, &ULxSkillUnitGroup::HandleAuraTargetEffectRemoved);
+		}
 	}
 }
 
@@ -232,16 +244,16 @@ void ULxSkillUnitGroup::UnbindSkillUnitEvents(ALxSkillUnitActor* InSkillUnit)
 		return;
 	}
 
-	InSkillUnit->OnSkillUnitHit.RemoveDynamic(this, &ULxSkillUnitGroup::HandleManagedSkillUnitHit);
-	InSkillUnit->OnSkillUnitFinished.RemoveDynamic(this, &ULxSkillUnitGroup::HandleManagedSkillUnitFinished);
+	InSkillUnit->OnSkillUnitHit.RemoveAll(this);
+	InSkillUnit->OnSkillUnitFinished.RemoveAll(this);
 	InSkillUnit->OnDestroyed.RemoveDynamic(this, &ULxSkillUnitGroup::HandleManagedSkillUnitDestroyed);
 	if (ALxAttachEffectSkillUnitActor* AttachEffect = Cast<ALxAttachEffectSkillUnitActor>(InSkillUnit))
 	{
-		AttachEffect->OnAttachEffectEnded.RemoveDynamic(this, &ULxSkillUnitGroup::HandleAttachEffectEnded);
+		AttachEffect->OnAttachEffectEnded.RemoveAll(this);
 	}
 	if (ALxContinuousAuraEffectSkillUnitActor* AuraEffect = Cast<ALxContinuousAuraEffectSkillUnitActor>(InSkillUnit))
 	{
-		AuraEffect->OnAuraTargetEffectRemoved.RemoveDynamic(this, &ULxSkillUnitGroup::HandleAuraTargetEffectRemoved);
+		AuraEffect->OnAuraTargetEffectRemoved.RemoveAll(this);
 	}
 }
 

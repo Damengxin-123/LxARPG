@@ -5,12 +5,13 @@
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "AnimNodes/AnimNode_BlendSpacePlayer.h"
 #include "AnimNodes/AnimNode_Slot.h"
+#include "LxAnimNode_ActionFlow.h"
 #include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
 #include "LxAnimNode_ActionPlayer.generated.h"
 
 /** 根据独立动作通道匹配资源，自动接收速率并输出标准局部空间姿势。 */
 USTRUCT(BlueprintInternalUseOnly, meta=(DisplayName="角色动作播放器"))
-struct LXARPG_API FLxAnimNode_ActionPlayer : public FAnimNode_Base
+struct LXARPG_API FLxAnimNode_ActionPlayer : public FLxAnimNode_ActionSource
 {
 	GENERATED_BODY()
 
@@ -34,6 +35,17 @@ struct LXARPG_API FLxAnimNode_ActionPlayer : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="动作动画", meta=(DisplayName="混合空间坐标", PinHiddenByDefault))
 	FVector BlendPosition = FVector::ZeroVector;
 
+	/** 供动作骨骼分层混合读取；关闭时有效技能动作覆盖全身。 */
+	UPROPERTY(EditAnywhere, Category="动作动画", meta=(DisplayName="是否使用骨骼混合", NeverAsPin))
+	bool bUseBoneBlend = true;
+
+	/** 是否允许该播放器产生动画通知；不会改变其他节点或原始动画资产。 */
+	UPROPERTY(EditAnywhere, Category="动作动画", meta=(DisplayName="是否接收动画通知", NeverAsPin))
+	bool bReceiveAnimationNotifies = true;
+
+	/** 返回缓存和混合所需的当前匹配、优先级及请求标识。 */
+	virtual FLxActionPoseState GetActionState() const override;
+
 	/** 初始化内部原生播放器和蒙太奇插槽。 */
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	/** 缓存原生播放器需要的骨骼。 */
@@ -52,8 +64,21 @@ struct LXARPG_API FLxAnimNode_ActionPlayer : public FAnimNode_Base
 	bool IsMatched() const { return bMatched; }
 	/** 获取自动传入的播放速率，不作为节点配置暴露。 */
 	float GetAutomaticPlayRate() const { return AutomaticPlayRate; }
+	/** 原生资产推进后按实际进度生成一次结束事件，不使用技能配置时长。 */
+	bool CollectPlaybackEnd(UAnimInstance* Instance, FLxCharacterAnimationEvent& OutEvent);
 
 private:
+	/** 已上报自然播放结束的释放编号，缓存保持末帧时不重复上报。 */
+	FGuid CompletedCastId;
+	/** 上次匹配信号时捕获的通知来源，缓存继续播放时仍保持原值。 */
+	FLxCharacterAnimationEvent NotifySource;
+	/** 执行一次原生播放器更新，通知关闭时在过滤作用域内调用。 */
+	void UpdatePlayer(const FAnimationUpdateContext& Context);
+	/** 禁用蒙太奇通知时的实例私有副本，避免分支点在队列过滤前执行。 */
+	UPROPERTY(Transient, meta=(DisplayName="静默蒙太奇副本"))
+	TObjectPtr<UAnimMontage> SilentMontage;
+	/** 前一更新是否由缓存要求继续播放。 */
+	bool bCachePlaybackLastFrame = false;
 	/** 原生序列播放器保留通知、曲线及根运动提取能力。 */
 	UPROPERTY()
 	FAnimNode_SequencePlayer_Standalone SequencePlayer;

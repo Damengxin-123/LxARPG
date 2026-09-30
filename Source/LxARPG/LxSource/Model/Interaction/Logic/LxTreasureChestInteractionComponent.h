@@ -9,9 +9,12 @@ class ULxCharacterBackpackModule;
 class ULxItemBase;
 class ULxItemSlotData;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTreasureChestStateChanged, ELxInteractionDataState, NewState);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTreasureChestSlotListChanged, const TArray<ULxItemSlotData*>&, TreasureChestSlots);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxTreasureChestItemAcquireCompleted);
+/** 宝箱状态改变，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxTreasureChestStateChanged, ELxInteractionDataState);
+/** 宝箱槽位列表改变，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxTreasureChestSlotListChanged, const TArray<ULxItemSlotData*>&);
+/** 物品获取完成，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE(FOnLxTreasureChestItemAcquireCompleted);
 
 /** 只可取出的宝箱交互模块。根据功能节点配置生成宝箱槽位供 UI 展示和拖出。 */
 UCLASS(Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="宝箱交互模块")
@@ -56,15 +59,12 @@ public:
 	void SetTreasureChestState(ELxInteractionDataState InState);
 
 	/** 宝箱状态改变时触发，蓝图可绑定该事件播放打开、关闭、完成等表现。 */
-	UPROPERTY(BlueprintAssignable, Category="交互|宝箱", DisplayName="宝箱状态改变")
 	FOnLxTreasureChestStateChanged OnTreasureChestStateChanged;
 
 	/** 宝箱槽位列表或槽位内容变化时触发，宝箱界面用它刷新列表。 */
-	UPROPERTY(BlueprintAssignable, Category="交互|宝箱", DisplayName="宝箱槽位列表改变")
 	FOnLxTreasureChestSlotListChanged OnTreasureChestSlotListChanged;
 
 	/** 宝箱内物品全部取走，或达到限定取走项目数后触发。 */
-	UPROPERTY(BlueprintAssignable, Category="交互|宝箱", DisplayName="物品获取完成")
 	FOnLxTreasureChestItemAcquireCompleted OnItemAcquireCompleted;
 
 protected:

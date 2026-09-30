@@ -15,7 +15,7 @@ class ULxCharacterStateAttributeObject;
 class ALxBaseCharacter;
 
 /** 六类角色属性快照刷新事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxTypedCharacterAttributeSnapshotChanged, const FLxTypedAttributeSnapshot&, AttributeSnapshot);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxTypedCharacterAttributeSnapshotChanged, const FLxTypedAttributeSnapshot&);
 
 /** 角色属性组件，统一管理基础属性、状态、阵营和生命周期 UObject。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色属性组件")
@@ -144,15 +144,12 @@ public:
 	void HandleLifecycleAttributeChanged(bool bInAlive);
 
 	/** 六类属性发生变化时广播完整分类快照。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|基础属性", DisplayName="角色分类属性更新事件")
 	FOnLxTypedCharacterAttributeSnapshotChanged OnTypedAttributeSnapshotChanged;
 
 	/** 状态标签变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|属性|状态", DisplayName="状态标签变化事件")
 	FOnLxSpecialAttributeStateTagsChanged OnStateTagsChanged;
 
 	/** 生命周期状态变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|属性|生命周期", DisplayName="生命周期状态变化事件")
 	FOnLxSpecialAttributeLifecycleChanged OnLifecycleStateChanged;
 
 protected:

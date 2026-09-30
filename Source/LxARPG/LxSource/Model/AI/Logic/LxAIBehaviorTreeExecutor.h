@@ -76,9 +76,6 @@ private:
 	ELeafResult ReleaseSkill(const ULxAIBehaviorTreeNodeData& InNode, AActor* InTarget,
 		const FVector& InTargetLocation);
 
-	/** 本次执行使用的运动能力副本，不修改共享行为树资产。 */
-	FLxAIMovementConfig MovementConfig;
-
 	UPROPERTY(Transient)
 	TObjectPtr<ALxAICharacter> Character;
 	UPROPERTY(Transient)

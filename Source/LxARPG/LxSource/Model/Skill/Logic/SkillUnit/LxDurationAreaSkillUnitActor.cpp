@@ -31,7 +31,10 @@ void ALxDurationAreaSkillUnitActor::BindSkillUnitComponentEvents()
 
 	if (LifeComponent)
 	{
-		LifeComponent->OnLifeTick.AddUniqueDynamic(this, &ALxDurationAreaSkillUnitActor::HandleAreaDetectionPeriod);
+		if (!LifeComponent->OnLifeTick.IsBoundToObject(this))
+		{
+			LifeComponent->OnLifeTick.AddUObject(this, &ALxDurationAreaSkillUnitActor::HandleAreaDetectionPeriod);
+		}
 	}
 }
 

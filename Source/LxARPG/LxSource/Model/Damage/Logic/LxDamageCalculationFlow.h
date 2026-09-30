@@ -6,7 +6,7 @@
 #include "LxDamageCalculationFlow.generated.h"
 
 /** 伤害计算完成事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxDamageCalculationFinished, const FLxDamageCalculationContext&, DamageCalculationContext);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxDamageCalculationFinished, const FLxDamageCalculationContext&);
 
 /** 伤害计算流程配置类型，蓝图子类可以重写流程 API 并手动串联各级计算函数。 */
 UCLASS(BlueprintType, Blueprintable, EditInlineNew, DefaultToInstanced, DisplayName="伤害计算流程")
@@ -46,7 +46,6 @@ public:
 	FLxDamageCalculationContext ApplyShieldHealthDamageSettlement(const FLxDamageCalculationContext& InDamageContext);
 
 	/** 伤害计算完成事件。 */
-	UPROPERTY(BlueprintAssignable, Category="伤害计算", DisplayName="伤害计算完成事件")
 	FOnLxDamageCalculationFinished OnDamageCalculationFinished;
 
 protected:

@@ -19,12 +19,10 @@ struct FLxAuraTargetEffectRemoveResult;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitGroupHit, ULxSkillUnitGroup*, SkillUnitGroup, const FLxSkillUnitResult&, SkillUnitResult);
 
 /** 技能单元组生命周期事件，提供整组累计的命中与失效位置结果。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitGroupLifecycle, ULxSkillUnitGroup*, SkillUnitGroup,
-	const FLxSkillUnitResult&, SkillUnitResult);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitGroupLifecycle, ULxSkillUnitGroup*, const FLxSkillUnitResult&);
 
 /** 技能单元组持续效果解除事件，将依附或光环单元需要解除效果的目标统一为目标列表。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillUnitGroupEffectsRemoved, ULxSkillUnitGroup*, SkillUnitGroup,
-	ALxSkillUnitActor*, SourceSkillUnit, const TArray<AActor*>&, EffectTargets);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillUnitGroupEffectsRemoved, ULxSkillUnitGroup*, ALxSkillUnitActor*, const TArray<AActor*>&);
 
 /** 技能单元组运行时对象，集中管理一次创建出的多个技能单元事件与生命周期。 */
 UCLASS(BlueprintType, DisplayName="技能单元组")
@@ -110,11 +108,9 @@ public:
 	FOnLxSkillUnitGroupHit OnSkillUnitGroupHit;
 
 	/** 组内所有技能单元都销毁后触发，并携带整组累计技能单元结果。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元组|事件", DisplayName="技能单元组完成事件")
 	FOnLxSkillUnitGroupLifecycle OnSkillUnitGroupFinished;
 
 	/** 组内持续依附或光环效果需要从目标身上解除时触发。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元组|事件", DisplayName="技能单元组效果解除事件")
 	FOnLxSkillUnitGroupEffectsRemoved OnSkillUnitGroupEffectsRemoved;
 
 	virtual void BeginDestroy() override;

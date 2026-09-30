@@ -10,7 +10,7 @@ class UCameraComponent;
 class USpringArmComponent;
 
 /** 玩家瞄准状态变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxPlayerAimingStateChanged, bool, bNewAiming);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxPlayerAimingStateChanged, bool);
 
 /** 玩家瞄准结果，记录准星检测点和技能从释放点出发的真实方向。 */
 USTRUCT(BlueprintType, DisplayName="玩家瞄准结果")
@@ -48,7 +48,7 @@ struct FLxPlayerAimResult
 };
 
 /** 玩家技能释放点或技能方向发生变化时广播最新瞄准结果。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxPlayerAimResultChanged, const FLxPlayerAimResult&, AimResult);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxPlayerAimResultChanged, const FLxPlayerAimResult&);
 
 /** 玩家瞄准组件，负责准星检测、瞄准相机收近和瞄准时角色朝向控制。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="玩家瞄准组件")
@@ -100,11 +100,9 @@ public:
 	void RemoveAimResultUpdateRequest();
 
 	/** 技能释放点或技能方向变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="玩家|瞄准|事件", DisplayName="技能瞄准结果变化事件")
 	FOnLxPlayerAimResultChanged OnAimResultChanged;
 
 	/** 瞄准状态变化事件，可用于驱动蓄力准星或瞄准 UI。 */
-	UPROPERTY(BlueprintAssignable, Category="玩家|瞄准", DisplayName="瞄准状态变化事件")
 	FOnLxPlayerAimingStateChanged OnAimingStateChanged;
 
 protected:

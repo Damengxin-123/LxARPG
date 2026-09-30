@@ -6,6 +6,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxAICharacter.h"
 #include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterLocomotionComponent.h"
 #include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorTreeExecutor.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
@@ -45,9 +46,9 @@ bool FLxAIMovementTest::RunTest(const FString& Parameters)
 	Values->FindMutableScalarAttribute(FGameplayTag::RequestGameplayTag(TEXT("属性.行动.基础移动速度")))->Value = 6.0f;
 	Values->FindMutableScalarAttribute(FGameplayTag::RequestGameplayTag(TEXT("属性.行动.移动速度加成")))->Value = 0.2f;
 	ULxCharacterBehaviorControlComponent* Behavior = Character->GetCharacterBehaviorControlComponent();
-	Behavior->SetBehaviorMotion(ELxCharacterMotionType::Move, 0.5f);
+	Behavior->SetBehaviorMotion(ELxCharacterMotionType::Move);
 	TestEqual(TEXT("6米基础速度加成20%后低速为360厘米"), Character->GetCharacterMovement()->MaxWalkSpeed, 360.0f);
-	Behavior->SetBehaviorMotion(ELxCharacterMotionType::Run, 1.5f);
+	Behavior->SetBehaviorMotion(ELxCharacterMotionType::Run);
 	TestEqual(TEXT("高速为1080厘米"), Character->GetCharacterMovement()->MaxWalkSpeed, 1080.0f);
 	Attributes->RefreshCharacterMovementSpeed();
 	TestEqual(TEXT("重复刷新不会累乘"), Character->GetCharacterMovement()->MaxWalkSpeed, 1080.0f);
@@ -74,14 +75,22 @@ bool FLxAIMovementTest::RunTest(const FString& Parameters)
 	Executor->Initialize(Character);
 	Executor->TickExecution(Asset, Decision, nullptr, FVector::ZeroVector, 0.1f);
 	TestEqual(TEXT("执行器发布统一类型"), Behavior->GetCurrentMotionType(), ELxCharacterMotionType::Move);
-	TestEqual(TEXT("执行器应用树倍率"), Character->GetCharacterMovement()->MaxWalkSpeed, 450.0f);
+	TestEqual(TEXT("执行器使用角色运动组件倍率"), Character->GetCharacterMovement()->MaxWalkSpeed, 450.0f);
 	Action->MotionType = ELxCharacterMotionType::MediumMove;
 	Executor->TickExecution(Asset, Decision, nullptr, FVector::ZeroVector, 0.1f);
 	TestEqual(TEXT("相同叶节点更新运动档位"), Character->GetCharacterMovement()->MaxWalkSpeed, 900.0f);
 	Action->MotionType = ELxCharacterMotionType::Run;
 	Executor->TickExecution(Asset, Decision, nullptr, FVector::ZeroVector, 0.1f);
 	Executor->ResetExecution();
-	TestEqual(TEXT("退出行为树恢复属性速度"), Character->GetCharacterMovement()->MaxWalkSpeed, 900.0f);
+	TestEqual(TEXT("退出行为树恢复默认低速"), Character->GetCharacterMovement()->MaxWalkSpeed, 450.0f);
+	FLxAIMovementConfig SharedConfig;
+	SharedConfig.LowSpeedMultiplier = 0.4f;
+	TestTrue(TEXT("角色运动组件可统一修改配置"), Character->GetCharacterLocomotionComponent()->SetMovementConfig(SharedConfig));
+	TestEqual(TEXT("角色配置立即刷新速度"), Character->GetCharacterMovement()->MaxWalkSpeed, 360.0f);
+	Asset->Movement.LowSpeedMultiplier = 0.9f;
+	Action->MotionType = ELxCharacterMotionType::Move;
+	Executor->TickExecution(Asset, Decision, nullptr, FVector::ZeroVector, 0.1f);
+	TestEqual(TEXT("旧行为树倍率不再覆盖角色配置"), Character->GetCharacterMovement()->MaxWalkSpeed, 360.0f);
 	return true;
 }
 #endif

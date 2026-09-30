@@ -702,15 +702,15 @@ void ULxItemGridWidget::SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData)
 
 	if (CurrentSlotData)
 	{
-		CurrentSlotData->OnItemDataChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
+		CurrentSlotData->OnItemDataChanged.RemoveAll(this);
 	}
 
 	CurrentSlotData = InSlotData;
 
 	if (CurrentSlotData)
 	{
-		CurrentSlotData->OnItemDataChanged.RemoveDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
-		CurrentSlotData->OnItemDataChanged.AddDynamic(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
+		CurrentSlotData->OnItemDataChanged.RemoveAll(this);
+		CurrentSlotData->OnItemDataChanged.AddUObject(this, &ULxItemGridWidget::HandleCurrentSlotChanged);
 	}
 
 	BroadcastGridDataChanged();

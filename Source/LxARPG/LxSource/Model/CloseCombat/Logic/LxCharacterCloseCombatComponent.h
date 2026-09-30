@@ -9,16 +9,16 @@ class ALxBaseCharacter;
 class UPrimitiveComponent;
 
 /** 近战攻击命中有效目标时广播。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxMeleeAttackHit, const FLxMeleeAttackHitResult&, HitResult);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxMeleeAttackHit, const FLxMeleeAttackHitResult&);
 
 /** 近战攻击行为结束时广播。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxMeleeAttackEnded, const FLxMeleeAttackEndContext&, EndContext);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxMeleeAttackEnded, const FLxMeleeAttackEndContext&);
 
 /** 格挡期间盾牌被武器击中并完成格挡判定时广播。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBlockHit, const FLxBlockHitResult&, BlockResult);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxBlockHit, const FLxBlockHitResult&);
 
 /** 格挡行为结束时广播。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBlockEnded, const FLxBlockEndContext&, EndContext);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxBlockEnded, const FLxBlockEndContext&);
 
 /** 角色近身战斗模块，负责攻击与格挡的互斥状态、碰撞判定和结果广播。 */
 UCLASS(BlueprintType, Blueprintable, EditInlineNew, DefaultToInstanced, DisplayName="角色近身战斗模块")
@@ -69,19 +69,15 @@ public:
 	FLxBlockRequest GetCurrentBlockRequest() const { return CurrentBlockRequest; }
 
 	/** 近战攻击命中有效目标事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|近身战斗|攻击|事件", DisplayName="近战攻击命中目标事件")
 	FOnLxMeleeAttackHit OnMeleeAttackHit;
 
 	/** 近战攻击执行结束事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|近身战斗|攻击|事件", DisplayName="近战攻击执行结束事件")
 	FOnLxMeleeAttackEnded OnMeleeAttackEnded;
 
 	/** 格挡期间盾牌被武器击中事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|近身战斗|格挡|事件", DisplayName="格挡时被击中事件")
 	FOnLxBlockHit OnBlockHit;
 
 	/** 格挡行为结束事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|近身战斗|格挡|事件", DisplayName="格挡执行结束事件")
 	FOnLxBlockEnded OnBlockEnded;
 
 	/** 当前默认始终成功，后续可在蓝图或 C++ 中接入体力消耗与破防计算。 */

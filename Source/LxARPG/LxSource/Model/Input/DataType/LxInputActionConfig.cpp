@@ -74,6 +74,20 @@ namespace
 
 namespace LxInputActionConfig
 {
+	void EnsureDefaultSprintInputActionInfo()
+	{
+		if (GetInputActionInfo(ELxInputActionID::Sprint)) return;
+		FLxInputActionInfo Info;
+		Info.InputActionID = ELxInputActionID::Sprint;
+		Info.DisplayName = FText::FromString(TEXT("冲刺"));
+		Info.ValueType = EInputActionValueType::Boolean;
+		Info.InteractionType = ELxInputInteractionType::PressAndRelease;
+		Info.DefaultKey = EKeys::LeftShift;
+		Info.ValueDirection = ELxInputValueAxial::None;
+		Info.ValueMagnification = 1.0f;
+		SetInputActionInfo(Info);
+	}
+
 	void ClearInputActionConfig()
 	{
 		GInputActionInfoMap.Empty();

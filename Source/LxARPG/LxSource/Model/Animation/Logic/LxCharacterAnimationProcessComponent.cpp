@@ -26,6 +26,8 @@ void ULxCharacterAnimationProcessComponent::BaseComponentInitialize()
 
 void ULxCharacterAnimationProcessComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (AnimInstance) AnimInstance->OnAnimationEvent.RemoveAll(this);
+	SetSkillAnimationTickRequired(false);
 	UnbindBehaviorControlEvents();
 	Super::EndPlay(EndPlayReason);
 }
@@ -53,6 +55,9 @@ void ULxCharacterAnimationProcessComponent::ReceiveActionMotionSignal(const FLxC
 
 	CurrentActionAnimationSignal = ConvertMotionSignalToAnimationSignal(InMotionSignal);
 	CurrentActionAnimationSignal.SkillId = InMotionSignal.SkillId;
+	// 蓝图只负责转换表现参数，不能丢失权威端的释放身份。
+	CurrentActionAnimationSignal.CastId = InMotionSignal.CastId;
+	SetSkillAnimationTickRequired(InMotionSignal.CastId.IsValid());
 	if (!EnsureAnimationInstanceCached() && AnimInstance)
 	{
 		AnimInstance->ApplyActionAnimationSignal(CurrentActionAnimationSignal);
@@ -82,6 +87,7 @@ FLxCharacterAnimationSignal ULxCharacterAnimationProcessComponent::ConvertMotion
 	FLxCharacterAnimationSignal AnimationSignal;
 	AnimationSignal.AnimationType = InMotionSignal.MotionType;
 	AnimationSignal.SkillId = InMotionSignal.SkillId;
+	AnimationSignal.CastId = InMotionSignal.CastId;
 	AnimationSignal.bLoop = InMotionSignal.bLoop;
 	if (InMotionSignal.MotionType == ELxCharacterMotionType::Move
 		|| InMotionSignal.MotionType == ELxCharacterMotionType::Run
@@ -117,9 +123,9 @@ void ULxCharacterAnimationProcessComponent::BindBehaviorControlEvents()
 	if (BehaviorControlComponent)
 	{
 		CurrentBehaviorStateTags = BehaviorControlComponent->GetActiveBehaviorStateTags();
-		BehaviorControlComponent->OnBehaviorStateChanged.AddDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveBehaviorStateChanged);
-		BehaviorControlComponent->OnBaseMotionSignalChanged.AddDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveBaseMotionSignal);
-		BehaviorControlComponent->OnActionMotionSignalChanged.AddDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveActionMotionSignal);
+		BehaviorControlComponent->OnBehaviorStateChanged.AddUObject(this, &ULxCharacterAnimationProcessComponent::ReceiveBehaviorStateChanged);
+		BehaviorControlComponent->OnBaseMotionSignalChanged.AddUObject(this, &ULxCharacterAnimationProcessComponent::ReceiveBaseMotionSignal);
+		BehaviorControlComponent->OnActionMotionSignalChanged.AddUObject(this, &ULxCharacterAnimationProcessComponent::ReceiveActionMotionSignal);
 		BehaviorControlComponent->ResendCurrentBaseAnimationMotionSignal();
 	}
 }
@@ -128,9 +134,9 @@ void ULxCharacterAnimationProcessComponent::UnbindBehaviorControlEvents()
 {
 	if (BehaviorControlComponent)
 	{
-		BehaviorControlComponent->OnBehaviorStateChanged.RemoveDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveBehaviorStateChanged);
-		BehaviorControlComponent->OnBaseMotionSignalChanged.RemoveDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveBaseMotionSignal);
-		BehaviorControlComponent->OnActionMotionSignalChanged.RemoveDynamic(this, &ULxCharacterAnimationProcessComponent::ReceiveActionMotionSignal);
+		BehaviorControlComponent->OnBehaviorStateChanged.RemoveAll(this);
+		BehaviorControlComponent->OnBaseMotionSignalChanged.RemoveAll(this);
+		BehaviorControlComponent->OnActionMotionSignalChanged.RemoveAll(this);
 	}
 }
 
@@ -141,13 +147,40 @@ bool ULxCharacterAnimationProcessComponent::EnsureAnimationInstanceCached()
 		? Cast<ULxAnimInstanceBase>(OwnerCharacter->GetMesh()->GetAnimInstance()) : nullptr;
 	if (AnimInstance != NewInstance)
 	{
+		if (AnimInstance) AnimInstance->OnAnimationEvent.RemoveAll(this);
 		AnimInstance = NewInstance;
 		if (AnimInstance)
 		{
+			AnimInstance->OnAnimationEvent.AddUObject(this, &ULxCharacterAnimationProcessComponent::HandleAnimationEvent);
 			AnimInstance->ApplyBaseAnimationSignal(CurrentBaseAnimationSignal);
 			AnimInstance->ApplyActionAnimationSignal(CurrentActionAnimationSignal);
 			return true;
 		}
 	}
 	return false;
+}
+
+void ULxCharacterAnimationProcessComponent::HandleAnimationEvent(const FLxCharacterAnimationEvent& Event)
+{
+	OnAnimationEvent.Broadcast(Event);
+}
+
+void ULxCharacterAnimationProcessComponent::SetSkillAnimationTickRequired(bool bRequired)
+{
+	const ALxBaseCharacter* Character = GetCharacterOwner();
+	USkeletalMeshComponent* Mesh = Character ? Character->GetMesh() : nullptr;
+	if (!Mesh || !Character->HasAuthority() || bRequired == bSkillAnimationTickRequired) return;
+	if (bRequired)
+	{
+		SavedVisibilityTickOption = static_cast<uint8>(Mesh->VisibilityBasedAnimTickOption);
+		bSavedUpdateRateOptimizations = Mesh->bEnableUpdateRateOptimizations;
+		Mesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+		Mesh->bEnableUpdateRateOptimizations = false;
+	}
+	else
+	{
+		Mesh->VisibilityBasedAnimTickOption = static_cast<EVisibilityBasedAnimTickOption>(SavedVisibilityTickOption);
+		Mesh->bEnableUpdateRateOptimizations = bSavedUpdateRateOptimizations;
+	}
+	bSkillAnimationTickRequired = bRequired;
 }

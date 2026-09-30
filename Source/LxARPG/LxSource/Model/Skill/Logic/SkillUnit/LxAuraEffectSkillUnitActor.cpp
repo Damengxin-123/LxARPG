@@ -199,7 +199,10 @@ void ALxAuraEffectSkillUnitActor::BindSkillUnitComponentEvents()
 	Super::BindSkillUnitComponentEvents();
 	if (DetectionComponent)
 	{
-		DetectionComponent->OnDetectionResult.AddUniqueDynamic(this, &ALxAuraEffectSkillUnitActor::HandleAuraDetectionResult);
+		if (!DetectionComponent->OnDetectionResult.IsBoundToObject(this))
+		{
+			DetectionComponent->OnDetectionResult.AddUObject(this, &ALxAuraEffectSkillUnitActor::HandleAuraDetectionResult);
+		}
 	}
 }
 

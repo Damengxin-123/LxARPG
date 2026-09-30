@@ -212,13 +212,13 @@ void ULxCharacterTestComponent::BindAIControllerActionEvent(ALxAIController* InA
 {
 	if (BoundAIController)
 	{
-		BoundAIController->OnAIBehaviorActionChanged.RemoveDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
+		BoundAIController->OnAIBehaviorActionChanged.RemoveAll(this);
 	}
 	BoundAIController = InAIController;
 	if (BoundAIController)
 	{
-		BoundAIController->OnAIBehaviorActionChanged.RemoveDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
-		BoundAIController->OnAIBehaviorActionChanged.AddDynamic(this, &ULxCharacterTestComponent::HandleAIActionChanged);
+		BoundAIController->OnAIBehaviorActionChanged.RemoveAll(this);
+		BoundAIController->OnAIBehaviorActionChanged.AddUObject(this, &ULxCharacterTestComponent::HandleAIActionChanged);
 		OnTestAIBehaviorTextOutput.Broadcast(GetCurrentAIBehaviorText());
 	}
 }

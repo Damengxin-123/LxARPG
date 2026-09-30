@@ -10,16 +10,13 @@ class AActor;
 class ALxBaseCharacter;
 
 /** 角色即时行为状态变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterBehaviorStateChanged,
-	FGameplayTag, BehaviorStateTag, bool, bActive);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterBehaviorStateChanged, FGameplayTag, bool);
 
 /** 角色基础运动信号变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterBaseMotionSignalChanged,
-	const FLxCharacterMotionSignal&, MotionSignal);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxCharacterBaseMotionSignalChanged, const FLxCharacterMotionSignal&);
 
 /** 角色动作运动信号变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterActionMotionSignalChanged,
-	const FLxCharacterMotionSignal&, MotionSignal);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxCharacterActionMotionSignalChanged, const FLxCharacterMotionSignal&);
 
 /**
  * 角色行为控制组件。
@@ -47,15 +44,18 @@ public:
 	/** 注册需要网络同步的即时行为状态。 */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	/** 设置行为树当前动作标识及运动倍率；传入无可释放行为树覆盖。 */
-	void SetBehaviorMotion(ELxCharacterMotionType InMotionType, float InSpeedMultiplier);
+	/** 设置行为树当前动作标识，由角色运动组件选择倍率；传入无可释放覆盖。 */
+	void SetBehaviorMotion(ELxCharacterMotionType InMotionType);
 
 	/** 获取行为树与动画蓝图共用的当前动作类型；无覆盖时返回真实运动采样类型。 */
 	UFUNCTION(BlueprintPure, Category="角色|行为控制|运动", meta=(DisplayName="获取当前运动类型"))
 	ELxCharacterMotionType GetCurrentMotionType() const;
 
 	/** 获取应用于属性加成后速度的倍率。 */
-	float GetMovementSpeedMultiplier() const { return MovementSpeedMultiplier; }
+	virtual float GetMovementSpeedMultiplier() const { return 1.0f; }
+
+	/** 获取行为树请求的类型，供共用运动组件选择档位，不混入动画采样结果。 */
+	ELxCharacterMotionType GetRequestedBehaviorMotionType() const { return BehaviorMotionType; }
 
 	/** 根据控制器朝向执行二维移动输入。 */
 	UFUNCTION(BlueprintCallable, Category="角色|行为控制|移动", DisplayName="执行角色移动输入")
@@ -153,18 +153,17 @@ public:
 	void ResendCurrentBaseAnimationMotionSignal();
 
 	/** 即时行为状态变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|行为控制|事件", DisplayName="行为状态变化事件")
 	FOnLxCharacterBehaviorStateChanged OnBehaviorStateChanged;
 
 	/** 基础运动信号变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|行为控制|事件", DisplayName="基础运动信号变化事件")
 	FOnLxCharacterBaseMotionSignalChanged OnBaseMotionSignalChanged;
 
 	/** 动作运动信号变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|行为控制|事件", DisplayName="动作运动信号变化事件")
 	FOnLxCharacterActionMotionSignalChanged OnActionMotionSignalChanged;
 
 protected:
+	/** 根据真实水平速度选择地面运动动画，派生运动组件负责三档判定。 */
+	virtual ELxCharacterMotionType ResolveGroundMotionType(float HorizontalSpeed) const;
 	/** 基础行为状态采样间隔。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="角色|行为控制|采样", DisplayName="行为状态采样间隔",
 		meta=(ClampMin="0.0", Units="s"))
@@ -174,11 +173,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="角色|行为控制|采样", DisplayName="待机速度阈值",
 		meta=(ClampMin="0.0", Units="cm/s"))
 	float IdleSpeedThreshold = 3.0f;
-
-	/** 水平速度超过该值时使用奔跑行为和奔跑动画，默认三米每秒。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="角色|行为控制|采样", DisplayName="奔跑速度阈值",
-		meta=(ClampMin="0.0", Units="cm/s"))
-	float RunSpeedThreshold = 300.0f;
 
 	/** 跳跃输入发出后等待角色真正离地的最长时间。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="角色|行为控制|采样", DisplayName="跳跃起步识别时间",
@@ -216,12 +210,8 @@ private:
 	void OnRep_MovementSpeedMultiplier();
 
 	/** 当前行为节点的语义运动类型，独立于实际速度及技能动画信号。 */
-	UPROPERTY(Transient, Replicated)
-	ELxCharacterMotionType BehaviorMotionType = ELxCharacterMotionType::None;
-
-	/** 当前行为选用的速度倍率，不在已有最大速度上累乘。 */
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_MovementSpeedMultiplier)
-	float MovementSpeedMultiplier = 1.0f;
+	ELxCharacterMotionType BehaviorMotionType = ELxCharacterMotionType::None;
 
 	/** 将本地玩家新增的行为状态同步到服务端权威组件。 */
 	UFUNCTION(Server, Reliable)

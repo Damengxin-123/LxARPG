@@ -246,8 +246,8 @@ void ULxProfessionWidget::BindDataTransferComponent(ULxCharacterDataTransferComp
 
 	if (m_pCharacterDataTransferComponent != nullptr)
 	{
-		m_pCharacterDataTransferComponent->OnProfessionChanged.RemoveDynamic(this, &ULxProfessionWidget::HandleProfessionChanged);
-		m_pCharacterDataTransferComponent->OnProfessionChanged.AddDynamic(this, &ULxProfessionWidget::HandleProfessionChanged);
+		m_pCharacterDataTransferComponent->OnProfessionChanged.RemoveAll(this);
+		m_pCharacterDataTransferComponent->OnProfessionChanged.AddUObject(this, &ULxProfessionWidget::HandleProfessionChanged);
 	}
 }
 
@@ -255,7 +255,7 @@ void ULxProfessionWidget::UnbindDataTransferComponent()
 {
 	if (m_pCharacterDataTransferComponent != nullptr)
 	{
-		m_pCharacterDataTransferComponent->OnProfessionChanged.RemoveDynamic(this, &ULxProfessionWidget::HandleProfessionChanged);
+		m_pCharacterDataTransferComponent->OnProfessionChanged.RemoveAll(this);
 	}
 
 	m_pCharacterDataTransferComponent = nullptr;
@@ -292,8 +292,8 @@ ULxProfessionListItemUIData* ULxProfessionWidget::BuildProfessionListItemUIData(
 	UIData->CurrentExperience = bLearned ? RuntimeData.Experience : 0.f;
 	UIData->bLearned = bLearned;
 	UIData->bSelected = ProfessionIDTag == SelectedProfessionIDTag;
-	UIData->OnSelectProfessionRequested.RemoveDynamic(this, &ULxProfessionWidget::HandleProfessionListItemSelectRequested);
-	UIData->OnSelectProfessionRequested.AddDynamic(this, &ULxProfessionWidget::HandleProfessionListItemSelectRequested);
+	UIData->OnSelectProfessionRequested.RemoveAll(this);
+	UIData->OnSelectProfessionRequested.AddUObject(this, &ULxProfessionWidget::HandleProfessionListItemSelectRequested);
 	return UIData;
 }
 

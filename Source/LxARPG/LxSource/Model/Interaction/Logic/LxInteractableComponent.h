@@ -19,17 +19,16 @@ class FOutBunch;
 struct FReplicationFlags;
 
 /** 可交互对象的选项变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxInteractableOptionsChanged);
+DECLARE_MULTICAST_DELEGATE(FOnLxInteractableOptionsChanged);
 
 /** 可交互对象完成一次物品传递的事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxInteractableItemTransferCompleted);
+DECLARE_MULTICAST_DELEGATE(FOnLxInteractableItemTransferCompleted);
 
 /** 可交互对象中的宝箱完成交互的事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxInteractableTreasureChestCompleted);
+DECLARE_MULTICAST_DELEGATE(FOnLxInteractableTreasureChestCompleted);
 
 /** 可交互对象中机关状态发生改变的事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxInteractableMechanismStateChanged,
-	ELxMechanismState, NewState);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxInteractableMechanismStateChanged, ELxMechanismState);
 
 /** 可交互对象组件结束运行的原生事件，用于释放异步监听。 */
 DECLARE_MULTICAST_DELEGATE(FOnLxInteractableComponentEndPlayNative);
@@ -140,19 +139,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="处理交互范围离开Actor")
 	void HandleInteractionRangeEndOverlap(AActor* OtherActor);
 
-	UPROPERTY(BlueprintAssignable, Category="交互", DisplayName="可交互选项变化事件")
+	/** 可交互选项变化事件，仅供 C++ 监听。 */
 	FOnLxInteractableOptionsChanged OnInteractableOptionsChanged;
 
 	/** 任一物品传递功能模块成功完成物品传递时触发。 */
-	UPROPERTY(BlueprintAssignable, Category="交互|物品传递", DisplayName="物品传递完成事件")
 	FOnLxInteractableItemTransferCompleted OnItemTransferCompleted;
 
 	/** 任一宝箱功能模块达到物品获取完成条件时触发。 */
-	UPROPERTY(BlueprintAssignable, Category="交互|宝箱", DisplayName="宝箱交互完成事件")
 	FOnLxInteractableTreasureChestCompleted OnTreasureChestCompleted;
 
 	/** 任一机关功能模块的机关状态发生改变时触发。 */
-	UPROPERTY(BlueprintAssignable, Category="交互|机关", DisplayName="机关状态改变事件")
 	FOnLxInteractableMechanismStateChanged OnMechanismStateChanged;
 
 	/** 组件结束运行时触发，供异步节点解除监听并结束生命周期。 */

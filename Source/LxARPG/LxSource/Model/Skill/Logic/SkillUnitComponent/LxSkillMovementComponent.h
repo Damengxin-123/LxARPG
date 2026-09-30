@@ -8,8 +8,10 @@
 
 class USceneComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillMovementStateChanged, ELxSkillAbilityComponentState, OldState, ELxSkillAbilityComponentState, NewState);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillMovementProgress, float, MovementProgress);
+/** 技能移动状态变化事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxSkillMovementStateChanged, ELxSkillAbilityComponentState, ELxSkillAbilityComponentState);
+/** 技能移动进度事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxSkillMovementProgress, float);
 
 /** 技能运动能力组件，只负责控制技能单元或指定场景组件的位移和运动状态。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="技能运动能力组件")
@@ -66,11 +68,9 @@ public:
 	ELxSkillAbilityComponentState GetMovementState() const { return MovementState; }
 
 	/** 运动状态改变事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|运动", DisplayName="运动状态改变事件")
 	FOnLxSkillMovementStateChanged OnMovementStateChanged;
 
 	/** 达到最大运动距离事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|运动", DisplayName="达到最大运动距离事件")
 	FOnLxSkillMovementProgress OnReachMaxDistance;
 
 protected:

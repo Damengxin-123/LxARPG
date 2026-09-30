@@ -19,6 +19,8 @@ class LXARPG_API ULxCharacterAnimationProcessComponent : public ULxCharacterComp
 	GENERATED_BODY()
 
 public:
+	/** 动画实例上报后向数据中转组件发送的通知。 */
+	FOnLxCharacterAnimationEvent OnAnimationEvent;
 	ULxCharacterAnimationProcessComponent();
 
 	/** 初始化动画处理组件并绑定角色行为控制组件事件。 */
@@ -54,6 +56,16 @@ protected:
 	virtual FLxCharacterAnimationSignal ConvertMotionSignalToAnimationSignal_Implementation(const FLxCharacterMotionSignal& InMotionSignal) const;
 
 private:
+	/** 接收动画实例统一收集的事件，只负责逐层转发。 */
+	void HandleAnimationEvent(const FLxCharacterAnimationEvent& Event);
+	/** 施法期间保证权威端离屏角色也推进序列通知并更新技能锚点。 */
+	void SetSkillAnimationTickRequired(bool bRequired);
+	/** 是否临时覆盖了网格更新策略。 */
+	bool bSkillAnimationTickRequired = false;
+	/** 施法开始前的网格可见性更新策略。 */
+	uint8 SavedVisibilityTickOption = 0;
+	/** 施法开始前的更新频率优化开关。 */
+	bool bSavedUpdateRateOptimizations = false;
 	/** 接收统一行为控制组件广播的即时状态变化。 */
 	UFUNCTION()
 	void ReceiveBehaviorStateChanged(FGameplayTag InBehaviorStateTag, bool bInActive);

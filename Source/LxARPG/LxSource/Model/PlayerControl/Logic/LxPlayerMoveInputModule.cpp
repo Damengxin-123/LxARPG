@@ -1,4 +1,5 @@
 #include "LxPlayerMoveInputModule.h"
+#include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterLocomotionComponent.h"
 
 #include "GameFramework/PlayerController.h"
 #include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
@@ -39,10 +40,13 @@ void ULxPlayerMoveInputModule::InitializeModule(ULxPlayerControlComponent* InOwn
 	RegisterInputActionReceive(m_LookXInputActionID);
 	RegisterInputActionReceive(m_LookYInputActionID);
 	RegisterInputActionReceive(m_JumpInputActionID);
+	RegisterInputActionReceive(ELxInputActionID::Sprint);
 }
 
 void ULxPlayerMoveInputModule::ShutdownModule()
 {
+	if (m_pOwnerCharacter && m_pOwnerCharacter->GetCharacterLocomotionComponent())
+		m_pOwnerCharacter->GetCharacterLocomotionComponent()->SetSprintRequested(false);
 	m_pBehaviorControlComponent = nullptr;
 	m_pOwnerCharacter = nullptr;
 	Super::ShutdownModule();
@@ -70,6 +74,11 @@ void ULxPlayerMoveInputModule::HandleInputValue(ELxInputActionID InInputActionID
 		|| InInputActionID == m_MoveDInputActionID || InInputActionID == m_MoveSInputActionID)
 	{
 		m_pBehaviorControlComponent->HandleMoveInput(InValue.m_sVector2D);
+	}
+	else if (InInputActionID == ELxInputActionID::Sprint)
+	{
+		if (auto* Locomotion = m_pOwnerCharacter->GetCharacterLocomotionComponent())
+			Locomotion->SetSprintRequested(InValue.m_blValue);
 	}
 	else if (InInputActionID == m_JumpInputActionID)
 	{

@@ -8,6 +8,6 @@ public class LxARPGAnimGraph : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		PublicDependencyModuleNames.AddRange(new[] { "Core", "CoreUObject", "Engine", "LxARPG", "AnimGraph", "AnimGraphRuntime", "BlueprintGraph" });
-		PrivateDependencyModuleNames.AddRange(new[] { "UnrealEd", "KismetCompiler", "GameplayTags" });
+		PrivateDependencyModuleNames.AddRange(new[] { "UnrealEd", "KismetCompiler", "GameplayTags", "ToolMenus", "Slate", "SlateCore" });
 	}
 }

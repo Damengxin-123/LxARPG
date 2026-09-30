@@ -51,7 +51,10 @@ void ALxAreaSkillUnitActor::BindSkillUnitComponentEvents()
 
 	if (DetectionComponent)
 	{
-		DetectionComponent->OnDetectionResult.AddUniqueDynamic(this, &ALxAreaSkillUnitActor::HandleAreaDetectionResult);
+		if (!DetectionComponent->OnDetectionResult.IsBoundToObject(this))
+		{
+			DetectionComponent->OnDetectionResult.AddUObject(this, &ALxAreaSkillUnitActor::HandleAreaDetectionResult);
+		}
 	}
 }
 

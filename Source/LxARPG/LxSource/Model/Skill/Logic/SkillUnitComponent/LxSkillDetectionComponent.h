@@ -10,7 +10,8 @@ class UPrimitiveComponent;
 class ALxBaseCharacter;
 class ALxSkillUnitActor;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillDetectionResult, const FLxSkillDetectionResult&, DetectionResult);
+/** 技能检测结果事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxSkillDetectionResult, const FLxSkillDetectionResult&);
 
 /** 技能目标检测组件，只负责从碰撞、重叠或手动输入中产生候选目标。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="技能目标检测组件")
@@ -52,7 +53,6 @@ public:
 	TArray<AActor*> GetCurrentCandidateTargets() const;
 
 	/** 检测结果发布事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|检测", DisplayName="检测结果发布事件")
 	FOnLxSkillDetectionResult OnDetectionResult;
 
 private:

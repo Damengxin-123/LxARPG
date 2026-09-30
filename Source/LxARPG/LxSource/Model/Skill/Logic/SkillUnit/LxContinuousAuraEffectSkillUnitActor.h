@@ -7,7 +7,7 @@
 class ALxContinuousAuraEffectSkillUnitActor;
 
 /** 持续型光环回收目标效果事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxAuraTargetEffectRemoved, ALxContinuousAuraEffectSkillUnitActor*, SkillUnit, const FLxAuraTargetEffectRemoveResult&, RemoveResult);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxAuraTargetEffectRemoved, ALxContinuousAuraEffectSkillUnitActor*, const FLxAuraTargetEffectRemoveResult&);
 
 /** 持续型光环，在目标进入时命中，并在离开或光环停用时回收对应效果。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="持续型光环效果单元")
@@ -21,7 +21,6 @@ public:
 	TArray<AActor*> GetActiveAuraTargets() const;
 
 	/** 单个目标的持续光环效果需要被回收时广播。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|光环效果|持续型|事件", DisplayName="光环目标效果回收事件")
 	FOnLxAuraTargetEffectRemoved OnAuraTargetEffectRemoved;
 
 protected:

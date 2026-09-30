@@ -122,7 +122,7 @@ void ULxSkillBackpackModule::RebuildSkillItemSlots()
 	{
 		if (SlotData)
 		{
-			SlotData->OnItemDataChanged.RemoveDynamic(this, &ULxSkillBackpackModule::HandleSkillSlotChanged);
+			SlotData->OnItemDataChanged.RemoveAll(this);
 		}
 	}
 
@@ -140,7 +140,7 @@ void ULxSkillBackpackModule::RebuildSkillItemSlots()
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
 		NewSlot->InitItemSlot(ELxItemSlotType::SkillDisplay, LxTag_Item_Skill, SkillItem);
 		NewSlot->SetSlotIndex(SkillItemSlotList.Num());
-		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxSkillBackpackModule::HandleSkillSlotChanged);
+		NewSlot->OnItemDataChanged.AddUObject(this, &ULxSkillBackpackModule::HandleSkillSlotChanged);
 		SkillItemSlotList.Add(NewSlot);
 	}
 }

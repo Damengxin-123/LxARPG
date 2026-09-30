@@ -138,10 +138,10 @@ void ULxBackpackWidget::BindDataTransferComponent(ULxCharacterDataTransferCompon
 		return;
 	}
 
-	m_pCharacterDataTransferComponent->OnBackpackItemChanged.RemoveDynamic(this, &ULxBackpackWidget::HandleBackpackItemsChanged);
-	m_pCharacterDataTransferComponent->OnBackpackItemChanged.AddDynamic(this, &ULxBackpackWidget::HandleBackpackItemsChanged);
-	m_pCharacterDataTransferComponent->OnEquipmentChanged.RemoveDynamic(this, &ULxBackpackWidget::HandleEquipmentSlotsChanged);
-	m_pCharacterDataTransferComponent->OnEquipmentChanged.AddDynamic(this, &ULxBackpackWidget::HandleEquipmentSlotsChanged);
+	m_pCharacterDataTransferComponent->OnBackpackItemChanged.RemoveAll(this);
+	m_pCharacterDataTransferComponent->OnBackpackItemChanged.AddUObject(this, &ULxBackpackWidget::HandleBackpackItemsChanged);
+	m_pCharacterDataTransferComponent->OnEquipmentChanged.RemoveAll(this);
+	m_pCharacterDataTransferComponent->OnEquipmentChanged.AddUObject(this, &ULxBackpackWidget::HandleEquipmentSlotsChanged);
 }
 
 void ULxBackpackWidget::UnbindDataTransferComponent()
@@ -151,8 +151,8 @@ void ULxBackpackWidget::UnbindDataTransferComponent()
 		return;
 	}
 
-	m_pCharacterDataTransferComponent->OnBackpackItemChanged.RemoveDynamic(this, &ULxBackpackWidget::HandleBackpackItemsChanged);
-	m_pCharacterDataTransferComponent->OnEquipmentChanged.RemoveDynamic(this, &ULxBackpackWidget::HandleEquipmentSlotsChanged);
+	m_pCharacterDataTransferComponent->OnBackpackItemChanged.RemoveAll(this);
+	m_pCharacterDataTransferComponent->OnEquipmentChanged.RemoveAll(this);
 	m_pCharacterDataTransferComponent = nullptr;
 }
 

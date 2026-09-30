@@ -152,10 +152,10 @@ void ULxTradeContainerWidget::BindPlayerInteractionComponent()
 		return;
 	}
 
-	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveDynamic(this, &ULxTradeContainerWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionOptionActivated.AddDynamic(this, &ULxTradeContainerWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxTradeContainerWidget::HandleInteractionCancelled);
-	PlayerInteractionComponent->OnInteractionCancelled.AddDynamic(this, &ULxTradeContainerWidget::HandleInteractionCancelled);
+	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionOptionActivated.AddUObject(this, &ULxTradeContainerWidget::HandleInteractionOptionActivated);
+	PlayerInteractionComponent->OnInteractionCancelled.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionCancelled.AddUObject(this, &ULxTradeContainerWidget::HandleInteractionCancelled);
 }
 
 void ULxTradeContainerWidget::UnbindPlayerInteractionComponent()
@@ -165,8 +165,8 @@ void ULxTradeContainerWidget::UnbindPlayerInteractionComponent()
 		return;
 	}
 
-	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveDynamic(this, &ULxTradeContainerWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxTradeContainerWidget::HandleInteractionCancelled);
+	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionCancelled.RemoveAll(this);
 	PlayerInteractionComponent = nullptr;
 }
 
@@ -177,8 +177,8 @@ void ULxTradeContainerWidget::BindTradeContainerComponent()
 		return;
 	}
 
-	TradeContainerComponent->OnTradeSlotListChanged.RemoveDynamic(this, &ULxTradeContainerWidget::HandleTradeSlotListChanged);
-	TradeContainerComponent->OnTradeSlotListChanged.AddDynamic(this, &ULxTradeContainerWidget::HandleTradeSlotListChanged);
+	TradeContainerComponent->OnTradeSlotListChanged.RemoveAll(this);
+	TradeContainerComponent->OnTradeSlotListChanged.AddUObject(this, &ULxTradeContainerWidget::HandleTradeSlotListChanged);
 }
 
 void ULxTradeContainerWidget::UnbindTradeContainerComponent()
@@ -188,7 +188,7 @@ void ULxTradeContainerWidget::UnbindTradeContainerComponent()
 		return;
 	}
 
-	TradeContainerComponent->OnTradeSlotListChanged.RemoveDynamic(this, &ULxTradeContainerWidget::HandleTradeSlotListChanged);
+	TradeContainerComponent->OnTradeSlotListChanged.RemoveAll(this);
 	TradeContainerComponent = nullptr;
 	TradeItemSlotList.Reset();
 }

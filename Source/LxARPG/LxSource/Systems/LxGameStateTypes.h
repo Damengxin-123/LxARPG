@@ -24,5 +24,4 @@ enum class ELxGameState : uint8
 };
 
 /** 本地玩家游戏流程状态发生变化时触发。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxGameStateChanged, ELxGameState, PreviousState,
-	ELxGameState, NewState);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxGameStateChanged, ELxGameState, ELxGameState);

@@ -82,19 +82,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category="交互", DisplayName="取消交互")
 	void CancelInteraction();
 
-	UPROPERTY(BlueprintAssignable, Category="交互", DisplayName="入口选项更新事件")
+	/** 入口选项更新事件，仅供 C++ 监听。 */
 	FOnLxInteractionOptionListUpdated OnEntranceOptionsUpdated;
 
-	UPROPERTY(BlueprintAssignable, Category="交互", DisplayName="当前交互选项更新事件")
+	/** 当前交互选项更新事件，仅供 C++ 监听。 */
 	FOnLxInteractionOptionListUpdated OnCurrentInteractionOptionsUpdated;
 
-	UPROPERTY(BlueprintAssignable, Category="交互", DisplayName="交互选项执行事件")
+	/** 交互选项执行事件，仅供 C++ 监听。 */
 	FOnLxInteractionOptionExecuted OnInteractionOptionExecuted;
 
-	UPROPERTY(BlueprintAssignable, Category="交互", DisplayName="交互选项激活事件")
+	/** 交互选项激活事件，仅供 C++ 监听。 */
 	FOnLxInteractionOptionActivated OnInteractionOptionActivated;
 
-	UPROPERTY(BlueprintAssignable, Category="交互", DisplayName="交互取消事件")
+	/** 交互取消事件，仅供 C++ 监听。 */
 	FOnLxInteractionCancelled OnInteractionCancelled;
 
 private:

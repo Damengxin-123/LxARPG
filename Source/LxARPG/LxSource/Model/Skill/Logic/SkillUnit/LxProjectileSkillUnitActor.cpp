@@ -101,12 +101,18 @@ void ALxProjectileSkillUnitActor::BindSkillUnitComponentEvents()
 
 	if (DetectionComponent)
 	{
-		DetectionComponent->OnDetectionResult.AddUniqueDynamic(this, &ALxProjectileSkillUnitActor::HandleProjectileDetectionResult);
+		if (!DetectionComponent->OnDetectionResult.IsBoundToObject(this))
+		{
+			DetectionComponent->OnDetectionResult.AddUObject(this, &ALxProjectileSkillUnitActor::HandleProjectileDetectionResult);
+		}
 	}
 
 	if (MovementComponent)
 	{
-		MovementComponent->OnReachMaxDistance.AddUniqueDynamic(this, &ALxProjectileSkillUnitActor::HandleProjectileReachMaxDistance);
+		if (!MovementComponent->OnReachMaxDistance.IsBoundToObject(this))
+		{
+			MovementComponent->OnReachMaxDistance.AddUObject(this, &ALxProjectileSkillUnitActor::HandleProjectileReachMaxDistance);
+		}
 	}
 }
 

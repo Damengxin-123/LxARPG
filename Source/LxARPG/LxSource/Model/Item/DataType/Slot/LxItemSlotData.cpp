@@ -63,12 +63,12 @@ bool ULxItemSlotData::SetItem(ULxItemBase* InItemData)
 
 	if (m_pItemData)
 	{
-		m_pItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemSlotData::HandleItemCountChanged);
+		m_pItemData->OnItemCountChanged.RemoveAll(this);
 	}
 
 	m_pItemData = InItemData;
-	m_pItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemSlotData::HandleItemCountChanged);
-	m_pItemData->OnItemCountChanged.AddDynamic(this, &ULxItemSlotData::HandleItemCountChanged);
+	m_pItemData->OnItemCountChanged.RemoveAll(this);
+	m_pItemData->OnItemCountChanged.AddUObject(this, &ULxItemSlotData::HandleItemCountChanged);
 	OnItemDataChanged.Broadcast(m_pItemData);
 	return true;
 }
@@ -109,7 +109,7 @@ void ULxItemSlotData::ClearItem()
 {
 	if (m_pItemData)
 	{
-		m_pItemData->OnItemCountChanged.RemoveDynamic(this, &ULxItemSlotData::HandleItemCountChanged);
+		m_pItemData->OnItemCountChanged.RemoveAll(this);
 	}
 
 	m_pItemData = nullptr;

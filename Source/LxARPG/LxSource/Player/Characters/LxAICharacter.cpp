@@ -55,8 +55,8 @@ void ALxAICharacter::BindCharacterInfoWidgets()
 {
 	if (ULxCharacterAttributeComponent* AttributeComponent = GetCharacterAttributeComponent())
 	{
-		AttributeComponent->OnTypedAttributeSnapshotChanged.RemoveDynamic(this, &ALxAICharacter::HandleAIAttributesChanged);
-		AttributeComponent->OnTypedAttributeSnapshotChanged.AddDynamic(this, &ALxAICharacter::HandleAIAttributesChanged);
+		AttributeComponent->OnTypedAttributeSnapshotChanged.RemoveAll(this);
+		AttributeComponent->OnTypedAttributeSnapshotChanged.AddUObject(this, &ALxAICharacter::HandleAIAttributesChanged);
 	}
 
 	RefreshCharacterInfoWidgetsHealth();

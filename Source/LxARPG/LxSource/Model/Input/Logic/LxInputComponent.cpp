@@ -29,6 +29,7 @@ void ULxInputComponent::BaseComponentInitialize()
 	}
 	if (m_pDefaultMappingContext)
 	{
+		LxInputActionConfig::EnsureDefaultSprintInputActionInfo();
 		const TMap<ELxInputActionID, FLxInputActionInfo>& InputActionInfoMap = LxInputActionConfig::GetInputActionInfoMap();
 		if (InputActionInfoMap.IsEmpty())
 		{
@@ -82,6 +83,8 @@ void ULxInputComponent::BaseComponentInitialize()
 				this, &ULxInputComponent::HandlePressAndReleaseAction, ETriggerEvent::Started);
 				EnhancedInput->BindAction(Action, ETriggerEvent::Completed,
 				this, &ULxInputComponent::HandlePressAndReleaseAction, ETriggerEvent::Completed);
+				EnhancedInput->BindAction(Action, ETriggerEvent::Canceled,
+				this, &ULxInputComponent::HandlePressAndReleaseAction, ETriggerEvent::Canceled);
 				break;
 			case ELxInputInteractionType::SingleTrigger:
 				EnhancedInput->BindAction(Action, ETriggerEvent::Started,

@@ -9,9 +9,11 @@
 
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxItemSlotChanged);
+/** 物品槽位变化事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE(FOnLxItemSlotChanged);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemDataChanged, ULxItemBase*, InItemData);
+/** 物品数据变化事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnItemDataChanged, ULxItemBase*);
 
 UCLASS(BlueprintType, DisplayName="物品槽位类型")
 class LXARPG_API ULxItemSlotData : public UObject

@@ -29,7 +29,7 @@ struct LXARPG_API FLxCharacterFactionData
 };
 
 /** 角色状态属性标签变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSpecialAttributeStateTagsChanged, FGameplayTag, StateCategoryTag, const FGameplayTagContainer&, StateTags);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxSpecialAttributeStateTagsChanged, FGameplayTag, const FGameplayTagContainer&);
 
 /** 角色生命周期属性变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSpecialAttributeLifecycleChanged, bool, bIsAlive, FGameplayTag, LifecycleStateTag);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxSpecialAttributeLifecycleChanged, bool, FGameplayTag);

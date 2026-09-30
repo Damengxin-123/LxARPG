@@ -6,7 +6,8 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitComponentTypes.h"
 #include "LxSkillPropagationComponent.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillPropagationEvaluated, const FLxSkillPropagationResult&, PropagationResult);
+/** 技能传播评估事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxSkillPropagationEvaluated, const FLxSkillPropagationResult&);
 
 /** 技能传播能力组件，只负责传播次数、剩余计数和传播决策，不直接创建新技能单元。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="技能传播能力组件")
@@ -40,7 +41,6 @@ public:
 	int32 GetRemainingChainCount() const { return RemainingChainCount; }
 
 	/** 传播评估事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|传播", DisplayName="传播评估事件")
 	FOnLxSkillPropagationEvaluated OnPropagationEvaluated;
 
 private:

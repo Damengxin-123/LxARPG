@@ -10,7 +10,8 @@ class ULxSkillDetectionComponent;
 class ULxSkillLifeComponent;
 class ULxSkillTriggerComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxAreaDetectionEvent, ALxSkillUnitActor*, SkillUnit, const FLxSkillDetectionResult&, DetectionResult);
+/** 范围检测事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxAreaDetectionEvent, ALxSkillUnitActor*, const FLxSkillDetectionResult&);
 
 /** 范围效果技能子单元基类，负责协调外部判定组件、目标检测、触发和持续时间。 */
 UCLASS(Abstract, Blueprintable, BlueprintType, DisplayName="范围效果技能子单元基类")
@@ -26,11 +27,9 @@ public:
 	void InitializeAreaEffect(const FLxSkillAreaEffectSpec& InAreaEffectSpec);
 
 	/** 目标进入范围时发布的检测事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|范围效果|事件", DisplayName="目标进入范围")
 	FOnLxAreaDetectionEvent OnTargetEnterArea;
 
 	/** 目标离开范围时发布的检测事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|范围效果|事件", DisplayName="目标离开范围")
 	FOnLxAreaDetectionEvent OnTargetLeaveArea;
 
 protected:

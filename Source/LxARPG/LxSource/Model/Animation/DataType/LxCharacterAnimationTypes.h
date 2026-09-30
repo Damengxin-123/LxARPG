@@ -42,6 +42,10 @@ struct LXARPG_API FLxCharacterMotionSignal
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色动画|动作", meta=(DisplayName="技能ID", Categories="物品.技能"))
 	FGameplayTag SkillId;
 
+	/** 由权威端生成的本次技能释放编号；基础动画和普通行为为空。 */
+	UPROPERTY(BlueprintReadWrite, Category="角色动画|动作", meta=(DisplayName="技能释放编号"))
+	FGuid CastId;
+
 	/** 当前角色运动行为类型。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色动画|运动信号", DisplayName="运动类型")
 	ELxCharacterMotionType MotionType = ELxCharacterMotionType::None;
@@ -72,6 +76,10 @@ struct LXARPG_API FLxCharacterAnimationSignal
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色动画|动作", meta=(DisplayName="技能ID", Categories="物品.技能"))
 	FGameplayTag SkillId;
 
+	/** 保留运动信号中的释放编号，通知回传时必须使用播放时的编号。 */
+	UPROPERTY(BlueprintReadWrite, Category="角色动画|动作", meta=(DisplayName="技能释放编号"))
+	FGuid CastId;
+
 	/** 当前需要播放的动画类型。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色动画|动画信号", DisplayName="动画类型")
 	ELxCharacterMotionType AnimationType = ELxCharacterMotionType::None;
@@ -84,3 +92,34 @@ struct LXARPG_API FLxCharacterAnimationSignal
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色动画|动画信号", DisplayName="是否循环")
 	bool bLoop = true;
 };
+
+/** 动画蓝图收集的单次通知，携带产生通知的播放来源，而非接收时的当前动作。 */
+USTRUCT(BlueprintType, meta=(DisplayName="角色动画通知"))
+struct LXARPG_API FLxCharacterAnimationEvent
+{
+	GENERATED_BODY()
+
+	/** 通知语义；技能释放触发实际行为，技能结束解除本次动画占用。 */
+	UPROPERTY(BlueprintReadOnly, Category="角色动画|通知", meta=(DisplayName="通知名称"))
+	FName NotifyName;
+
+	/** 产生通知时的技能物品标签。 */
+	UPROPERTY(BlueprintReadOnly, Category="角色动画|通知", meta=(DisplayName="技能ID"))
+	FGameplayTag SkillId;
+
+	/** 产生通知的释放编号，用于拒绝取消后、过期和其他播放实例的通知。 */
+	UPROPERTY(BlueprintReadOnly, Category="角色动画|通知", meta=(DisplayName="技能释放编号"))
+	FGuid CastId;
+
+	/** 基础动画通知不能执行技能。 */
+	UPROPERTY(BlueprintReadOnly, Category="角色动画|通知", meta=(DisplayName="是否动作通道"))
+	bool bActionChannel = false;
+
+	/** 提供统一的技能执行通知名称。 */
+	static FName ReleaseName() { return TEXT("技能释放"); }
+	/** 提供统一的技能动画结束通知名称。 */
+	static FName FinishName() { return TEXT("技能结束"); }
+};
+
+/** 模块之间逐层传递动画通知，仅供原生代码绑定。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAnimationEvent, const FLxCharacterAnimationEvent&);

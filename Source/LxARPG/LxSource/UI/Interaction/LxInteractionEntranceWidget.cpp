@@ -128,10 +128,16 @@ void ULxInteractionEntranceWidget::BindPlayerInteractionComponent()
 		return;
 	}
 
-	PlayerInteractionComponent->OnEntranceOptionsUpdated.RemoveDynamic(this, &ULxInteractionEntranceWidget::HandleEntranceOptionsUpdated);
-	PlayerInteractionComponent->OnEntranceOptionsUpdated.AddDynamic(this, &ULxInteractionEntranceWidget::HandleEntranceOptionsUpdated);
-	PlayerInteractionComponent->OnInteractionOptionActivated.AddUniqueDynamic(this, &ULxInteractionEntranceWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionCancelled.AddUniqueDynamic(this, &ULxInteractionEntranceWidget::HandleInteractionCancelled);
+	PlayerInteractionComponent->OnEntranceOptionsUpdated.RemoveAll(this);
+	PlayerInteractionComponent->OnEntranceOptionsUpdated.AddUObject(this, &ULxInteractionEntranceWidget::HandleEntranceOptionsUpdated);
+	if (!PlayerInteractionComponent->OnInteractionOptionActivated.IsBoundToObject(this))
+	{
+		PlayerInteractionComponent->OnInteractionOptionActivated.AddUObject(this, &ULxInteractionEntranceWidget::HandleInteractionOptionActivated);
+	}
+	if (!PlayerInteractionComponent->OnInteractionCancelled.IsBoundToObject(this))
+	{
+		PlayerInteractionComponent->OnInteractionCancelled.AddUObject(this, &ULxInteractionEntranceWidget::HandleInteractionCancelled);
+	}
 }
 
 void ULxInteractionEntranceWidget::UnbindPlayerInteractionComponent()
@@ -141,9 +147,9 @@ void ULxInteractionEntranceWidget::UnbindPlayerInteractionComponent()
 		return;
 	}
 
-	PlayerInteractionComponent->OnEntranceOptionsUpdated.RemoveDynamic(this, &ULxInteractionEntranceWidget::HandleEntranceOptionsUpdated);
-	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveDynamic(this, &ULxInteractionEntranceWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxInteractionEntranceWidget::HandleInteractionCancelled);
+	PlayerInteractionComponent->OnEntranceOptionsUpdated.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionCancelled.RemoveAll(this);
 }
 
 void ULxInteractionEntranceWidget::HandleEntranceOptionsUpdated(const TArray<FLxInteractionOption>& Options)

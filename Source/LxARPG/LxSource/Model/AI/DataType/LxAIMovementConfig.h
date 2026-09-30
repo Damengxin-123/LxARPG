@@ -4,7 +4,7 @@
 #include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
 #include "LxAIMovementConfig.generated.h"
 
-/** 行为树共用运动能力；倍率在角色基础移动速度及属性加成之后计算。 */
+/** 玩家与AI共用的角色运动配置；保留原类型名以兼容已有资产序列化。 */
 USTRUCT(BlueprintType, meta=(DisplayName="运动能力"))
 struct LXARPG_API FLxAIMovementConfig
 {

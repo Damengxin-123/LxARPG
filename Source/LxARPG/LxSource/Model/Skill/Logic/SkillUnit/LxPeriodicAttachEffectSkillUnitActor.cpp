@@ -24,7 +24,10 @@ void ALxPeriodicAttachEffectSkillUnitActor::BindSkillUnitComponentEvents()
 	Super::BindSkillUnitComponentEvents();
 	if (LifeComponent)
 	{
-		LifeComponent->OnLifeTick.AddUniqueDynamic(this, &ALxPeriodicAttachEffectSkillUnitActor::HandleAttachEffectPeriod);
+		if (!LifeComponent->OnLifeTick.IsBoundToObject(this))
+		{
+			LifeComponent->OnLifeTick.AddUObject(this, &ALxPeriodicAttachEffectSkillUnitActor::HandleAttachEffectPeriod);
+		}
 	}
 }
 

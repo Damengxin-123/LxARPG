@@ -13,9 +13,9 @@ class ULxSaveManager;
 class ULevel;
 
 /** 游戏生命周期发出的存档操作请求。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FLxSaveLifecycleRequested);
+DECLARE_MULTICAST_DELEGATE(FLxSaveLifecycleRequested);
 /** 加载或保存完成后回报成功状态。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLxSaveOperationFinished, bool, bSuccess);
+DECLARE_MULTICAST_DELEGATE_OneParam(FLxSaveOperationFinished, bool);
 /**
  * 
  */
@@ -72,19 +72,15 @@ public:
 	bool RequestSaveGame();
 
 	/** 游戏实例启动时发出的加载事件，早于场景对象初始化。 */
-	UPROPERTY(BlueprintAssignable, Category="存档|事件", DisplayName="加载存档事件")
 	FLxSaveLifecycleRequested OnLoadSaveRequested;
 
 	/** 手动保存、切换地图与结束游戏时发出的保存事件。 */
-	UPROPERTY(BlueprintAssignable, Category="存档|事件", DisplayName="保存存档事件")
 	FLxSaveLifecycleRequested OnSaveGameRequested;
 
 	/** 存档加载完成及其结果；晚绑定者可查询管理器的已加载状态。 */
-	UPROPERTY(BlueprintAssignable, Category="存档|事件", DisplayName="存档加载完成")
 	FLxSaveOperationFinished OnLoadSaveFinished;
 
 	/** 存档保存完成及其结果。 */
-	UPROPERTY(BlueprintAssignable, Category="存档|事件", DisplayName="存档保存完成")
 	FLxSaveOperationFinished OnSaveGameFinished;
 private:
 	/** 过滤当前游戏实例，在世界对象开始销毁前采集并保存。 */

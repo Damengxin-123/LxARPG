@@ -1,4 +1,5 @@
 #include "LxSkill.h"
+#include "LxSkillCastComponent.h"
 
 #include "LxARPG/LxSource/Core/Config/LxGameplayConstants.h"
 #include "Engine/World.h"
@@ -269,6 +270,20 @@ void ULxSkill::InitializeSkill_Implementation(const FLxSkillCastContext& InCastC
 
 bool ULxSkill::TryStartSkillCharge()
 {
+	ULxSkillCastModule* Module = ResolveSkillCastModule();
+	return Module && Module->HandleSkillReleaseInput(this, ELxSkillReleaseInputState::Start,
+		CurrentCastContext);
+}
+
+ULxSkillCastModule* ULxSkill::ResolveSkillCastModule() const
+{
+	const ALxBaseCharacter* Character = Cast<ALxBaseCharacter>(CurrentCastContext.CasterActor);
+	if (!Character) Character = GetTypedOuter<ALxBaseCharacter>();
+	return Character ? Character->GetSkillCastComponent() : nullptr;
+}
+
+bool ULxSkill::BeginSkillCharge()
+{
 	if (!CanSkillCharge() || bCharging || !IsReleaseCooldownReady())
 	{
 		return false;
@@ -281,26 +296,14 @@ bool ULxSkill::TryStartSkillCharge()
 
 bool ULxSkill::TryEndSkillCharge()
 {
-	if (!TryBeginChargeSkillReleaseTiming())
-	{
-		return false;
-	}
-
-	ExecuteChargeSkillRelease();
-	CompleteSkillReleaseTiming();
-	return true;
+	ULxSkillCastModule* Module = ResolveSkillCastModule();
+	return Module && Module->HandleSkillReleaseInput(this, ELxSkillReleaseInputState::End, CurrentCastContext);
 }
 
 bool ULxSkill::TryReleaseSkillDirectly()
 {
-	if (!TryBeginDirectSkillReleaseTiming())
-	{
-		return false;
-	}
-
-	ExecuteDirectSkillRelease();
-	CompleteSkillReleaseTiming();
-	return true;
+	ULxSkillCastModule* Module = ResolveSkillCastModule();
+	return Module && Module->HandleSkillReleaseInput(this, GetDirectReleaseInputState(), CurrentCastContext);
 }
 
 bool ULxSkill::TryCancelSkillRelease()
@@ -317,14 +320,8 @@ bool ULxSkill::TryCancelSkillRelease()
 
 bool ULxSkill::TryStartSustainedRelease()
 {
-	if (!TryBeginSustainedSkillReleaseTiming())
-	{
-		return false;
-	}
-
-	ExecuteSustainedSkillRelease();
-	CompleteSkillReleaseTiming();
-	return true;
+	ULxSkillCastModule* Module = ResolveSkillCastModule();
+	return Module && Module->HandleSkillReleaseInput(this, ELxSkillReleaseInputState::Start, CurrentCastContext);
 }
 
 bool ULxSkill::TryStopSustainedRelease()
@@ -1186,8 +1183,14 @@ ULxSkillUnitGroup* ULxSkill::CreateSkillUnitGroup(const TArray<ALxSkillUnitActor
 		return nullptr;
 	}
 
-	SkillUnitGroup->OnSkillUnitGroupFinished.AddUniqueDynamic(this, &ULxSkill::HandleCachedSkillUnitGroupFinished);
-	SkillUnitGroup->OnSkillUnitGroupEffectsRemoved.AddUniqueDynamic(this, &ULxSkill::HandleSkillUnitGroupEffectsRemoved);
+	if (!SkillUnitGroup->OnSkillUnitGroupFinished.IsBoundToObject(this))
+	{
+		SkillUnitGroup->OnSkillUnitGroupFinished.AddUObject(this, &ULxSkill::HandleCachedSkillUnitGroupFinished);
+	}
+	if (!SkillUnitGroup->OnSkillUnitGroupEffectsRemoved.IsBoundToObject(this))
+	{
+		SkillUnitGroup->OnSkillUnitGroupEffectsRemoved.AddUObject(this, &ULxSkill::HandleSkillUnitGroupEffectsRemoved);
+	}
 	RuntimeSkillUnitGroups.Add(SkillUnitGroup);
 	return SkillUnitGroup;
 }
@@ -1199,8 +1202,8 @@ bool ULxSkill::ReleaseSkillUnitGroup(ULxSkillUnitGroup* InSkillUnitGroup)
 		return false;
 	}
 
-	InSkillUnitGroup->OnSkillUnitGroupFinished.RemoveDynamic(this, &ULxSkill::HandleCachedSkillUnitGroupFinished);
-	InSkillUnitGroup->OnSkillUnitGroupEffectsRemoved.RemoveDynamic(this, &ULxSkill::HandleSkillUnitGroupEffectsRemoved);
+	InSkillUnitGroup->OnSkillUnitGroupFinished.RemoveAll(this);
+	InSkillUnitGroup->OnSkillUnitGroupEffectsRemoved.RemoveAll(this);
 	InSkillUnitGroup->ClearSkillUnits();
 	const int32 RemovedCount = RuntimeSkillUnitGroups.RemoveAll([InSkillUnitGroup](const TObjectPtr<ULxSkillUnitGroup>& CachedSkillUnitGroup)
 	{

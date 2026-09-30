@@ -1,4 +1,5 @@
 #include "LxCharacterDataTransferComponent.h"
+#include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationProcessComponent.h"
 
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
@@ -474,6 +475,7 @@ void ULxCharacterDataTransferComponent::CacheOwnerComponents()
 	AttributeComponent = OwnerCharacter->GetCharacterAttributeComponent();
 	BackpackComponent = OwnerCharacter->GetCharacterBackpackComponent();
 	EquipmentComponent = OwnerCharacter->GetCharacterEquipmentComponent();
+	AnimationProcessComponent = OwnerCharacter->GetCharacterAnimationProcessComponent();
 	SkillBackpackComponent = OwnerCharacter->GetSkillBackpackComponent();
 	ProfessionComponent = OwnerCharacter->GetCharacterProfessionComponent();
 	const ULxCharacterContentComponent* ContentComponent = OwnerCharacter->GetCharacterContentComponent();
@@ -503,105 +505,113 @@ void ULxCharacterDataTransferComponent::EnsureOwnerComponentsCached()
 void ULxCharacterDataTransferComponent::BindComponentEvents()
 {
 	UnbindComponentEvents();
+	if (AnimationProcessComponent)
+		AnimationProcessComponent->OnAnimationEvent.AddUObject(this, &ULxCharacterDataTransferComponent::HandleAnimationEvent);
 
 	if (AttributeComponent)
 	{
-		AttributeComponent->OnTypedAttributeSnapshotChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleAttributeSnapshotChanged);
+		AttributeComponent->OnTypedAttributeSnapshotChanged.AddUObject(this, &ULxCharacterDataTransferComponent::HandleAttributeSnapshotChanged);
 	}
 
 	if (BackpackComponent)
 	{
-		BackpackComponent->OnDataChange.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleBackpackDataChanged);
-		BackpackComponent->OnItemUsed.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleBackpackItemUsed);
+		BackpackComponent->OnDataChange.AddUObject(this, &ULxCharacterDataTransferComponent::HandleBackpackDataChanged);
+		BackpackComponent->OnItemUsed.AddUObject(this, &ULxCharacterDataTransferComponent::HandleBackpackItemUsed);
 	}
 
 	if (EquipmentComponent)
 	{
-		EquipmentComponent->OnDataChange.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleEquipmentDataChanged);
+		EquipmentComponent->OnDataChange.AddUObject(this, &ULxCharacterDataTransferComponent::HandleEquipmentDataChanged);
 	}
 
 	if (SkillBackpackComponent)
 	{
-		SkillBackpackComponent->OnDataChange.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleSkillBackpackDataChanged);
+		SkillBackpackComponent->OnDataChange.AddUObject(this, &ULxCharacterDataTransferComponent::HandleSkillBackpackDataChanged);
 	}
 
 	if (ProfessionComponent)
 	{
-		ProfessionComponent->OnProfessionChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleProfessionDataChanged);
+		ProfessionComponent->OnProfessionChanged.AddUObject(this, &ULxCharacterDataTransferComponent::HandleProfessionDataChanged);
 	}
 
 	if (QuestComponent)
 	{
-		QuestComponent->OnQuestProgressChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleQuestProgressChanged);
+		QuestComponent->OnQuestProgressChanged.AddUObject(this, &ULxCharacterDataTransferComponent::HandleQuestProgressChanged);
 	}
 
 	if (BuffComponent)
 	{
-		BuffComponent->OnDataChange.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleBuffDataChanged);
-		BuffComponent->OnBuffPeriodActivated.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleBuffPeriodActivated);
+		BuffComponent->OnDataChange.AddUObject(this, &ULxCharacterDataTransferComponent::HandleBuffDataChanged);
+		BuffComponent->OnBuffPeriodActivated.AddUObject(this, &ULxCharacterDataTransferComponent::HandleBuffPeriodActivated);
 	}
 
 	if (StateComponent)
 	{
-		StateComponent->OnStateTagsChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleStateTagsChanged);
+		StateComponent->OnStateTagsChanged.AddUObject(this, &ULxCharacterDataTransferComponent::HandleStateTagsChanged);
 	}
 
 	if (LifecycleComponent)
 	{
-		LifecycleComponent->OnLifecycleStateChanged.AddDynamic(this, &ULxCharacterDataTransferComponent::HandleLifecycleStateChanged);
+		LifecycleComponent->OnLifecycleStateChanged.AddUObject(this, &ULxCharacterDataTransferComponent::HandleLifecycleStateChanged);
 	}
 
 }
 
 void ULxCharacterDataTransferComponent::UnbindComponentEvents()
 {
+	if (AnimationProcessComponent) AnimationProcessComponent->OnAnimationEvent.RemoveAll(this);
 	if (AttributeComponent)
 	{
-		AttributeComponent->OnTypedAttributeSnapshotChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleAttributeSnapshotChanged);
+		AttributeComponent->OnTypedAttributeSnapshotChanged.RemoveAll(this);
 	}
 
 	if (BackpackComponent)
 	{
-		BackpackComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleBackpackDataChanged);
-		BackpackComponent->OnItemUsed.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleBackpackItemUsed);
+		BackpackComponent->OnDataChange.RemoveAll(this);
+		BackpackComponent->OnItemUsed.RemoveAll(this);
 	}
 
 	if (EquipmentComponent)
 	{
-		EquipmentComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleEquipmentDataChanged);
+		EquipmentComponent->OnDataChange.RemoveAll(this);
 	}
 
 	if (SkillBackpackComponent)
 	{
-		SkillBackpackComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleSkillBackpackDataChanged);
+		SkillBackpackComponent->OnDataChange.RemoveAll(this);
 	}
 
 	if (ProfessionComponent)
 	{
-		ProfessionComponent->OnProfessionChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleProfessionDataChanged);
+		ProfessionComponent->OnProfessionChanged.RemoveAll(this);
 	}
 
 	if (QuestComponent)
 	{
-		QuestComponent->OnQuestProgressChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleQuestProgressChanged);
+		QuestComponent->OnQuestProgressChanged.RemoveAll(this);
 	}
 
 	if (BuffComponent)
 	{
-		BuffComponent->OnDataChange.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleBuffDataChanged);
-		BuffComponent->OnBuffPeriodActivated.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleBuffPeriodActivated);
+		BuffComponent->OnDataChange.RemoveAll(this);
+		BuffComponent->OnBuffPeriodActivated.RemoveAll(this);
 	}
 
 	if (StateComponent)
 	{
-		StateComponent->OnStateTagsChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleStateTagsChanged);
+		StateComponent->OnStateTagsChanged.RemoveAll(this);
 	}
 
 	if (LifecycleComponent)
 	{
-		LifecycleComponent->OnLifecycleStateChanged.RemoveDynamic(this, &ULxCharacterDataTransferComponent::HandleLifecycleStateChanged);
+		LifecycleComponent->OnLifecycleStateChanged.RemoveAll(this);
 	}
 
+}
+
+void ULxCharacterDataTransferComponent::HandleAnimationEvent(const FLxCharacterAnimationEvent& Event)
+{
+	OnAnimationEvent.Broadcast(Event);
 }
 
 void ULxCharacterDataTransferComponent::BroadcastAttributeData()

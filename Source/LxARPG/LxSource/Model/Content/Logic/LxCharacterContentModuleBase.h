@@ -9,7 +9,7 @@ class ALxBaseCharacter;
 class ULxCharacterContentComponent;
 
 /** 角色内容模块通用数据变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxCharacterContentModuleDataChanged);
+DECLARE_MULTICAST_DELEGATE(FOnLxCharacterContentModuleDataChanged);
 
 /**
  * 角色内容模块统一父类。
@@ -45,7 +45,6 @@ public:
 	virtual bool IsSupportedForNetworking() const override { return true; }
 
 	/** 模块数据发生变化时广播。 */
-	UPROPERTY(BlueprintAssignable, Category="角色内容|模块", DisplayName="模块数据变化事件")
 	FOnLxCharacterContentModuleDataChanged OnDataChange;
 
 protected:

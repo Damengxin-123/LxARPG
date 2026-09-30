@@ -153,7 +153,7 @@ bool ULxAIBehaviorTreeAsset::CanAttach(const ULxAIBehaviorTreeNodeData& Parent, 
 
 bool ULxAIBehaviorTreeAsset::ValidateConfiguration(FText& OutError) const
 {
-	return Perception.ValidateConfiguration(OutError) && Analysis.ValidateConfiguration(OutError) && Movement.ValidateConfiguration(OutError) && ValidateTree(OutError);
+	return Perception.ValidateConfiguration(OutError) && Analysis.ValidateConfiguration(OutError) && ValidateTree(OutError);
 }
 
 bool ULxAIBehaviorTreeAsset::ValidateTree(FText& OutError) const

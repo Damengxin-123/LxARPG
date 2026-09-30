@@ -62,7 +62,7 @@ bool FLxCombatCleanupDetectionTest::RunTest(const FString& Parameters)
 	ULxSkillDetectionComponent* Detection = Unit->GetSkillDetectionComponent();
 	if (!TestNotNull(TEXT("技能单元具有检测组件"), Detection)) return false;
 	TStrongObjectPtr<ULxCombatCleanupTestReceiver> Receiver(NewObject<ULxCombatCleanupTestReceiver>());
-	Detection->OnDetectionResult.AddDynamic(Receiver.Get(), &ULxCombatCleanupTestReceiver::ReceiveDetectionResult);
+	Detection->OnDetectionResult.AddUObject(Receiver.Get(), &ULxCombatCleanupTestReceiver::ReceiveDetectionResult);
 	UBoxComponent* Collision = NewObject<UBoxComponent>(Unit);
 	Detection->SetTriggerCollisionComponent(Collision);
 	Detection->SetPublishWorldHit(true);
@@ -111,7 +111,7 @@ bool FLxCombatCleanupDetectionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("场景碰撞保留世界命中标记"), Receiver->LastDetectionResult.bHitWorld);
 	TestTrue(TEXT("场景命中不伪造角色候选目标"), Receiver->LastDetectionResult.CandidateTargets.IsEmpty());
 	ULxSkillTriggerComponent* Trigger = NewObject<ULxSkillTriggerComponent>(Unit);
-	Trigger->OnTriggered.AddDynamic(Receiver.Get(), &ULxCombatCleanupTestReceiver::ReceiveTriggerResult);
+	Trigger->OnTriggered.AddUObject(Receiver.Get(), &ULxCombatCleanupTestReceiver::ReceiveTriggerResult);
 	FLxSkillHitLimitSpec Limits;
 	Limits.MaxTotalHitCount = 0;
 	Limits.MaxHitCountPerTarget = 1;
@@ -215,6 +215,24 @@ bool FLxCombatCleanupSkillGroupTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("空技能单元不能加入"), Group->AddSkillUnit(nullptr));
 	TestEqual(TEXT("两个有效技能单元"), Group->GetValidSkillUnitCount(), 2);
 	TestFalse(TEXT("包含有效单元时不为空"), Group->IsSkillUnitGroupEmpty());
+
+	// 原生委托迁移后，清空一个组必须解除其监听，同时保留另一个组的监听。
+	TStrongObjectPtr<ULxSkillUnitGroup> OtherGroup(NewObject<ULxSkillUnitGroup>());
+	OtherGroup->AddSkillUnit(First);
+	TestTrue(TEXT("添加单元后绑定命中事件"), First->OnSkillUnitHit.IsBoundToObject(Group.Get()));
+	TestTrue(TEXT("添加单元后绑定结束事件"), First->OnSkillUnitFinished.IsBoundToObject(Group.Get()));
+	Group->ClearSkillUnits();
+	TestFalse(TEXT("清空后解除第一个单元的命中监听"), First->OnSkillUnitHit.IsBoundToObject(Group.Get()));
+	TestFalse(TEXT("清空后解除第一个单元的结束监听"), First->OnSkillUnitFinished.IsBoundToObject(Group.Get()));
+	TestFalse(TEXT("清空后解除第二个单元的命中监听"), Second->OnSkillUnitHit.IsBoundToObject(Group.Get()));
+	TestTrue(TEXT("清空不影响其他组的命中监听"), First->OnSkillUnitHit.IsBoundToObject(OtherGroup.Get()));
+	OtherGroup->ClearSkillUnits();
+	Group->InitializeSkillUnitGroup({First, Second});
+	Group->InitializeSkillUnitGroup({First, Second});
+	TestEqual(TEXT("重复初始化不会累积技能单元"), Group->GetValidSkillUnitCount(), 2);
+	TestTrue(TEXT("重新初始化恢复命中监听"), First->OnSkillUnitHit.IsBoundToObject(Group.Get()));
+	TestTrue(TEXT("重新初始化恢复结束监听"), Second->OnSkillUnitFinished.IsBoundToObject(Group.Get()));
+
 	First->Destroy();
 	TestEqual(TEXT("销毁一个单元后只计算存活对象"), Group->GetValidSkillUnitCount(), 1);
 	TestFalse(TEXT("已销毁对象不能重新加入"), Group->AddSkillUnit(First));

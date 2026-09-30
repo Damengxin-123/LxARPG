@@ -546,7 +546,7 @@ void ULxTradeContainerInteractionComponent::BindPlayerDataTransfer(ULxCharacterD
 	BoundDataTransferComponent = DataTransferComponent;
 	if (BoundDataTransferComponent)
 	{
-		BoundDataTransferComponent->OnBackpackItemChanged.AddDynamic(this, &ULxTradeContainerInteractionComponent::HandlePlayerBackpackItemChanged);
+		BoundDataTransferComponent->OnBackpackItemChanged.AddUObject(this, &ULxTradeContainerInteractionComponent::HandlePlayerBackpackItemChanged);
 	}
 }
 
@@ -554,7 +554,7 @@ void ULxTradeContainerInteractionComponent::UnbindPlayerDataTransfer()
 {
 	if (BoundDataTransferComponent)
 	{
-		BoundDataTransferComponent->OnBackpackItemChanged.RemoveDynamic(this, &ULxTradeContainerInteractionComponent::HandlePlayerBackpackItemChanged);
+		BoundDataTransferComponent->OnBackpackItemChanged.RemoveAll(this);
 	}
 	BoundDataTransferComponent = nullptr;
 }

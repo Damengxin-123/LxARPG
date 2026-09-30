@@ -31,16 +31,13 @@ class ALxSpawnEntitySkillUnitActor;
 class ALxTriggerSkillUnitActor;
 
 /** 技能命中词条事件，通知技能释放组件把命中词条和有效目标交给效果处理组件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillHitEntriesReady, ULxSkill*, SourceSkill, const TArray<FLxSkillEntryPackage>&, SkillEntryPackages, const TArray<AActor*>&, HitTargets);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillHitEntriesReady, ULxSkill*, const TArray<FLxSkillEntryPackage>&, const TArray<AActor*>&);
 
 /** 持续技能命中词条事件，携带实际产生持续效果的技能单元作为唯一来源。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnLxPersistentSkillHitEntriesReady, ULxSkill*, SourceSkill,
-	ALxSkillUnitActor*, SourceSkillUnit, const TArray<FLxSkillEntryPackage>&, SkillEntryPackages,
-	const TArray<AActor*>&, HitTargets);
+DECLARE_MULTICAST_DELEGATE_FourParams(FOnLxPersistentSkillHitEntriesReady, ULxSkill*, ALxSkillUnitActor*, const TArray<FLxSkillEntryPackage>&, const TArray<AActor*>&);
 
 /** 技能持续效果解除事件，通知释放组件向目标发送同来源空替换效果包。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillEffectsRemoved, ULxSkill*, SourceSkill,
-	ALxSkillUnitActor*, SourceSkillUnit, const TArray<AActor*>&, EffectTargets);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillEffectsRemoved, ULxSkill*, ALxSkillUnitActor*, const TArray<AActor*>&);
 
 /** 完整技能类型，负责组织技能单元对象，并提供蓄力与释放入口。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="技能类型")
@@ -156,15 +153,12 @@ public:
 		UPARAM(DisplayName="词条组合下标") int32 EntryPackageIndex);
 
 	/** 技能命中词条准备完成事件，由技能释放组件监听并继续转交效果处理组件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能|效果", DisplayName="技能命中词条准备完成事件")
 	FOnLxSkillHitEntriesReady OnSkillHitEntriesReady;
 
 	/** 持续依附或持续光环命中时触发，要求效果层按技能来源缓存并支持后续解除。 */
-	UPROPERTY(BlueprintAssignable, Category="技能|效果", DisplayName="持续技能效果准备完成事件")
 	FOnLxPersistentSkillHitEntriesReady OnPersistentSkillHitEntriesReady;
 
 	/** 持续依附或光环效果结束时需要解除效果的目标事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能|效果", DisplayName="技能效果解除事件")
 	FOnLxSkillEffectsRemoved OnSkillEffectsRemoved;
 
 	/** 获取技能类型配置的词条组合数组，主要供技能详情界面展示。 */
@@ -203,15 +197,11 @@ public:
 	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="获取实际释放冷却")
 	float GetEffectiveReleaseCooldown() const;
 
-	/** 获取技能一次完整释放占用的时长，单位为秒。 */
-	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="获取技能释放时间")
-	float GetSkillReleaseDuration() const { return FMath::Max(SkillReleaseDuration, 0.1f); }
-
 	/** 判断技能释放冷却是否已经结束。 */
 	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="释放冷却是否结束")
 	bool IsReleaseCooldownReady() const;
 
-	/** 尝试开始一次技能释放；仅在冷却结束且没有其他释放计时时建立互斥占用。 */
+	/** 尝试开始一次技能释放；仅在冷却结束且没有其他释放占用时建立互斥占用。 */
 	UFUNCTION(BlueprintCallable, Category="技能|释放", DisplayName="尝试开始技能释放")
 	bool TryBeginSkillRelease();
 
@@ -219,28 +209,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能|释放", DisplayName="记录技能释放时间")
 	void MarkSkillReleased();
 
-	/** 为释放组件开启直接释放计时，仅完成校验和互斥占用，不立即执行蓝图释放事件。 */
+	/** 为释放组件开启直接释放占用，仅完成校验和互斥占用，不立即执行蓝图释放事件。 */
 	bool TryBeginDirectSkillReleaseTiming();
 
-	/** 为释放组件开启蓄力结束后的释放计时，仅完成校验和互斥占用。 */
+	/** 仅由释放模块在取得角色占用后开始蓄力，避免旧接口绕过统一链路。 */
+	bool BeginSkillCharge();
+	/** 为旧技能对象入口查找角色所属释放模块。 */
+	class ULxSkillCastModule* ResolveSkillCastModule() const;
+
+	/** 为释放组件开启蓄力结束后的释放占用，仅完成校验和互斥占用。 */
 	bool TryBeginChargeSkillReleaseTiming();
 
-	/** 为释放组件开启持续技能的释放计时，仅完成校验和互斥占用。 */
+	/** 为释放组件开启持续技能的释放占用，仅完成校验和互斥占用。 */
 	bool TryBeginSustainedSkillReleaseTiming();
 
-	/** 在释放时间达到百分之五十时执行直接释放蓝图事件。 */
+	/** 收到动画释放通知时执行直接释放蓝图事件。 */
 	void ExecuteDirectSkillRelease();
 
-	/** 在释放时间达到百分之五十时执行蓄力结束蓝图事件。 */
+	/** 收到动画释放通知时执行蓄力结束蓝图事件。 */
 	void ExecuteChargeSkillRelease();
 
-	/** 在释放时间达到百分之五十时执行持续释放蓝图事件。 */
+	/** 收到动画释放通知时执行持续释放蓝图事件。 */
 	void ExecuteSustainedSkillRelease();
 
-	/** 在完整释放时间结束时记录冷却起点并解除技能内部释放占用。 */
+	/** 收到动画结束通知时记录冷却起点并解除技能内部释放占用。 */
 	void CompleteSkillReleaseTiming();
 
-	/** 取消尚未完成的释放计时，不进入技能冷却。 */
+	/** 取消尚未完成的释放占用，不进入技能冷却。 */
 	void CancelSkillReleaseTiming();
 
 	/** 根据通用技能单元结果中的目标和位置创建直线投射物；输入为空时使用技能释放锚点。 */
@@ -451,10 +446,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="释放冷却", meta=(ClampMin="0.1", UIMin="0.1"))
 	float ReleaseCooldown = 1.0f;
 
-	/** 技能释放一次占用的总时长，技能单元在计时百分之五十时开始创建，计时结束后才进入冷却。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="技能释放时间（秒）", meta=(ClampMin="0.1", UIMin="0.1", Units="s"))
-	float SkillReleaseDuration = 1.0f;
-
 	/** 直接释放或结束蓄力后，是否保持释放组件占用，直到技能显式通知结束。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="等待显式结束释放")
 	bool bHoldReleaseStateUntilExplicitFinish = false;
@@ -504,6 +495,6 @@ protected:
 	float LastReleaseTime = -100000000.0f;
 
 	/** 当前是否处于释放时间计时中，用于在冷却开始前阻止重复释放。 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放", DisplayName="正在进行技能释放计时")
+	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放", DisplayName="正在进行技能释放占用")
 	bool bSkillReleaseTiming = false;
 };

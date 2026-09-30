@@ -381,8 +381,10 @@ void ULxSkillUnitCreateAsyncAction::Activate()
 
 	SkillUnitGroup->OnSkillUnitGroupHit.AddUniqueDynamic(
 		this, &ULxSkillUnitCreateAsyncAction::HandleSkillUnitGroupHit);
-	SkillUnitGroup->OnSkillUnitGroupFinished.AddUniqueDynamic(
-		this, &ULxSkillUnitCreateAsyncAction::HandleSkillUnitGroupFinished);
+	if (!SkillUnitGroup->OnSkillUnitGroupFinished.IsBoundToObject(this))
+	{
+		SkillUnitGroup->OnSkillUnitGroupFinished.AddUObject(this, &ULxSkillUnitCreateAsyncAction::HandleSkillUnitGroupFinished);
+	}
 
 	// 必须在异步输出委托和技能单元组委托全部绑定完成后再激活，避免丢失立即命中事件。
 	SkillUnitGroup->ActivateSkillUnits();
@@ -499,8 +501,7 @@ void ULxSkillUnitCreateAsyncAction::UnbindSkillUnitGroupEvents()
 
 	SkillUnitGroup->OnSkillUnitGroupHit.RemoveDynamic(
 		this, &ULxSkillUnitCreateAsyncAction::HandleSkillUnitGroupHit);
-	SkillUnitGroup->OnSkillUnitGroupFinished.RemoveDynamic(
-		this, &ULxSkillUnitCreateAsyncAction::HandleSkillUnitGroupFinished);
+	SkillUnitGroup->OnSkillUnitGroupFinished.RemoveAll(this);
 	SkillUnitGroup = nullptr;
 }
 

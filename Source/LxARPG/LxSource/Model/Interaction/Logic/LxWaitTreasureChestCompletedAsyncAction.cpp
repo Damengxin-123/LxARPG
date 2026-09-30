@@ -27,8 +27,10 @@ void ULxWaitTreasureChestCompletedAsyncAction::Activate()
 		return;
 	}
 
-	InteractableComponent->OnTreasureChestCompleted.AddUniqueDynamic(
-		this, &ULxWaitTreasureChestCompletedAsyncAction::HandleTreasureChestCompleted);
+	if (!InteractableComponent->OnTreasureChestCompleted.IsBoundToObject(this))
+	{
+		InteractableComponent->OnTreasureChestCompleted.AddUObject(this, &ULxWaitTreasureChestCompletedAsyncAction::HandleTreasureChestCompleted);
+	}
 	InteractableComponent->OnInteractableComponentEndPlayNative.AddUObject(
 		this, &ULxWaitTreasureChestCompletedAsyncAction::HandleInteractableComponentEndPlay);
 }
@@ -53,8 +55,7 @@ void ULxWaitTreasureChestCompletedAsyncAction::FinishWaiting(bool bWasCancelled)
 
 	if (IsValid(InteractableComponent))
 	{
-		InteractableComponent->OnTreasureChestCompleted.RemoveDynamic(
-			this, &ULxWaitTreasureChestCompletedAsyncAction::HandleTreasureChestCompleted);
+		InteractableComponent->OnTreasureChestCompleted.RemoveAll(this);
 		InteractableComponent->OnInteractableComponentEndPlayNative.RemoveAll(this);
 	}
 

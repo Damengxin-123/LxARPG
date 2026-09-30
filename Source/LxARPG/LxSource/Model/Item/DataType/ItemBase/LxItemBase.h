@@ -17,7 +17,7 @@ class UTexture2D;
  *
  * 当物品内部数量发生变化时广播，背包格子、快捷栏和数量文本可以监听它刷新显示。
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemCountChanged, ULxItemBase*, Item);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnItemCountChanged, ULxItemBase*);
 
 /**
  * 运行时物品词条信息。
@@ -51,7 +51,6 @@ class LXARPG_API ULxItemBase : public UObject
 
 public:
 	/** 物品数量改变时触发。 */
-	UPROPERTY(BlueprintAssignable, Category="物品", DisplayName="物品数量改变事件")
 	FOnItemCountChanged OnItemCountChanged;
 
 	static ULxItemBase* CreateItemObject(UObject* InParent, FLxItemQuote InItemQuote);

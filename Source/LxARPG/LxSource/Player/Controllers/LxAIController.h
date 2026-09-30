@@ -32,9 +32,9 @@ struct FLxAITargetMemoryRecord
 };
 
 /** 四入口分析决策变化时广播。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxAIAnalysisDecisionChanged, FLxAIAnalysisDecision, Decision);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxAIAnalysisDecisionChanged, FLxAIAnalysisDecision);
 /** 当前运行叶行为变化时广播。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxAIBehaviorActionChanged, ELxAIBehaviorAction, BehaviorAction);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxAIBehaviorActionChanged, ELxAIBehaviorAction);
 
 /** 使用 AI 行为树资产完成感知、分析和叶行为执行的控制器。 */
 UCLASS(Blueprintable, DisplayName="AI自动控制器")
@@ -66,9 +66,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="AI|行为树", DisplayName="获取当前行为树节点标识")
 	FGuid GetCurrentBehaviorActionNodeId() const;
 
-	UPROPERTY(BlueprintAssignable, Category="AI|分析", DisplayName="AI分析决策变化")
+	/** AI分析决策变化，仅供 C++ 监听。 */
 	FOnLxAIAnalysisDecisionChanged OnAIAnalysisDecisionChanged;
-	UPROPERTY(BlueprintAssignable, Category="AI|行为树", DisplayName="AI行为树行为变化")
+	/** AI行为树行为变化，仅供 C++ 监听。 */
 	FOnLxAIBehaviorActionChanged OnAIBehaviorActionChanged;
 
 protected:

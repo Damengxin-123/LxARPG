@@ -29,19 +29,21 @@ void ULxInteractionUIManager::SetPlayerInteractionComponent(ULxPlayerInteraction
 		if (PlayerInteractionComponent)
 		{
 			if (FunctionPageWidget) PlayerInteractionComponent->CancelInteraction();
-			PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(
-				this, &ULxInteractionUIManager::HandleFunctionPageInteractionCancelled);
-			PlayerInteractionComponent->OnInteractionOptionActivated.RemoveDynamic(
-				this, &ULxInteractionUIManager::HandleFunctionPageInteractionActivated);
+			PlayerInteractionComponent->OnInteractionCancelled.RemoveAll(this);
+			PlayerInteractionComponent->OnInteractionOptionActivated.RemoveAll(this);
 		}
 		HandleFunctionPageInteractionCancelled();
 		PlayerInteractionComponent = InPlayerInteractionComponent;
 		if (PlayerInteractionComponent)
 		{
-			PlayerInteractionComponent->OnInteractionCancelled.AddUniqueDynamic(
-				this, &ULxInteractionUIManager::HandleFunctionPageInteractionCancelled);
-			PlayerInteractionComponent->OnInteractionOptionActivated.AddUniqueDynamic(
-				this, &ULxInteractionUIManager::HandleFunctionPageInteractionActivated);
+			if (!PlayerInteractionComponent->OnInteractionCancelled.IsBoundToObject(this))
+			{
+				PlayerInteractionComponent->OnInteractionCancelled.AddUObject(this, &ULxInteractionUIManager::HandleFunctionPageInteractionCancelled);
+			}
+			if (!PlayerInteractionComponent->OnInteractionOptionActivated.IsBoundToObject(this))
+			{
+				PlayerInteractionComponent->OnInteractionOptionActivated.AddUObject(this, &ULxInteractionUIManager::HandleFunctionPageInteractionActivated);
+			}
 		}
 	}
 	RefreshInteractionUI();

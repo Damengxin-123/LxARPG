@@ -4,7 +4,8 @@
 #include "LxInteractionActionComponentBase.h"
 #include "LxItemTransferInteractionComponent.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxItemTransferCompleted);
+/** 物品传递完成，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE(FOnLxItemTransferCompleted);
 
 /** 物品传递交互模块，负责向玩家给予物品或从玩家背包移除物品。 */
 UCLASS(Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="物品传递交互模块")
@@ -27,7 +28,7 @@ public:
 	virtual bool CheckInteractionRequirement_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) const override;
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
 
-	UPROPERTY(BlueprintAssignable, Category="交互|物品传递", DisplayName="物品传递完成")
+	/** 物品传递完成，仅供 C++ 监听。 */
 	FOnLxItemTransferCompleted OnItemTransferCompleted;
 
 protected:

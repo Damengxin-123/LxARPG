@@ -43,7 +43,6 @@ bool ULxAIBehaviorTreeExecutor::TickExecution(const ULxAIBehaviorTreeAsset* InAs
 		ResetExecution();
 		return false;
 	}
-	MovementConfig = InAsset->Movement;
 	if (bDeathActionCompleted) return false;
 	if (InDecision.Entry == ELxAIBehaviorEntry::CharacterDeath && !InDecision.PhaseId.IsValid())
 	{
@@ -403,8 +402,7 @@ void ULxAIBehaviorTreeExecutor::ChangeLeaf(const ULxAIBehaviorTreeNodeData* InNo
 	if (Character && Character->GetCharacterBehaviorControlComponent())
 	{
 		const ELxCharacterMotionType MotionType = InNode ? InNode->GetMotionType() : ELxCharacterMotionType::None;
-		Character->GetCharacterBehaviorControlComponent()->SetBehaviorMotion(MotionType,
-			InNode ? MovementConfig.GetSpeedMultiplier(MotionType) : 1.0f);
+		Character->GetCharacterBehaviorControlComponent()->SetBehaviorMotion(MotionType);
 	}
 	const FGuid NewId = InNode ? InNode->NodeId : FGuid();
 	const ELxAIBehaviorAction NewAction = InNode ? InNode->Action : ELxAIBehaviorAction::Wait;

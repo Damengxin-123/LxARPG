@@ -154,41 +154,26 @@ TSharedRef<SDockTab> FLxAIBehaviorTreeAssetEditor::SpawnPerceptionTab(const FSpa
 
 TSharedRef<SDockTab> FLxAIBehaviorTreeAssetEditor::SpawnMovementTab(const FSpawnTabArgs& Args)
 {
-	FPropertyEditorModule& Properties = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	FDetailsViewArgs DetailsArgs;
-	DetailsArgs.bHideSelectionTip = true;
-	DetailsArgs.bAllowSearch = true;
-	DetailsArgs.bUpdatesFromSelection = false;
-	DetailsArgs.bLockable = false;
-	MovementDetails = Properties.CreateDetailView(DetailsArgs);
-	MovementDetails->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateLambda([](const FPropertyAndParent& Property)
-	{
-		if (Property.Property.GetFName() == TEXT("Movement")) return true;
-		for (const FProperty* Parent : Property.ParentProperties)
-			if (Parent->GetFName() == TEXT("Movement")) return true;
-		return false;
-	}));
-	MovementDetails->SetObject(EditingAsset.Get());
 	return SNew(SDockTab)
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot().AutoHeight().Padding(8)
 		[
-			SNew(STextBlock).Text(FText::FromString(TEXT("最终移动速度 = 基础移动速度 ×（1 + 移动速度加成）× 当前档位倍率。0.5表示50%，1.5表示150%；非移动动作寻路时使用中速倍率。"))).AutoWrapText(true)
+			SNew(STextBlock).Text(FText::FromString(TEXT("移动速度已统一到角色蓝图的“角色运动组件 → 移动速度配置”。玩家和AI使用同一套三档倍率，行为树节点只选择运动类型。"))).AutoWrapText(true)
 		]
 		+ SVerticalBox::Slot().AutoHeight().Padding(8, 0, 8, 8)
 		[
 			SNew(STextBlock).Text(this, &FLxAIBehaviorTreeAssetEditor::GetMovementValidationText).AutoWrapText(true)
 		]
-		+ SVerticalBox::Slot().FillHeight(1)[MovementDetails.ToSharedRef()]
 	];
 }
 
 FText FLxAIBehaviorTreeAssetEditor::GetMovementValidationText() const
 {
-	FText Error;
-	if (EditingAsset.IsValid() && !EditingAsset->Movement.ValidateConfiguration(Error)) return Error;
-	return NSLOCTEXT("AI控制配置", "运动有效", "运动参数有效 · 倍率依次为低速、中速、高速。");
+	if (!EditingAsset.IsValid()) return FText();
+	const auto& Legacy = EditingAsset->Movement;
+	return FText::FromString(FString::Printf(TEXT("旧资产倍率（仅供迁移参考，不再生效）：低速 %.2f，中速 %.2f，高速 %.2f。若之前自定义过，请填写到对应角色的运动组件中。"),
+		Legacy.LowSpeedMultiplier, Legacy.MediumSpeedMultiplier, Legacy.HighSpeedMultiplier));
 }
 
 TSharedRef<SDockTab> FLxAIBehaviorTreeAssetEditor::SpawnAnalysisTab(const FSpawnTabArgs& Args)

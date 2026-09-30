@@ -25,8 +25,10 @@ void ALxPeriodicAuraEffectSkillUnitActor::BindSkillUnitComponentEvents()
 	Super::BindSkillUnitComponentEvents();
 	if (LifeComponent)
 	{
-		LifeComponent->OnLifeTick.AddUniqueDynamic(this,
-			&ALxPeriodicAuraEffectSkillUnitActor::HandleAuraEffectPeriod);
+		if (!LifeComponent->OnLifeTick.IsBoundToObject(this))
+		{
+			LifeComponent->OnLifeTick.AddUObject(this, &ALxPeriodicAuraEffectSkillUnitActor::HandleAuraEffectPeriod);
+		}
 	}
 }
 

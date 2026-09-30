@@ -9,7 +9,7 @@ class ALxBaseCharacter;
 class ULxCharacterStateComponent;
 
 /** 角色生命周期状态变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterLifecycleStateChanged, bool, bIsAlive, FGameplayTag, LifecycleStateTag);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterLifecycleStateChanged, bool, FGameplayTag);
 
 /**
  * 角色生命周期组件。
@@ -48,7 +48,6 @@ public:
 	FGameplayTag GetCurrentLifecycleStateTag() const;
 
 	/** 角色生命周期状态变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色生命周期", DisplayName="角色生命周期状态变化事件")
 	FOnLxCharacterLifecycleStateChanged OnLifecycleStateChanged;
 
 protected:

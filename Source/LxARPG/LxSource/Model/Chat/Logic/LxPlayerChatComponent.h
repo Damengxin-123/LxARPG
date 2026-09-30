@@ -5,8 +5,10 @@
 #include "LxARPG/LxSource/Model/Chat/DataType/LxChatTypes.h"
 #include "LxPlayerChatComponent.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxChatMessageReceived, const FLxChatMessageData&, ChatMessageData);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxChatMessageListChanged, const TArray<FLxChatMessageData>&, ChatMessageList);
+/** 聊天消息接收事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxChatMessageReceived, const FLxChatMessageData&);
+/** 聊天消息列表变化事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxChatMessageListChanged, const TArray<FLxChatMessageData>&);
 
 /** 玩家聊天组件，挂在玩家控制器上，负责聊天消息发送、接收和本地消息缓存。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="玩家聊天组件")
@@ -38,11 +40,9 @@ public:
 	TArray<FLxChatMessageData> GetChatMessageList() const { return ChatMessageList; }
 
 	/** 收到任意聊天消息时广播。 */
-	UPROPERTY(BlueprintAssignable, Category="聊天|事件", DisplayName="聊天消息接收事件")
 	FOnLxChatMessageReceived OnChatMessageReceived;
 
 	/** 本地聊天消息列表变化时广播。 */
-	UPROPERTY(BlueprintAssignable, Category="聊天|事件", DisplayName="聊天消息列表变化事件")
 	FOnLxChatMessageListChanged OnChatMessageListChanged;
 
 protected:

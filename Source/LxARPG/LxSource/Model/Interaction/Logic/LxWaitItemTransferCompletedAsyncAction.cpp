@@ -27,8 +27,10 @@ void ULxWaitItemTransferCompletedAsyncAction::Activate()
 		return;
 	}
 
-	InteractableComponent->OnItemTransferCompleted.AddUniqueDynamic(
-		this, &ULxWaitItemTransferCompletedAsyncAction::HandleItemTransferCompleted);
+	if (!InteractableComponent->OnItemTransferCompleted.IsBoundToObject(this))
+	{
+		InteractableComponent->OnItemTransferCompleted.AddUObject(this, &ULxWaitItemTransferCompletedAsyncAction::HandleItemTransferCompleted);
+	}
 	InteractableComponent->OnInteractableComponentEndPlayNative.AddUObject(
 		this, &ULxWaitItemTransferCompletedAsyncAction::HandleInteractableComponentEndPlay);
 }
@@ -53,8 +55,7 @@ void ULxWaitItemTransferCompletedAsyncAction::FinishWaiting(bool bWasCancelled)
 
 	if (IsValid(InteractableComponent))
 	{
-		InteractableComponent->OnItemTransferCompleted.RemoveDynamic(
-			this, &ULxWaitItemTransferCompletedAsyncAction::HandleItemTransferCompleted);
+		InteractableComponent->OnItemTransferCompleted.RemoveAll(this);
 		InteractableComponent->OnInteractableComponentEndPlayNative.RemoveAll(this);
 	}
 

@@ -7,6 +7,8 @@
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
 #include "LxCharacterCombatComponent.generated.h"
 
+class ULxCharacterDataTransferComponent;
+
 /** 角色战斗组件，统一管理技能释放和近身战斗 UObject 模块。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="角色战斗组件")
 class LXARPG_API ULxCharacterCombatComponent : public ULxComponentBase
@@ -41,28 +43,29 @@ public:
 	void NotifyCombatModuleDataChanged();
 
 	/** 请求广播技能动作动画。 */
-	void RequestPlaySkillActionAnimation(float InSkillReleaseDuration, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType);
+	void RequestPlaySkillActionAnimation(FGuid InCastId, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType);
 
 	/** 请求广播技能动作动画结束。 */
 	void RequestStopSkillActionAnimation();
 
 	/** 近战攻击命中目标事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|战斗|近身战斗|攻击", DisplayName="近战攻击命中目标事件")
 	FOnLxMeleeAttackHit OnMeleeAttackHit;
 
 	/** 近战攻击执行结束事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|战斗|近身战斗|攻击", DisplayName="近战攻击执行结束事件")
 	FOnLxMeleeAttackEnded OnMeleeAttackEnded;
 
 	/** 格挡时被击中事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|战斗|近身战斗|格挡", DisplayName="格挡时被击中事件")
 	FOnLxBlockHit OnBlockHit;
 
 	/** 格挡执行结束事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|战斗|近身战斗|格挡", DisplayName="格挡执行结束事件")
 	FOnLxBlockEnded OnBlockEnded;
 
 private:
+	/** 接收数据中转组件的动画通知，客户端仅保留动画表现。 */
+	void HandleAnimationEvent(const FLxCharacterAnimationEvent& Event);
+	/** 统一通知来源，结束游戏时解除绑定。 */
+	UPROPERTY(Transient, meta=(DisplayName="数据中转组件"))
+	TObjectPtr<ULxCharacterDataTransferComponent> DataTransferComponent;
 	/** 服务端校验并执行技能释放输入。 */
 	UFUNCTION(Server, Reliable, Category="角色|战斗|网络", DisplayName="服务端处理技能释放输入")
 	void ServerHandleSkillItemReleaseInput(FGameplayTag InSkillItemIDTag, ELxSkillReleaseInputState InInputState,
@@ -71,7 +74,7 @@ private:
 
 	/** 广播技能动作动画。 */
 	UFUNCTION(NetMulticast, Reliable, Category="角色|战斗|网络", DisplayName="广播技能动作动画")
-	void MulticastPlaySkillActionAnimation(float InSkillReleaseDuration, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType);
+	void MulticastPlaySkillActionAnimation(FGuid InCastId, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType);
 
 	/** 广播技能动作动画结束。 */
 	UFUNCTION(NetMulticast, Reliable, Category="角色|战斗|网络", DisplayName="广播技能动作动画结束")

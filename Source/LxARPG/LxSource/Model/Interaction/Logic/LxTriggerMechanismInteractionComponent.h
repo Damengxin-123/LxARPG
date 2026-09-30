@@ -7,7 +7,7 @@
 class ULxPlayerInteractionModule;
 
 /** 机关状态变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxMechanismStateChanged, ELxMechanismState, NewState);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxMechanismStateChanged, ELxMechanismState);
 
 /** 机关交互模块，负责触发机关、维护机关状态，并按状态提供交互提示文本。 */
 UCLASS(Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="机关交互模块")
@@ -47,7 +47,6 @@ public:
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
 
 	/** 机关状态改变时触发，供蓝图播放门、开关等表现。 */
-	UPROPERTY(BlueprintAssignable, Category="交互|机关", DisplayName="机关状态改变")
 	FOnLxMechanismStateChanged OnMechanismStateChanged;
 
 protected:

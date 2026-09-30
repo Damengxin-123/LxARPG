@@ -47,7 +47,6 @@ public:
 	bool IsCharacterFeatureAvailable() const;
 
 	/** 游戏流程状态变化事件，依次提供变化前与变化后的状态。 */
-	UPROPERTY(BlueprintAssignable, Category="本地玩家子系统|游戏状态", DisplayName="游戏状态变化事件")
 	FOnLxGameStateChanged OnGameStateChanged;
 
 private:

@@ -500,13 +500,13 @@ void ULxCharacterBackpackModule::RefreshTrackedBindings()
 			continue;
 		}
 
-		Slot->OnItemDataChanged.RemoveDynamic(this, &ULxCharacterBackpackModule::HandleBackpackSlotChanged);
-		Slot->OnItemDataChanged.AddDynamic(this, &ULxCharacterBackpackModule::HandleBackpackSlotChanged);
+		Slot->OnItemDataChanged.RemoveAll(this);
+		Slot->OnItemDataChanged.AddUObject(this, &ULxCharacterBackpackModule::HandleBackpackSlotChanged);
 
 		if (Slot->GetItem() != nullptr)
 		{
-			Slot->GetItem()->OnItemCountChanged.RemoveDynamic(this, &ULxCharacterBackpackModule::HandleTrackedItemCountChanged);
-			Slot->GetItem()->OnItemCountChanged.AddDynamic(this, &ULxCharacterBackpackModule::HandleTrackedItemCountChanged);
+			Slot->GetItem()->OnItemCountChanged.RemoveAll(this);
+			Slot->GetItem()->OnItemCountChanged.AddUObject(this, &ULxCharacterBackpackModule::HandleTrackedItemCountChanged);
 		}
 	}
 }
@@ -541,7 +541,7 @@ void ULxCharacterBackpackModule::InitializeBackpack()
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
 		NewSlot->SetSlotIndex(Index);
 		NewSlot->InitItemSlot(ELxItemSlotType::Backpack, LxTag_Item, nullptr);
-		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxCharacterBackpackModule::HandleBackpackSlotChanged);
+		NewSlot->OnItemDataChanged.AddUObject(this, &ULxCharacterBackpackModule::HandleBackpackSlotChanged);
 		m_vBackpackSlots.Add(NewSlot);
 	}
 }
@@ -631,10 +631,10 @@ bool ULxCharacterBackpackModule::RestoreBackpackSaveData(int32 InSlotCount,
 	{
 		if (OldSlot)
 		{
-			OldSlot->OnItemDataChanged.RemoveDynamic(this, &ULxCharacterBackpackModule::HandleBackpackSlotChanged);
+			OldSlot->OnItemDataChanged.RemoveAll(this);
 			if (ULxItemBase* OldItem = OldSlot->GetItem())
 			{
-				OldItem->OnItemCountChanged.RemoveDynamic(this, &ULxCharacterBackpackModule::HandleTrackedItemCountChanged);
+				OldItem->OnItemCountChanged.RemoveAll(this);
 			}
 		}
 	}

@@ -60,11 +60,9 @@ public:
 	void RemoveAimResultUpdateRequest();
 
 	/** 技能释放点或技能方向变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="玩家|瞄准|事件", DisplayName="技能瞄准结果变化事件")
 	FOnLxPlayerAimResultChanged OnAimResultChanged;
 
 	/** 瞄准状态变化事件，可用于驱动蓄力准星或瞄准 UI。 */
-	UPROPERTY(BlueprintAssignable, Category="玩家|瞄准", DisplayName="瞄准状态变化事件")
 	FOnLxPlayerAimingStateChanged OnAimingStateChanged;
 
 protected:

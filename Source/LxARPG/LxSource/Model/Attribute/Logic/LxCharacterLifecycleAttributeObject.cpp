@@ -23,8 +23,8 @@ void ULxCharacterLifecycleAttributeObject::InitializeSpecialAttributeObject(ULxC
 	{
 		if (ULxCharacterAttributeComponent* AttributeComponent = OwnerCharacter->GetCharacterAttributeComponent())
 		{
-			AttributeComponent->OnTypedAttributeSnapshotChanged.RemoveDynamic(this, &ULxCharacterLifecycleAttributeObject::HandleCharacterAttributesChanged);
-			AttributeComponent->OnTypedAttributeSnapshotChanged.AddDynamic(this, &ULxCharacterLifecycleAttributeObject::HandleCharacterAttributesChanged);
+			AttributeComponent->OnTypedAttributeSnapshotChanged.RemoveAll(this);
+			AttributeComponent->OnTypedAttributeSnapshotChanged.AddUObject(this, &ULxCharacterLifecycleAttributeObject::HandleCharacterAttributesChanged);
 		}
 	}
 	EvaluateDeathFromCurrentAttributes();
@@ -62,7 +62,7 @@ void ULxCharacterLifecycleAttributeObject::DeinitializeSpecialAttributeObject()
 	{
 		if (ULxCharacterAttributeComponent* AttributeComponent = OwnerCharacter->GetCharacterAttributeComponent())
 		{
-			AttributeComponent->OnTypedAttributeSnapshotChanged.RemoveDynamic(this, &ULxCharacterLifecycleAttributeObject::HandleCharacterAttributesChanged);
+			AttributeComponent->OnTypedAttributeSnapshotChanged.RemoveAll(this);
 		}
 	}
 	Super::DeinitializeSpecialAttributeObject();

@@ -1,4 +1,6 @@
 #include "LxCharacterCombatComponent.h"
+#include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 
 ULxCharacterCombatComponent::ULxCharacterCombatComponent()
 {
@@ -13,27 +15,46 @@ void ULxCharacterCombatComponent::BaseComponentInitialize()
 {
 	if (bCombatInitialized) return;
 	bCombatInitialized = true;
+	if (const ALxBaseCharacter* Character = Cast<ALxBaseCharacter>(GetOwner()))
+	{
+		DataTransferComponent = Character->GetCharacterDataTransferComponent();
+		if (DataTransferComponent)
+			DataTransferComponent->OnAnimationEvent.AddUObject(this, &ULxCharacterCombatComponent::HandleAnimationEvent);
+	}
 
 	if (SkillCastModule) SkillCastModule->InitializeModule(this);
 	if (CloseCombatModule)
 	{
 		CloseCombatModule->InitializeModule(this);
-		CloseCombatModule->OnMeleeAttackHit.AddUniqueDynamic(this, &ULxCharacterCombatComponent::HandleMeleeAttackHit);
-		CloseCombatModule->OnMeleeAttackEnded.AddUniqueDynamic(this, &ULxCharacterCombatComponent::HandleMeleeAttackEnded);
-		CloseCombatModule->OnBlockHit.AddUniqueDynamic(this, &ULxCharacterCombatComponent::HandleBlockHit);
-		CloseCombatModule->OnBlockEnded.AddUniqueDynamic(this, &ULxCharacterCombatComponent::HandleBlockEnded);
+		if (!CloseCombatModule->OnMeleeAttackHit.IsBoundToObject(this))
+		{
+			CloseCombatModule->OnMeleeAttackHit.AddUObject(this, &ULxCharacterCombatComponent::HandleMeleeAttackHit);
+		}
+		if (!CloseCombatModule->OnMeleeAttackEnded.IsBoundToObject(this))
+		{
+			CloseCombatModule->OnMeleeAttackEnded.AddUObject(this, &ULxCharacterCombatComponent::HandleMeleeAttackEnded);
+		}
+		if (!CloseCombatModule->OnBlockHit.IsBoundToObject(this))
+		{
+			CloseCombatModule->OnBlockHit.AddUObject(this, &ULxCharacterCombatComponent::HandleBlockHit);
+		}
+		if (!CloseCombatModule->OnBlockEnded.IsBoundToObject(this))
+		{
+			CloseCombatModule->OnBlockEnded.AddUObject(this, &ULxCharacterCombatComponent::HandleBlockEnded);
+		}
 	}
 	RegisterReplicatedModules();
 }
 
 void ULxCharacterCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (DataTransferComponent) DataTransferComponent->OnAnimationEvent.RemoveAll(this);
 	if (CloseCombatModule)
 	{
-		CloseCombatModule->OnMeleeAttackHit.RemoveDynamic(this, &ULxCharacterCombatComponent::HandleMeleeAttackHit);
-		CloseCombatModule->OnMeleeAttackEnded.RemoveDynamic(this, &ULxCharacterCombatComponent::HandleMeleeAttackEnded);
-		CloseCombatModule->OnBlockHit.RemoveDynamic(this, &ULxCharacterCombatComponent::HandleBlockHit);
-		CloseCombatModule->OnBlockEnded.RemoveDynamic(this, &ULxCharacterCombatComponent::HandleBlockEnded);
+		CloseCombatModule->OnMeleeAttackHit.RemoveAll(this);
+		CloseCombatModule->OnMeleeAttackEnded.RemoveAll(this);
+		CloseCombatModule->OnBlockHit.RemoveAll(this);
+		CloseCombatModule->OnBlockEnded.RemoveAll(this);
 		CloseCombatModule->ShutdownModule();
 	}
 	if (SkillCastModule) SkillCastModule->ShutdownModule();
@@ -43,6 +64,12 @@ void ULxCharacterCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReas
 bool ULxCharacterCombatComponent::CanStartSkillCast() const
 {
 	return CloseCombatModule == nullptr || CloseCombatModule->IsCloseCombatIdle();
+}
+
+void ULxCharacterCombatComponent::HandleAnimationEvent(const FLxCharacterAnimationEvent& Event)
+{
+	if (GetOwner() && GetOwner()->HasAuthority() && SkillCastModule)
+		SkillCastModule->HandleAnimationEvent(Event);
 }
 
 bool ULxCharacterCombatComponent::CanStartCloseCombat() const
@@ -55,9 +82,9 @@ void ULxCharacterCombatComponent::NotifyCombatModuleDataChanged()
 	OnDataChange.Broadcast();
 }
 
-void ULxCharacterCombatComponent::RequestPlaySkillActionAnimation(const float InSkillReleaseDuration, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType)
+void ULxCharacterCombatComponent::RequestPlaySkillActionAnimation(FGuid InCastId, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType)
 {
-	MulticastPlaySkillActionAnimation(InSkillReleaseDuration, InSkillId, InMotionType);
+	MulticastPlaySkillActionAnimation(InCastId, InSkillId, InMotionType);
 }
 
 void ULxCharacterCombatComponent::RequestStopSkillActionAnimation()
@@ -76,9 +103,9 @@ void ULxCharacterCombatComponent::ServerHandleSkillItemReleaseInput_Implementati
 	}
 }
 
-void ULxCharacterCombatComponent::MulticastPlaySkillActionAnimation_Implementation(const float InSkillReleaseDuration, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType)
+void ULxCharacterCombatComponent::MulticastPlaySkillActionAnimation_Implementation(FGuid InCastId, FGameplayTag InSkillId, ELxCharacterMotionType InMotionType)
 {
-	if (SkillCastModule) SkillCastModule->PlaySkillActionAnimation(InSkillReleaseDuration, InSkillId, InMotionType);
+	if (SkillCastModule) SkillCastModule->PlaySkillActionAnimation(InCastId, InSkillId, InMotionType);
 }
 
 void ULxCharacterCombatComponent::MulticastStopSkillActionAnimation_Implementation()

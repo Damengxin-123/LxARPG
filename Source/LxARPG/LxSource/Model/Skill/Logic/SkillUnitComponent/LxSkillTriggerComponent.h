@@ -8,7 +8,8 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitComponentTypes.h"
 #include "LxSkillTriggerComponent.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillTriggered, const FLxSkillTriggerResult&, TriggerResult);
+/** 技能触发事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxSkillTriggered, const FLxSkillTriggerResult&);
 
 /** 技能触发能力组件，只负责将检测结果、周期时钟或手动请求转换为最终触发结果。 */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable, DisplayName="技能触发能力组件")
@@ -54,7 +55,6 @@ public:
 	void ResetTargetTriggerRecord(AActor* InTarget);
 
 	/** 最终触发事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|触发", DisplayName="触发事件")
 	FOnLxSkillTriggered OnTriggered;
 
 private:

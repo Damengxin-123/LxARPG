@@ -6,7 +6,7 @@
 #include "LxCharacterStateComponent.generated.h"
 
 /** 角色状态标签变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterStateTagsChanged, FGameplayTag, StateCategoryTag, const FGameplayTagContainer&, StateTags);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterStateTagsChanged, FGameplayTag, const FGameplayTagContainer&);
 
 /**
  * 角色状态组件。
@@ -26,7 +26,6 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** 角色状态标签变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|状态", DisplayName="角色状态标签变化事件")
 	FOnLxCharacterStateTagsChanged OnStateTagsChanged;
 
 	/** 获取指定分类下的状态标签。 */

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
 #include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Core/Database/LxCharacterComponentBase.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
@@ -13,6 +14,7 @@
 #include "LxCharacterDataTransferComponent.generated.h"
 
 class ULxBuff;
+class ULxCharacterAnimationProcessComponent;
 class ULxCharacterAttributeComponent;
 class ULxCharacterBackpackModule;
 class ULxCharacterBuffModule;
@@ -30,15 +32,22 @@ class ULxProfessionDefinition;
 class ULxSkillBackpackModule;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxCharacterAttributeSnapshotChanged, const FLxTypedAttributeSnapshot&, AttributeSnapshot);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBackpackItemListChanged, const TArray<ULxItemSlotData*>&, BackpackItems);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxEquipmentSlotListChanged, const TArray<ULxItemSlotData*>&, EquipmentSlots);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxSkillBackpackSlotListChanged, const TArray<ULxItemSlotData*>&, SkillSlots);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxBuffListChanged, const TArray<ULxBuff*>&, BuffList);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxCharacterProfessionDataChanged);
+/** 角色背包更新事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxBackpackItemListChanged, const TArray<ULxItemSlotData*>&);
+/** 角色装备更新事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxEquipmentSlotListChanged, const TArray<ULxItemSlotData*>&);
+/** 角色技能背包更新事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxSkillBackpackSlotListChanged, const TArray<ULxItemSlotData*>&);
+/** 角色Buff更新事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxBuffListChanged, const TArray<ULxBuff*>&);
+/** 角色职业数据变化事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE(FOnLxCharacterProfessionDataChanged);
 /** 角色任务进度发生变化时触发。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxCharacterQuestProgressChanged);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDataTransferStateTagsChanged, FGameplayTag, StateCategoryTag, const FGameplayTagContainer&, StateTags);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDataTransferLifecycleStateChanged, bool, bIsAlive, FGameplayTag, LifecycleStateTag);
+DECLARE_MULTICAST_DELEGATE(FOnLxCharacterQuestProgressChanged);
+/** 角色状态标签变化事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDataTransferStateTagsChanged, FGameplayTag, const FGameplayTagContainer&);
+/** 角色生命周期状态变化事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxCharacterDataTransferLifecycleStateChanged, bool, FGameplayTag);
 
 /**
  * 角色数据中转组件。
@@ -53,6 +62,8 @@ class LXARPG_API ULxCharacterDataTransferComponent : public ULxCharacterComponen
 	GENERATED_BODY()
 
 public:
+	/** 统一转发动画通知，由战斗组件等上层模块按语义消费。 */
+	FOnLxCharacterAnimationEvent OnAnimationEvent;
 	ULxCharacterDataTransferComponent();
 
 	virtual void BaseComponentInitialize() override;
@@ -258,35 +269,27 @@ public:
 	FOnLxCharacterAttributeSnapshotChanged OnCharacterAttributeChanged;
 
 	/** 角色背包更新事件，广播当前背包槽位列表。 */
-	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色背包更新事件")
 	FOnLxBackpackItemListChanged OnBackpackItemChanged;
 
 	/** 角色装备更新事件，广播当前装备槽位列表。 */
-	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色装备更新事件")
 	FOnLxEquipmentSlotListChanged OnEquipmentChanged;
 
 	/** 角色技能背包更新事件，广播当前技能背包槽位列表。 */
-	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色技能背包更新事件")
 	FOnLxSkillBackpackSlotListChanged OnSkillBackpackChanged;
 
 	/** 角色 Buff 更新事件，广播当前 Buff 列表。 */
-	UPROPERTY(BlueprintAssignable, Category="Character Data Transfer", DisplayName="角色Buff更新事件")
 	FOnLxBuffListChanged OnBuffChanged;
 
 	/** 角色职业数据变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色数据中转|职业", DisplayName="角色职业数据变化事件")
 	FOnLxCharacterProfessionDataChanged OnProfessionChanged;
 
 	/** 角色任务记录变化事件，供交互选项和任务界面刷新。 */
-	UPROPERTY(BlueprintAssignable, Category="角色数据中转|任务", DisplayName="角色任务进度变化事件")
 	FOnLxCharacterQuestProgressChanged OnQuestProgressChanged;
 
 	/** 角色状态标签变化事件，广播发生变化的状态分类及其当前标签集合。 */
-	UPROPERTY(BlueprintAssignable, Category="角色数据中转|状态", DisplayName="角色状态标签变化事件")
 	FOnLxCharacterDataTransferStateTagsChanged OnCharacterStateTagsChanged;
 
 	/** 角色生命周期状态变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色数据中转|生命周期", DisplayName="角色生命周期状态变化事件")
 	FOnLxCharacterDataTransferLifecycleStateChanged OnCharacterLifecycleStateChanged;
 
 protected:
@@ -335,6 +338,11 @@ protected:
 	TObjectPtr<ULxCharacterEffectTransferModule> EffectTransferModule = nullptr;
 
 private:
+	/** 转发动画处理组件上报的通知，保持播放身份不变。 */
+	void HandleAnimationEvent(const FLxCharacterAnimationEvent& Event);
+	/** 当前角色动画处理组件，用于建立和解除通知链路。 */
+	UPROPERTY(Transient, meta=(DisplayName="动画处理组件"))
+	TObjectPtr<ULxCharacterAnimationProcessComponent> AnimationProcessComponent;
 	void CacheOwnerComponents();
 	/** 确保数据中转组件已经缓存角色身上的核心组件引用。 */
 	void EnsureOwnerComponentsCached();

@@ -9,6 +9,8 @@ class APlayerController;
 
 namespace LxInputActionConfig
 {
+	/** 在数据表未配置冲刺时补充默认Shift按住输入，保留用户改键。 */
+	void EnsureDefaultSprintInputActionInfo();
 	void ClearInputActionConfig();
 	void SetInputActionInfo(const FLxInputActionInfo& InInputActionInfo);
 

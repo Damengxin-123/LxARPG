@@ -47,7 +47,10 @@ enum class ELxInputActionID : uint8
 	Profession UMETA(DisplayName="职业界面"),
 
 	/** 任务详细界面的手动开关输入，追加以保持既有枚举值。 */
-	Quest UMETA(DisplayName="任务界面")
+	Quest UMETA(DisplayName="任务界面"),
+
+	/** 按住冲刺、松开恢复低速；追加以保持既有枚举值。 */
+	Sprint UMETA(DisplayName="冲刺")
 };
 
 FORCEINLINE uint32 GetTypeHash(const ELxInputActionID InInputActionID)

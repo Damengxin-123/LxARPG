@@ -32,12 +32,12 @@ bool ULxTreasureChestInteractionComponent::RestorePersistentData(const FLxIntera
 		ELxItemSlotType::TreasureChest, RestoredSlots)) return false;
 	for (ULxItemSlotData* Slot : TreasureChestItemSlotList)
 	{
-		if (Slot) Slot->OnItemDataChanged.RemoveDynamic(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
+		if (Slot) Slot->OnItemDataChanged.RemoveAll(this);
 	}
 	TreasureChestItemSlotList = MoveTemp(RestoredSlots);
 	for (ULxItemSlotData* Slot : TreasureChestItemSlotList)
 	{
-		Slot->OnItemDataChanged.AddDynamic(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
+		Slot->OnItemDataChanged.AddUObject(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
 	}
 	bTreasureChestInitialized = true;
 	bCompletionBroadcasted = InRecord.bCompletionBroadcasted
@@ -125,7 +125,7 @@ void ULxTreasureChestInteractionComponent::InitializeTreasureChestSlots()
 	{
 		if (SlotData)
 		{
-			SlotData->OnItemDataChanged.RemoveDynamic(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
+			SlotData->OnItemDataChanged.RemoveAll(this);
 		}
 	}
 
@@ -141,7 +141,7 @@ void ULxTreasureChestInteractionComponent::InitializeTreasureChestSlots()
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
 		NewSlot->SetSlotIndex(Index);
 		NewSlot->InitItemSlot(ELxItemSlotType::TreasureChest, LxTag_Item, NewItem);
-		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
+		NewSlot->OnItemDataChanged.AddUObject(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
 
 		if (NewItem && NewItem->ItemIsValid())
 		{
@@ -304,7 +304,7 @@ void ULxTreasureChestInteractionComponent::ApplyReplicatedTreasureChestSlots()
 		{
 			if (SlotData)
 			{
-				SlotData->OnItemDataChanged.RemoveDynamic(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
+				SlotData->OnItemDataChanged.RemoveAll(this);
 			}
 		}
 
@@ -315,7 +315,7 @@ void ULxTreasureChestInteractionComponent::ApplyReplicatedTreasureChestSlots()
 			ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
 			NewSlot->SetSlotIndex(Index);
 			NewSlot->InitItemSlot(ELxItemSlotType::TreasureChest, LxTag_Item, nullptr);
-			NewSlot->OnItemDataChanged.AddDynamic(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
+			NewSlot->OnItemDataChanged.AddUObject(this, &ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged);
 			TreasureChestItemSlotList.Add(NewSlot);
 		}
 		bTreasureChestInitialized = true;

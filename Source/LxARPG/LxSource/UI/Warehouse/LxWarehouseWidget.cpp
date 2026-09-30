@@ -152,10 +152,10 @@ void ULxWarehouseWidget::BindPlayerInteractionComponent()
 		return;
 	}
 
-	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveDynamic(this, &ULxWarehouseWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionOptionActivated.AddDynamic(this, &ULxWarehouseWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxWarehouseWidget::HandleInteractionCancelled);
-	PlayerInteractionComponent->OnInteractionCancelled.AddDynamic(this, &ULxWarehouseWidget::HandleInteractionCancelled);
+	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionOptionActivated.AddUObject(this, &ULxWarehouseWidget::HandleInteractionOptionActivated);
+	PlayerInteractionComponent->OnInteractionCancelled.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionCancelled.AddUObject(this, &ULxWarehouseWidget::HandleInteractionCancelled);
 }
 
 void ULxWarehouseWidget::UnbindPlayerInteractionComponent()
@@ -165,8 +165,8 @@ void ULxWarehouseWidget::UnbindPlayerInteractionComponent()
 		return;
 	}
 
-	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveDynamic(this, &ULxWarehouseWidget::HandleInteractionOptionActivated);
-	PlayerInteractionComponent->OnInteractionCancelled.RemoveDynamic(this, &ULxWarehouseWidget::HandleInteractionCancelled);
+	PlayerInteractionComponent->OnInteractionOptionActivated.RemoveAll(this);
+	PlayerInteractionComponent->OnInteractionCancelled.RemoveAll(this);
 	PlayerInteractionComponent = nullptr;
 }
 
@@ -177,8 +177,8 @@ void ULxWarehouseWidget::BindWarehouseComponent()
 		return;
 	}
 
-	WarehouseComponent->OnWarehouseSlotListChanged.RemoveDynamic(this, &ULxWarehouseWidget::HandleWarehouseSlotListChanged);
-	WarehouseComponent->OnWarehouseSlotListChanged.AddDynamic(this, &ULxWarehouseWidget::HandleWarehouseSlotListChanged);
+	WarehouseComponent->OnWarehouseSlotListChanged.RemoveAll(this);
+	WarehouseComponent->OnWarehouseSlotListChanged.AddUObject(this, &ULxWarehouseWidget::HandleWarehouseSlotListChanged);
 }
 
 void ULxWarehouseWidget::UnbindWarehouseComponent()
@@ -188,7 +188,7 @@ void ULxWarehouseWidget::UnbindWarehouseComponent()
 		return;
 	}
 
-	WarehouseComponent->OnWarehouseSlotListChanged.RemoveDynamic(this, &ULxWarehouseWidget::HandleWarehouseSlotListChanged);
+	WarehouseComponent->OnWarehouseSlotListChanged.RemoveAll(this);
 	WarehouseComponent = nullptr;
 	WarehouseItemSlotList.Reset();
 }

@@ -28,10 +28,10 @@ void ULxChatWidget::SetPlayerChatComponent(ULxPlayerChatComponent* InPlayerChatC
 	PlayerChatComponent = InPlayerChatComponent;
 	if (PlayerChatComponent)
 	{
-		PlayerChatComponent->OnChatMessageReceived.RemoveDynamic(this, &ULxChatWidget::HandleChatMessageReceived);
-		PlayerChatComponent->OnChatMessageReceived.AddDynamic(this, &ULxChatWidget::HandleChatMessageReceived);
-		PlayerChatComponent->OnChatMessageListChanged.RemoveDynamic(this, &ULxChatWidget::HandleChatMessageListChanged);
-		PlayerChatComponent->OnChatMessageListChanged.AddDynamic(this, &ULxChatWidget::HandleChatMessageListChanged);
+		PlayerChatComponent->OnChatMessageReceived.RemoveAll(this);
+		PlayerChatComponent->OnChatMessageReceived.AddUObject(this, &ULxChatWidget::HandleChatMessageReceived);
+		PlayerChatComponent->OnChatMessageListChanged.RemoveAll(this);
+		PlayerChatComponent->OnChatMessageListChanged.AddUObject(this, &ULxChatWidget::HandleChatMessageListChanged);
 	}
 
 	RefreshChatMessageList();
@@ -124,8 +124,8 @@ void ULxChatWidget::UnbindPlayerChatComponent()
 		return;
 	}
 
-	PlayerChatComponent->OnChatMessageReceived.RemoveDynamic(this, &ULxChatWidget::HandleChatMessageReceived);
-	PlayerChatComponent->OnChatMessageListChanged.RemoveDynamic(this, &ULxChatWidget::HandleChatMessageListChanged);
+	PlayerChatComponent->OnChatMessageReceived.RemoveAll(this);
+	PlayerChatComponent->OnChatMessageListChanged.RemoveAll(this);
 	PlayerChatComponent = nullptr;
 }
 

@@ -92,8 +92,8 @@ void ULxBuffWidget::BindDataTransferComponent(ULxCharacterDataTransferComponent*
 		return;
 	}
 
-	m_pCharacterDataTransferComponent->OnBuffChanged.RemoveDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
-	m_pCharacterDataTransferComponent->OnBuffChanged.AddDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
+	m_pCharacterDataTransferComponent->OnBuffChanged.RemoveAll(this);
+	m_pCharacterDataTransferComponent->OnBuffChanged.AddUObject(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
 }
 
 void ULxBuffWidget::UnbindDataTransferComponent()
@@ -103,7 +103,7 @@ void ULxBuffWidget::UnbindDataTransferComponent()
 		return;
 	}
 
-	m_pCharacterDataTransferComponent->OnBuffChanged.RemoveDynamic(this, &ULxBuffWidget::HandleDataTransferBuffChanged);
+	m_pCharacterDataTransferComponent->OnBuffChanged.RemoveAll(this);
 	m_pCharacterDataTransferComponent = nullptr;
 }
 

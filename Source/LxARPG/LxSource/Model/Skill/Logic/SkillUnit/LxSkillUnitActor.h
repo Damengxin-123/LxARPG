@@ -17,9 +17,12 @@ class UPrimitiveComponent;
 class UStaticMeshComponent;
 class ALxSkillUnitActor;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitResultEvent, ALxSkillUnitActor*, SkillUnit, const FLxSkillUnitResult&, SkillUnitResult);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitTriggerEvent, ALxSkillUnitActor*, SkillUnit, const FLxSkillTriggerResult&, TriggerResult);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitPropagationEvent, ALxSkillUnitActor*, SkillUnit, const FLxSkillPropagationResult&, PropagationResult);
+/** 技能单元结果事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitResultEvent, ALxSkillUnitActor*, const FLxSkillUnitResult&);
+/** 技能单元触发事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitTriggerEvent, ALxSkillUnitActor*, const FLxSkillTriggerResult&);
+/** 技能单元传播事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxSkillUnitPropagationEvent, ALxSkillUnitActor*, const FLxSkillPropagationResult&);
 
 /** 技能单元Actor基类，负责协调能力组件和对外提供统一生命周期接口。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="技能单元基类")
@@ -127,27 +130,21 @@ public:
 	TArray<UPrimitiveComponent*> GetSkillUnitOverlapEventSources() const;
 
 	/** 技能单元激活事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|事件", DisplayName="技能单元激活事件")
 	FOnLxSkillUnitResultEvent OnSkillUnitActivated;
 
 	/** 技能单元确认命中事件，统一为后续技能单元提供可串接的命中结果。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|事件", DisplayName="技能单元命中事件")
 	FOnLxSkillUnitResultEvent OnSkillUnitHit;
 
 	/** 技能单元结束事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|事件", DisplayName="技能单元结束事件")
 	FOnLxSkillUnitResultEvent OnSkillUnitFinished;
 
 	/** 技能单元取消事件。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|事件", DisplayName="技能单元取消事件")
 	FOnLxSkillUnitResultEvent OnSkillUnitCancelled;
 
 	/** 技能单元触发事件，由触发组件转发。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|事件", DisplayName="技能单元触发事件")
 	FOnLxSkillUnitTriggerEvent OnSkillUnitTriggered;
 
 	/** 技能单元传播评估事件，由传播组件转发。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|事件", DisplayName="技能单元传播评估事件")
 	FOnLxSkillUnitPropagationEvent OnSkillUnitPropagationEvaluated;
 
 protected:

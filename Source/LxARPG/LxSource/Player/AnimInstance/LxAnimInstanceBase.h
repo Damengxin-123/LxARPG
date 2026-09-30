@@ -19,6 +19,39 @@ class LXARPG_API ULxAnimInstanceBase : public UAnimInstance
 {
 	GENERATED_BODY()
 public:
+	/** 收集原生排队通知；只接受事件携带的来源，不能借用当前技能编号。 */
+	void CollectAnimationNotify(const FAnimNotifyEventReference& Event);
+	/** 收集角色动作通知的蒙太奇分支点。 */
+	void CollectActionBranchingPoint(FName NotifyName, int32 MontageInstanceId);
+	/** 注册蒙太奇实例与动作播放身份的对应关系。 */
+	void RegisterActionMontageSource(int32 InstanceId, const FLxCharacterAnimationEvent& Source);
+	/** 收集播放器按实际播放进度生成的结束事件，保持与通知相同的回传路径。 */
+	void CollectPlaybackEvent(const FLxCharacterAnimationEvent& Event) { QueueAnimationEvent(Event); }
+	/** 姿势刷新后在游戏线程统一向动画处理组件发送通知。 */
+	virtual void NativePostEvaluateAnimation() override;
+	/** 动画蓝图可统一观察已收集的通知，无需为每个技能分别连线。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="角色动画|通知", meta=(DisplayName="收到角色动画通知"))
+	void ReceiveAnimationEvent(const FLxCharacterAnimationEvent& Event);
+	/** 向上层组件发送通知的原生事件。 */
+	FOnLxCharacterAnimationEvent OnAnimationEvent;
+	/** 创建支持动作节点通知开关的动画代理。 */
+	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
+	/** 禁用指定动作蒙太奇实例的排队通知，不影响同资源的其他实例。 */
+	void DisableActionMontageNotifies(int32 InstanceId) { DisabledActionMontageInstances.Add(InstanceId); }
+	/** 判断蒙太奇通知是否属于已关闭接收的播放实例。 */
+	bool IsActionMontageNotifyDisabled(int32 InstanceId) const { return DisabledActionMontageInstances.Contains(InstanceId); }
+	/** 在通知队列过滤完毕后移除已经销毁的蒙太奇实例记录。 */
+	void PruneActionMontageNotifyFilters();
+private:
+	/** 主动画实例统一存放本帧通知，避免更新动画时重入技能逻辑。 */
+	TArray<FLxCharacterAnimationEvent> PendingAnimationEvents;
+	/** 蒙太奇排队通知和分支点共用的播放身份映射。 */
+	TMap<int32, FLxCharacterAnimationEvent> MontageSources;
+	/** 将链接动画实例的通知汇入主动画实例。 */
+	void QueueAnimationEvent(const FLxCharacterAnimationEvent& Event);
+	/** 按播放实例记录通知开关，防止其他节点使用同动画时被误过滤。 */
+	TSet<int32> DisabledActionMontageInstances;
+public:
 	/**
 	 * @brief 初始化动画实例。
 	 *

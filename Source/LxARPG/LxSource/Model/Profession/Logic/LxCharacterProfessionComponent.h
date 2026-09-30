@@ -9,7 +9,7 @@
 class ULxProfessionDefinition;
 
 /** 角色职业数据变化事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxCharacterProfessionChanged);
+DECLARE_MULTICAST_DELEGATE(FOnLxCharacterProfessionChanged);
 
 /**
  * 角色职业组件。
@@ -72,7 +72,6 @@ public:
 	bool GetProfessionRuntimeData(FGameplayTag InProfessionIDTag, FLxProfessionRuntimeData& OutProfessionData) const;
 
 	/** 角色职业数据变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="职业|角色职业", DisplayName="角色职业数据变化事件")
 	FOnLxCharacterProfessionChanged OnProfessionChanged;
 
 protected:

@@ -7,7 +7,8 @@
 
 class ALxMeleeSkillUnitActor;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxMeleeHitTarget, ALxMeleeSkillUnitActor*, MeleeSkillUnit, const FLxMeleeHitContext&, HitContext);
+/** 近战命中目标事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxMeleeHitTarget, ALxMeleeSkillUnitActor*, const FLxMeleeHitContext&);
 
 /** 近战效果技能单元，接收角色近身战斗组件确认的有效武器命中并向技能输出事件。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="近战效果技能单元")
@@ -35,7 +36,6 @@ public:
 	int32 GetCurrentHitCount() const { return CurrentHitCount; }
 
 	/** 每次接受有效武器命中时触发，只输出本次命中的单个目标和命中位置。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|近战|事件", DisplayName="命中目标事件")
 	FOnLxMeleeHitTarget OnMeleeHitTarget;
 
 protected:

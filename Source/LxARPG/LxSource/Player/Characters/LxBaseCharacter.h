@@ -49,7 +49,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="角色命名", DisplayName="命名文本")
 	FText NamingText;
 };
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterStateChange, const ELxCharacterState, State);
+/** 角色状态变化事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnCharacterStateChange, const ELxCharacterState);
 
 /**
  * 角色基础类。
@@ -82,7 +83,6 @@ public:
 	void ServerSetCharacterRotation(FRotator InRotation);
 
 	/** 角色状态变化事件。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|状态", DisplayName="角色状态变化事件")
 	FOnCharacterStateChange OnCharacterStateChange;
 
 protected:

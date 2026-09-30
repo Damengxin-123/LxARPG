@@ -11,7 +11,7 @@ class ULxItemBase;
 class ULxItemSlotData;
 
 /** 背包物品使用事件。背包只广播被使用的物品对象，具体词条效果由数据中转组件和词条模块处理。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBackpackItemUsed, ULxItemBase*, UsedItem);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBackpackItemUsed, ULxItemBase*);
 
 /**
  * 角色背包组件。
@@ -26,7 +26,6 @@ class LXARPG_API ULxCharacterBackpackModule : public ULxCharacterContentModuleBa
 
 public:
 	/** 背包物品使用事件。 */
-	UPROPERTY(BlueprintAssignable, DisplayName="背包物品使用事件")
 	FOnBackpackItemUsed OnItemUsed;
 
 	/** 注册背包网络复制属性。 */

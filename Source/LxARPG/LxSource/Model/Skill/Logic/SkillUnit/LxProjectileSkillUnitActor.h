@@ -11,8 +11,10 @@ class ULxSkillLifeComponent;
 class ULxSkillMovementComponent;
 class ALxProjectileSkillUnitActor;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxProjectileTriggered, ALxProjectileSkillUnitActor*, Projectile, const FLxProjectileTriggerContext&, TriggerContext);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxProjectileInvalidated, ALxProjectileSkillUnitActor*, Projectile, const FLxProjectileInvalidationContext&, InvalidationContext);
+/** 投射物触发事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxProjectileTriggered, ALxProjectileSkillUnitActor*, const FLxProjectileTriggerContext&);
+/** 投射物失效事件，仅供 C++ 监听。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxProjectileInvalidated, ALxProjectileSkillUnitActor*, const FLxProjectileInvalidationContext&);
 
 /** 投射物技能单元基类，只负责飞行、命中检测、穿透计数和失效流程。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="投射物技能单元")
@@ -28,11 +30,9 @@ public:
 	void InitializeProjectileParameters(const FLxSkillProjectileSpec& InProjectileSpec);
 
 	/** 投射物命中有效目标时触发，技能可在这里接收目标并处理效果传递。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|投射物|事件", DisplayName="投射物触发行为")
 	FOnLxProjectileTriggered OnProjectileTriggered;
 
 	/** 投射物达到失效条件时触发。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|投射物|事件", DisplayName="投射物失效事件")
 	FOnLxProjectileInvalidated OnProjectileInvalidated;
 
 protected:

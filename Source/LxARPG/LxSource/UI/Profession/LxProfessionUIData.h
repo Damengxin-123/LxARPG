@@ -12,7 +12,7 @@ class ULxProfessionLevelNodeUIData;
 class ULxProfessionListItemUIData;
 
 /** 职业列表项请求选中事件。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLxProfessionListItemSelectRequested, ULxProfessionListItemUIData*, ProfessionListItemData);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxProfessionListItemSelectRequested, ULxProfessionListItemUIData*);
 
 /** 职业列表项 UI 数据，用于左侧职业列表控件显示。 */
 UCLASS(BlueprintType, DisplayName="职业列表项UI数据")
@@ -26,7 +26,6 @@ public:
 	void RequestSelectProfession();
 
 	/** 当前职业列表项请求被选中时触发。 */
-	UPROPERTY(BlueprintAssignable, Category="职业UI|列表", DisplayName="请求选中职业事件")
 	FOnLxProfessionListItemSelectRequested OnSelectProfessionRequested;
 
 	/** 职业标签 ID。 */

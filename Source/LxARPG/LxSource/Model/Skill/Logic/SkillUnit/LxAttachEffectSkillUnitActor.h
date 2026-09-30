@@ -11,7 +11,7 @@ class USceneComponent;
 class ALxAttachEffectSkillUnitActor;
 
 /** 依附效果结束事件；技能单元对象本身可作为本次持续效果的唯一来源标识。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLxAttachEffectEnded, ALxAttachEffectSkillUnitActor*, SkillUnit, const FLxAttachEffectEndResult&, EndResult);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxAttachEffectEnded, ALxAttachEffectSkillUnitActor*, const FLxAttachEffectEndResult&);
 
 /**
  * 依附效果技能单元基类，只负责消费前置命中结果、依附目标和管理生命周期。
@@ -43,7 +43,6 @@ public:
 	UObject* GetPreviousSkillUnit() const { return PreviousSkillUnit; }
 
 	/** 依附结束事件；持续生效子类应在此事件中撤销本单元施加的效果。 */
-	UPROPERTY(BlueprintAssignable, Category="技能单元|依附效果|事件", DisplayName="依附效果结束事件")
 	FOnLxAttachEffectEnded OnAttachEffectEnded;
 
 protected:

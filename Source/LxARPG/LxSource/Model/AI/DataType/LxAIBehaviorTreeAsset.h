@@ -213,8 +213,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="分析能力", meta=(DisplayName="分析能力", ShowOnlyInnerProperties))
 	FLxAIAnalysisConfig Analysis;
 
-	/** 角色三档移动速度相对于属性加成后基础速度的倍率。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="运动能力", meta=(DisplayName="运动能力", ShowOnlyInnerProperties))
+	/** 仅保留旧资产序列化数据；运行时统一使用角色运动组件中的配置。 */
+	UPROPERTY(meta=(DisplayName="旧版运动配置"))
 	FLxAIMovementConfig Movement;
 
 	/** 由可视化图维护的全部节点配置。 */

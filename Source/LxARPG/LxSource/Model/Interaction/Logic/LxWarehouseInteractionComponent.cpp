@@ -27,13 +27,13 @@ bool ULxWarehouseInteractionComponent::RestorePersistentData(const FLxInteractio
 		ELxItemSlotType::Warehouse, RestoredSlots)) return false;
 	for (ULxItemSlotData* Slot : WarehouseItemSlotList)
 	{
-		if (Slot) Slot->OnItemDataChanged.RemoveDynamic(this, &ULxWarehouseInteractionComponent::HandleWarehouseSlotChanged);
+		if (Slot) Slot->OnItemDataChanged.RemoveAll(this);
 	}
 	WarehouseItemSlotList = MoveTemp(RestoredSlots);
 	WarehouseSlotCount = WarehouseItemSlotList.Num();
 	for (ULxItemSlotData* Slot : WarehouseItemSlotList)
 	{
-		Slot->OnItemDataChanged.AddDynamic(this, &ULxWarehouseInteractionComponent::HandleWarehouseSlotChanged);
+		Slot->OnItemDataChanged.AddUObject(this, &ULxWarehouseInteractionComponent::HandleWarehouseSlotChanged);
 	}
 	Super::RestorePersistentData(InRecord);
 	RefreshWarehouseSlots();
@@ -117,7 +117,7 @@ void ULxWarehouseInteractionComponent::InitializeWarehouseSlots()
 	{
 		if (SlotData)
 		{
-			SlotData->OnItemDataChanged.RemoveDynamic(this, &ULxWarehouseInteractionComponent::HandleWarehouseSlotChanged);
+			SlotData->OnItemDataChanged.RemoveAll(this);
 		}
 	}
 
@@ -130,7 +130,7 @@ void ULxWarehouseInteractionComponent::InitializeWarehouseSlots()
 		NewSlot->SetSlotIndex(Index);
 		// 仓库槽位允许拖入拖出，但物品格子会屏蔽右键使用逻辑。
 		NewSlot->InitItemSlot(ELxItemSlotType::Warehouse, LxTag_Item, nullptr);
-		NewSlot->OnItemDataChanged.AddDynamic(this, &ULxWarehouseInteractionComponent::HandleWarehouseSlotChanged);
+		NewSlot->OnItemDataChanged.AddUObject(this, &ULxWarehouseInteractionComponent::HandleWarehouseSlotChanged);
 		WarehouseItemSlotList.Add(NewSlot);
 	}
 

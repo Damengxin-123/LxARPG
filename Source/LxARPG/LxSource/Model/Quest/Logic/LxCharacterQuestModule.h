@@ -6,7 +6,7 @@
 #include "LxCharacterQuestModule.generated.h"
 
 /** 玩家任务进度发生变化时触发，供数据中转、交互和任务界面刷新。 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLxQuestProgressChanged);
+DECLARE_MULTICAST_DELEGATE(FOnLxQuestProgressChanged);
 
 /** 角色内容组件持有的任务模块，负责保存任务运行状态和执行基础状态迁移。 */
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced, DisplayName="角色任务模块")
@@ -47,7 +47,6 @@ public:
 	bool RestoreQuestSaveData(const TArray<FLxQuestRuntimeRecord>& InRecords, bool bApply = true);
 
 	/** 任务进度在本地或网络同步后发生变化时触发。 */
-	UPROPERTY(BlueprintAssignable, Category="角色|任务", DisplayName="任务进度变化事件")
 	FOnLxQuestProgressChanged OnQuestProgressChanged;
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;

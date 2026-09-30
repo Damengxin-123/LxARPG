@@ -21,10 +21,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="技能单元|触发器", DisplayName="初始化触发器参数")
 	void InitializeTriggerUnitParameters(const FLxSkillTriggerUnitSpec& InTriggerUnitSpec);
 
-	UPROPERTY(BlueprintAssignable, Category="技能单元|触发器", DisplayName="触发器被触发")
+	/** 触发器被触发，仅供 C++ 监听。 */
 	FOnLxSkillUnitTriggerEvent OnTriggerUnitTriggered;
 
-	UPROPERTY(BlueprintAssignable, Category="技能单元|触发器", DisplayName="触发器失效")
+	/** 触发器失效，仅供 C++ 监听。 */
 	FOnLxSkillUnitResultEvent OnTriggerUnitExpired;
 
 protected:
