@@ -9,6 +9,7 @@
 #include "UnrealClient.h"
 #include "LxARPG/LxSource/Systems/MainMenu/LxMainMenuSubsystem.h"
 #include "LxARPG/LxSource/Systems/MainMenu/LxMainMenuGameMode.h"
+#include "LxARPG/LxSource/Systems/MainMenu/LxMainMenuSettings.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxSaveManager.h"
 
@@ -37,13 +38,18 @@ public:
 		}
 		else if (Step == 1)
 		{
+			ULxMainMenuSettings* Settings = GetMutableDefault<ULxMainMenuSettings>();
+			const TSoftObjectPtr<UWorld> OriginalLevel = Settings->DefaultLevel;
+			Settings->DefaultLevel = Settings->MenuLevel;
 			Menu->CreateCharacter(TEXT("测试角色二"));
+			Settings->DefaultLevel = OriginalLevel;
 			++Step; NextStepAt = FPlatformTime::Seconds() + 1;
 		}
 		else if (Step == 2)
 		{
 			if (!Menu->CanEnterGame()) return false;
 			Test->TestTrue(TEXT("新建同类型角色身份独立"), Menu->GetSelectedCharacter()->ID != OriginalID);
+			Test->TestTrue(TEXT("切换角色实际切换基础关卡"), World->GetOutermost()->GetName().Contains(TEXT("主菜单")));
 			Menu->SwitchCharacter(-1);
 			++Step; NextStepAt = FPlatformTime::Seconds() + 1;
 		}
@@ -74,6 +80,10 @@ public:
 			Test->TestEqual(TEXT("返回菜单保留角色选择"), Menu->GetSelectedCharacter()->ID, OriginalID);
 			Test->TestEqual(TEXT("返回菜单保留地图选择"), Menu->GetSelectedWorldID(), MapID);
 			Test->TestFalse(TEXT("返回菜单后世界不运行玩法"), World->HasBegunPlay());
+			++Step; NextStepAt = FPlatformTime::Seconds() + 10;
+		}
+		else if (Step == 6)
+		{
 			FScreenshotRequest::RequestScreenshot(FPaths::ProjectSavedDir() / TEXT("Automation/MainMenu/返回主菜单.png"), true, false);
 			++Step; NextStepAt = FPlatformTime::Seconds() + 2;
 		}

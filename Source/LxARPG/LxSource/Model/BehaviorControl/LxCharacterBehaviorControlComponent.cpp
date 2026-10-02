@@ -1,4 +1,5 @@
 #include "LxCharacterBehaviorControlComponent.h"
+#include "LxARPG/LxSource/Systems/MainMenu/LxMenuPreferences.h"
 
 #include "AIController.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -144,8 +145,11 @@ void ULxCharacterBehaviorControlComponent::HandleLookInput(const FVector2D& InLo
 	{
 		return;
 	}
-	OwnerCharacter->AddControllerYawInput(InLookValue.X);
-	OwnerCharacter->AddControllerPitchInput(InLookValue.Y);
+	const ULxMenuPreferences* Preferences = GetDefault<ULxMenuPreferences>();
+	const float Sensitivity = OwnerCharacter->IsPlayerControlled() ? Preferences->LookSensitivity : 1.f;
+	const float VerticalDirection = OwnerCharacter->IsPlayerControlled() && Preferences->bInvertLookY ? -1.f : 1.f;
+	OwnerCharacter->AddControllerYawInput(InLookValue.X * Sensitivity);
+	OwnerCharacter->AddControllerPitchInput(InLookValue.Y * Sensitivity * VerticalDirection);
 }
 
 bool ULxCharacterBehaviorControlComponent::RequestMoveToActor(AActor* InTargetActor, const float InAcceptanceRadius)

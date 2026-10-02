@@ -99,11 +99,30 @@ bool ULxSaveProfileStore::CommitCatalog(ULxSaveCatalog* Next)
 	Next->Revision = Catalog ? Catalog->Revision + 1 : 1;
 	const int32 NextSide = 1 - CatalogSide;
 	const FString Slot = Prefix + FString::Printf(TEXT("_Catalog_%d"), NextSide);
+	TStrongObjectPtr<ULxSaveCatalog> Replaced(Cast<ULxSaveCatalog>(LxSaveFile::Read(Slot, UserIndex)));
 	if (!LxSaveFile::Write(Next, Slot, UserIndex)) { LastError = TEXT("存档目录写入失败，上次完整存档仍可使用。"); return false; }
 	TStrongObjectPtr<ULxSaveCatalog> Verified(Cast<ULxSaveCatalog>(LxSaveFile::Read(Slot, UserIndex)));
 	if (!Verified || Verified->Revision != Next->Revision || !ValidateCatalog(Verified.Get()))
 	{
 		LastError = TEXT("存档写入校验失败，已保留上次完整存档。"); return false;
+	}
+	// 仅清理被淘汰目录独占的快照，当前提交和上一份可恢复提交始终保留。
+	TSet<FString> RetainedSlots;
+	for (const ULxSaveCatalog* Kept : { Catalog.Get(), Verified.Get() })
+	{
+		if (!Kept) continue;
+		for (const FLxSaveProfile& Entry : Kept->Characters) RetainedSlots.Add(Entry.Slot);
+		for (const FLxSaveProfile& Entry : Kept->Worlds) RetainedSlots.Add(Entry.Slot);
+	}
+	if (Replaced)
+	{
+		TArray<FLxSaveProfile> OldEntries = Replaced->Characters;
+		OldEntries.Append(Replaced->Worlds);
+		for (const FLxSaveProfile& Entry : OldEntries)
+		{
+			if (!RetainedSlots.Contains(Entry.Slot) && (Entry.Slot.StartsWith(Prefix + TEXT("_Character_")) || Entry.Slot.StartsWith(Prefix + TEXT("_World_")))
+				&& !Entry.Slot.Contains(TEXT("/")) && !Entry.Slot.Contains(TEXT("\\"))) UGameplayStatics::DeleteGameInSlot(Entry.Slot, UserIndex);
+		}
 	}
 	Catalog = Verified.Get(); CatalogSide = NextSide; LastError.Reset();
 	return true;

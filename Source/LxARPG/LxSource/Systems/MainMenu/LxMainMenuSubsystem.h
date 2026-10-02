@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxSaveProfiles.h"
 #include "LxMainMenuSubsystem.generated.h"
@@ -17,6 +18,8 @@ class LXARPG_API ULxMainMenuSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 public:
+	/** 绑定关卡旅行失败回调，防止加载失败后界面永久锁定。 */
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	/** 游戏实例结束时解除世界引用。 */
 	virtual void Deinitialize() override;
 	/** 由菜单游戏模式在场景初始化后调用，创建界面并恢复当前选择。 */
@@ -54,6 +57,8 @@ public:
 	FGuid GetSelectedWorldID() const { return SelectedWorldID; }
 	/** 当前加载或错误提示。 */
 	FString GetStatus() const { return Status; }
+	/** 当前角色职业等级与场景名称，供角色信息区域显示。 */
+	FString GetCharacterDescription() const;
 	/** 菜单是否正在执行不可重入的加载操作。 */
 	bool IsBusy() const { return bBusy; }
 	/** 当前是否能进入正式游戏。 */
@@ -75,6 +80,8 @@ public:
 	/** 给正式角色选择经过地面和碰撞检查的出生位置。 */
 	FTransform GetSafeSpawnTransform(UWorld* World, UClass* PawnClass) const;
 private:
+	/** 仅处理本游戏实例的旅行失败，并恢复可操作的菜单提示。 */
+	void HandleTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& Error);
 	/** 首次显示菜单时加载目录并补充空目录的默认档案。 */
 	bool EnsureStore();
 	/** 根据当前角色加载对应背景或更新同关卡的展示对象。 */
@@ -85,6 +92,8 @@ private:
 	void ClearPresentation();
 	/** 选中快照缺少新字段时补齐配置，保留旧进度。 */
 	void ResolvePresentation(FLxCharacterSaveRecord& Record) const;
+	/** 激活光照等仅用于展示的环境数据层。 */
+	void ActivatePreviewEnvironment(UWorld* World) const;
 	/** 在当前世界查找默认出生点。 */
 	FTransform FindFallbackTransform(UWorld* World) const;
 	/** 多存档管理器的会话提交回调，使用固定的活动档案 ID。 */
@@ -114,6 +123,8 @@ private:
 	FGuid ActiveWorldID;
 	/** 当前界面提示。 */
 	FString Status;
+	/** 正式加载失败后跨关卡保留的提示，用户重新选择时清除。 */
+	FString PendingError;
 	/** 正在加载或切换场景。 */
 	bool bBusy = false;
 	/** 正式会话正在等待场景和角色恢复。 */

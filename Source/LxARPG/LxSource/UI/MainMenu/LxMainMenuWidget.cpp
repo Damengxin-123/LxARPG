@@ -1,13 +1,18 @@
 #include "LxMainMenuWidget.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/PanelWidget.h"
 
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/GameUserSettings.h"
 #include "LxARPG/LxSource/Systems/MainMenu/LxMainMenuSubsystem.h"
+#include "LxARPG/LxSource/Systems/MainMenu/LxMenuPreferences.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SSlider.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
@@ -41,17 +46,22 @@ public:
 						+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 8)[Label(TEXT("旅途未尽"), 34)]
 						+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 42)[Label(TEXT("从上次停下的地方，继续前行"), 12)]
 						+ SVerticalBox::Slot().AutoHeight().Padding(0, 6)[Action(TEXT("选择存档"), [this] { RebuildWorlds(); Panel = 1; })]
-						+ SVerticalBox::Slot().AutoHeight().Padding(0, 6)[Action(TEXT("设置"), [this] { PendingQuality = GEngine->GetGameUserSettings()->GetOverallScalabilityLevel(); Panel = 2; })]
+						+ SVerticalBox::Slot().AutoHeight().Padding(0, 6)[Action(TEXT("设置"), [this] { OpenSettings(); })]
 						+ SVerticalBox::Slot().AutoHeight().Padding(0, 6)[Action(TEXT("退出游戏"), [this] { if (Flow.IsValid()) Flow->QuitGame(); })]
 					]
 				]
 			]
-			+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Center).Padding(380, 0, 55, 0)
+			+ SOverlay::Slot().HAlign(HAlign_Fill).VAlign(VAlign_Center).Padding(0, 0, 55, 0)
 			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().FillWidth(0.47f)[SNew(SSpacer)]
+				+ SHorizontalBox::Slot().FillWidth(0.53f)
+				[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().AutoWidth()[Action(TEXT("〈"), [this] { if (Flow.IsValid()) Flow->SwitchCharacter(-1); }, true)]
 				+ SHorizontalBox::Slot().FillWidth(1)[SNew(SSpacer)]
 				+ SHorizontalBox::Slot().AutoWidth()[Action(TEXT("〉"), [this] { if (Flow.IsValid()) Flow->SwitchCharacter(1); }, true)]
+				]
 			]
 			+ SOverlay::Slot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(40, 40, 80, 70)
 			[
@@ -62,6 +72,11 @@ public:
 					[
 						SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Bold", 28)).ColorAndOpacity(FLinearColor::White)
 						.Text_Lambda([this] { const auto* Entry = Flow.IsValid() ? Flow->GetSelectedCharacter() : nullptr; return FText::FromString(Entry ? Entry->Name : TEXT("暂无角色")); })
+					]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 8).HAlign(HAlign_Center)
+					[
+						SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 14)).ColorAndOpacity(FLinearColor(0.88f, 0.84f, 0.75f))
+						.Text_Lambda([this] { return FText::FromString(Flow.IsValid() ? Flow->GetCharacterDescription() : FString()); })
 					]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 16).HAlign(HAlign_Center)[Action(TEXT("新建角色"), [this] { Panel = 3; })]
 				]
@@ -108,6 +123,7 @@ private:
 	{
 		return SNew(SButton).ContentPadding(FMargin(20, 12)).HAlign(HAlign_Center)
 			.ButtonColorAndOpacity(FLinearColor(0.12f, 0.16f, 0.19f, 0.96f))
+			.Visibility_Lambda([this, bCharacterSwitch] { return bCharacterSwitch && (!Flow.IsValid() || Flow->GetCharacters().Num() < 2) ? EVisibility::Collapsed : EVisibility::Visible; })
 			.IsEnabled_Lambda([this, bCharacterSwitch] { return Flow.IsValid() && !Flow->IsBusy() && (!bCharacterSwitch || (Panel == 0 && Flow->GetCharacters().Num() > 1)); })
 			.OnClicked_Lambda([Callback = MoveTemp(Callback)] { Callback(); return FReply::Handled(); })[Label(Text, 17)];
 	}
@@ -150,7 +166,33 @@ private:
 			];
 		}
 	}
-	/** 提供可应用或取消的基础画质设置，后续可继续扩展同一面板。 */
+	/** 打开设置时复制当前配置，取消时不会把未应用值写入文件。 */
+	void OpenSettings()
+	{
+		PendingQuality = GEngine->GetGameUserSettings()->GetOverallScalabilityLevel();
+		bPendingVSync = GEngine->GetGameUserSettings()->IsVSyncEnabled();
+		const ULxMenuPreferences* Preferences = GetDefault<ULxMenuPreferences>();
+		PendingVolume = Preferences->MasterVolume;
+		PendingSensitivity = Preferences->LookSensitivity;
+		bPendingInvertY = Preferences->bInvertLookY;
+		Panel = 2;
+	}
+	/** 应用全局设置，不触碰角色和地图档案。 */
+	void ApplySettings()
+	{
+		UGameUserSettings* Settings = GEngine->GetGameUserSettings();
+		if (PendingQuality >= 0) Settings->SetOverallScalabilityLevel(PendingQuality);
+		Settings->SetVSyncEnabled(bPendingVSync);
+		Settings->ApplyNonResolutionSettings(); Settings->SaveSettings();
+		ULxMenuPreferences* Preferences = GetMutableDefault<ULxMenuPreferences>();
+		Preferences->MasterVolume = PendingVolume;
+		Preferences->LookSensitivity = PendingSensitivity;
+		Preferences->bInvertLookY = bPendingInvertY;
+		Preferences->Apply(Flow.IsValid() ? Flow->GetWorld() : nullptr);
+		Preferences->SaveConfig();
+		Panel = 0;
+	}
+	/** 提供画质、音量和操作偏好的应用与取消功能。 */
 	TSharedRef<SWidget> BuildSettingsPanel()
 	{
 		return SNew(SVerticalBox)
@@ -167,11 +209,21 @@ private:
 				]
 				+ SHorizontalBox::Slot().AutoWidth()[Action(TEXT("＋"), [this] { PendingQuality = FMath::Clamp(PendingQuality + 1, 0, 3); })]
 			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 20, 0, 10)
+			[SNew(SCheckBox).IsChecked_Lambda([this] { return bPendingVSync ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState State) { bPendingVSync = State == ECheckBoxState::Checked; })[Label(TEXT("垂直同步"), 16)]]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 12, 0, 8)[Label(TEXT("主音量"), 18)]
+			+ SVerticalBox::Slot().AutoHeight()[SNew(SSlider).Value_Lambda([this] { return PendingVolume; }).OnValueChanged_Lambda([this](float Value) { PendingVolume = Value; })]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 18, 0, 8)[Label(TEXT("视角灵敏度"), 18)]
+			+ SVerticalBox::Slot().AutoHeight()[SNew(SSlider).MinValue(0.1f).MaxValue(3.f).Value_Lambda([this] { return PendingSensitivity; }).OnValueChanged_Lambda([this](float Value) { PendingSensitivity = Value; })]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0, 18, 0, 0)
+			[SNew(SCheckBox).IsChecked_Lambda([this] { return bPendingInvertY ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState State) { bPendingInvertY = State == ECheckBoxState::Checked; })[Label(TEXT("反转垂直视角"), 16)]]
 			+ SVerticalBox::Slot().AutoHeight().Padding(0, 30, 0, 0)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot().FillWidth(1).Padding(0, 0, 8, 0)[Action(TEXT("取消"), [this] { Panel = 0; })]
-				+ SHorizontalBox::Slot().FillWidth(1)[Action(TEXT("应用"), [this] { if (PendingQuality >= 0) GEngine->GetGameUserSettings()->SetOverallScalabilityLevel(PendingQuality); GEngine->GetGameUserSettings()->ApplySettings(false); Panel = 0; })]
+				+ SHorizontalBox::Slot().FillWidth(1)[Action(TEXT("应用"), [this] { ApplySettings(); })]
 			];
 	}
 	/** 创建角色名称输入面板，同类型角色也会生成独立档案。 */
@@ -193,6 +245,14 @@ private:
 	int32 Panel = 0;
 	/** 尚未应用的画质选项。 */
 	int32 PendingQuality = 2;
+	/** 尚未应用的主音量。 */
+	float PendingVolume = 1.f;
+	/** 尚未应用的视角灵敏度。 */
+	float PendingSensitivity = 1.f;
+	/** 尚未应用的垂直同步。 */
+	bool bPendingVSync = false;
+	/** 尚未应用的垂直视角反转。 */
+	bool bPendingInvertY = false;
 	/** 可刷新的地图列表容器。 */
 	TSharedPtr<SVerticalBox> WorldRows;
 	/** 新地图名称输入。 */
@@ -204,5 +264,10 @@ private:
 TSharedRef<SWidget> ULxMainMenuWidget::RebuildWidget()
 {
 	SetIsFocusable(true);
+	if (WidgetTree && WidgetTree->RootWidget)
+	{
+		const UPanelWidget* Panel = Cast<UPanelWidget>(WidgetTree->RootWidget);
+		if (!Panel || Panel->GetChildrenCount() > 0) return Super::RebuildWidget();
+	}
 	return SNew(SLxMainMenu).Flow(GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>());
 }

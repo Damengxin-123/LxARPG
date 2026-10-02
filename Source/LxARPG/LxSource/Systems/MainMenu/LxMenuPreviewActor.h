@@ -19,13 +19,17 @@ public:
 	ALxMenuPreviewActor();
 	/** 从角色快照设置外观与变换，返回资源是否可用于展示。 */
 	bool Configure(const FLxCharacterSaveRecord& Record, const FTransform& FallbackTransform);
-	/** 检查目标位置附近世界分区是否加载完成。 */
+	/** 检查目标区域加载及编辑器材质编译是否完成。 */
 	bool IsSceneReady() const;
+	/** 激活实际镜头与角色后等待渲染资源稳定，再允许撤掉加载遮罩。 */
+	bool IsPresentationReady();
 	/** 在场景就绪后摆放防遮挡镜头并显示角色。 */
 	void Reveal();
 	/** 在未启动玩法的世界里单独驱动展示动画。 */
 	virtual void Tick(float DeltaSeconds) override;
 private:
+	/** 当前镜头下资源持续就绪的开始时间。 */
+	double PresentationReadySince = 0;
 	/** 主体显示，不参与碰撞。 */
 	UPROPERTY(VisibleAnywhere, Category="主菜单|展示", DisplayName="展示网格")
 	TObjectPtr<USkeletalMeshComponent> Mesh;

@@ -169,7 +169,7 @@ bool ULxSaveManager::RegisterComponent(ULxSaveComponentBase* Component)
 	const bool bHasRecord = Component->IsPlayerSaveComponent() ? SaveData->Players.Contains(ID) : SaveData->Interactions.Contains(ID);
 	if (bHasRecord && !Component->RestoreSaveData(SaveData))
 	{
-		bRestoreFailed = true;
+		bRestoreFailed = SessionWriter.IsBound();
 		UE_LOG(LogTemp, Error, TEXT("存档对象恢复失败：%s，保留已有记录且停止采集该对象。"), *ID.ToString());
 		return false;
 	}

@@ -12,6 +12,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "LxMainMenuSettings.h"
 #include "LxMenuPreviewActor.h"
+#include "LxMenuPreferences.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
@@ -24,11 +25,32 @@
 #include "Misc/CommandLine.h"
 #include "Misc/PackageName.h"
 #include "UObject/StrongObjectPtr.h"
+#include "WorldPartition/DataLayer/DataLayerManager.h"
+#include "WorldPartition/DataLayer/DataLayerAsset.h"
+
+void ULxMainMenuSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+	if (GEngine) GEngine->OnTravelFailure().AddUObject(this, &ThisClass::HandleTravelFailure);
+}
 
 void ULxMainMenuSubsystem::Deinitialize()
 {
+	if (GEngine) GEngine->OnTravelFailure().RemoveAll(this);
 	ClearPresentation(); Character = nullptr; Store = nullptr;
 	Super::Deinitialize();
+}
+
+void ULxMainMenuSubsystem::HandleTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& Error)
+{
+	if (!World || World->GetGameInstance() != GetGameInstance()) return;
+	bBusy = false; bEnteringGame = false; bPlaying = false;
+	PendingError = TEXT("场景加载失败：") + Error;
+	Status = PendingError;
+	if (ULxGameInstanceSubsystem* Global = GetGameInstance()->GetSubsystem<ULxGameInstanceSubsystem>())
+		if (Global->GetSaveManager()) Global->GetSaveManager()->SetReadOnly(true);
+	MenuWorld = World;
+	CreateMenuWidget(World);
 }
 
 const TArray<FLxSaveProfile>& ULxMainMenuSubsystem::GetCharacters() const
@@ -96,7 +118,8 @@ void ULxMainMenuSubsystem::CreateMenuWidget(UWorld* World)
 	if (Widget || !World) return;
 	APlayerController* Controller = World->GetFirstPlayerController();
 	if (!Controller || !Controller->IsLocalController()) return;
-	Widget = CreateWidget<ULxMainMenuWidget>(Controller, ULxMainMenuWidget::StaticClass());
+	UClass* WidgetClass = GetDefault<ULxMainMenuSettings>()->MenuWidgetClass.LoadSynchronous();
+	Widget = CreateWidget<ULxMainMenuWidget>(Controller, WidgetClass ? WidgetClass : ULxMainMenuWidget::StaticClass());
 	if (Widget)
 	{
 		Widget->AddToViewport(1000);
@@ -126,11 +149,32 @@ void ULxMainMenuSubsystem::ClearPresentation()
 
 void ULxMainMenuSubsystem::ShowMenu(UWorld* World)
 {
+	ActivatePreviewEnvironment(World);
+	GetMutableDefault<ULxMenuPreferences>()->Apply(World);
 	MenuWorld = World;
 	bEnteringGame = false; bPlaying = false; bBusy = false;
 	CreateMenuWidget(World);
 	if (!EnsureStore()) return;
 	RefreshPreview();
+}
+
+void ULxMainMenuSubsystem::ActivatePreviewEnvironment(UWorld* World) const
+{
+	if (UDataLayerManager* Layers = UDataLayerManager::GetDataLayerManager(World))
+	{
+		for (const TSoftObjectPtr<UDataLayerAsset>& Reference : GetDefault<ULxMainMenuSettings>()->PreviewDataLayers)
+		{
+			if (UDataLayerAsset* Asset = Reference.LoadSynchronous()) Layers->SetDataLayerRuntimeState(Asset, EDataLayerRuntimeState::Activated, true);
+		}
+	}
+}
+
+FString ULxMainMenuSubsystem::GetCharacterDescription() const
+{
+	if (!Character) return TEXT("");
+	int32 Level = 1;
+	for (const FLxProfessionSaveRecord& Profession : Character->Record.Professions) Level = FMath::Max(Level, Profession.Level);
+	return FString::Printf(TEXT("职业等级 %d  ·  %s"), Level, *Character->Record.LevelPath.GetAssetName());
 }
 
 void ULxMainMenuSubsystem::TravelToMenu(const FSoftObjectPath& Level)
@@ -166,9 +210,9 @@ void ULxMainMenuSubsystem::TickPreview(float DeltaSeconds)
 {
 	if (!bEnteringGame && MenuWorld.IsValid()) CreateMenuWidget(MenuWorld.Get());
 	if (!bBusy || bEnteringGame || !Preview.IsValid()) return;
-	if (Preview->IsSceneReady())
+	if (Preview->IsPresentationReady())
 	{
-		Preview->Reveal(); bBusy = false; Status.Reset();
+		bBusy = false; Status = PendingError;
 	}
 	else if (FPlatformTime::Seconds() - LoadStartedAt > GetDefault<ULxMainMenuSettings>()->StreamingTimeout)
 	{
@@ -179,6 +223,7 @@ void ULxMainMenuSubsystem::TickPreview(float DeltaSeconds)
 void ULxMainMenuSubsystem::SwitchCharacter(int32 Direction)
 {
 	if (bBusy || HasSession() || GetCharacters().Num() < 2) return;
+	PendingError.Reset();
 	const int32 Current = GetCharacters().IndexOfByPredicate([this](const FLxSaveProfile& E) { return E.ID == SelectedCharacterID; });
 	const int32 Index = (FMath::Max(0, Current) + (Direction < 0 ? -1 : 1) + GetCharacters().Num()) % GetCharacters().Num();
 	SelectedCharacterID = GetCharacters()[Index].ID;
@@ -230,6 +275,7 @@ const FLxCharacterSaveRecord* ULxMainMenuSubsystem::GetSessionRecord() const
 void ULxMainMenuSubsystem::EnterGame()
 {
 	if (!CanEnterGame()) return;
+	PendingError.Reset();
 	const ULxMainMenuSettings* Settings = GetDefault<ULxMainMenuSettings>();
 	UClass* PawnClass = Character->Record.CharacterClass.LoadSynchronous();
 	UClass* ModeClass = Settings->GameplayMode.LoadSynchronous();
@@ -257,6 +303,8 @@ bool ULxMainMenuSubsystem::PersistSession(const ULxGameSaveData* Data)
 
 void ULxMainMenuSubsystem::PrepareGameplayWorld(UWorld* World)
 {
+	ActivatePreviewEnvironment(World);
+	GetMutableDefault<ULxMenuPreferences>()->Apply(World);
 	MenuWorld = World; LoadStartedAt = FPlatformTime::Seconds();
 	CreateMenuWidget(World);
 	Preview = World->SpawnActor<ALxMenuPreviewActor>();
@@ -279,6 +327,7 @@ FTransform ULxMainMenuSubsystem::GetSafeSpawnTransform(UWorld* World, UClass* Pa
 {
 	const FTransform Fallback = FindFallbackTransform(World);
 	if (!Character || !Character->Record.bHasSavedTransform || Character->Record.SavedTransform.ContainsNaN()) return Fallback;
+	if (UGameplayStatics::GetCurrentLevelName(World, true) != Character->Record.LevelPath.GetAssetName()) return Fallback;
 	const ACharacter* Default = PawnClass ? Cast<ACharacter>(PawnClass->GetDefaultObject()) : nullptr;
 	if (!Default || !Default->GetCapsuleComponent()) return Fallback;
 	const float Radius = Default->GetCapsuleComponent()->GetScaledCapsuleRadius();
@@ -318,7 +367,7 @@ void ULxMainMenuSubsystem::CompleteGameplayStart(APlayerController* Controller)
 void ULxMainMenuSubsystem::FailGameplayStart(const FString& Reason)
 {
 	if (ULxGameInstanceSubsystem* Global = GetGameInstance()->GetSubsystem<ULxGameInstanceSubsystem>()) Global->GetSaveManager()->SetReadOnly(true);
-	bEnteringGame = false; bPlaying = false; bBusy = false; Status = Reason;
+	bEnteringGame = false; bPlaying = false; bBusy = false; PendingError = Reason; Status = Reason;
 	TravelToMenu(GetDefault<ULxMainMenuSettings>()->MenuLevel.ToSoftObjectPath());
 }
 

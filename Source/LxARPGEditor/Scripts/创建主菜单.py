@@ -43,10 +43,14 @@ def create_menu_assets():
                       'GameDefaultMap', destination + '.主菜单')
     replace_ini_value(config / 'DefaultGame.ini', '/Script/LxARPG.LxMainMenuSettings',
                       'MenuLevel', destination + '.主菜单')
-    # 为打包明确包含入口与实际场景；已有项目其它地图条目仍保留。
-    package_section = '/Script/UnrealEd.ProjectPackagingSettings'
-    replace_ini_value(config / 'DefaultGame.ini', package_section, '+DirectoriesToAlwaysCook',
-                      '(Path="/Game/项目内容")')
+    # 追加打包目录而不覆盖项目已有的其它目录条目。
+    game_path = config / 'DefaultGame.ini'
+    raw = game_path.read_bytes()
+    cook_entry = '+DirectoriesToAlwaysCook=(Path="/Game/项目内容")'
+    if cook_entry not in raw.decode('utf-8-sig'):
+        newline = '\r\n' if b'\r\n' in raw else '\n'
+        with game_path.open('ab') as output:
+            output.write((newline + '[/Script/UnrealEd.ProjectPackagingSettings]' + newline + cook_entry + newline).encode('utf-8'))
     unreal.log('MAIN_MENU_SETUP_OK: ' + destination)
 
 
