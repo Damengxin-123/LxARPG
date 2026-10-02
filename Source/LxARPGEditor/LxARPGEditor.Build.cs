@@ -42,6 +42,8 @@ public class LxARPGEditor : ModuleRules
 			"Slate",
 			"SlateCore",
 			"ToolMenus",
+			"UMG",
+			"UMGEditor",
 			"UnrealEd"
 		});
 	}
