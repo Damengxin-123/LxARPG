@@ -17,6 +17,12 @@ class LXARPG_API ALxARPGGameMode : public AGameModeBase
 public:
 
 	ALxARPGGameMode();
+
+	/** 菜单发起的会话先等待角色位置周边加载，再启动关卡玩法。 */
+	virtual void StartPlay() override;
+
+	/** 推进正式会话的区域加载和角色恢复。 */
+	virtual void Tick(float DeltaSeconds) override;
 	
 	/** 游戏开始 */
 	virtual void BeginPlay() override;
@@ -36,6 +42,10 @@ public:
 	virtual APawn* SpawnPlayerCharacter(AController* NewPlayer);
 
 protected:
+	/** 当前正式关卡正在等待角色所在区域加载。 */
+	bool bWaitingForMenuSession = false;
+	/** 区域就绪后才允许蓝图或登录事件创建正式玩家。 */
+	bool bSessionSpawnAllowed = false;
 
 	/** 默认玩家Pawn类型 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="ARPG|Character")

@@ -63,6 +63,11 @@ void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPl
 	}
 
 	const ULxGameSettings* GameSettings = GetDefault<ULxGameSettings>();
+	if (m_pUIManager && m_pUIManager->GetWorld() != InPlayerController->GetWorld())
+	{
+		m_pUIManager->RemoveFromParent();
+		m_pUIManager = nullptr;
+	}
 
 	if (!m_pUIManager && GameSettings && GameSettings->UIManagerClass)
 	{

@@ -203,5 +203,6 @@ private:
 
 TSharedRef<SWidget> ULxMainMenuWidget::RebuildWidget()
 {
+	SetIsFocusable(true);
 	return SNew(SLxMainMenu).Flow(GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>());
 }

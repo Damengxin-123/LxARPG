@@ -11,6 +11,11 @@ class LXARPG_API ULxCharacterSaveComponent : public ULxSaveComponentBase
 	GENERATED_BODY()
 
 public:
+	/** 延迟生成期间绑定选中档案的记录标签，开始运行后禁止改写身份。 */
+	void SetSessionIdentity(const FGameplayTag& InID)
+	{
+		if (InID.IsValid() && !HasBegunPlay()) SaveID = InID;
+	}
 	/** 优先使用手动存档ID，未配置时使用角色已有的标签ID。 */
 	virtual FGameplayTag GetSaveID() const override;
 
