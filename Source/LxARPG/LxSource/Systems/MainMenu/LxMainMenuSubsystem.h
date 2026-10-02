@@ -59,6 +59,9 @@ public:
 	FString GetStatus() const { return Status; }
 	/** 当前角色职业等级与场景名称，供角色信息区域显示。 */
 	FString GetCharacterDescription() const;
+	/** 从角色蓝图默认对象的角色种族属性读取中文名称；未配置时显示未知。 */
+	UFUNCTION(BlueprintPure, Category="主菜单|角色", DisplayName="获取当前角色种族名称")
+	FString GetCharacterRaceName() const;
 	/** 菜单是否正在执行不可重入的加载操作。 */
 	bool IsBusy() const { return bBusy; }
 	/** 当前是否能进入正式游戏。 */

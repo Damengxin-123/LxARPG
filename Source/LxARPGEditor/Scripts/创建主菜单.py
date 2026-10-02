@@ -24,8 +24,23 @@ def replace_ini_value(path, section, key, value):
     path.write_bytes((b'\xef\xbb\xbf' if bom else b'') + (newline.join(lines) + newline).encode('utf-8'))
 
 
+def configure_default_human_character():
+    """仅为明确的人类测试角色补充未配置的种族，保留已有的任何非空种族设置。"""
+    character_path = '/Game/项目内容/实体资产/角色/测试角色-人类法师/测试角色-玩家控制角色'
+    character_class = unreal.EditorAssetLibrary.load_blueprint_class(character_path)
+    if not character_class:
+        unreal.log_warning('未找到默认人类角色，跳过种族配置：' + character_path)
+        return
+    defaults = unreal.get_default_object(character_class)
+    if defaults.get_editor_property('character_race') == unreal.LxCharacterRaceType.NONE:
+        defaults.set_editor_property('character_race', unreal.LxCharacterRaceType.HUMAN)
+        if not unreal.EditorAssetLibrary.save_asset(character_path, only_if_is_dirty=False):
+            raise RuntimeError('无法保存默认人类角色的种族配置：' + character_path)
+        unreal.log('MAIN_MENU_CHARACTER_RACE_OK: 人类')
+
+
 def create_menu_assets():
-    """创建入口关卡和可复用界面父类资产，已有资产保持不变。"""
+    """创建缺失的入口关卡和界面资产，并补充默认角色尚未配置的身份信息。"""
     destination = '/Game/项目内容/关卡/主菜单'
     if not unreal.EditorAssetLibrary.does_asset_exist(destination):
         world = unreal.EditorLoadingAndSavingUtils.new_blank_map(False)
@@ -51,6 +66,7 @@ def create_menu_assets():
         newline = '\r\n' if b'\r\n' in raw else '\n'
         with game_path.open('ab') as output:
             output.write((newline + '[/Script/UnrealEd.ProjectPackagingSettings]' + newline + cook_entry + newline).encode('utf-8'))
+    configure_default_human_character()
     unreal.log('MAIN_MENU_SETUP_OK: ' + destination)
 
 

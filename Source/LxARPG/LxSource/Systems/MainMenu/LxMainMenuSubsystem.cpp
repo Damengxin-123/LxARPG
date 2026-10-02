@@ -13,6 +13,7 @@
 #include "LxMainMenuSettings.h"
 #include "LxMenuPreviewActor.h"
 #include "LxMenuPreferences.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
@@ -175,6 +176,28 @@ FString ULxMainMenuSubsystem::GetCharacterDescription() const
 	int32 Level = 1;
 	for (const FLxProfessionSaveRecord& Profession : Character->Record.Professions) Level = FMath::Max(Level, Profession.Level);
 	return FString::Printf(TEXT("职业等级 %d  ·  %s"), Level, *Character->Record.LevelPath.GetAssetName());
+}
+
+FString ULxMainMenuSubsystem::GetCharacterRaceName() const
+{
+	if (!Character) return TEXT("未知");
+	const UClass* CharacterClass = Character->Record.CharacterClass.IsNull()
+		? GetDefault<ULxMainMenuSettings>()->DefaultCharacter.LoadSynchronous()
+		: Character->Record.CharacterClass.LoadSynchronous();
+	if (!CharacterClass) return TEXT("未知");
+	const ALxBaseCharacter* Defaults = Cast<ALxBaseCharacter>(CharacterClass->GetDefaultObject());
+	if (!Defaults) return TEXT("未知");
+	// 显式保留运行时中文名称，避免打包时移除枚举编辑器显示元数据后出现英文。
+	switch (Defaults->GetCharacterRace())
+	{
+	case ELxCharacterRaceType::Human: return TEXT("人类");
+	case ELxCharacterRaceType::Elves: return TEXT("精灵");
+	case ELxCharacterRaceType::Dwarves: return TEXT("矮人");
+	case ELxCharacterRaceType::Dragon: return TEXT("龙族");
+	case ELxCharacterRaceType::Beastmen_1: return TEXT("兽人1");
+	case ELxCharacterRaceType::Beastmen_2: return TEXT("兽人2");
+	default: return TEXT("未知");
+	}
 }
 
 void ULxMainMenuSubsystem::TravelToMenu(const FSoftObjectPath& Level)
