@@ -72,6 +72,15 @@ void ULxSaveManager::Initialize(const FString& InSlotName, int32 InUserIndex)
 	}
 }
 
+bool ULxSaveManager::InitializeSession(const ULxGameSaveData* InData, FLxPersistSaveSession InWriter)
+{
+	if (bLoaded || !RegisteredComponents.IsEmpty() || !InData || !InWriter.IsBound()) return false;
+	SaveData = DuplicateObject(InData, this);
+	SessionWriter = MoveTemp(InWriter);
+	bLoaded = true;
+	return true;
+}
+
 bool ULxSaveManager::LoadSave()
 {
 	if (bLoaded)
@@ -103,6 +112,7 @@ bool ULxSaveManager::LoadSave()
 
 bool ULxSaveManager::SaveAll()
 {
+	if (bReadOnly || bRestoreFailed) return false;
 	// 复制弱引用列表，避免业务回调注销组件时使遍历失效。
 	const TArray<FRegisteredComponent> Components = RegisteredComponents;
 	for (const FRegisteredComponent& Entry : Components)
@@ -114,7 +124,7 @@ bool ULxSaveManager::SaveAll()
 
 bool ULxSaveManager::SaveCachedData()
 {
-	if (!bLoaded || !SaveData)
+	if (bReadOnly || bRestoreFailed || !bLoaded || !SaveData)
 	{
 		return false;
 	}
@@ -122,7 +132,7 @@ bool ULxSaveManager::SaveCachedData()
 	{
 		return true;
 	}
-	if (!WriteCheckedSave(SaveData, SlotName, UserIndex))
+	if (SessionWriter.IsBound() ? !SessionWriter.Execute(SaveData) : !WriteCheckedSave(SaveData, SlotName, UserIndex))
 	{
 		UE_LOG(LogTemp, Error, TEXT("存档写入失败：%s，内存缓存仍然保留。"), *SlotName);
 		return false;
@@ -133,7 +143,7 @@ bool ULxSaveManager::SaveCachedData()
 
 bool ULxSaveManager::RegisterComponent(ULxSaveComponentBase* Component)
 {
-	if (!bLoaded || !SaveData || !IsValid(Component) || !Component->GetOwner() || !Component->GetOwner()->HasAuthority())
+	if (bReadOnly || !bLoaded || !SaveData || !IsValid(Component) || !Component->GetOwner() || !Component->GetOwner()->HasAuthority())
 	{
 		return false;
 	}
@@ -159,6 +169,7 @@ bool ULxSaveManager::RegisterComponent(ULxSaveComponentBase* Component)
 	const bool bHasRecord = Component->IsPlayerSaveComponent() ? SaveData->Players.Contains(ID) : SaveData->Interactions.Contains(ID);
 	if (bHasRecord && !Component->RestoreSaveData(SaveData))
 	{
+		bRestoreFailed = true;
 		UE_LOG(LogTemp, Error, TEXT("存档对象恢复失败：%s，保留已有记录且停止采集该对象。"), *ID.ToString());
 		return false;
 	}
@@ -176,7 +187,7 @@ void ULxSaveManager::UnregisterComponent(ULxSaveComponentBase* Component)
 
 void ULxSaveManager::CacheComponent(ULxSaveComponentBase* Component)
 {
-	if (!bLoaded || !SaveData || !IsValid(Component))
+	if (bReadOnly || !bLoaded || !SaveData || !IsValid(Component))
 	{
 		return;
 	}

@@ -63,6 +63,9 @@ public:
 	UFUNCTION(BlueprintPure, Category="存档", DisplayName="获取存档管理模块")
 	ULxSaveManager* GetSaveManager() const { return SaveManager; }
 
+	/** 菜单结束后安装全新的会话管理器，避免复用上一档的注册对象或失败状态。 */
+	void SetSessionSaveManager(ULxSaveManager* InManager);
+
 	/** 发出加载请求并加载一次存档；后续调用不会重置当前游戏进度。 */
 	UFUNCTION(BlueprintCallable, Category="存档", DisplayName="请求加载存档")
 	bool RequestLoadSave();

@@ -9,6 +9,9 @@ class ULevel;
 class ULxGameSaveData;
 class ULxSaveComponentBase;
 
+/** 正式会话采集完成后交给多存档仓库提交角色和地图快照。 */
+DECLARE_DELEGATE_RetVal_OneParam(bool, FLxPersistSaveSession, const ULxGameSaveData*);
+
 /** 游戏实例存档管理模块，统一读盘、按标签索引、收集对象属性并最终落盘。 */
 UCLASS(BlueprintType, DisplayName="存档管理模块")
 class LXARPG_API ULxSaveManager : public UObject
@@ -16,6 +19,18 @@ class LXARPG_API ULxSaveManager : public UObject
 	GENERATED_BODY()
 
 public:
+	/** 为全新的管理器安装正式会话缓存；拒绝替换已经开始使用的缓存。 */
+	bool InitializeSession(const ULxGameSaveData* InData, FLxPersistSaveSession InWriter);
+
+	/** 开关菜单只读保护，阻止注册、采集和落盘。 */
+	void SetReadOnly(bool bInReadOnly) { bReadOnly = bInReadOnly; }
+
+	/** 查询当前是否为菜单只读模式。 */
+	UFUNCTION(BlueprintPure, Category="存档|菜单", DisplayName="是否只读预览")
+	bool IsReadOnly() const { return bReadOnly; }
+
+	/** 正式读档中是否有对象恢复失败，用于阻止错误会话进入可保存状态。 */
+	bool HasRestoreFailures() const { return bRestoreFailed; }
 	/** 设置本地存档槽；加载后不再允许切换，以免把旧缓存写入另一份存档。 */
 	void Initialize(const FString& InSlotName = TEXT("LxARPG_AutoSave"), int32 InUserIndex = 0);
 
@@ -50,6 +65,12 @@ public:
 	bool IsSaveLoaded() const { return bLoaded; }
 
 private:
+	/** 多存档会话的最终提交回调；未设置时继续使用旧单槽格式。 */
+	FLxPersistSaveSession SessionWriter;
+	/** 菜单阶段禁止修改运行缓存和磁盘文件。 */
+	bool bReadOnly = false;
+	/** 有对象恢复失败时不再自动保存部分恢复的世界。 */
+	bool bRestoreFailed = false;
 	/** 单个已注册组件的稳定身份，注册后不跟随运行时ID变化。 */
 	struct FRegisteredComponent
 	{

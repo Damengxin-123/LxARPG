@@ -84,7 +84,7 @@ bool ULxGameInstanceSubsystem::RequestSaveGame()
 
 bool ULxGameInstanceSubsystem::PerformSave(bool bCacheOnly)
 {
-	if (!SaveManager || bSaveOperationInProgress)
+	if (!SaveManager || SaveManager->IsReadOnly() || bSaveOperationInProgress)
 	{
 		return false;
 	}
@@ -97,7 +97,7 @@ bool ULxGameInstanceSubsystem::PerformSave(bool bCacheOnly)
 
 void ULxGameInstanceSubsystem::HandleWorldBeginTearDown(UWorld* World)
 {
-	if (World && World->IsGameWorld() && World->GetGameInstance() == GetGameInstance() && SaveManager)
+	if (World && World->IsGameWorld() && World->GetGameInstance() == GetGameInstance() && SaveManager && !SaveManager->IsReadOnly())
 	{
 		SaveManager->CacheWorldBeforeCleanup(World);
 		PerformSave(true);
@@ -106,7 +106,7 @@ void ULxGameInstanceSubsystem::HandleWorldBeginTearDown(UWorld* World)
 
 void ULxGameInstanceSubsystem::HandleLevelRemovedFromWorld(ULevel* Level, UWorld* World)
 {
-	if (World && World->IsGameWorld() && World->GetGameInstance() == GetGameInstance() && SaveManager)
+	if (World && World->IsGameWorld() && World->GetGameInstance() == GetGameInstance() && SaveManager && !SaveManager->IsReadOnly())
 	{
 		SaveManager->CacheWorldBeforeCleanup(World, Level);
 	}
@@ -115,6 +115,14 @@ void ULxGameInstanceSubsystem::HandleLevelRemovedFromWorld(ULevel* Level, UWorld
 ULxGlobalStaticDataManager* ULxGameInstanceSubsystem::GetGlobalStaticDataManager() const
 {
 	return GlobalStaticDataManager;
+}
+
+void ULxGameInstanceSubsystem::SetSessionSaveManager(ULxSaveManager* InManager)
+{
+	if (InManager && !bSaveOperationInProgress)
+	{
+		SaveManager = InManager;
+	}
 }
 
 ULxAINavigationRegistry* ULxGameInstanceSubsystem::GetAINavigationRegistry() const

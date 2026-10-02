@@ -18,6 +18,7 @@ namespace
 
 USaveGame* LxSaveFile::Read(const FString& Slot, int32 UserIndex)
 {
+	if (!UGameplayStatics::DoesSaveGameExist(Slot, UserIndex)) return nullptr;
 	TArray<uint8> Bytes;
 	if (!UGameplayStatics::LoadDataFromSlot(Bytes, Slot, UserIndex) || Bytes.Num() <= HeaderSize) return nullptr;
 	FMemoryReader Reader(Bytes);
