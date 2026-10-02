@@ -15,6 +15,8 @@ class LXARPG_API ULxMainMenuSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 public:
+	/** 使用当前项目已有的关卡、角色和游戏模式作为默认配置。 */
+	ULxMainMenuSettings();
 	/** 独立存档目录前缀，与旧单槽文件并存。 */
 	UPROPERTY(EditAnywhere, config, Category="主菜单|存档", DisplayName="目录前缀")
 	FString SavePrefix = TEXT("LxARPG_Profiles");

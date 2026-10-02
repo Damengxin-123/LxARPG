@@ -16,6 +16,8 @@ public:
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	/** 预览世界刻意不调用父类，避免广播关卡正式开始事件。 */
 	virtual void StartPlay() override;
+	/** 在不启动关卡玩法的前提下推进菜单区域加载。 */
+	virtual void Tick(float DeltaSeconds) override;
 	/** 屏蔽默认出生流程。 */
 	virtual void RestartPlayer(AController* NewPlayer) override;
 };
