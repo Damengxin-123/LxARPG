@@ -1,6 +1,7 @@
 #include "LxCharacterSaveComponent.h"
 
 #include "LxGameSaveData.h"
+#include "LxCharacterPresentation.h"
 #include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
@@ -26,6 +27,7 @@ bool ULxCharacterSaveComponent::CaptureSaveData(ULxGameSaveData* InSaveData) con
 		return false;
 	}
 	FLxCharacterSaveRecord Record;
+	LxCharacterPresentation::Capture(Character, Record);
 	Record.SaveID = GetSaveID();
 	Record.BackpackSlotCount = Content->GetBackpackModule()->GetAllItems().Num();
 	LxItemSaveData::CaptureSlots(Content->GetBackpackModule()->GetAllItems(), Record.BackpackSlots);
@@ -54,6 +56,10 @@ bool ULxCharacterSaveComponent::RestoreSaveData(const ULxGameSaveData* InSaveDat
 	if (Record->SaveID != GetSaveID())
 	{
 		return false;
+	}
+	if (!Record->bHasGameplayData)
+	{
+		return true;
 	}
 	// 先检查四类数据，避免坏存档导致背包已替换但任务或职业恢复失败。
 	if (!Content->GetBackpackModule()->RestoreBackpackSaveData(Record->BackpackSlotCount, Record->BackpackSlots, false)

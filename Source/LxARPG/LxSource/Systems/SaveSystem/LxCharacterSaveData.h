@@ -5,6 +5,10 @@
 #include "LxARPG/LxSource/Model/Quest/DataType/LxQuestRuntimeData.h"
 #include "LxCharacterSaveData.generated.h"
 
+class APawn;
+class USkeletalMesh;
+class UMaterialInterface;
+
 /** 职业进度的持久化属性，职业定义类由标签重新查询。 */
 USTRUCT(BlueprintType, DisplayName="职业存档记录")
 struct LXARPG_API FLxProfessionSaveRecord
@@ -33,6 +37,38 @@ USTRUCT(BlueprintType, DisplayName="玩家存档记录")
 struct LXARPG_API FLxCharacterSaveRecord
 {
 	GENERATED_BODY()
+
+	/** 旧存档默认已有内容；新建角色首次进入游戏前为假，保留角色蓝图的初始配置。 */
+	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="已有角色内容")
+	bool bHasGameplayData = true;
+
+	/** 用于生成正式玩家的角色蓝图类，不作为档案实例身份。 */
+	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="角色类型")
+	TSoftClassPtr<APawn> CharacterClass;
+
+	/** 最后所在基础关卡的资产路径，不包含编辑器运行前缀。 */
+	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|位置", DisplayName="所在关卡")
+	FSoftObjectPath LevelPath;
+
+	/** 角色保存时的世界位置、朝向和缩放。 */
+	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|位置", DisplayName="角色变换")
+	FTransform SavedTransform = FTransform::Identity;
+
+	/** 旧档和新角色没有位置时使用关卡出生点。 */
+	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|位置", DisplayName="拥有保存位置")
+	bool bHasSavedTransform = false;
+
+	/** 展示主体的骨骼网格体；预览不会生成可战斗的角色。 */
+	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|外观", DisplayName="展示骨骼网格")
+	TSoftObjectPtr<USkeletalMesh> PreviewMesh;
+
+	/** 网格相对胶囊体的变换，保留不同角色的身高和朝向。 */
+	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|外观", DisplayName="展示网格变换")
+	FTransform PreviewMeshTransform = FTransform::Identity;
+
+	/** 主体材质覆盖，恢复角色当前外观。 */
+	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|外观", DisplayName="展示材质")
+	TArray<TSoftObjectPtr<UMaterialInterface>> PreviewMaterials;
 
 	/** 玩家在当前存档中的稳定索引标签。 */
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="玩家存档ID")
