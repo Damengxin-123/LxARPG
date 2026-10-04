@@ -56,6 +56,9 @@ def create_menu_assets():
     config = Path(unreal.Paths.project_config_dir())
     replace_ini_value(config / 'DefaultEngine.ini', '/Script/EngineSettings.GameMapsSettings',
                       'GameDefaultMap', destination + '.主菜单')
+    # 编辑器运行当前关卡，因此编辑器启动地图也使用主菜单入口。
+    replace_ini_value(config / 'DefaultEngine.ini', '/Script/EngineSettings.GameMapsSettings',
+                      'EditorStartupMap', destination + '.主菜单')
     replace_ini_value(config / 'DefaultGame.ini', '/Script/LxARPG.LxMainMenuSettings',
                       'MenuLevel', destination + '.主菜单')
     # 追加打包目录而不覆盖项目已有的其它目录条目。
