@@ -30,8 +30,11 @@ bool ULxCharacterSaveComponent::CaptureSaveData(ULxGameSaveData* InSaveData) con
 	LxCharacterPresentation::Capture(Character, Record);
 	Record.SaveID = GetSaveID();
 	Record.BackpackSlotCount = Content->GetBackpackModule()->GetAllItems().Num();
-	LxItemSaveData::CaptureSlots(Content->GetBackpackModule()->GetAllItems(), Record.BackpackSlots);
-	LxItemSaveData::CaptureSlots(Content->GetEquipmentModule()->GetEquipmentSlots(), Record.EquipmentSlots);
+	if (!LxItemSaveData::CaptureSlots(Content->GetBackpackModule()->GetAllItems(), Record.BackpackSlots)
+		|| !LxItemSaveData::CaptureSlots(Content->GetEquipmentModule()->GetEquipmentSlots(), Record.EquipmentSlots))
+	{
+		return false;
+	}
 	Record.QuestRecords = Content->GetQuestModule()->GetAllQuestRecords();
 	Content->GetProfessionModule()->CaptureProfessionSaveData(Record.Professions);
 	InSaveData->Players.Add(Record.SaveID, MoveTemp(Record));

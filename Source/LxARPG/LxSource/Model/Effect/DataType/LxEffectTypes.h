@@ -202,6 +202,10 @@ struct LXARPG_API FLxStateChangeEffect
 	/** 状态修改方式。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|状态", DisplayName = "状态修改方式")
 	ELxStateEffectOperation Operation = ELxStateEffectOperation::Add;
+
+	/** 添加状态时按来源维持，撤回后保留其他来源和直接设置的状态。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="效果|状态", DisplayName="随来源维持", meta=(EditCondition="Operation == ELxStateEffectOperation::Add"))
+	bool bMaintainBySource = false;
 };
 
 /** 创建 Buff 效果，用于让 Buff 组件创建或刷新 Buff。 */
@@ -221,6 +225,10 @@ struct LXARPG_API FLxBuffGrantEffect
 	/** 持续时间，小于 0 表示永久。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "效果|Buff", DisplayName = "持续时间")
 	float Duration = -1.f;
+
+	/** 为该来源创建独立 Buff，由来源生命周期撤回，不使用 Buff 自身倒计时。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="效果|Buff", DisplayName="随来源维持")
+	bool bMaintainBySource = false;
 };
 
 /** 授予技能效果，用于让技能背包获得指定技能物品。 */

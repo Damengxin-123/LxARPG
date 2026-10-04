@@ -190,9 +190,12 @@ public:
 	UFUNCTION(BlueprintPure, Category="角色配置|基础属性", DisplayName="获取角色ID标签")
 	FGameplayTag GetCharacterIDTag() const;
 
-	/** 获取角色蓝图中明确配置的种族，用于身份展示；未配置时返回无效种族。 */
+	/** 获取当前种族身份；玩家实例使用存档种族，其他角色使用蓝图默认值。 */
 	UFUNCTION(BlueprintPure, Category="角色|身份", DisplayName="获取角色种族")
 	ELxCharacterRaceType GetCharacterRace() const { return CharacterRace; }
+
+	/** 在正式角色完成生成前写入存档种族，使运行时身份与种族配置表保持一致。 */
+	void SetCharacterRaceForSession(ELxCharacterRaceType InRace) { CharacterRace = InRace; }
 
 	/** 获取角色初始化时自动应用的默认词条配置。 */
 	UFUNCTION(BlueprintPure, Category="角色配置|默认词条", DisplayName="获取默认词条配置")
@@ -208,7 +211,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|基础属性", DisplayName="角色ID标签", meta=(Categories="角色"))
 	FGameplayTag CharacterIDTag;
 
-	/** 角色的固定种族身份，由角色蓝图配置，不根据职业、资源名称或角色标签推断。 */
+	/** 角色默认种族由蓝图配置；正式玩家在生成时由存档种族覆盖，不根据职业或资源名称推断。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|身份", DisplayName="角色种族")
 	ELxCharacterRaceType CharacterRace = ELxCharacterRaceType::None;
 

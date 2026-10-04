@@ -46,7 +46,11 @@ enum class ELxAIBehaviorAction : uint8
 	RandomFlee UMETA(DisplayName="随机逃跑"),
 	PointFlee UMETA(DisplayName="定点逃跑"),
 	RouteFlee UMETA(DisplayName="固定路线逃跑"),
-	EnterDeath UMETA(DisplayName="进入死亡")
+	EnterDeath UMETA(DisplayName="进入死亡"),
+	/** 使用角色所属刷怪点作为巡逻范围，保留旧行为的序列化枚举值。 */
+	SpawnPointPatrol UMETA(DisplayName="刷怪点巡逻"),
+	/** 返回生成当前角色的刷怪点，不在共享资产中绑定场景实例。 */
+	SpawnPointFlee UMETA(DisplayName="逃跑至刷怪点")
 };
 
 /** 开放路线抵达末点后的巡逻方式。 */
@@ -156,7 +160,7 @@ public:
 	ELxAIRoutePatrolMode RouteMode = ELxAIRoutePatrolMode::PingPong;
 
 	/** 待机时长或巡逻到点等待时长；待机为零表示维持待机。 */
-	UPROPERTY(EditAnywhere, Category="行为配置", meta=(DisplayName="等待时间", ClampMin="0.0", Units="s", EditCondition="Kind == ELxAIBehaviorNodeKind::Action && (Action == ELxAIBehaviorAction::Wait || Action == ELxAIBehaviorAction::PointPatrol || Action == ELxAIBehaviorAction::RoutePatrol)", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category="行为配置", meta=(DisplayName="等待时间", ClampMin="0.0", Units="s", EditCondition="Kind == ELxAIBehaviorNodeKind::Action && (Action == ELxAIBehaviorAction::Wait || Action == ELxAIBehaviorAction::PointPatrol || Action == ELxAIBehaviorAction::RoutePatrol || Action == ELxAIBehaviorAction::SpawnPointPatrol)", EditConditionHides))
 	float WaitSeconds = 1.0f;
 
 	/** 与项目技能释放入口一致的技能物品标签。 */

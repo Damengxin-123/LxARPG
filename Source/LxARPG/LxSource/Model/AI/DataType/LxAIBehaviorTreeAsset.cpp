@@ -5,8 +5,10 @@ ELxCharacterMotionType ULxAIBehaviorTreeNodeData::GetMotionType() const
 	if (MotionType != ELxCharacterMotionType::None) return MotionType;
 	switch (Action)
 	{
+	case ELxAIBehaviorAction::SpawnPointPatrol:
 	case ELxAIBehaviorAction::PointPatrol:
 	case ELxAIBehaviorAction::RoutePatrol: return ELxCharacterMotionType::Move;
+	case ELxAIBehaviorAction::SpawnPointFlee:
 	case ELxAIBehaviorAction::RandomFlee:
 	case ELxAIBehaviorAction::PointFlee:
 	case ELxAIBehaviorAction::RouteFlee: return ELxCharacterMotionType::Run;
@@ -52,10 +54,12 @@ ELxAIBehaviorState ULxAIBehaviorTreeAsset::GetActionState(ELxAIBehaviorAction Ac
 	switch (Action)
 	{
 	case ELxAIBehaviorAction::Wait: return ELxAIBehaviorState::Idle;
+	case ELxAIBehaviorAction::SpawnPointPatrol:
 	case ELxAIBehaviorAction::PointPatrol:
 	case ELxAIBehaviorAction::RoutePatrol: return ELxAIBehaviorState::Patrol;
 	case ELxAIBehaviorAction::EnterDeath: return ELxAIBehaviorState::Idle;
 	case ELxAIBehaviorAction::Alert: return ELxAIBehaviorState::Alert;
+	case ELxAIBehaviorAction::SpawnPointFlee:
 	case ELxAIBehaviorAction::RandomFlee:
 	case ELxAIBehaviorAction::PointFlee:
 	case ELxAIBehaviorAction::RouteFlee: return ELxAIBehaviorState::Flee;
@@ -77,7 +81,7 @@ bool ULxAIBehaviorTreeNodeData::ValidateConfiguration(FText& OutError) const
 	OutError = FText();
 	FString Error;
 	if (Kind > ELxAIBehaviorNodeKind::Entry || (Kind != ELxAIBehaviorNodeKind::Entry && GetState() > ELxAIBehaviorState::Flee)
-		|| (Kind == ELxAIBehaviorNodeKind::Action && Action > ELxAIBehaviorAction::EnterDeath))
+		|| (Kind == ELxAIBehaviorNodeKind::Action && Action > ELxAIBehaviorAction::SpawnPointFlee))
 		Error = TEXT("节点类型无效");
 	else if (Kind == ELxAIBehaviorNodeKind::Action && !StaticEnum<ELxCharacterMotionType>()->IsValidEnumValue(static_cast<int64>(MotionType)))
 		Error = TEXT("运动类型无效");
@@ -112,7 +116,7 @@ bool ULxAIBehaviorTreeNodeData::ValidateConfiguration(FText& OutError) const
 			break;
 		default: break;
 		}
-		if (Error.IsEmpty() && (Action == ELxAIBehaviorAction::Wait || Action == ELxAIBehaviorAction::PointPatrol || Action == ELxAIBehaviorAction::RoutePatrol)
+		if (Error.IsEmpty() && (Action == ELxAIBehaviorAction::Wait || Action == ELxAIBehaviorAction::PointPatrol || Action == ELxAIBehaviorAction::RoutePatrol || Action == ELxAIBehaviorAction::SpawnPointPatrol)
 			&& (!FMath::IsFinite(WaitSeconds) || WaitSeconds < 0.0f)) Error = TEXT("等待时间必须是非负有限值");
 		if (Error.IsEmpty() && (Action == ELxAIBehaviorAction::Alert || Action == ELxAIBehaviorAction::Defend || Action == ELxAIBehaviorAction::RangedSkill)
 			&& (!FMath::IsFinite(MinDistanceMeters) || !FMath::IsFinite(MaxDistanceMeters) || MinDistanceMeters < 0.0f || MaxDistanceMeters < MinDistanceMeters))
@@ -391,6 +395,8 @@ FText ULxAIBehaviorTreeAsset::GetActionDescription(ELxAIBehaviorAction Action)
 	case ELxAIBehaviorAction::RandomFlee: return NSLOCTEXT("AI行为树", "随机逃跑说明", "优先远离最近的已知敌人，选择无遮挡的随机导航点；受阻立即换点，达到安全距离后退出逃跑阶段。");
 	case ELxAIBehaviorAction::PointFlee: return NSLOCTEXT("AI行为树", "定点逃跑说明", "前往点位ID对应的目的地，进入点位共享范围即可视为到达。");
 	case ELxAIBehaviorAction::RouteFlee: return NSLOCTEXT("AI行为树", "固定路线逃跑说明", "从最近的路线点开始，依次前往各点附近的随机导航目标；仅使用一次时抵达末点后结束，否则从起点继续循环。");
+	case ELxAIBehaviorAction::SpawnPointPatrol: return NSLOCTEXT("AI行为树", "刷怪点巡逻说明", "在生成当前角色的刷怪点范围内随机巡逻；刷怪点由生成器设置，无需在行为树中指定点位ID。");
+	case ELxAIBehaviorAction::SpawnPointFlee: return NSLOCTEXT("AI行为树", "逃跑至刷怪点说明", "返回生成当前角色的刷怪点，进入点位范围后完成；刷怪点由生成器设置，失效时尝试后续行为。");
 	case ELxAIBehaviorAction::EnterDeath: return NSLOCTEXT("AI行为树", "进入死亡说明", "确认角色进入死亡状态，并启动角色原有死亡动画与销毁流程。");
 	default: return FText();
 	}

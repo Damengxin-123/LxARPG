@@ -39,7 +39,24 @@ public:
 	/** 清空指定分类下的全部状态标签。 */
 	bool ClearStateTagsByCategory(FGameplayTag InStateCategoryTag);
 
+	/** 添加由指定来源维持的状态，同一来源重复添加不会累加。 */
+	UFUNCTION(BlueprintCallable, Category="角色|属性|状态", DisplayName="按来源维持状态")
+	bool AddStateTagFromSource(FGameplayTag InStateCategoryTag, FGameplayTag InStateTag, FName SourceKey);
+
+	/** 撤回指定来源的全部状态，保留直接设置和其他来源的状态。 */
+	UFUNCTION(BlueprintCallable, Category="角色|属性|状态", DisplayName="撤回来源状态")
+	void RemoveStateTagsFromSource(FName SourceKey);
+
 private:
+	/** 按具体来源保存维持的状态标签。 */
+	TMap<FName, FGameplayTagContainer> MaintainedStateTags;
+
+	/** 分类中由普通状态接口直接设置的基础标签。 */
+	TMap<FGameplayTag, FGameplayTagContainer> DirectStateTags;
+
+	/** 合并基础状态和来源贡献，刷新实际状态并通知角色属性组件。 */
+	void RefreshMaintainedStateTags(FGameplayTag InStateCategoryTag);
+
 	/** 按分类查找状态标签容器。 */
 	FGameplayTagContainer* FindStateContainer(FGameplayTag InStateCategoryTag);
 

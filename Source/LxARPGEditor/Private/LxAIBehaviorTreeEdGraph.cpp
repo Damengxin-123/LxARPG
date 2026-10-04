@@ -327,6 +327,8 @@ FText ULxAIBehaviorTreeEdGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType)
 	switch (Data->Action)
 	{
 	case ELxAIBehaviorAction::Wait: Summary = FText::Format(NSLOCTEXT("AI行为树编辑器", "等待摘要", "等待 {0} 秒"), FText::AsNumber(Data->WaitSeconds)); break;
+	case ELxAIBehaviorAction::SpawnPointPatrol:
+	case ELxAIBehaviorAction::SpawnPointFlee: Summary = NSLOCTEXT("AI行为树编辑器", "所属刷怪点", "使用角色所属刷怪点"); break;
 	case ELxAIBehaviorAction::PointPatrol:
 	case ELxAIBehaviorAction::PointFlee: Summary = Data->PointId.IsValid() ? FText::FromName(Data->PointId.GetTagName()) : NSLOCTEXT("AI行为树编辑器", "缺点位", "请补充点位ID"); break;
 	case ELxAIBehaviorAction::RoutePatrol:
@@ -444,7 +446,7 @@ void ULxAIBehaviorTreeEdGraphSchema::GetGraphContextActions(FGraphContextMenuBui
 				FText::Format(NSLOCTEXT("AI行为树编辑器", "阶段分类", "阶段|{0}"), StateLabel),
 				FText::Format(NSLOCTEXT("AI行为树编辑器", "阶段名称", "{0}阶段"), StateLabel), NSLOCTEXT("AI行为树编辑器", "阶段菜单提示", "添加同状态分类的阶段；从状态拖出时继承父状态生命区间。"));
 	}
-	for (int32 Index = 0; Index <= static_cast<int32>(ELxAIBehaviorAction::EnterDeath); ++Index)
+	for (int32 Index = 0; Index <= static_cast<int32>(ELxAIBehaviorAction::SpawnPointFlee); ++Index)
 	{
 		const ELxAIBehaviorAction Action = static_cast<ELxAIBehaviorAction>(Index);
 		const ELxAIBehaviorState State = ULxAIBehaviorTreeAsset::GetActionState(Action);

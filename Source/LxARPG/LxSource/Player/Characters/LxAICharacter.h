@@ -6,6 +6,7 @@
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxAICharacter.generated.h"
 
+class ALxAISpawnPointActor;
 class ULxAIBehaviorTreeAsset;
 struct FLxDamageReceiveResult;
 
@@ -41,6 +42,14 @@ public:
 	/** 生命值归零时是否由已启用的行为树接管死亡流程。 */
 	bool ShouldDeferDeathToBehaviorTree() const { return bEnableAIAutomaticControl && AIBehaviorTreeAsset != nullptr; }
 
+	/** 绑定负责生成当前角色的刷怪点；可在延迟生成完成前注入，传空指针解除绑定。 */
+	UFUNCTION(BlueprintCallable, Category="AI|刷怪点", DisplayName="设置所属刷怪点")
+	void SetSpawnPoint(ALxAISpawnPointActor* InSpawnPoint);
+
+	/** 获取所属刷怪点；点位销毁或卸载后返回空指针，不会延长其生命周期。 */
+	UFUNCTION(BlueprintPure, Category="AI|刷怪点", DisplayName="获取所属刷怪点")
+	ALxAISpawnPointActor* GetSpawnPoint() const;
+
 protected:
 	/** 收到实际伤害时立即将攻击者写入当前AI的敌对记忆。 */
 	UFUNCTION(Category="AI|感知", DisplayName="处理AI受到伤害")
@@ -55,6 +64,10 @@ protected:
 
 	/** 将当前生命比例推送给角色身上的全部AI角色信息界面。 */
 	void RefreshCharacterInfoWidgetsHealth() const;
+
+	/** 当前角色独立持有的刷怪点弱引用；不写入角色类默认值或共享行为树资产。 */
+	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category="AI|刷怪点", DisplayName="所属刷怪点")
+	TWeakObjectPtr<ALxAISpawnPointActor> SpawnPoint;
 
 	/** 是否启用当前角色的自动行为树执行。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色配置|AI", DisplayName="启用AI自动控制")

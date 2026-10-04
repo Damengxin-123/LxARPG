@@ -8,6 +8,7 @@
 #include "Misc/Crc.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "UObject/StrongObjectPtr.h"
 
 namespace
 {
@@ -17,6 +18,22 @@ namespace
 	constexpr uint32 SaveEnvelopeVersion = 1;
 	/** 四个固定宽度字段组成的封套头长度。 */
 	constexpr int32 SaveEnvelopeHeaderSize = 16;
+
+	/** 在组件指定的独立索引空间中查询记录，避免不同业务对象同标签时串档。 */
+	bool HasSaveRecord(const ULxGameSaveData* Data, const FGameplayTag& SaveID, ELxSaveRecordType RecordType)
+	{
+		switch (RecordType)
+		{
+		case ELxSaveRecordType::Player:
+			return Data->Players.Contains(SaveID);
+		case ELxSaveRecordType::Interaction:
+			return Data->Interactions.Contains(SaveID);
+		case ELxSaveRecordType::AISpawnPoint:
+			return Data->SpawnPoints.Contains(SaveID);
+		default:
+			return false;
+		}
+	}
 
 	/** 验证数据长度与校验码后才交给引擎，避免截断文件被当作半空的有效存档。 */
 	ULxGameSaveData* ReadCheckedSave(const FString& SlotName, int32 UserIndex)
@@ -115,17 +132,32 @@ bool ULxSaveManager::SaveAll()
 	if (bReadOnly || bRestoreFailed) return false;
 	// 复制弱引用列表，避免业务回调注销组件时使遍历失效。
 	const TArray<FRegisteredComponent> Components = RegisteredComponents;
+	bool bCapturedAll = true;
 	for (const FRegisteredComponent& Entry : Components)
 	{
-		CacheComponent(Entry.Component.Get());
+		if (!Entry.Component.IsValid())
+		{
+			FailedCaptureComponents.Add(Entry.Component);
+			UE_LOG(LogTemp, Error, TEXT("对象存档采集失败：%s 的组件已失效，禁止保存不完整进度。"), *Entry.SaveID.ToString());
+			bCapturedAll = false;
+		}
+		else if (!CacheComponent(Entry.Component.Get()))
+		{
+			bCapturedAll = false;
+		}
 	}
-	return SaveCachedData();
+	return bCapturedAll && SaveCachedData();
 }
 
 bool ULxSaveManager::SaveCachedData()
 {
 	if (bReadOnly || bRestoreFailed || !bLoaded || !SaveData)
 	{
+		return false;
+	}
+	if (!FailedCaptureComponents.IsEmpty())
+	{
+		UE_LOG(LogTemp, Error, TEXT("存档保存失败：仍有 %d 个对象未成功采集，保留磁盘原文件。"), FailedCaptureComponents.Num());
 		return false;
 	}
 	if (!bDirty)
@@ -148,6 +180,7 @@ bool ULxSaveManager::RegisterComponent(ULxSaveComponentBase* Component)
 		return false;
 	}
 	const FGameplayTag ID = Component->GetSaveID();
+	const ELxSaveRecordType RecordType = Component->GetSaveRecordType();
 	if (!ID.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("存档对象 %s 没有配置ID标签，跳过注册。"), *GetNameSafe(Component->GetOwner()));
@@ -158,15 +191,15 @@ bool ULxSaveManager::RegisterComponent(ULxSaveComponentBase* Component)
 	{
 		if (Entry.Component == Component)
 		{
-			return Entry.SaveID == ID && Entry.bPlayer == Component->IsPlayerSaveComponent();
+			return Entry.SaveID == ID && Entry.RecordType == RecordType;
 		}
-		if (Entry.SaveID == ID && Entry.bPlayer == Component->IsPlayerSaveComponent())
+		if (Entry.SaveID == ID && Entry.RecordType == RecordType)
 		{
 			UE_LOG(LogTemp, Error, TEXT("存档ID冲突：%s，拒绝注册 %s。请给每个对象配置唯一标签。"), *ID.ToString(), *GetNameSafe(Component->GetOwner()));
 			return false;
 		}
 	}
-	const bool bHasRecord = Component->IsPlayerSaveComponent() ? SaveData->Players.Contains(ID) : SaveData->Interactions.Contains(ID);
+	const bool bHasRecord = HasSaveRecord(SaveData, ID, RecordType);
 	if (bHasRecord && !Component->RestoreSaveData(SaveData))
 	{
 		bRestoreFailed = SessionWriter.IsBound();
@@ -176,7 +209,7 @@ bool ULxSaveManager::RegisterComponent(ULxSaveComponentBase* Component)
 	FRegisteredComponent& Entry = RegisteredComponents.AddDefaulted_GetRef();
 	Entry.Component = Component;
 	Entry.SaveID = ID;
-	Entry.bPlayer = Component->IsPlayerSaveComponent();
+	Entry.RecordType = RecordType;
 	return true;
 }
 
@@ -185,37 +218,71 @@ void ULxSaveManager::UnregisterComponent(ULxSaveComponentBase* Component)
 	RegisteredComponents.RemoveAll([Component](const FRegisteredComponent& Entry) { return !Entry.Component.IsValid() || Entry.Component == Component; });
 }
 
-void ULxSaveManager::CacheComponent(ULxSaveComponentBase* Component)
+bool ULxSaveManager::CacheComponent(ULxSaveComponentBase* Component)
 {
 	if (bReadOnly || !bLoaded || !SaveData || !IsValid(Component))
 	{
-		return;
+		return false;
 	}
 	const FRegisteredComponent* Entry = RegisteredComponents.FindByPredicate(
 		[Component](const FRegisteredComponent& Candidate) { return Candidate.Component == Component; });
-	if (Entry && Entry->SaveID == Component->GetSaveID() && Entry->bPlayer == Component->IsPlayerSaveComponent())
+	if (!Entry)
 	{
-		if (Component->CaptureSaveData(SaveData))
-		{
-			bDirty = true;
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("对象存档采集失败：%s，保留此前缓存。"), *Component->GetSaveID().ToString());
-		}
+		return false;
 	}
+	// 业务回调可能注销组件，因此在回调前复制身份，不保留注册数组中的地址。
+	const FGameplayTag SaveID = Entry->SaveID;
+	const ELxSaveRecordType RecordType = Entry->RecordType;
+	const TWeakObjectPtr<ULxSaveComponentBase> ComponentKey(Component);
+	if (SaveID != Component->GetSaveID() || RecordType != Component->GetSaveRecordType())
+	{
+		FailedCaptureComponents.Add(ComponentKey);
+		UE_LOG(LogTemp, Error, TEXT("对象存档采集失败：%s 的身份在注册后发生变化，保留此前缓存。"), *SaveID.ToString());
+		return false;
+	}
+	// 先在独立快照中执行业务采集，避免回调先修改缓存再返回失败时污染原记录。
+	TStrongObjectPtr<ULxGameSaveData> CapturedData(NewObject<ULxGameSaveData>(this));
+	if (!Component->CaptureSaveData(CapturedData.Get())
+		|| !HasSaveRecord(CapturedData.Get(), SaveID, RecordType))
+	{
+		FailedCaptureComponents.Add(ComponentKey);
+		UE_LOG(LogTemp, Error, TEXT("对象存档采集失败：%s，保留此前缓存并禁止保存不完整进度。"), *SaveID.ToString());
+		return false;
+	}
+	switch (RecordType)
+	{
+	case ELxSaveRecordType::Player:
+		SaveData->Players.Add(SaveID, MoveTemp(CapturedData->Players.FindChecked(SaveID)));
+		break;
+	case ELxSaveRecordType::Interaction:
+		SaveData->Interactions.Add(SaveID, MoveTemp(CapturedData->Interactions.FindChecked(SaveID)));
+		break;
+	case ELxSaveRecordType::AISpawnPoint:
+		SaveData->SpawnPoints.Add(SaveID, MoveTemp(CapturedData->SpawnPoints.FindChecked(SaveID)));
+		break;
+	default:
+		return false;
+	}
+	FailedCaptureComponents.Remove(ComponentKey);
+	bDirty = true;
+	return true;
 }
 
-void ULxSaveManager::CacheWorldBeforeCleanup(UWorld* World, ULevel* Level)
+bool ULxSaveManager::CacheWorldBeforeCleanup(UWorld* World, ULevel* Level)
 {
 	const TArray<FRegisteredComponent> Components = RegisteredComponents;
+	bool bCapturedAll = true;
 	for (const FRegisteredComponent& Entry : Components)
 	{
 		ULxSaveComponentBase* Component = Entry.Component.Get();
 		if (Component && Component->GetWorld() == World && (!Level || (Component->GetOwner() && Component->GetOwner()->GetLevel() == Level)))
 		{
-			CacheComponent(Component);
+			if (!CacheComponent(Component))
+			{
+				bCapturedAll = false;
+			}
 			UnregisterComponent(Component);
 		}
 	}
+	return bCapturedAll;
 }

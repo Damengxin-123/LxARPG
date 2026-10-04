@@ -35,6 +35,15 @@ struct FLxBuffRuntimeInfo
 	/** 剩余持续时间，小于 0 表示永久 Buff。 */
 	float RemainingDuration = -1.f;
 
+	/** 来源维持型 Buff 使用独立实例，不与普通计时 Buff 合并。 */
+	bool bMaintainedBySource = false;
+
+	/** 本实例加入时的世界时间，用于让每条词条完整等待首个周期。 */
+	double AddedWorldTime = 0.0;
+
+	/** 每条词条下一次允许生效的时间；不同 Buff 实例独立计时。 */
+	TMap<TWeakObjectPtr<ULxEntryObjectBase>, double> NextEntryActivationTimes;
+
 	/** 按词条来源记录 Buff 引用次数，避免卸下装备时误删其他来源的同 ID Buff。 */
 	UPROPERTY()
 	TMap<ELxCharacterEntrySource, int32> SourceReferenceCounts;
@@ -88,7 +97,7 @@ public:
 	ULxBuff* AddBuff(FGameplayTag InBuffIDTag, float InEffectProportion = 1.f, float InDurationOverride = -1.f, ELxCharacterEntrySource InEntrySource = ELxCharacterEntrySource::Other);
 
 	/** 使用完整效果来源上下文添加 Buff，持续技能可通过相同来源上下文精确撤回。 */
-	ULxBuff* AddBuffFromSourceContext(FGameplayTag InBuffIDTag, float InEffectProportion, float InDurationOverride, const FLxEffectSourceContext& InSourceContext);
+	ULxBuff* AddBuffFromSourceContext(FGameplayTag InBuffIDTag, float InEffectProportion, float InDurationOverride, const FLxEffectSourceContext& InSourceContext, bool bMaintainBySource = false);
 
 	/** 移除指定 Buff 对象。 */
 	UFUNCTION(BlueprintCallable, Category="Buff", DisplayName="移除Buff")
@@ -111,6 +120,9 @@ public:
 	/** 获取指定运行时 Buff 的效果比例；Buff 不存在时返回默认比例 1。 */
 	float GetBuffEffectProportion(ULxBuff* InBuffLogic) const;
 
+	/** 消费已到期的词条周期；添加和刷新 Buff 不提前触发周期效果。 */
+	bool ConsumeBuffEntryPeriod(ULxBuff* InBuffLogic, ULxEntryObjectBase* InEntry);
+
 	/** Buff 添加事件。 */
 	FOnBuffLogicChanged OnBuffAdded;
 
@@ -131,7 +143,8 @@ private:
 	const FLxBuffRuntimeInfo* FindRuntimeInfo(ULxBuff* InBuffLogic) const;
 
 	/** 根据 Buff 标签 ID 查找第一个运行时缓存。 */
-	FLxBuffRuntimeInfo* FindFirstRuntimeInfoByTagID(FGameplayTag InBuffIDTag);
+	/** 查找普通 Buff 或指定来源独立维持的 Buff。 */
+	FLxBuffRuntimeInfo* FindFirstRuntimeInfoByTagID(FGameplayTag InBuffIDTag, FName MaintainedSourceKey = NAME_None);
 
 	int32 GetTotalSourceReferenceCount(const FLxBuffRuntimeInfo& InRuntimeInfo) const;
 

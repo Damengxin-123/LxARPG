@@ -1,8 +1,9 @@
-# Track only source code for this repository.
+# Track source code and the Unreal project descriptor.
 *
 
 !.gitignore
 !README.md
+!LxARPG.uproject
 !Source/
 !Source/**
 !Config/

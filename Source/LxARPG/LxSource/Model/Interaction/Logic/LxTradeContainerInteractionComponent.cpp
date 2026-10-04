@@ -35,25 +35,64 @@ ULxTradeContainerInteractionComponent::ULxTradeContainerInteractionComponent()
 bool ULxTradeContainerInteractionComponent::CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const
 {
 	if (!Super::CapturePersistentData(OutRecord)) return false;
-	LxItemSaveData::CaptureSlots(TradeItemSlotList, OutRecord.Slots);
-	OutRecord.TradeItemValueRate = TradeItemValueRate;
-	OutRecord.PurchaseValueRate = PurchaseValueRate;
+	for (int32 Index = 0; Index < TradeItemConfigs.Num(); ++Index)
+	{
+		const FLxTradeItemConfig& Config = TradeItemConfigs[Index];
+		if (!Config.bLimitedStock || !Config.ItemIDTag.IsValid()) continue;
+		if (!TradeItemSlotList.IsValidIndex(Index) || !IsValid(TradeItemSlotList[Index])
+			|| TradeItemSlotList[Index]->GetSlotIndex() != Index) return false;
+		ULxItemBase* Item = TradeItemSlotList[Index]->GetItem();
+		if (Item && (!IsValid(Item) || !Item->ItemIsValid() || Item->ItemIDTag() != Config.ItemIDTag)) return false;
+		FLxInteractionItemSaveRecord& SavedItem = OutRecord.ItemSlots.AddDefaulted_GetRef();
+		SavedItem.SlotIndex = Index;
+		// 售罄槽位仍保存配置中的物品ID和零数量，避免读档时重新补货或误用于替换商品。
+		SavedItem.ItemIDTag = Config.ItemIDTag;
+		SavedItem.ItemCount = Item ? static_cast<int32>(Item->ItemCount()) : 0;
+	}
 	return true;
 }
 
 bool ULxTradeContainerInteractionComponent::RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord)
 {
-	if (!CanRestorePersistentData(InRecord) || !FMath::IsFinite(InRecord.TradeItemValueRate)
-		|| !FMath::IsFinite(InRecord.PurchaseValueRate)
-		|| InRecord.TradeItemValueRate < 0.0f || InRecord.PurchaseValueRate < 0.0f) return false;
+	if (!CanRestorePersistentData(InRecord)) return false;
+	// 完整商品列表始终以当前配置为准；无限商品、新增商品和已替换商品不继承旧库存。
+	TArray<FLxInteractionItemSaveRecord> CurrentItems;
+	CurrentItems.Reserve(TradeItemConfigs.Num());
+	for (int32 Index = 0; Index < TradeItemConfigs.Num(); ++Index)
+	{
+		FLxInteractionItemSaveRecord& Item = CurrentItems.AddDefaulted_GetRef();
+		Item.SlotIndex = Index;
+		Item.ItemIDTag = TradeItemConfigs[Index].ItemIDTag;
+		Item.ItemCount = Item.ItemIDTag.IsValid() ? FMath::Max(1, TradeItemConfigs[Index].ItemCount) : 0;
+	}
+
+	TArray<FLxInteractionItemSaveRecord> SavedItems;
+	if (!LxInteractionSaveHelpers::ReadItemSlots(InRecord, SavedItems)) return false;
+
+	TSet<int32> SavedIndices;
+	for (const FLxInteractionItemSaveRecord& SavedItem : SavedItems)
+	{
+		if (SavedItem.SlotIndex < 0 || SavedIndices.Contains(SavedItem.SlotIndex)
+			|| SavedItem.ItemCount < 0
+			|| (!SavedItem.ItemIDTag.IsValid() && (SavedItem.ItemCount > 0 || InRecord.DataVersion != 0))) return false;
+		SavedIndices.Add(SavedItem.SlotIndex);
+		if (!TradeItemConfigs.IsValidIndex(SavedItem.SlotIndex)) continue;
+		const FLxTradeItemConfig& Config = TradeItemConfigs[SavedItem.SlotIndex];
+		// 旧档的售罄商品缺少ID，只能按原槽位识别；新档始终校验商品ID。
+		if (!Config.bLimitedStock || !Config.ItemIDTag.IsValid()
+			|| (SavedItem.ItemIDTag.IsValid() && SavedItem.ItemIDTag != Config.ItemIDTag)) continue;
+		FLxInteractionItemSaveRecord& Item = CurrentItems[SavedItem.SlotIndex];
+		Item.ItemCount = SavedItem.ItemCount;
+		// 通用槽位重建工具使用空ID表示空槽，保存的商品身份仅用于上面的匹配校验。
+		if (Item.ItemCount == 0) Item.ItemIDTag = FGameplayTag();
+	}
+
 	TArray<TObjectPtr<ULxItemSlotData>> RestoredSlots;
-	if (!LxInteractionSaveHelpers::BuildRestoredSlots(this, InRecord.Slots,
+	if (!LxInteractionSaveHelpers::BuildRestoredSlots(this, CurrentItems,
 		GetTradeDisplaySlotCount(TradeItemConfigs.Num()), ELxItemSlotType::Transaction, RestoredSlots)) return false;
 	UnbindPlayerDataTransfer();
 	TradeItemSlotList = MoveTemp(RestoredSlots);
 	bTradeContainerInitialized = true;
-	TradeItemValueRate = InRecord.TradeItemValueRate;
-	PurchaseValueRate = InRecord.PurchaseValueRate;
 	Super::RestorePersistentData(InRecord);
 	RefreshTradeSlots();
 	OnTradeContainerStateChanged.Broadcast(GetInteractionState());
@@ -64,7 +103,7 @@ void ULxTradeContainerInteractionComponent::ApplyConfig(const FLxTradeContainerI
 {
 	TradeItemConfigs = InConfig.TradeItems;
 	GoldItemIDTag = InConfig.GoldItemIDTag;
-	// 客户端价格由服务器同步，延迟到达的资产配置不可覆盖存档恢复后的倍率。
+	// 客户端价格由服务器同步，延迟到达的资产配置不可覆盖当前运行时倍率。
 	if (!GetOwner() || GetOwner()->HasAuthority())
 	{
 		TradeItemValueRate = FMath::Max(0.0f, InConfig.SellValueRate);

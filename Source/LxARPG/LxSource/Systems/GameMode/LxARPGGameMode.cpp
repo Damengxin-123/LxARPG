@@ -10,6 +10,7 @@
 #include "LxARPG/LxSource/Systems/MainMenu/LxMainMenuSubsystem.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxSaveManager.h"
+#include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxCharacterSaveComponent.h"
 
 ALxARPGGameMode::ALxARPGGameMode()
@@ -152,6 +153,7 @@ APawn* ALxARPGGameMode::SpawnPlayerCharacter(AController* NewPlayer)
 	if (Session)
 	{
 		NewPawn->AutoPossessPlayer = EAutoReceiveInput::Disabled;
+		if (ALxPlayerCharacter* Player = Cast<ALxPlayerCharacter>(NewPawn)) Player->SetCharacterRaceForSession(Session->CharacterRace);
 		if (ULxCharacterSaveComponent* Save = NewPawn->FindComponentByClass<ULxCharacterSaveComponent>()) Save->SetSessionIdentity(Session->SaveID);
 		UGameplayStatics::FinishSpawningActor(NewPawn, SpawnTransform);
 	}

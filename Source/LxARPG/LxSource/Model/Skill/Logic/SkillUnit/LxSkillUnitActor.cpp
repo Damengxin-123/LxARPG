@@ -12,6 +12,20 @@
 #include "Components/StaticMeshComponent.h"
 #include "Net/UnrealNetwork.h"
 
+FText ALxSkillUnitActor::GetSkillUnitDisplayName() const
+{
+	if (!SkillUnitDisplayName.IsEmptyOrWhitespace()) return SkillUnitDisplayName;
+	FString TypeName = GetClass()->GetName();
+	TypeName.RemoveFromEnd(TEXT("_C"));
+	return FText::FromString(TypeName);
+}
+
+FText ALxSkillUnitActor::GetSkillUnitClassDisplayName(TSubclassOf<ALxSkillUnitActor> SkillUnitClass)
+{
+	const ALxSkillUnitActor* Defaults = SkillUnitClass ? SkillUnitClass->GetDefaultObject<ALxSkillUnitActor>() : nullptr;
+	return Defaults ? Defaults->GetSkillUnitDisplayName() : FText::GetEmpty();
+}
+
 ALxSkillUnitActor::ALxSkillUnitActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -204,6 +218,11 @@ ULxSkillPropagationComponent* ALxSkillUnitActor::GetSkillPropagationComponent() 
 
 void ALxSkillUnitActor::RefreshSkillUnitOverlapEventSources()
 {
+	if (!RequiresOverlapEventSources())
+	{
+		if (DetectionComponent) DetectionComponent->SetTriggerCollisionComponents(TArray<UPrimitiveComponent*>());
+		return;
+	}
 	OverlapEventSourceComponents.Reset();
 	for (UPrimitiveComponent* ShapeComponent : ResolvePresetShapeOverlapEventSources())
 	{

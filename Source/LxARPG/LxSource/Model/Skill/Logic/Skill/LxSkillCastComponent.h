@@ -146,7 +146,7 @@ private:
 	/** 收到技能释放通知时，执行一次对应技能蓝图事件。 */
 	void ExecuteAnimationSkillRelease();
 
-	/** 收到技能结束通知时记录冷却起点并解除一次性技能占用。 */
+	/** 收到技能结束通知时解除一次性技能占用，允许下一次释放。 */
 	void CompleteAnimationSkillRelease();
 
 	/** 使当前通知身份失效，可选择同时取消技能内部释放占用。 */

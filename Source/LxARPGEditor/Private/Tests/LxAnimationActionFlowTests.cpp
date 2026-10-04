@@ -2,11 +2,27 @@
 
 int32 ULxAnimationActionFlowTestNotify::Count = 0;
 
-void ULxAnimationEventTestSkill::ProcessEvent(UFunction* Function, void* Parameters)
+bool ULxAnimationEventTestSkill::DispatchFlowEvent(ELxSkillFlowEvent Event)
 {
-	if (Function->GetFName() == TEXT("ReleaseSkillDirectly") || Function->GetFName() == TEXT("EndSkillCharge")
-		|| Function->GetFName() == TEXT("StartSustainedRelease")) ++ExecutionCount;
-	Super::ProcessEvent(Function, Parameters);
+	const bool bDispatched = Super::DispatchFlowEvent(Event);
+	if (bDispatched && (Event == ELxSkillFlowEvent::Direct || Event == ELxSkillFlowEvent::ChargeEnd
+		|| Event == ELxSkillFlowEvent::SustainStart)) ++ExecutionCount;
+	return bDispatched;
+}
+
+void ULxAnimationEventTestSkill::SetTestReleaseType(ELxSkillReleaseType Type)
+{
+	FlowAsset = NewObject<ULxSkillFlowAsset>(this);
+	FlowAsset->ReleaseType = Type;
+	FlowAsset->AnimationMotionType = ELxCharacterMotionType::RangedAttack;
+	auto* Entry = NewObject<ULxSkillFlowNode>(FlowAsset);
+	Entry->Id = FGuid::NewGuid();
+	Entry->Kind = ELxSkillFlowNodeKind::Event;
+	Entry->Event = Type == ELxSkillReleaseType::DirectRelease ? ELxSkillFlowEvent::Direct
+		: Type == ELxSkillReleaseType::ChargeRelease ? ELxSkillFlowEvent::ChargeEnd : ELxSkillFlowEvent::SustainStart;
+	auto* Unit = NewObject<ULxSkillFlowNode>(FlowAsset);
+	Unit->Id = FGuid::NewGuid(); Unit->Kind = ELxSkillFlowNodeKind::Projectile;
+	Entry->Next.Add(Unit->Id); FlowAsset->Nodes = {Entry,Unit};
 }
 
 void ULxAnimationActionFlowTestNotify::Notify(USkeletalMeshComponent* Mesh, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& Event)
@@ -383,11 +399,11 @@ bool FLxAnimationSkillEventTest::RunTest(const FString& Parameters)
 			}
 		};
 		Tick(3);
-		/** 创建互不共享冷却的测试技能。 */
+		/** 创建具有独立释放状态的测试技能。 */
 		auto MakeSkill = [Character]()
 		{
 			auto* Skill = NewObject<ULxAnimationEventTestSkill>(Character);
-			Skill->AnimationMotionType = ELxCharacterMotionType::RangedAttack;
+			Skill->SetTestReleaseType(ELxSkillReleaseType::DirectRelease);
 			return Skill;
 		};
 		int32 InstanceCount = 0, ProcessCount = 0, TransferCount = 0;
@@ -408,21 +424,22 @@ bool FLxAnimationSkillEventTest::RunTest(const FString& Parameters)
 		const auto SavedTick = Mesh->VisibilityBasedAnimTickOption;
 		TestTrue(TEXT("开始技能请求"), Module->ReleaseSkillDirectly(Skill, Module->MakeSkillCastContext(Skill)));
 		TestEqual(TEXT("通知前不执行技能"), Skill->ExecutionCount, 0);
+		TestFalse(TEXT("动画前摇期间禁止重复释放"), Module->ReleaseSkillDirectly(Skill, Module->MakeSkillCastContext(Skill)));
 		TestEqual(TEXT("施法期间离屏也刷新骨骼"), Mesh->VisibilityBasedAnimTickOption, EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones);
 		Tick(10);
 		TestEqual(TEXT("动画尚未到达通知，不执行"), Skill->ExecutionCount, 0);
 		Tick(19);
 		TestEqual(TEXT("重复和蒙太奇分支点仅执行一次"), Skill->ExecutionCount, 1);
 		TestTrue(TEXT("执行后仍等待动画后摇结束"), !Module->IsSkillCastIdle());
+		TestFalse(TEXT("已产生子单元仍需等待动画结束"), Module->ReleaseSkillDirectly(Skill, Module->MakeSkillCastContext(Skill)));
 		TestEqual(TEXT("实例到处理组件不丢通知"), InstanceCount, ProcessCount);
 		TestEqual(TEXT("处理到中转组件不丢通知"), ProcessCount, TransferCount);
 		TestTrue(TEXT("通知携带释放身份"), LastRelease.CastId.IsValid());
 		Tick(30);
 		TestTrue(TEXT("实际播放结束自动解除占用"), Module->IsSkillCastIdle());
 		TestEqual(TEXT("结束后恢复网格更新策略"), Mesh->VisibilityBasedAnimTickOption, SavedTick);
-		TestFalse(TEXT("结束后进入冷却"), Skill->IsReleaseCooldownReady());
-		Skill = MakeSkill();
-		TestTrue(TEXT("再次释放"), Module->ReleaseSkillDirectly(Skill, Module->MakeSkillCastContext(Skill)));
+		Skill->ExecutionCount = 0;
+		TestTrue(TEXT("同一技能在动画结束后立即再次释放，无额外CD"), Module->ReleaseSkillDirectly(Skill, Module->MakeSkillCastContext(Skill)));
 		Transfer->OnAnimationEvent.Broadcast(LastRelease);
 		TestEqual(TEXT("上次技能通知不能触发本次技能"), Skill->ExecutionCount, 0);
 		FLxCharacterAnimationEvent Fake = LastRelease;
@@ -434,7 +451,7 @@ bool FLxAnimationSkillEventTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("通知前取消"), Module->CancelCurrentSkillRelease());
 		Tick(50);
 		TestEqual(TEXT("取消后缓存中的通知不能创建技能"), Skill->ExecutionCount, 0);
-		TestTrue(TEXT("未执行的取消不进入冷却"), Skill->IsReleaseCooldownReady());
+		TestTrue(TEXT("未执行的取消解除释放占用"), Module->IsSkillCastIdle());
 		// 关闭通知只影响执行点，自然播放结束仍负责清理技能占用。
 		for (auto* Player : FindFlowNodes<FLxAnimNode_ActionPlayer>(Instance))
 			if (Player->bAttackChannel) Player->bReceiveAnimationNotifies = false;
@@ -456,7 +473,8 @@ bool FLxAnimationSkillEventTest::RunTest(const FString& Parameters)
 		Tick(20);
 		TestEqual(TEXT("蓄力技能由通知执行一次"), Skill->ExecutionCount, 1);
 		Module->CancelCurrentSkillRelease();
-		TestFalse(TEXT("执行后取消后摇仍进入冷却"), Skill->IsReleaseCooldownReady());
+		TestTrue(TEXT("取消后摇后允许立即重新蓄力"), Skill->TryStartSkillCharge());
+		Module->CancelCurrentSkillRelease();
 		Tick(3);
 		Skill = MakeSkill();
 		Skill->SetTestReleaseType(ELxSkillReleaseType::SustainedRelease);

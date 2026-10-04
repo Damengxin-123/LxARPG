@@ -14,6 +14,7 @@
 #include "LxARPG/LxSource/Systems/NavigationSystem/LxAINavigationRegistry.h"
 #include "LxARPG/LxSource/World/AINavigation/LxAIPointActor.h"
 #include "LxARPG/LxSource/World/AINavigation/LxAIRouteActor.h"
+#include "LxARPG/LxSource/World/AISpawn/LxAISpawnPointActor.h"
 
 namespace
 {
@@ -215,30 +216,60 @@ ULxAIBehaviorTreeExecutor::ELeafResult ULxAIBehaviorTreeExecutor::TickLeaf(
 		return ELeafResult::Completed;
 	case ELxAIBehaviorAction::PointPatrol:
 	case ELxAIBehaviorAction::PointFlee:
+	case ELxAIBehaviorAction::SpawnPointPatrol:
+	case ELxAIBehaviorAction::SpawnPointFlee:
 	{
-		ULxAINavigationRegistry* Registry = GetNavigationRegistry();
-		ALxAIPointActor* Point = Registry ? Registry->FindPoint(this, InNode.PointId) : nullptr;
-		if (!Point)
+		const bool bUsesSpawnPoint = InNode.Action == ELxAIBehaviorAction::SpawnPointPatrol ||
+			InNode.Action == ELxAIBehaviorAction::SpawnPointFlee;
+		FVector PointCenter = FVector::ZeroVector;
+		float PointRadius = 0.0f;
+		FString PointDescription;
+		if (bUsesSpawnPoint)
 		{
-			if (!bLoggedNavigationFailure)
-				UE_LOG(LogTemp, Warning, TEXT("AI点位尚未加载：角色=%s，点位=%s"),
-					*Character->GetName(), *InNode.PointId.ToString());
-			bLoggedNavigationFailure = true;
-			return ELeafResult::Failed;
+			const ALxAISpawnPointActor* SpawnPoint = Character->GetSpawnPoint();
+			if (!SpawnPoint)
+			{
+				if (!bLoggedNavigationFailure)
+					UE_LOG(LogTemp, Warning, TEXT("AI所属刷怪点未设置或已失效：角色=%s"), *Character->GetName());
+				bLoggedNavigationFailure = true;
+				return ELeafResult::Failed;
+			}
+			PointCenter = SpawnPoint->GetWorldCenter();
+			PointRadius = SpawnPoint->GetRangeRadiusCentimeters();
+			PointDescription = SpawnPoint->GetName();
 		}
-		if (InNode.Action == ELxAIBehaviorAction::PointFlee)
+		else
+		{
+			ULxAINavigationRegistry* Registry = GetNavigationRegistry();
+			const ALxAIPointActor* Point = Registry ? Registry->FindPoint(this, InNode.PointId) : nullptr;
+			if (!Point)
+			{
+				if (!bLoggedNavigationFailure)
+					UE_LOG(LogTemp, Warning, TEXT("AI点位尚未加载：角色=%s，点位=%s"),
+						*Character->GetName(), *InNode.PointId.ToString());
+				bLoggedNavigationFailure = true;
+				return ELeafResult::Failed;
+			}
+			PointCenter = Point->GetWorldCenter();
+			PointRadius = Point->GetRangeRadiusCentimeters();
+			PointDescription = InNode.PointId.ToString();
+		}
+		if (InNode.Action == ELxAIBehaviorAction::PointFlee || InNode.Action == ELxAIBehaviorAction::SpawnPointFlee)
 		{
 			bLoggedNavigationFailure = false;
-			const float PointRadius = Point->GetRangeRadiusCentimeters();
-			if (FVector::Dist2D(SelfLocation, Point->GetWorldCenter()) <= PointRadius) return ELeafResult::Completed;
-			return Behavior->IsNavigationMoving() || MoveToLocation(Point->GetWorldCenter(), PointRadius)
+			if (FVector::Dist2D(SelfLocation, PointCenter) <= PointRadius)
+			{
+				Behavior->StopActiveMovement();
+				return ELeafResult::Completed;
+			}
+			return Behavior->IsNavigationMoving() || MoveToLocation(PointCenter, PointRadius)
 				? ELeafResult::Running : ELeafResult::Failed;
 		}
-		if (!bHasPointPatrolDestination && !ChoosePointPatrolDestination(*Point, SelfLocation))
+		if (!bHasPointPatrolDestination && !ChoosePointPatrolDestination(PointCenter, PointRadius, SelfLocation))
 		{
 			if (!bLoggedNavigationFailure)
 				UE_LOG(LogTemp, Warning, TEXT("AI巡逻点范围内暂无可到达位置：角色=%s，点位=%s"),
-					*Character->GetName(), *InNode.PointId.ToString());
+					*Character->GetName(), *PointDescription);
 			bLoggedNavigationFailure = true;
 			return ELeafResult::Failed;
 		}
@@ -444,21 +475,21 @@ bool ULxAIBehaviorTreeExecutor::MoveToLocation(const FVector& InLocation, const 
 	return Behavior && Behavior->RequestMoveToLocation(InLocation, FMath::Max(1.0f, InAcceptanceRadius));
 }
 
-bool ULxAIBehaviorTreeExecutor::ChoosePointPatrolDestination(const ALxAIPointActor& InPoint,
-	const FVector& InSelfLocation)
+bool ULxAIBehaviorTreeExecutor::ChoosePointPatrolDestination(const FVector& InPointCenter,
+	const float InPointRadius, const FVector& InSelfLocation)
 {
 	UNavigationSystemV1* Navigation = UNavigationSystemV1::GetCurrent(GetWorld());
 	if (!Navigation) return false;
-	const float Radius = InPoint.GetRangeRadiusCentimeters();
+	const float Radius = InPointRadius;
 	if (Radius <= DefaultAcceptanceRadius) return false;
 	FNavLocation SearchOrigin;
-	if (!Navigation->ProjectPointToNavigation(InPoint.GetWorldCenter(), SearchOrigin,
+	if (!Navigation->ProjectPointToNavigation(InPointCenter, SearchOrigin,
 		FVector(Radius, Radius, FMath::Max(500.0f, Radius)))) return false;
 	for (int32 Attempt = 0; Attempt < 12; ++Attempt)
 	{
 		FNavLocation Candidate;
 		if (Navigation->GetRandomReachablePointInRadius(SearchOrigin.Location, Radius, Candidate) &&
-			InPoint.IsWorldLocationInRange(Candidate.Location) &&
+			FVector::DistSquared(Candidate.Location, InPointCenter) <= FMath::Square(Radius) &&
 			FVector::Dist2D(InSelfLocation, Candidate.Location) > DefaultAcceptanceRadius * 2.0f)
 		{
 			PointPatrolDestination = Candidate.Location;

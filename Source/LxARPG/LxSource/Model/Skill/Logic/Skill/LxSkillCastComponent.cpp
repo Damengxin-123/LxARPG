@@ -69,9 +69,18 @@ FLxSkillCastContext ULxSkillCastModule::MakeSkillCastContext(UObject* SourceObje
 
 bool ULxSkillCastModule::InitializeSkillForCast(ULxSkill* InSkill, const FLxSkillCastContext& InCastContext)
 {
-	if (!InSkill)
+	if (!InSkill || !InSkill->FlowAsset)
 	{
 		return false;
+	}
+	if (InSkill->FlowAsset)
+	{
+		FText Error;
+		if (!InSkill->FlowAsset->Validate(Error))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("拒绝释放未完成的技能流程：%s"), *Error.ToString());
+			return false;
+		}
 	}
 
 	CurrentCastContext = NormalizeCastContext(InCastContext);
@@ -417,19 +426,25 @@ void ULxSkillCastModule::ExecuteAnimationSkillRelease()
 	// 先消费执行点，技能蓝图回调即使重入也不能再次创建实体。
 	if (bReleaseExecuted) return;
 	bReleaseExecuted = true;
+	bool bSucceeded = false;
 	switch (PendingSkillReleaseExecution)
 	{
 	case ELxPendingSkillReleaseExecution::Direct:
-		Skill->ExecuteDirectSkillRelease();
+		bSucceeded = Skill->ExecuteDirectSkillRelease();
 		break;
 	case ELxPendingSkillReleaseExecution::Charge:
-		Skill->ExecuteChargeSkillRelease();
+		bSucceeded = Skill->ExecuteChargeSkillRelease();
 		break;
 	case ELxPendingSkillReleaseExecution::Sustained:
-		Skill->ExecuteSustainedSkillRelease();
+		bSucceeded = Skill->ExecuteSustainedSkillRelease();
 		break;
 	default:
 		break;
+	}
+	if (!bSucceeded)
+	{
+		// 流程创建失败必须解除动画和持续释放占用，不能等同于已经执行成功。
+		CancelCurrentSkillRelease();
 	}
 }
 
@@ -473,9 +488,6 @@ void ULxSkillCastModule::CompleteAnimationSkillRelease()
 
 void ULxSkillCastModule::ClearAnimationSkillRelease(bool bCancelSkillTiming)
 {
-	// 已经创建过实体的施法即使被打断也必须进入冷却，防止取消后摇绕过冷却。
-	if (bCancelSkillTiming && bReleaseExecuted && CurrentCastingSkill)
-		CurrentCastingSkill->CompleteSkillReleaseTiming();
 	ActiveCastId.Invalidate();
 	ActiveSkillId = FGameplayTag();
 	bReleaseExecuted = false;

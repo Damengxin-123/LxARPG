@@ -24,25 +24,28 @@ void ULxQuestStaticDataModule::Initialize(const UDataTable* InQuestSeriesIndexTa
 	TArray<FLxQuestSeriesRegistryRow*> Rows;
 	InQuestSeriesIndexTable->GetAllRows<FLxQuestSeriesRegistryRow>(
 		TEXT("ULxQuestStaticDataModule::Initialize"), Rows);
+	// 全表验证通过后再提交索引，避免将缺行或重复登记的配置当作初始化成功。
+	TMap<FGameplayTag, TSoftObjectPtr<ULxQuestSeriesAsset>> ValidatedIndex;
 	for (const FLxQuestSeriesRegistryRow* Row : Rows)
 	{
 		if (!Row || !Row->QuestSeriesId.IsValid() || Row->QuestSeriesAsset.IsNull())
 		{
-			UE_LOG(LogLxQuestStaticData, Warning, TEXT("任务系列索引表 %s 包含无效行，已忽略。"),
+			UE_LOG(LogLxQuestStaticData, Error, TEXT("任务系列索引表 %s 包含无效行，初始化失败。"),
 				*GetNameSafe(InQuestSeriesIndexTable));
-			continue;
+			return;
 		}
 
-		if (QuestSeriesIndex.Contains(Row->QuestSeriesId))
+		if (ValidatedIndex.Contains(Row->QuestSeriesId))
 		{
-			UE_LOG(LogLxQuestStaticData, Error, TEXT("任务系列索引表中存在重复ID：%s，保留首次登记。"),
+			UE_LOG(LogLxQuestStaticData, Error, TEXT("任务系列索引表中存在重复ID：%s，初始化失败。"),
 				*Row->QuestSeriesId.ToString());
-			continue;
+			return;
 		}
 
-		QuestSeriesIndex.Add(Row->QuestSeriesId, Row->QuestSeriesAsset);
+		ValidatedIndex.Add(Row->QuestSeriesId, Row->QuestSeriesAsset);
 	}
 
+	QuestSeriesIndex = MoveTemp(ValidatedIndex);
 	bInitialized = true;
 	UE_LOG(LogLxQuestStaticData, Log, TEXT("任务静态数据模块已载入 %d 个任务系列索引。"), QuestSeriesIndex.Num());
 }

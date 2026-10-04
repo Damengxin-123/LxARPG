@@ -206,7 +206,8 @@ bool FLxSaveIdentityProtectionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("重复对象不能覆盖原记录"), Manager->GetSaveData()->Players.FindChecked(ID).BackpackSlotCount, 24);
 	Original->ConfigureIdentity(OtherID, true);
 	Original->PlayerRecord.BackpackSlotCount = 999;
-	Manager->CacheComponent(Original);
+	AddExpectedError(TEXT("对象存档采集失败"), EAutomationExpectedErrorFlags::Contains, 1);
+	TestFalse(TEXT("注册后身份变化明确回报采集失败"), Manager->CacheComponent(Original));
 	TestFalse(TEXT("注册后篡改ID不能写入新记录"), Manager->GetSaveData()->Players.Contains(OtherID));
 	TestEqual(TEXT("原ID的旧记录仍完整"), Manager->GetSaveData()->Players.FindChecked(ID).BackpackSlotCount, 24);
 	Manager->UnregisterComponent(Original);
@@ -216,6 +217,68 @@ bool FLxSaveIdentityProtectionTest::RunTest(const FString& Parameters)
 	Manager->CacheComponent(Duplicate);
 	TestEqual(TEXT("恢复失败的对象仍不参与采集"), Duplicate->CaptureCount, 0);
 	TestEqual(TEXT("恢复失败保留旧记录"), Manager->GetSaveData()->Players.FindChecked(ID).BackpackSlotCount, 24);
+	return true;
+}
+
+/** 验证采集错误向保存调用者传播，并阻止部分采集结果覆盖磁盘上的完整存档。 */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxSaveCaptureFailureTest,
+	"LxARPG.Save.CaptureFailureProtection",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+/** 模拟写入后失败、重试成功和世界结束前失败，检查返回值、内存快照与磁盘字节。 */
+bool FLxSaveCaptureFailureTest::RunTest(const FString& Parameters)
+{
+	FLxSaveTestSlot Slot;
+	FLxSaveTestWorld TestWorld;
+	const FGameplayTag FirstID = FGameplayTag::RequestGameplayTag(TEXT("角色.测试角色"));
+	const FGameplayTag SecondID = FGameplayTag::RequestGameplayTag(TEXT("角色.木桩"));
+	TStrongObjectPtr<ULxSaveManager> Manager(NewObject<ULxSaveManager>());
+	Manager->Initialize(Slot.Name);
+	if (!TestTrue(TEXT("创建采集失败测试缓存"), Manager->LoadSave())) return false;
+	ULxSaveSystemTestComponent* First = TestWorld.AddComponent(FirstID);
+	ULxSaveSystemTestComponent* Second = TestWorld.AddComponent(SecondID);
+	if (!TestNotNull(TEXT("创建待失败组件"), First) || !TestNotNull(TEXT("创建正常组件"), Second)) return false;
+	First->PlayerRecord = MakePlayerRecord(FirstID);
+	Second->PlayerRecord = MakePlayerRecord(SecondID);
+	Second->PlayerRecord.BackpackSlotCount = 48;
+	if (!Manager->RegisterComponent(First) || !Manager->RegisterComponent(Second)
+		|| !TestTrue(TEXT("先保存一份完整进度"), Manager->SaveAll())) return false;
+	TArray<uint8> OriginalFile;
+	if (!TestTrue(TEXT("读取原始存档字节"), UGameplayStatics::LoadDataFromSlot(OriginalFile, Slot.Name, 0))) return false;
+
+	First->PlayerRecord.BackpackSlotCount = 99;
+	First->bRejectCapture = true;
+	AddExpectedError(TEXT("对象存档采集失败"), EAutomationExpectedErrorFlags::Contains, 1);
+	TestFalse(TEXT("采集回调失败直接向调用者返回失败"), Manager->CacheComponent(First));
+	AddExpectedError(TEXT("存档保存失败"), EAutomationExpectedErrorFlags::Contains, 1);
+	TestFalse(TEXT("没有脏数据也不能把采集失败报告为成功"), Manager->SaveCachedData());
+	Second->PlayerRecord.BackpackSlotCount = 72;
+	AddExpectedError(TEXT("对象存档采集失败"), EAutomationExpectedErrorFlags::Contains, 1);
+	TestFalse(TEXT("任一组件采集失败使整体保存失败"), Manager->SaveAll());
+	TestEqual(TEXT("写入后返回失败不污染原记录"), Manager->GetSaveData()->Players.FindChecked(FirstID).BackpackSlotCount, 24);
+	TestEqual(TEXT("正常对象仍可完成内存采集"), Manager->GetSaveData()->Players.FindChecked(SecondID).BackpackSlotCount, 72);
+	TArray<uint8> AfterFailure;
+	TestTrue(TEXT("失败后磁盘原文件仍可读取"), UGameplayStatics::LoadDataFromSlot(AfterFailure, Slot.Name, 0));
+	TestTrue(TEXT("整体保存失败完全保留原始文件"), AfterFailure == OriginalFile);
+
+	First->bRejectCapture = false;
+	if (!TestTrue(TEXT("失败对象成功重试后恢复正常保存"), Manager->SaveAll())) return false;
+	TestEqual(TEXT("重试提交最新对象状态"), Manager->GetSaveData()->Players.FindChecked(FirstID).BackpackSlotCount, 99);
+	TArray<uint8> RecoveredFile;
+	if (!TestTrue(TEXT("读取重试成功的完整文件"), UGameplayStatics::LoadDataFromSlot(RecoveredFile, Slot.Name, 0))) return false;
+
+	First->PlayerRecord.BackpackSlotCount = 111;
+	First->bRejectCapture = true;
+	AddExpectedError(TEXT("对象存档采集失败"), EAutomationExpectedErrorFlags::Contains, 1);
+	TestFalse(TEXT("世界清理前采集失败明确回报失败"), Manager->CacheWorldBeforeCleanup(TestWorld.World));
+	TestWorld.World->EndPlay(EEndPlayReason::Quit);
+	AddExpectedError(TEXT("存档保存失败"), EAutomationExpectedErrorFlags::Contains, 2);
+	TestFalse(TEXT("组件注销后缓存保存仍保留失败状态"), Manager->SaveCachedData());
+	TestFalse(TEXT("注销后没有待采集组件也不能报告保存成功"), Manager->SaveAll());
+	TArray<uint8> AfterCleanupFailure;
+	TestTrue(TEXT("退出失败后文件仍可读取"), UGameplayStatics::LoadDataFromSlot(AfterCleanupFailure, Slot.Name, 0));
+	TestTrue(TEXT("退出采集失败不会覆盖最近一次完整存档"), AfterCleanupFailure == RecoveredFile);
+	TestEqual(TEXT("退出采集失败仍保留最后成功快照"), Manager->GetSaveData()->Players.FindChecked(FirstID).BackpackSlotCount, 99);
 	return true;
 }
 

@@ -43,10 +43,10 @@ enum class ELxItemType : uint8
 };
 
 // Item type tags, aligned with ELxItemType.
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item);
+LXARPG_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_None);
 // 装备子类型
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment);
+LXARPG_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Weapon);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Deputy);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Equipment_Helmet);
@@ -60,8 +60,8 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Consumable);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Material);
 /** 商城交易默认使用的金币物品标签。 */
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Material_Currency_Gold);
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Skill);
-UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Buff);
+LXARPG_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Skill);
+LXARPG_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(LxTag_Item_Buff);
 
 /**
  * @enum ELxItemUseState

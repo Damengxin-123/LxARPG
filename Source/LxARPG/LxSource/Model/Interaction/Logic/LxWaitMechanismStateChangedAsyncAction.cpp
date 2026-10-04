@@ -22,29 +22,33 @@ ULxWaitMechanismStateChangedAsyncAction* ULxWaitMechanismStateChangedAsyncAction
 
 void ULxWaitMechanismStateChangedAsyncAction::Activate()
 {
+	if (bActivated || bFinished)
+	{
+		return;
+	}
+	bActivated = true;
+
 	if (!IsValid(InteractableComponent))
 	{
 		FinishAsCancelled(LastKnownState);
 		return;
 	}
 
-	// 简单机关通常只有一个机关功能模块，记录其当前状态供组件结束时输出。
+	InteractableComponent->OnMechanismStateChanged.AddUObject(
+		this, &ULxWaitMechanismStateChangedAsyncAction::HandleMechanismStateChanged);
+	InteractableComponent->OnInteractableComponentEndPlayNative.AddUObject(
+		this, &ULxWaitMechanismStateChangedAsyncAction::HandleInteractableComponentEndPlay);
+
+	// 读档可能早于蓝图开始监听；绑定完成后补发当前状态，使门、开关等表现立即同步。
 	for (ULxInteractionActionComponentBase* InteractionFeature : InteractableComponent->GetInteractionFeatures())
 	{
 		if (const ULxTriggerMechanismInteractionComponent* MechanismFeature =
 			Cast<ULxTriggerMechanismInteractionComponent>(InteractionFeature))
 		{
-			LastKnownState = MechanismFeature->GetMechanismState();
+			HandleMechanismStateChanged(MechanismFeature->GetMechanismState());
 			break;
 		}
 	}
-
-	if (!InteractableComponent->OnMechanismStateChanged.IsBoundToObject(this))
-	{
-		InteractableComponent->OnMechanismStateChanged.AddUObject(this, &ULxWaitMechanismStateChangedAsyncAction::HandleMechanismStateChanged);
-	}
-	InteractableComponent->OnInteractableComponentEndPlayNative.AddUObject(
-		this, &ULxWaitMechanismStateChangedAsyncAction::HandleInteractableComponentEndPlay);
 }
 
 void ULxWaitMechanismStateChangedAsyncAction::HandleMechanismStateChanged(ELxMechanismState NewState)

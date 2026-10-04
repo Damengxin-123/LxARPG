@@ -15,6 +15,9 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
+	/** 技能流程资产及其图形编辑器入口。 */
+	TSharedPtr<IAssetTypeActions> SkillFlowAssetTypeActions;
+
 	/** 交互树资产的内容浏览器入口。 */
 	TSharedPtr<IAssetTypeActions> InteractionTreeAssetTypeActions;
 

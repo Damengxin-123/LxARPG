@@ -36,6 +36,12 @@ bool ULxCharacterStateAttributeObject::SetStateTagsByCategory(const FGameplayTag
 	{
 		if (!StateTag.IsValid() || !StateTag.MatchesTag(InStateCategoryTag)) return false;
 	}
+	if (FGameplayTagContainer* DirectTags = DirectStateTags.Find(InStateCategoryTag))
+	{
+		*DirectTags = InStateTags;
+		RefreshMaintainedStateTags(InStateCategoryTag);
+		return true;
+	}
 	*StateContainer = InStateTags;
 	NotifyStateTagsChanged(InStateCategoryTag);
 	return true;
@@ -44,7 +50,15 @@ bool ULxCharacterStateAttributeObject::SetStateTagsByCategory(const FGameplayTag
 bool ULxCharacterStateAttributeObject::AddStateTag(const FGameplayTag InStateCategoryTag, const FGameplayTag InStateTag)
 {
 	FGameplayTagContainer* StateContainer = FindStateContainer(InStateCategoryTag);
-	if (StateContainer == nullptr || !InStateTag.IsValid() || !InStateTag.MatchesTag(InStateCategoryTag) || StateContainer->HasTagExact(InStateTag)) return false;
+	if (StateContainer == nullptr || !InStateTag.IsValid() || !InStateTag.MatchesTag(InStateCategoryTag)) return false;
+	if (FGameplayTagContainer* DirectTags = DirectStateTags.Find(InStateCategoryTag))
+	{
+		const bool bAdded = !DirectTags->HasTagExact(InStateTag);
+		DirectTags->AddTag(InStateTag);
+		RefreshMaintainedStateTags(InStateCategoryTag);
+		return bAdded;
+	}
+	if (StateContainer->HasTagExact(InStateTag)) return false;
 	StateContainer->AddTag(InStateTag);
 	NotifyStateTagsChanged(InStateCategoryTag);
 	return true;
@@ -53,7 +67,14 @@ bool ULxCharacterStateAttributeObject::AddStateTag(const FGameplayTag InStateCat
 bool ULxCharacterStateAttributeObject::RemoveStateTag(const FGameplayTag InStateCategoryTag, const FGameplayTag InStateTag)
 {
 	FGameplayTagContainer* StateContainer = FindStateContainer(InStateCategoryTag);
-	if (StateContainer == nullptr || !StateContainer->RemoveTag(InStateTag)) return false;
+	if (StateContainer == nullptr) return false;
+	if (FGameplayTagContainer* DirectTags = DirectStateTags.Find(InStateCategoryTag))
+	{
+		const bool bRemoved = DirectTags->RemoveTag(InStateTag);
+		RefreshMaintainedStateTags(InStateCategoryTag);
+		return bRemoved;
+	}
+	if (!StateContainer->RemoveTag(InStateTag)) return false;
 	NotifyStateTagsChanged(InStateCategoryTag);
 	return true;
 }
@@ -83,9 +104,51 @@ bool ULxCharacterStateAttributeObject::ClearStateTagsByCategory(const FGameplayT
 {
 	FGameplayTagContainer* StateContainer = FindStateContainer(InStateCategoryTag);
 	if (StateContainer == nullptr || StateContainer->IsEmpty()) return false;
+	if (FGameplayTagContainer* DirectTags = DirectStateTags.Find(InStateCategoryTag))
+	{
+		DirectTags->Reset();
+		RefreshMaintainedStateTags(InStateCategoryTag);
+		return true;
+	}
 	StateContainer->Reset();
 	NotifyStateTagsChanged(InStateCategoryTag);
 	return true;
+}
+
+bool ULxCharacterStateAttributeObject::AddStateTagFromSource(FGameplayTag InStateCategoryTag, FGameplayTag InStateTag, FName SourceKey)
+{
+	FGameplayTagContainer* Container = FindStateContainer(InStateCategoryTag);
+	if (!Container || SourceKey.IsNone() || !InStateTag.IsValid() || !InStateTag.MatchesTag(InStateCategoryTag)) return false;
+	if (!DirectStateTags.Contains(InStateCategoryTag)) DirectStateTags.Add(InStateCategoryTag, *Container);
+	MaintainedStateTags.FindOrAdd(SourceKey).AddTag(InStateTag);
+	RefreshMaintainedStateTags(InStateCategoryTag);
+	return true;
+}
+
+void ULxCharacterStateAttributeObject::RemoveStateTagsFromSource(FName SourceKey)
+{
+	if (MaintainedStateTags.Remove(SourceKey) == 0) return;
+	TArray<FGameplayTag> Categories;
+	DirectStateTags.GetKeys(Categories);
+	for (const FGameplayTag Category : Categories) RefreshMaintainedStateTags(Category);
+}
+
+void ULxCharacterStateAttributeObject::RefreshMaintainedStateTags(FGameplayTag InStateCategoryTag)
+{
+	FGameplayTagContainer* Container = FindStateContainer(InStateCategoryTag);
+	if (!Container) return;
+	FGameplayTagContainer Combined = DirectStateTags.FindRef(InStateCategoryTag);
+	bool bHasMaintainedTags = false;
+	for (const auto& Source : MaintainedStateTags)
+		for (const FGameplayTag Tag : Source.Value)
+			if (Tag.MatchesTag(InStateCategoryTag)) { Combined.AddTag(Tag); bHasMaintainedTags = true; }
+	// 最后一个来源撤回后回归普通状态接口，避免保留失效的基础快照。
+	if (!bHasMaintainedTags) DirectStateTags.Remove(InStateCategoryTag);
+	if (*Container != Combined)
+	{
+		*Container = Combined;
+		NotifyStateTagsChanged(InStateCategoryTag);
+	}
 }
 
 FGameplayTagContainer* ULxCharacterStateAttributeObject::FindStateContainer(const FGameplayTag InStateCategoryTag)

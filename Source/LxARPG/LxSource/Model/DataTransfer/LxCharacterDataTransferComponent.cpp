@@ -1,4 +1,5 @@
 #include "LxCharacterDataTransferComponent.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterStateAttributeObject.h"
 #include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationProcessComponent.h"
 
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
@@ -495,7 +496,7 @@ void ULxCharacterDataTransferComponent::EnsureOwnerComponentsCached()
 		return;
 	}
 
-	if (AttributeComponent == nullptr || StateComponent == nullptr || QuestComponent == nullptr || EffectCacheModule == nullptr
+	if (AttributeComponent == nullptr || QuestComponent == nullptr || EffectCacheModule == nullptr
 		|| EffectTransferModule == nullptr)
 	{
 		CacheOwnerComponents();
@@ -511,6 +512,8 @@ void ULxCharacterDataTransferComponent::BindComponentEvents()
 	if (AttributeComponent)
 	{
 		AttributeComponent->OnTypedAttributeSnapshotChanged.AddUObject(this, &ULxCharacterDataTransferComponent::HandleAttributeSnapshotChanged);
+		AttributeComponent->OnStateTagsChanged.AddUObject(this, &ULxCharacterDataTransferComponent::HandleStateTagsChanged);
+		AttributeComponent->OnLifecycleStateChanged.AddUObject(this, &ULxCharacterDataTransferComponent::HandleLifecycleStateChanged);
 	}
 
 	if (BackpackComponent)
@@ -563,6 +566,8 @@ void ULxCharacterDataTransferComponent::UnbindComponentEvents()
 	if (AttributeComponent)
 	{
 		AttributeComponent->OnTypedAttributeSnapshotChanged.RemoveAll(this);
+		AttributeComponent->OnStateTagsChanged.RemoveAll(this);
+		AttributeComponent->OnLifecycleStateChanged.RemoveAll(this);
 	}
 
 	if (BackpackComponent)
@@ -651,23 +656,23 @@ void ULxCharacterDataTransferComponent::BroadcastBuffData()
 
 void ULxCharacterDataTransferComponent::BroadcastStateData()
 {
-	if (StateComponent == nullptr)
+	if (AttributeComponent == nullptr)
 	{
 		return;
 	}
 
 	FGameplayTagContainer StateTags;
 
-	StateComponent->GetStateTagsByCategory(LxTag_CharacterState_ElementAbnormal, StateTags);
+	AttributeComponent->GetStateTagsByCategory(LxTag_CharacterState_ElementAbnormal, StateTags);
 	OnCharacterStateTagsChanged.Broadcast(LxTag_CharacterState_ElementAbnormal, StateTags);
 
-	StateComponent->GetStateTagsByCategory(LxTag_CharacterState_Lifecycle, StateTags);
+	AttributeComponent->GetStateTagsByCategory(LxTag_CharacterState_Lifecycle, StateTags);
 	OnCharacterStateTagsChanged.Broadcast(LxTag_CharacterState_Lifecycle, StateTags);
 
-	StateComponent->GetStateTagsByCategory(LxTag_CharacterState_Movement, StateTags);
+	AttributeComponent->GetStateTagsByCategory(LxTag_CharacterState_Movement, StateTags);
 	OnCharacterStateTagsChanged.Broadcast(LxTag_CharacterState_Movement, StateTags);
 
-	StateComponent->GetStateTagsByCategory(LxTag_CharacterState_Combat, StateTags);
+	AttributeComponent->GetStateTagsByCategory(LxTag_CharacterState_Combat, StateTags);
 	OnCharacterStateTagsChanged.Broadcast(LxTag_CharacterState_Combat, StateTags);
 }
 
@@ -727,8 +732,13 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 		}
 	}
 
-	if (StateComponent != nullptr)
+	ULxCharacterStateAttributeObject* RuntimeStates = AttributeComponent ? AttributeComponent->GetStateAttributeObject() : nullptr;
+	if (RuntimeStates != nullptr)
 	{
+		if (RuntimeEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource)
+		{
+			RuntimeStates->RemoveStateTagsFromSource(RuntimeEffectPackage.SourceContext.MakeSourceKey());
+		}
 		for (const FLxStateChangeEffect& StateEffect : RuntimeEffectPackage.StateChangeEffects)
 		{
 			if (!StateEffect.StateCategoryTag.IsValid() || !StateEffect.StateTag.IsValid())
@@ -739,19 +749,22 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 			switch (StateEffect.Operation)
 			{
 			case ELxStateEffectOperation::Add:
-				StateComponent->AddStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
+				if (StateEffect.bMaintainBySource)
+					RuntimeStates->AddStateTagFromSource(StateEffect.StateCategoryTag, StateEffect.StateTag, RuntimeEffectPackage.SourceContext.MakeSourceKey());
+				else
+					RuntimeStates->AddStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
 				break;
 			case ELxStateEffectOperation::Remove:
-				StateComponent->RemoveStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
+				RuntimeStates->RemoveStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
 				break;
 			case ELxStateEffectOperation::Toggle:
-				if (StateComponent->HasStateTagInCategory(StateEffect.StateCategoryTag, StateEffect.StateTag))
+				if (RuntimeStates->HasStateTagInCategory(StateEffect.StateCategoryTag, StateEffect.StateTag))
 				{
-					StateComponent->RemoveStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
+					RuntimeStates->RemoveStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
 				}
 				else
 				{
-					StateComponent->AddStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
+					RuntimeStates->AddStateTag(StateEffect.StateCategoryTag, StateEffect.StateTag);
 				}
 				break;
 			}
@@ -791,7 +804,7 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 				}
 
 				BuffComponent->AddBuffFromSourceContext(BuffEffect.BuffIDTag, BuffEffect.EffectProportion,
-					BuffEffect.Duration, RuntimeEffectPackage.SourceContext);
+					BuffEffect.Duration, RuntimeEffectPackage.SourceContext, BuffEffect.bMaintainBySource);
 			}
 		}
 	}
@@ -809,7 +822,13 @@ void ULxCharacterDataTransferComponent::DispatchEffectPackageByType(const FLxEff
 			SkillItemIDTags.AddUnique(SkillGrantEffect.SkillItemIDTag);
 		}
 
-		if (!SkillItemIDTags.IsEmpty())
+		if (RuntimeEffectPackage.SourceContext.SourceType == ELxEffectPackageSource::Equipment
+			&& RuntimeEffectPackage.ApplyPolicy == ELxEffectPackageApplyPolicy::ReplaceSameSource)
+		{
+			// 装备词条按完整快照同步，卸装后的空列表同样需要回收旧技能。
+			SkillBackpackComponent->SyncEquipmentGrantedSkillItems(SkillItemIDTags);
+		}
+		else if (!SkillItemIDTags.IsEmpty())
 		{
 			SkillBackpackComponent->AddSkillItemsByTagID(SkillItemIDTags);
 		}
@@ -1080,7 +1099,7 @@ void ULxCharacterDataTransferComponent::CollectEquipmentEntries(TArray<TObjectPt
 }
 
 void ULxCharacterDataTransferComponent::AppendBuffEntriesToEffectPackage(ULxBuff* InBuffLogic,
-	FLxEffectPackage& InOutEffectPackage) const
+	FLxEffectPackage& InOutEffectPackage, bool bPeriodicActivation) const
 {
 	if (InBuffLogic == nullptr || !InBuffLogic->ItemIsValid())
 	{
@@ -1097,6 +1116,15 @@ void ULxCharacterDataTransferComponent::AppendBuffEntriesToEffectPackage(ULxBuff
 			continue;
 		}
 
+		if (bPeriodicActivation)
+		{
+			if (!BuffComponent || !BuffComponent->ConsumeBuffEntryPeriod(InBuffLogic, EntryObject)) continue;
+		}
+		else if (EntryObject->GetEntryType() == ELxEntryType::AttributeRecovery)
+		{
+			// Buff 列表的增删刷新只重建持续效果，不能额外恢复或扣除生命值。
+			continue;
+		}
 		EntryObject->AppendEffectsToPackage(InOutEffectPackage, EffectProportion);
 	}
 }
@@ -1162,7 +1190,7 @@ void ULxCharacterDataTransferComponent::HandleBuffPeriodActivated(ULxBuff* BuffL
 		static_cast<int64>(ELxCharacterEntrySource::Buff)));
 	EffectPackage.TargetActor = GetOwner();
 	EffectPackage.ApplyPolicy = ELxEffectPackageApplyPolicy::Instant;
-	AppendBuffEntriesToEffectPackage(BuffLogic, EffectPackage);
+	AppendBuffEntriesToEffectPackage(BuffLogic, EffectPackage, true);
 	EffectPackage.AttributeModifierEffects.Reset();
 	DispatchEffectPackageByType(EffectPackage);
 	BroadcastBuffData();

@@ -13,22 +13,22 @@ namespace
 	/** 封套版本，与业务数据版本独立。 */
 	constexpr uint32 Version = 1;
 	/** 四个固定宽度字段的总字节数。 */
-	constexpr int32 HeaderSize = 16;
+	constexpr int32 SaveEnvelopeHeaderSize = 16;
 }
 
 USaveGame* LxSaveFile::Read(const FString& Slot, int32 UserIndex)
 {
 	if (!UGameplayStatics::DoesSaveGameExist(Slot, UserIndex)) return nullptr;
 	TArray<uint8> Bytes;
-	if (!UGameplayStatics::LoadDataFromSlot(Bytes, Slot, UserIndex) || Bytes.Num() <= HeaderSize) return nullptr;
+	if (!UGameplayStatics::LoadDataFromSlot(Bytes, Slot, UserIndex) || Bytes.Num() <= SaveEnvelopeHeaderSize) return nullptr;
 	FMemoryReader Reader(Bytes);
 	uint32 FileMagic = 0, FileVersion = 0, Checksum = 0;
 	int32 Size = 0;
 	Reader << FileMagic << FileVersion << Size << Checksum;
-	if (Reader.IsError() || FileMagic != Magic || FileVersion != Version || Size != Bytes.Num() - HeaderSize
-		|| Checksum != FCrc::MemCrc32(Bytes.GetData() + HeaderSize, Size)) return nullptr;
+	if (Reader.IsError() || FileMagic != Magic || FileVersion != Version || Size != Bytes.Num() - SaveEnvelopeHeaderSize
+		|| Checksum != FCrc::MemCrc32(Bytes.GetData() + SaveEnvelopeHeaderSize, Size)) return nullptr;
 	TArray<uint8> Payload;
-	Payload.Append(Bytes.GetData() + HeaderSize, Size);
+	Payload.Append(Bytes.GetData() + SaveEnvelopeHeaderSize, Size);
 	return UGameplayStatics::LoadGameFromMemory(Payload);
 }
 

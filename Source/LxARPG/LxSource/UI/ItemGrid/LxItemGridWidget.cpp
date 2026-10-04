@@ -115,7 +115,7 @@ bool ULxItemGridWidget::UseItem() const
 		return false;
 	}
 
-	// 技能必须统一通过技能释放组件处理；冷却未结束时直接返回失败，禁止回退到物品逻辑绕过冷却。
+	// 技能必须统一通过技能释放组件处理；动画或持续释放仍占用时直接失败，避免绕过状态校验。
 	if (GetItemType() == ELxItemType::Skill)
 	{
 		return TryReleaseSkillItemDirectly();
@@ -137,7 +137,7 @@ bool ULxItemGridWidget::StartUseItem() const
 		return false;
 	}
 
-	// 技能输入失败可能只是尚在冷却中，不能继续调用技能物品自身的无冷却释放路径。
+	// 技能输入失败可能只是动画或持续释放仍占用，不能回退到物品自身入口绕过状态校验。
 	if (GetItemType() == ELxItemType::Skill)
 	{
 		return TryStartUseSkillItem();

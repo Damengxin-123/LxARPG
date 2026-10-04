@@ -4,6 +4,7 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillUnitEnum.h"
 #include "LxSkillAreaSpec.h"
 #include "LxSkillAttachEffectSpec.h"
+#include "LxSkillElementAbnormalSpec.h"
 #include "LxSkillAuraEffectSpec.h"
 #include "LxSkillHitLimitSpec.h"
 #include "LxSkillLifeSpec.h"
@@ -215,6 +216,21 @@ struct FLxContinuousAttachEffectCreateParams
 	/** 依附效果共有参数。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|依附效果", DisplayName="依附效果参数")
 	FLxSkillAttachEffectSpec AttachEffectSpec;
+};
+
+/** 元素异常依附单元创建参数，目标仅来自前置命中结果。 */
+USTRUCT(BlueprintType, DisplayName="元素异常依附创建参数")
+struct FLxElementAbnormalAttachCreateParams
+{
+	GENERATED_BODY()
+
+	/** 生命周期参数；小于等于零时持续到外部结束。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|元素异常", DisplayName="依附效果参数")
+	FLxSkillAttachEffectSpec AttachEffectSpec;
+
+	/** 首次生效几率、角色状态、维持 Buff 和视觉资源。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能单元|创建|元素异常", DisplayName="异常参数")
+	FLxSkillElementAbnormalSpec AbnormalSpec;
 };
 
 /** 周期触发依附效果单元创建参数；依附目标由创建函数传入的前置命中结果提供。 */

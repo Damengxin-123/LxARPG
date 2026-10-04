@@ -62,7 +62,7 @@ void ULxAnimGraphNode_Action::ValidateAnimNodeDuringCompilation(USkeleton* ForSk
 	if (!Node.Animation->IsA<UAnimSequence>() && !Node.Animation->IsA<UAnimComposite>()
 		&& !Node.Animation->IsA<UBlendSpace>() && !Node.Animation->IsA<UAnimMontage>())
 		MessageLog.Error(TEXT("@@ 只支持动画序列、动画合成、混合空间和蒙太奇。"), this);
-	if (!ForSkeleton || !Node.Animation->GetSkeleton() || !ForSkeleton->IsCompatible(Node.Animation->GetSkeleton()))
+	if (!ForSkeleton || !Node.Animation->GetSkeleton() || !ForSkeleton->IsCompatibleForEditor(Node.Animation->GetSkeleton()))
 		MessageLog.Error(TEXT("@@ 动画资源与动画蓝图骨架不兼容。"), this);
 	if (!Node.bAttackChannel && (Node.MotionType == ELxCharacterMotionType::None
 		|| Node.MotionType == ELxCharacterMotionType::Attack || Node.MotionType == ELxCharacterMotionType::RangedAttack

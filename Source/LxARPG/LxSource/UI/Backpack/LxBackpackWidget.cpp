@@ -64,6 +64,8 @@ TArray<UObject*> ULxBackpackWidget::GetItemUIDataList()
 
 TArray<UObject*> ULxBackpackWidget::GetEquipmentUIDataList()
 {
+
+
 	TArray<UObject*> EquipmentUIDataList;
 	for (ULxItemSlotData* EquipmentSlot : m_vEquipmentSlotList)
 	{

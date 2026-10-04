@@ -31,12 +31,13 @@ bool ULxSaveComponentBase::InitializeSaveComponent()
 	return true;
 }
 
-void ULxSaveComponentBase::CacheSaveData()
+bool ULxSaveComponentBase::CacheSaveData()
 {
 	if (ULxSaveManager* Manager = SaveManager.Get())
 	{
-		Manager->CacheComponent(this);
+		return Manager->CacheComponent(this);
 	}
+	return false;
 }
 
 void ULxSaveComponentBase::DetachFromSaveManager()

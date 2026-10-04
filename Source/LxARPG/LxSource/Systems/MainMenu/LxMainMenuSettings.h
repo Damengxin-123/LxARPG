@@ -19,7 +19,7 @@ class LXARPG_API ULxMainMenuSettings : public UDeveloperSettings
 public:
 	/** 使用当前项目已有的关卡、角色和游戏模式作为默认配置。 */
 	ULxMainMenuSettings();
-	/** 可替换的主菜单控件蓝图；资源缺失时使用原生界面。 */
+	/** 提供完整布局的主菜单控件蓝图，必须继承主菜单逻辑基类。 */
 	UPROPERTY(EditAnywhere, config, Category="主菜单|界面", DisplayName="主菜单界面类型")
 	TSoftClassPtr<ULxMainMenuWidget> MenuWidgetClass;
 	/** 独立存档目录前缀，与旧单槽文件并存。 */
@@ -28,7 +28,7 @@ public:
 	/** 菜单展示与正式游玩共用的唯一总关卡，各地图档只切换其中的单位状态。 */
 	UPROPERTY(EditAnywhere, config, Category="主菜单|场景", DisplayName="总关卡")
 	TSoftObjectPtr<UWorld> DefaultLevel;
-	/** 首次运行和旧档缺少角色类时使用的可玩角色。 */
+	/** 仅用于兼容没有种族和角色类的旧档；新建角色通过数据表管理器的角色种族表选择类型。 */
 	UPROPERTY(EditAnywhere, config, Category="主菜单|角色", DisplayName="默认角色类型")
 	TSoftClassPtr<ALxPlayerCharacter> DefaultCharacter;
 	/** 仅保留旧配置的反序列化兼容；启动与返回菜单统一使用总关卡。 */

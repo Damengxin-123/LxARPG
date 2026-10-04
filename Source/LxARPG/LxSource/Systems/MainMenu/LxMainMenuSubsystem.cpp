@@ -2,6 +2,7 @@
 
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -11,6 +12,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "LxMainMenuSettings.h"
+#include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
 #include "LxMenuPreviewActor.h"
 #include "LxMenuPreferences.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
@@ -26,6 +28,7 @@
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/PackageName.h"
+#include "Misc/ScopeExit.h"
 #include "UObject/StrongObjectPtr.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
@@ -40,12 +43,19 @@ void ULxMainMenuSubsystem::Deinitialize()
 {
 	if (GEngine) GEngine->OnTravelFailure().RemoveAll(this);
 	ClearPresentation(); Character = nullptr; Store = nullptr;
+	OnMenuStateChanged.Clear();
 	Super::Deinitialize();
+}
+
+void ULxMainMenuSubsystem::NotifyMenuStateChanged()
+{
+	OnMenuStateChanged.Broadcast();
 }
 
 void ULxMainMenuSubsystem::HandleTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& Error)
 {
 	if (!World || World->GetGameInstance() != GetGameInstance()) return;
+	ON_SCOPE_EXIT { NotifyMenuStateChanged(); };
 	bBusy = false; bEnteringGame = false; bPlaying = false;
 	PendingError = TEXT("场景加载失败：") + Error;
 	Status = PendingError;
@@ -85,14 +95,8 @@ bool ULxMainMenuSubsystem::EnsureStore()
 	if (GetCharacters().IsEmpty())
 	{
 		FLxCharacterSaveRecord Record;
-		Record.bHasGameplayData = false;
-		ResolvePresentation(Record);
-		if (const UClass* Class = Record.CharacterClass.LoadSynchronous())
-		{
-			const ALxPlayerCharacter* Default = Cast<ALxPlayerCharacter>(Class->GetDefaultObject());
-			if (Default) Record.SaveID = Default->GetCharacterIDTag();
-		}
-		if (Record.SaveID.IsValid()) Store->CreateCharacter(TEXT("旅人"), Record);
+		if (!LxCharacterRace::CreateCharacterRecord(ELxCharacterRaceType::Human, Record, Status)) return false;
+		if (!Store->CreateCharacter(TEXT("旅人"), Record).IsValid()) { Status = Store->GetLastError(); return false; }
 	}
 	SelectedCharacterID = Store->GetCatalog()->LastCharacterID;
 	if (!GetSelectedCharacter() && !GetCharacters().IsEmpty()) SelectedCharacterID = GetCharacters()[0].ID;
@@ -102,14 +106,14 @@ bool ULxMainMenuSubsystem::EnsureStore()
 	return true;
 }
 
-void ULxMainMenuSubsystem::ResolvePresentation(FLxCharacterSaveRecord& Record) const
+bool ULxMainMenuSubsystem::ResolvePresentation(FLxCharacterSaveRecord& Record)
 {
-	const ULxMainMenuSettings* Settings = GetDefault<ULxMainMenuSettings>();
-	if (Record.CharacterClass.IsNull()) Record.CharacterClass = Settings->DefaultCharacter.ToSoftObjectPath();
-	const FSoftObjectPath MainLevel = Settings->DefaultLevel.ToSoftObjectPath();
+	if (!LxCharacterRace::ResolveCharacterRecord(Record, Status)) return false;
+	const FSoftObjectPath MainLevel = GetDefault<ULxMainMenuSettings>()->DefaultLevel.ToSoftObjectPath();
 	// 角色与地图档案共用总关卡，旧档若来自其他测试地图则回退出生点。
 	if (!Record.LevelPath.IsNull() && Record.LevelPath != MainLevel) Record.bHasSavedTransform = false;
 	Record.LevelPath = MainLevel;
+	return true;
 }
 
 FTransform ULxMainMenuSubsystem::FindFallbackTransform(UWorld* World) const
@@ -124,7 +128,13 @@ void ULxMainMenuSubsystem::CreateMenuWidget(UWorld* World)
 	APlayerController* Controller = World->GetFirstPlayerController();
 	if (!Controller || !Controller->IsLocalController()) return;
 	UClass* WidgetClass = GetDefault<ULxMainMenuSettings>()->MenuWidgetClass.LoadSynchronous();
-	Widget = CreateWidget<ULxMainMenuWidget>(Controller, WidgetClass ? WidgetClass : ULxMainMenuWidget::StaticClass());
+	// 布局必须来自控件蓝图，缺失时明确报错，不能退回空白原生控件并锁定输入。
+	if (!WidgetClass || !WidgetClass->IsChildOf(ULxMainMenuWidget::StaticClass()) || !Cast<UWidgetBlueprintGeneratedClass>(WidgetClass))
+	{
+		UE_LOG(LogTemp, Error, TEXT("主菜单界面类型必须配置为主菜单界面的控件蓝图子类，请运行主菜单布局迁移或检查项目设置。"));
+		return;
+	}
+	Widget = CreateWidget<ULxMainMenuWidget>(Controller, WidgetClass);
 	if (Widget)
 	{
 		Widget->AddToViewport(1000);
@@ -156,6 +166,7 @@ void ULxMainMenuSubsystem::ClearPresentation()
 
 void ULxMainMenuSubsystem::ShowMenu(UWorld* World)
 {
+	ON_SCOPE_EXIT { NotifyMenuStateChanged(); };
 	if (ULxGameInstanceSubsystem* Global = GetGameInstance()->GetSubsystem<ULxGameInstanceSubsystem>())
 		if (Global->GetSaveManager()) Global->GetSaveManager()->SetReadOnly(true);
 	ActivatePreviewEnvironment(World);
@@ -186,30 +197,26 @@ FString ULxMainMenuSubsystem::GetCharacterDescription() const
 	return FString::Printf(TEXT("职业等级 %d  ·  %s"), Level, *Character->Record.LevelPath.GetAssetName());
 }
 
+TArray<FLxCharacterRaceConfig> ULxMainMenuSubsystem::GetAvailableCharacterRaces() const
+{
+	TArray<FLxCharacterRaceConfig> Configs;
+	FString Error;
+	if (const ULxGameDataTablesManager* Manager = LxCharacterRace::GetConfiguredManager()) Manager->GetCharacterRaceConfigs(Configs, Error);
+	return Configs;
+}
+
 FString ULxMainMenuSubsystem::GetCharacterRaceName() const
 {
 	if (!Character) return TEXT("未知");
-	const UClass* CharacterClass = Character->Record.CharacterClass.IsNull()
-		? GetDefault<ULxMainMenuSettings>()->DefaultCharacter.LoadSynchronous()
-		: Character->Record.CharacterClass.LoadSynchronous();
-	if (!CharacterClass) return TEXT("未知");
-	const ALxBaseCharacter* Defaults = Cast<ALxBaseCharacter>(CharacterClass->GetDefaultObject());
-	if (!Defaults) return TEXT("未知");
-	// 显式保留运行时中文名称，避免打包时移除枚举编辑器显示元数据后出现英文。
-	switch (Defaults->GetCharacterRace())
-	{
-	case ELxCharacterRaceType::Human: return TEXT("人类");
-	case ELxCharacterRaceType::Elves: return TEXT("精灵");
-	case ELxCharacterRaceType::Dwarves: return TEXT("矮人");
-	case ELxCharacterRaceType::Dragon: return TEXT("龙族");
-	case ELxCharacterRaceType::Beastmen_1: return TEXT("兽人1");
-	case ELxCharacterRaceType::Beastmen_2: return TEXT("兽人2");
-	default: return TEXT("未知");
-	}
+	const ULxGameDataTablesManager* Manager = LxCharacterRace::GetConfiguredManager();
+	FLxCharacterRaceConfig Config;
+	FString Error;
+	return Manager && Manager->GetCharacterRaceConfig(Character->Record.CharacterRace, Config, Error) ? Config.RaceName.ToString() : TEXT("未知");
 }
 
 void ULxMainMenuSubsystem::TravelToMenu(const FSoftObjectPath& Level)
 {
+	ON_SCOPE_EXIT { NotifyMenuStateChanged(); };
 	UWorld* World = GetWorld();
 	const FString Package = Level.GetLongPackageName();
 	if (!World || !FPackageName::DoesPackageExist(Package)) { bBusy = false; Status = TEXT("找不到角色所在关卡，请检查主菜单场景配置。"); return; }
@@ -221,9 +228,10 @@ void ULxMainMenuSubsystem::TravelToMenu(const FSoftObjectPath& Level)
 
 void ULxMainMenuSubsystem::RefreshPreview()
 {
+	ON_SCOPE_EXIT { NotifyMenuStateChanged(); };
 	Character = Store ? Store->ReadCharacter(SelectedCharacterID) : nullptr;
 	if (!Character) { Status = Store ? Store->GetLastError() : TEXT("尚无角色存档，请新建角色。"); bBusy = false; return; }
-	ResolvePresentation(Character->Record);
+	if (!ResolvePresentation(Character->Record)) { Character = nullptr; bBusy = false; return; }
 	UWorld* World = MenuWorld.Get();
 	if (!World) return;
 	bBusy = true; Status = TEXT("正在前往角色所在位置…"); LoadStartedAt = FPlatformTime::Seconds();
@@ -246,10 +254,12 @@ void ULxMainMenuSubsystem::TickPreview(float DeltaSeconds)
 	if (Preview->IsPresentationReady())
 	{
 		bBusy = false; Status = PendingError;
+		NotifyMenuStateChanged();
 	}
 	else if (FPlatformTime::Seconds() - LoadStartedAt > GetDefault<ULxMainMenuSettings>()->StreamingTimeout)
 	{
 		bBusy = false; Status = TEXT("场景加载超时，可以切换角色后重试。");
+		NotifyMenuStateChanged();
 	}
 }
 
@@ -267,27 +277,29 @@ void ULxMainMenuSubsystem::SwitchCharacter(int32 Direction)
 
 void ULxMainMenuSubsystem::SelectWorld(const FGuid& WorldID)
 {
-	if (!bBusy && !HasSession() && GetWorlds().ContainsByPredicate([&WorldID](const FLxSaveProfile& E) { return E.ID == WorldID; })) SelectedWorldID = WorldID;
+	if (!bBusy && !HasSession() && SelectedWorldID != WorldID
+		&& GetWorlds().ContainsByPredicate([&WorldID](const FLxSaveProfile& E) { return E.ID == WorldID; }))
+	{
+		SelectedWorldID = WorldID;
+		NotifyMenuStateChanged();
+	}
 }
 
-void ULxMainMenuSubsystem::CreateCharacter(const FString& Name)
+void ULxMainMenuSubsystem::CreateCharacter(const FString& Name, ELxCharacterRaceType Race)
 {
+	ON_SCOPE_EXIT { NotifyMenuStateChanged(); };
 	if (bBusy || HasSession() || !EnsureStore()) return;
 	FLxCharacterSaveRecord Record;
-	Record.bHasGameplayData = false;
-	ResolvePresentation(Record);
-	if (const UClass* Class = Record.CharacterClass.LoadSynchronous())
-	{
-		if (const ALxPlayerCharacter* Default = Cast<ALxPlayerCharacter>(Class->GetDefaultObject())) Record.SaveID = Default->GetCharacterIDTag();
-	}
+	if (!LxCharacterRace::CreateCharacterRecord(Race, Record, Status)) return;
 	const FGuid ID = Store->CreateCharacter(Name, Record);
-	if (!ID.IsValid()) { Status = TEXT("新建角色失败，请检查名称和默认角色配置。"); return; }
+	if (!ID.IsValid()) { Status = TEXT("新建角色失败，请检查角色名称和存档目录。"); return; }
 	SelectedCharacterID = ID;
 	RefreshPreview();
 }
 
 void ULxMainMenuSubsystem::CreateWorld(const FString& Name)
 {
+	ON_SCOPE_EXIT { NotifyMenuStateChanged(); };
 	if (bBusy || HasSession() || !EnsureStore()) return;
 	const FGuid ID = Store->CreateWorld(Name);
 	if (ID.IsValid()) { SelectedWorldID = ID; Status.Reset(); }
@@ -308,6 +320,7 @@ const FLxCharacterSaveRecord* ULxMainMenuSubsystem::GetSessionRecord() const
 void ULxMainMenuSubsystem::EnterGame()
 {
 	if (!CanEnterGame()) return;
+	ON_SCOPE_EXIT { NotifyMenuStateChanged(); };
 	PendingError.Reset();
 	const ULxMainMenuSettings* Settings = GetDefault<ULxMainMenuSettings>();
 	UClass* PawnClass = Character->Record.CharacterClass.LoadSynchronous();
@@ -320,11 +333,16 @@ void ULxMainMenuSubsystem::EnterGame()
 	TStrongObjectPtr<ULxGameSaveData> Session(Store->ReadSession(SelectedCharacterID, SelectedWorldID));
 	ULxGameInstanceSubsystem* Global = GetGameInstance()->GetSubsystem<ULxGameInstanceSubsystem>();
 	if (!Session || !Global) { Status = Store->GetLastError(); return; }
+	FLxCharacterSaveRecord* SessionRecord = Session->Players.Find(Character->Record.SaveID);
+	if (!SessionRecord || !ResolvePresentation(*SessionRecord)) return;
+	Character->Record = *SessionRecord;
 	ULxSaveManager* Manager = NewObject<ULxSaveManager>(Global);
 	if (!Manager->InitializeSession(Session.Get(), FLxPersistSaveSession::CreateUObject(this, &ThisClass::PersistSession))) return;
 	ActiveCharacterID = SelectedCharacterID; ActiveWorldID = SelectedWorldID;
 	Global->SetSessionSaveManager(Manager);
 	bBusy = true; bEnteringGame = true; Status = TEXT("正在恢复地图与角色…");
+	// 正式玩法启动可能同步卸载菜单，先通知蓝图显示加载状态。
+	NotifyMenuStateChanged();
 	UWorld* World = GetWorld();
 	// 总关卡已经处于菜单态时，沿用当前世界及已加载区域，仅切换玩法阶段。
 	if (ALxARPGGameMode* Mode = World ? World->GetAuthGameMode<ALxARPGGameMode>() : nullptr;
@@ -421,6 +439,7 @@ void ULxMainMenuSubsystem::FailGameplayStart(const FString& Reason)
 bool ULxMainMenuSubsystem::ReturnToMenu()
 {
 	if (bEnteringGame || !bPlaying) return false;
+	ON_SCOPE_EXIT { NotifyMenuStateChanged(); };
 	ULxGameInstanceSubsystem* Global = GetGameInstance()->GetSubsystem<ULxGameInstanceSubsystem>();
 	if (!Global || !Global->RequestSaveGame()) { Status = TEXT("保存失败，当前游戏已保留，请重试。"); return false; }
 	Global->GetSaveManager()->SetReadOnly(true);
@@ -432,6 +451,7 @@ bool ULxMainMenuSubsystem::ReturnToMenu()
 void ULxMainMenuSubsystem::QuitGame()
 {
 	if (bBusy) return;
+	ON_SCOPE_EXIT { NotifyMenuStateChanged(); };
 	if (bPlaying)
 	{
 		ULxGameInstanceSubsystem* Global = GetGameInstance()->GetSubsystem<ULxGameInstanceSubsystem>();

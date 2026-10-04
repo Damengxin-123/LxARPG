@@ -25,10 +25,10 @@ public:
 	/** 应用功能节点提供的商城初始配置。 */
 	void ApplyConfig(const FLxTradeContainerInteractionConfig& InConfig);
 
-	/** 保存商品剩余库存、交互状态和运行时价格倍率。 */
+	/** 仅保存有限库存商品的槽位、物品ID及剩余数量，售罄商品保留零数量。 */
 	virtual bool CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const override;
 
-	/** 恢复商店库存和价格设置，并刷新客户端需要的复制快照。 */
+	/** 按当前商品配置恢复匹配的有限库存，兼容旧档并保留无限商品与当前价格设置。 */
 	virtual bool RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord) override;
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;

@@ -4,6 +4,7 @@
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "Net/UnrealNetwork.h"
+#include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 
 namespace
 {
@@ -126,7 +127,7 @@ ULxBuff* ULxCharacterBuffModule::AddBuff(FGameplayTag InBuffIDTag, float InEffec
 }
 
 ULxBuff* ULxCharacterBuffModule::AddBuffFromSourceContext(FGameplayTag InBuffIDTag, float InEffectProportion,
-	float InDurationOverride, const FLxEffectSourceContext& InSourceContext)
+	float InDurationOverride, const FLxEffectSourceContext& InSourceContext, bool bMaintainBySource)
 {
 	if (!InBuffIDTag.IsValid())
 	{
@@ -141,10 +142,12 @@ ULxBuff* ULxCharacterBuffModule::AddBuffFromSourceContext(FGameplayTag InBuffIDT
 		InitializeModule(GetContentComponent());
 	}
 
-	if (FLxBuffRuntimeInfo* ExistingRuntimeInfo = FindFirstRuntimeInfoByTagID(InBuffIDTag))
+	if (FLxBuffRuntimeInfo* ExistingRuntimeInfo = FindFirstRuntimeInfoByTagID(InBuffIDTag, bMaintainBySource ? SourceKey : NAME_None))
 	{
 		if (ExistingRuntimeInfo->BuffLogic != nullptr)
 		{
+			// 同一来源重复提交维持请求时不重复创建或增加引用。
+			if (bMaintainBySource) return ExistingRuntimeInfo->BuffLogic;
 			int32& SourceReferenceCount = ExistingRuntimeInfo->SourceReferenceCounts.FindOrAdd(EntrySource);
 			++SourceReferenceCount;
 			int32& SourceKeyReferenceCount = ExistingRuntimeInfo->SourceKeyReferenceCounts.FindOrAdd(SourceKey);
@@ -173,7 +176,9 @@ ULxBuff* ULxCharacterBuffModule::AddBuffFromSourceContext(FGameplayTag InBuffIDT
 	FLxBuffRuntimeInfo RuntimeInfo;
 	RuntimeInfo.BuffLogic = NewBuffLogic;
 	RuntimeInfo.BuffIDTag = InBuffIDTag;
+	RuntimeInfo.AddedWorldTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	RuntimeInfo.EffectProportion = InEffectProportion;
+	RuntimeInfo.bMaintainedBySource = bMaintainBySource;
 	RuntimeInfo.RemainingDuration = InDurationOverride;
 	RuntimeInfo.SourceReferenceCounts.Add(EntrySource, 1);
 	RuntimeInfo.SourceKeyReferenceCounts.Add(SourceKey, 1);
@@ -425,11 +430,13 @@ const FLxBuffRuntimeInfo* ULxCharacterBuffModule::FindRuntimeInfo(ULxBuff* InBuf
 	return nullptr;
 }
 
-FLxBuffRuntimeInfo* ULxCharacterBuffModule::FindFirstRuntimeInfoByTagID(FGameplayTag InBuffIDTag)
+FLxBuffRuntimeInfo* ULxCharacterBuffModule::FindFirstRuntimeInfoByTagID(FGameplayTag InBuffIDTag, FName MaintainedSourceKey)
 {
 	for (FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
 	{
-		if (RuntimeInfo.BuffIDTag == InBuffIDTag)
+		if (RuntimeInfo.BuffIDTag == InBuffIDTag
+			&& (MaintainedSourceKey.IsNone() ? !RuntimeInfo.bMaintainedBySource
+				: RuntimeInfo.bMaintainedBySource && RuntimeInfo.SourceKeyReferenceCounts.Contains(MaintainedSourceKey)))
 		{
 			return &RuntimeInfo;
 		}
@@ -445,6 +452,25 @@ int32 ULxCharacterBuffModule::GetTotalSourceReferenceCount(const FLxBuffRuntimeI
 		TotalReferenceCount += SourceReferencePair.Value;
 	}
 	return TotalReferenceCount;
+}
+
+bool ULxCharacterBuffModule::ConsumeBuffEntryPeriod(ULxBuff* InBuffLogic, ULxEntryObjectBase* InEntry)
+{
+	if (!GetWorld() || !IsValid(InEntry)) return false;
+	for (FLxBuffRuntimeInfo& RuntimeInfo : m_vBuffRuntimeInfos)
+	{
+		if (RuntimeInfo.BuffLogic != InBuffLogic) continue;
+		const float ConfiguredInterval = InEntry->GetEntryQuote().EntryCD;
+		if (!FMath::IsFinite(ConfiguredInterval)) return false;
+		const double Interval = FMath::Max(ConfiguredInterval, BUFF_COMPONENT_TIMER_INTERVAL);
+		double* NextTime = RuntimeInfo.NextEntryActivationTimes.Find(InEntry);
+		if (!NextTime) NextTime = &RuntimeInfo.NextEntryActivationTimes.Add(InEntry, RuntimeInfo.AddedWorldTime + Interval);
+		if (GetWorld()->GetTimeSeconds() + KINDA_SMALL_NUMBER < *NextTime) return false;
+		// 按原计划推进，避免每次轮询误差累积；先消费，再广播，防止重入重复扣血。
+		*NextTime += Interval;
+		return true;
+	}
+	return false;
 }
 
 void ULxCharacterBuffModule::StartBuffTimer()
@@ -485,8 +511,12 @@ void ULxCharacterBuffModule::HandleBuffTimerTick()
 	bool bRemovedInvalidBuff = false;
 	bool bUpdatedDuration = false;
 
-	for (int32 Index = m_vBuffRuntimeInfos.Num() - 1; Index >= 0; --Index)
+	// 周期扣血可能导致死亡并撤回 Buff，使用快照，避免广播时数组失效。
+	const TArray<FLxBuffRuntimeInfo> RuntimeSnapshot = m_vBuffRuntimeInfos;
+	for (const FLxBuffRuntimeInfo& Snapshot : RuntimeSnapshot)
 	{
+		const int32 Index = m_vBuffRuntimeInfos.IndexOfByPredicate([&](const FLxBuffRuntimeInfo& Info) { return Info.BuffLogic == Snapshot.BuffLogic; });
+		if (Index == INDEX_NONE) continue;
 		FLxBuffRuntimeInfo& RuntimeInfo = m_vBuffRuntimeInfos[Index];
 		ULxBuff* BuffLogic = RuntimeInfo.BuffLogic;
 		if (BuffLogic == nullptr || !BuffLogic->ItemIsValid())
@@ -496,24 +526,25 @@ void ULxCharacterBuffModule::HandleBuffTimerTick()
 			continue;
 		}
 
-		if (RuntimeInfo.RemainingDuration >= 0.f && RuntimeInfo.RemainingDuration <= KINDA_SMALL_NUMBER)
+		if (!RuntimeInfo.bMaintainedBySource && RuntimeInfo.RemainingDuration >= 0.f && RuntimeInfo.RemainingDuration <= KINDA_SMALL_NUMBER)
 		{
 			ExpiredBuffs.Add(BuffLogic);
 			continue;
 		}
 
-		ActivateBuffEntries(BuffLogic);
-
 		if (RuntimeInfo.RemainingDuration >= 0.f)
 		{
-			RuntimeInfo.RemainingDuration -= BUFF_COMPONENT_TIMER_INTERVAL;
+			// 来源维持型仅更新显示倒计时，实际结束始终由来源单元决定。
+			RuntimeInfo.RemainingDuration = FMath::Max(0.f, RuntimeInfo.RemainingDuration - BUFF_COMPONENT_TIMER_INTERVAL);
 			BuffLogic->SetRemainingDuration(RuntimeInfo.RemainingDuration);
 			bUpdatedDuration = true;
-			if (RuntimeInfo.RemainingDuration <= KINDA_SMALL_NUMBER)
+			if (!RuntimeInfo.bMaintainedBySource && RuntimeInfo.RemainingDuration <= KINDA_SMALL_NUMBER)
 			{
 				ExpiredBuffs.Add(BuffLogic);
 			}
 		}
+		// 回调之后不再访问 RuntimeInfo，目标死亡时它可能已经被移除。
+		ActivateBuffEntries(BuffLogic);
 	}
 
 	for (ULxBuff* ExpiredBuff : ExpiredBuffs)

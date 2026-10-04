@@ -356,12 +356,20 @@ int32 ULxMimicAnimationCommandlet::Main(const FString& Params)
 		FString RuntimeReport;
 		const bool bPassed = VerifyRuntime(Target, Mesh, RuntimeReport);
 		Report += RuntimeReport;
-		FFileHelper::SaveStringToFile(Report, *(FPaths::ProjectSavedDir() / TEXT("MimicAnimation/Verification.txt")), FFileHelper::EEncodingOptions::ForceUTF8);
+		// 验证报告必须成功写盘，不能在目录创建或保存失败后宣告命令执行成功。
+		const FString ReportPath = FPaths::ProjectSavedDir() / TEXT("MimicAnimation/Verification.txt");
+		const bool bReportSaved = IFileManager::Get().MakeDirectory(*FPaths::GetPath(ReportPath), true)
+			&& FFileHelper::SaveStringToFile(Report, *ReportPath, FFileHelper::EEncodingOptions::ForceUTF8);
+		if (!bReportSaved)
+		{
+			UE_LOG(LogTemp, Error, TEXT("宝箱怪动画验证报告保存失败：%s"), *ReportPath);
+		}
 		if (!bPassed)
 		{
 			UE_LOG(LogTemp, Error, TEXT("MIMIC_ANIMATION_VERIFY_FAILED %s"), *RuntimeReport);
 			return 13;
 		}
+		if (!bReportSaved) return 14;
 		UE_LOG(LogTemp, Display, TEXT("MIMIC_ANIMATION_%s_OK %s"), bApply ? TEXT("APPLY") : TEXT("VERIFY"), *RuntimeReport);
 		return 0;
 	}

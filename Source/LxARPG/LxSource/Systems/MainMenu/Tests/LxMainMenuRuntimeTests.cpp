@@ -9,6 +9,8 @@
 #include "GameFramework/PlayerController.h"
 #include "UnrealClient.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
+#include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentComponent.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxSaveFile.h"
 #include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
 #include "UObject/StrongObjectPtr.h"
@@ -40,12 +42,17 @@ public:
 			if (!CheckMenuState(World)) return true;
 			InitialMenuWorld = World;
 			OriginalID = Menu->GetSelectedCharacter()->ID;
+			Test->TestEqual(TEXT("菜单种族读取表中中文名"), Menu->GetCharacterRaceName(), FString(TEXT("人类")));
+			Test->TestEqual(TEXT("新建界面仅提供已配置的人类"), Menu->GetAvailableCharacterRaces().Num(), 1);
 			FScreenshotRequest::RequestScreenshot(FPaths::ProjectSavedDir() / TEXT("Automation/MainMenu/主菜单.png"), true, false);
 			++Step; NextStepAt = FPlatformTime::Seconds() + 2;
 		}
 		else if (Step == 1)
 		{
-			Menu->CreateCharacter(TEXT("测试角色二"));
+			const int32 Before = Menu->GetCharacters().Num();
+			Menu->CreateCharacter(TEXT("不应创建的精灵"), ELxCharacterRaceType::Elves);
+			Test->TestEqual(TEXT("未配置种族不产生存档"), Menu->GetCharacters().Num(), Before);
+			Menu->CreateCharacter(TEXT("测试角色二"), ELxCharacterRaceType::Human);
 			++Step; NextStepAt = FPlatformTime::Seconds() + 1;
 		}
 		else if (Step == 2)
@@ -54,6 +61,10 @@ public:
 			Test->TestTrue(TEXT("新建同类型角色身份独立"), Menu->GetSelectedCharacter()->ID != OriginalID);
 			Test->TestTrue(TEXT("新建并切换角色沿用初始总关卡世界"), InitialMenuWorld.Get() == World);
 			if (!CheckMenuState(World)) return true;
+			TStrongObjectPtr<ULxCharacterProfileSave> NewSave(Cast<ULxCharacterProfileSave>(LxSaveFile::Read(Menu->GetSelectedCharacter()->Slot, GetDefault<ULxGameSettings>()->SaveUserIndex)));
+			if (!Test->TestNotNull(TEXT("新建角色已经写入独立文件"), NewSave.Get())) return true;
+			Test->TestTrue(TEXT("新角色文件明确保存人类种族"), NewSave->Record.CharacterRace == ELxCharacterRaceType::Human);
+			Test->TestEqual(TEXT("新角色存档仍指向总关卡"), NewSave->Record.LevelPath.GetLongPackageName(), GetDefault<ULxMainMenuSettings>()->DefaultLevel.ToSoftObjectPath().GetLongPackageName());
 			Menu->SwitchCharacter(-1);
 			++Step; NextStepAt = FPlatformTime::Seconds() + 1;
 		}
@@ -77,7 +88,12 @@ public:
 			if (!Test->TestNotNull(TEXT("正式玩家已生成"), Pawn)) return true;
 			ULxGameInstanceSubsystem* Global = World->GetGameInstance()->GetSubsystem<ULxGameInstanceSubsystem>();
 			Test->TestFalse(TEXT("正式会话允许保存"), Global->GetSaveManager()->IsReadOnly());
-			SavedPlayerLocation = Pawn->GetActorLocation();
+			ALxPlayerCharacter* Player = Cast<ALxPlayerCharacter>(Pawn);
+			if (!Test->TestNotNull(TEXT("控制器持有玩家角色子类"), Player)) return true;
+			Test->TestTrue(TEXT("运行时种族与存档一致"), Player->GetCharacterRace() == ELxCharacterRaceType::Human);
+			Test->TestEqual(TEXT("控制器持有种族表指定的角色类"), FSoftObjectPath(Player->GetClass()), Menu->GetSessionRecord()->CharacterClass.ToSoftObjectPath());
+			if (!Test->TestTrue(TEXT("设置可验证的测试背包进度"), Player->GetCharacterContentComponent()->GetBackpackModule()->RestoreBackpackSaveData(37, {}))) return true;
+			SavedPlayerLocation = Player->GetActorLocation();
 			if (!Test->TestTrue(TEXT("游戏保存成功"), Global->RequestSaveGame())) return true;
 			if (!Test->TestTrue(TEXT("保存并返回主菜单"), Menu->ReturnToMenu())) return true;
 			++Step;
@@ -117,6 +133,8 @@ public:
 			APlayerController* Controller = World->GetFirstPlayerController();
 			ALxPlayerCharacter* Player = Controller ? Cast<ALxPlayerCharacter>(Controller->GetPawn()) : nullptr;
 			if (!Test->TestNotNull(TEXT("重新读档后控制器接管角色"), Player)) return true;
+			Test->TestTrue(TEXT("重新读档保留人类种族"), Player->GetCharacterRace() == ELxCharacterRaceType::Human);
+			Test->TestEqual(TEXT("存档进度恢复到种族角色实例"), Player->GetCharacterContentComponent()->GetBackpackModule()->GetAllItems().Num(), 37);
 			if (!Test->TestTrue(TEXT("验证后正常返回菜单"), Menu->ReturnToMenu())) return true;
 			++Step;
 		}

@@ -367,8 +367,8 @@ private:
 	void BuildEntryPackage(ELxCharacterEntrySource InEntrySource, const TArray<TObjectPtr<ULxEntryObjectBase>>& InEntryList, FLxCharacterEntryPackage& OutEntryPackage) const;
 	void BuildEffectPackageFromEntryPackage(const FLxCharacterEntryPackage& InEntryPackage, FLxEffectPackage& OutEffectPackage) const;
 	void CollectEquipmentEntries(TArray<TObjectPtr<ULxEntryObjectBase>>& OutEntryList) const;
-	/** 按运行时效果比例将指定 Buff 的全部词条追加到效果包。 */
-	void AppendBuffEntriesToEffectPackage(ULxBuff* InBuffLogic, FLxEffectPackage& InOutEffectPackage) const;
+	/** 汇总持续词条，或按每条词条的生效 CD 消费周期效果；汇总不会执行资源扣减。 */
+	void AppendBuffEntriesToEffectPackage(ULxBuff* InBuffLogic, FLxEffectPackage& InOutEffectPackage, bool bPeriodicActivation = false) const;
 
 	UFUNCTION()
 	void HandleAttributeSnapshotChanged(const FLxTypedAttributeSnapshot& AttributeSnapshot);

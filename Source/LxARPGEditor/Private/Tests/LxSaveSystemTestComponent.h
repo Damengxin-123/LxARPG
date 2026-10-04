@@ -29,7 +29,7 @@ public:
 		if (!InSaveData) return false;
 		if (bPlayer) InSaveData->Players.Add(GetSaveID(), PlayerRecord);
 		else InSaveData->Interactions.Add(GetSaveID(), InteractionRecord);
-		return true;
+		return !bRejectCapture;
 	}
 
 	/** 恢复存档属性；可模拟业务配置不兼容导致恢复失败。 */
@@ -62,6 +62,9 @@ public:
 
 	/** 模拟已有记录与当前业务配置不兼容。 */
 	bool bRejectRestore = false;
+
+	/** 模拟采集回调先写入数据、随后因业务错误返回失败，验证旧缓存不会被污染。 */
+	bool bRejectCapture = false;
 
 	/** 已发生的状态采集次数。 */
 	mutable int32 CaptureCount = 0;

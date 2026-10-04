@@ -27,9 +27,66 @@ bool ULxSkillBackpackModule::AddSkillItemsByTagID(const TArray<FGameplayTag>& In
 	bool bAllSucceeded = !InSkillItemIDTags.IsEmpty();
 	for (const FGameplayTag SkillItemIDTag : InSkillItemIDTags)
 	{
+		// 永久学习已由装备授予的技能时，也需要解除卸装回收标记。
+		EquipmentOnlySkillItemIDTags.Remove(SkillItemIDTag);
 		bAllSucceeded = AddSkillItemByTagID(SkillItemIDTag) && bAllSucceeded;
 	}
 	return bAllSucceeded;
+}
+
+void ULxSkillBackpackModule::SyncEquipmentGrantedSkillItems(const TArray<FGameplayTag>& InSkillItemIDTags)
+{
+	TSet<FGameplayTag> NewEquipmentSkillTags;
+	for (const FGameplayTag SkillItemIDTag : InSkillItemIDTags)
+	{
+		if (SkillItemIDTag.IsValid())
+		{
+			NewEquipmentSkillTags.Add(SkillItemIDTag);
+		}
+	}
+
+	TArray<TObjectPtr<ULxSkillItem>> RemovedSkillItems;
+	for (int32 Index = SkillItemList.Num() - 1; Index >= 0; --Index)
+	{
+		ULxSkillItem* SkillItem = SkillItemList[Index];
+		if (SkillItem && EquipmentOnlySkillItemIDTags.Contains(SkillItem->ItemIDTag())
+			&& !NewEquipmentSkillTags.Contains(SkillItem->ItemIDTag()))
+		{
+			EquipmentOnlySkillItemIDTags.Remove(SkillItem->ItemIDTag());
+			RemovedSkillItems.Add(SkillItem);
+			SkillItemList.RemoveAt(Index);
+		}
+	}
+
+	bool bItemsChanged = !RemovedSkillItems.IsEmpty();
+	for (const FGameplayTag SkillItemIDTag : InSkillItemIDTags)
+	{
+		if (!SkillItemIDTag.IsValid() || ContainsSkillItem(SkillItemIDTag))
+		{
+			continue;
+		}
+
+		ULxSkillItem* SkillItem = Cast<ULxSkillItem>(
+			ULxItemBase::CreateItemObject(this, FLxItemQuote(SkillItemIDTag, 1)));
+		if (SkillItem && SkillItem->ItemIsValid())
+		{
+			SkillItemList.Add(SkillItem);
+			EquipmentOnlySkillItemIDTags.Add(SkillItemIDTag);
+			bItemsChanged = true;
+		}
+	}
+
+	if (bItemsChanged)
+	{
+		// 先更新列表并解绑旧展示槽，再通知快捷栏中的共享技能引用失效。
+		RebuildSkillItemSlots();
+		for (ULxSkillItem* SkillItem : RemovedSkillItems)
+		{
+			SkillItem->InvalidateSkillItem();
+		}
+		SyncReplicatedSkillItemIDTags();
+		OnDataChange.Broadcast();
+	}
 }
 
 bool ULxSkillBackpackModule::AddSkillItemByTagID(FGameplayTag InSkillItemIDTag)
@@ -188,9 +245,26 @@ void ULxSkillBackpackModule::SyncReplicatedSkillItemIDTags()
 
 void ULxSkillBackpackModule::OnRep_ReplicatedSkillItemIDTags()
 {
-	SkillItemList.Reset();
+	TArray<TObjectPtr<ULxSkillItem>> RemovedSkillItems;
+	for (int32 Index = SkillItemList.Num() - 1; Index >= 0; --Index)
+	{
+		ULxSkillItem* SkillItem = SkillItemList[Index];
+		if (!SkillItem || !ReplicatedSkillItemIDTags.Contains(SkillItem->ItemIDTag()))
+		{
+			if (SkillItem)
+			{
+				RemovedSkillItems.Add(SkillItem);
+			}
+			SkillItemList.RemoveAt(Index);
+		}
+	}
 	for (const FGameplayTag SkillItemIDTag : ReplicatedSkillItemIDTags)
 	{
+		// 保留仍拥有的技能实例，使快捷栏引用与技能背包保持一致。
+		if (ContainsSkillItem(SkillItemIDTag))
+		{
+			continue;
+		}
 		ULxSkillItem* SkillItem = Cast<ULxSkillItem>(
 			ULxItemBase::CreateItemObject(this, FLxItemQuote(SkillItemIDTag, 1)));
 		if (SkillItem && SkillItem->ItemIsValid())
@@ -200,5 +274,9 @@ void ULxSkillBackpackModule::OnRep_ReplicatedSkillItemIDTags()
 	}
 
 	RebuildSkillItemSlots();
+	for (ULxSkillItem* SkillItem : RemovedSkillItems)
+	{
+		SkillItem->InvalidateSkillItem();
+	}
 	OnDataChange.Broadcast();
 }

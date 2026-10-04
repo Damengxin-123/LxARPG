@@ -141,7 +141,7 @@ struct FLxEntryAttributeRecovery : public FLxEntryBase
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条", DisplayName = "作用方式")
 	ELxEntryEffectiveType EffectiveType = ELxEntryEffectiveType::BasicValue;
 
-	/** 恢复数值；有持续时间时表示每秒恢复值。 */
+	/** 单次生效的恢复数值，负数表示扣减；Buff 周期由词条引用的生效 CD 决定。 */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条", DisplayName = "恢复数值")
 	float EntryValue = 0.f;
 
@@ -312,7 +312,7 @@ struct FLxEntryQuote
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条", DisplayName = "词条生效比例")
 	float EntryProportion = 1.f;
 
-	/** 词条生效 CD。 */
+	/** Buff 中的周期生效间隔（秒）；首次等待完整周期，最小间隔为 0.1 秒。 */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "词条", DisplayName = "词条生效CD")
 	float EntryCD = 1.f;
 

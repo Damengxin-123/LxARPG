@@ -60,7 +60,9 @@ private:
 	void RegisterShortcutInputActions();
 	bool HandleShortcutPressed(ELxInputActionID InInputActionID);
 	bool SelectShortcutByOffset(int32 InOffset);
+	/** 按住直接释放技能时逐帧检查释放占用，空闲后尝试下一次释放。 */
 	void UseSelectedShortcutRepeatedly();
+	/** 取消已排队的下一帧释放检查。 */
 	void StopRepeatedUseTimer();
 	void SetFacingControlRequestedByShortcut(bool bInRequested);
 	ULxItemGridWidget* GetShortcutGridByInputAction(ELxInputActionID InInputActionID) const;
@@ -95,5 +97,6 @@ private:
 	UPROPERTY(Transient)
 	bool bFacingControlRequestedByShortcut = false;
 
+	/** 下一帧释放检查句柄，仅调度输入重试，不定义技能释放间隔。 */
 	FTimerHandle RepeatedUseTimerHandle;
 };

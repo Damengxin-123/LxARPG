@@ -1,7 +1,7 @@
 # LxARPG
 
-> 基于 Unreal Engine 5.6 开发的模块化动作角色扮演游戏项目。  
-> A modular action RPG project built with Unreal Engine 5.6.
+> 基于 Unreal Engine 5.8 开发的模块化动作角色扮演游戏项目。\
+> A modular action RPG project built with Unreal Engine 5.8.
 
 [中文](#中文说明) | [English](#english)
 
@@ -11,7 +11,7 @@
 
 ### 项目简介
 
-LxARPG 是一个使用 **Unreal Engine 5.6**、**C++** 与**蓝图**共同开发的第三人称 ARPG 项目。项目以组件化和数据驱动为主要设计方向，围绕角色战斗、技能组合、属性成长、物品管理、AI 行为、场景交互及游戏 UI 搭建可扩展的玩法框架。
+LxARPG 是一个使用 **Unreal Engine 5.8**、**C++** 与**蓝图**共同开发的第三人称 ARPG 项目。项目以组件化和数据驱动为主要设计方向，围绕角色战斗、技能组合、属性成长、物品管理、AI 行为、场景交互及游戏 UI 搭建可扩展的玩法框架。
 
 当前项目仍处于持续开发阶段，主要用于 ARPG 核心玩法和通用系统的设计、实现与验证。
 
@@ -30,7 +30,7 @@ LxARPG 是一个使用 **Unreal Engine 5.6**、**C++** 与**蓝图**共同开发
 
 ### 技术信息
 
-- Unreal Engine 5.6
+- Unreal Engine 5.8
 - C++ / Blueprint（蓝图）
 - Enhanced Input（增强输入）
 - UMG / Slate
@@ -42,7 +42,7 @@ LxARPG 是一个使用 **Unreal Engine 5.6**、**C++** 与**蓝图**共同开发
 
 ### 运行项目
 
-1. 安装 Unreal Engine 5.6，并准备 Visual Studio 的 Unreal Engine C++ 开发环境。
+1. 安装 Unreal Engine 5.8（当前开发版本为 5.8.3），并准备 Visual Studio 的 Unreal Engine C++ 开发环境。
 2. 克隆仓库，在 `LxARPG.uproject` 上右键生成项目文件。
 3. 使用 Visual Studio 编译 `LxARPGEditor`。
 4. 打开 `LxARPG.uproject`，进入默认关卡运行项目。
@@ -55,7 +55,7 @@ LxARPG 是一个使用 **Unreal Engine 5.6**、**C++** 与**蓝图**共同开发
 
 ### Overview
 
-LxARPG is a third-person action RPG project developed with **Unreal Engine 5.6**, **C++**, and **Blueprints**. It follows a component-based and data-driven architecture, providing an extensible foundation for character combat, composable skills, attributes and progression, inventory management, AI behavior, world interaction, and game UI.
+LxARPG is a third-person action RPG project developed with **Unreal Engine 5.8**, **C++**, and **Blueprints**. It follows a component-based and data-driven architecture, providing an extensible foundation for character combat, composable skills, attributes and progression, inventory management, AI behavior, world interaction, and game UI.
 
 The project is currently under active development and is primarily used to design, implement, and validate reusable ARPG gameplay systems.
 
@@ -74,7 +74,7 @@ The project is currently under active development and is primarily used to desig
 
 ### Tech Stack
 
-- Unreal Engine 5.6
+- Unreal Engine 5.8
 - C++ / Blueprints
 - Enhanced Input
 - UMG / Slate
@@ -86,7 +86,7 @@ The project is currently under active development and is primarily used to desig
 
 ### Getting Started
 
-1. Install Unreal Engine 5.6 and the Visual Studio workload for Unreal Engine C++ development.
+1. Install Unreal Engine 5.8 (the current development version is 5.8.3) and the Visual Studio workload for Unreal Engine C++ development.
 2. Clone the repository and generate project files from `LxARPG.uproject`.
 3. Build the `LxARPGEditor` target in Visual Studio.
 4. Open `LxARPG.uproject` and play from the default map.

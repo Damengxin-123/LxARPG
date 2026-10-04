@@ -1,7 +1,8 @@
 #include "LxSkill.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxElementAbnormalAttachSkillUnitActor.h"
 #include "LxSkillCastComponent.h"
+#include "LxSkillFlowExecution.h"
 
-#include "LxARPG/LxSource/Core/Config/LxGameplayConstants.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/SkillUnit/LxSkillUnitActor.h"
@@ -33,6 +34,7 @@
 
 FGameplayTag ULxSkill::GetSkillIDTag() const
 {
+	if (FlowSourceSkillId.IsValid()) return FlowSourceSkillId;
 	const ULxSkillItem* SkillItem = GetTypedOuter<ULxSkillItem>();
 	return SkillItem ? SkillItem->GetSkillItemInformation().ItemIDTag : FGameplayTag();
 }
@@ -222,8 +224,53 @@ namespace LxSkillCreateInternal
 }
 
 
+bool ULxSkill::DispatchFlowEvent(ELxSkillFlowEvent Event)
+{
+	if (!FlowAsset) return false;
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogTemp, Error, TEXT("技能流程无法运行：技能 %s 缺少有效世界。"), *GetNameSafe(this));
+		return false;
+	}
+	// 客户端仅维护本地释放状态，流程实体统一由权威端创建。
+	if (World->GetNetMode() == NM_Client) return true;
+	const bool bStarts = Event == ELxSkillFlowEvent::Direct || Event == ELxSkillFlowEvent::ChargeStart
+		|| Event == ELxSkillFlowEvent::SustainStart;
+	if (bStarts)
+	{
+		if (ActiveFlow.IsValid()) ActiveFlow->SendEvent(ELxSkillFlowEvent::Cancel);
+		ActiveFlow.Reset();
+	}
+	if (!ActiveFlow.IsValid() && (bStarts || Event == ELxSkillFlowEvent::ChargeEnd))
+	{
+		ALxSkillFlowExecution* Flow = World->SpawnActor<ALxSkillFlowExecution>();
+		if (!Flow)
+		{
+			UE_LOG(LogTemp, Error, TEXT("技能流程无法运行：技能 %s 创建流程实例失败。"), *GetNameSafe(this));
+			return false;
+		}
+		if (!Flow->Initialize(this)) { Flow->Destroy(); return false; }
+		ActiveFlow = Flow;
+	}
+	if (ActiveFlow.IsValid())
+	{
+		// 蓄力结束时更新发射锚点，而不是沿用按下按键那一刻的位置。
+		if (Event == ELxSkillFlowEvent::ChargeEnd) ActiveFlow->UpdateAim(GetSkillSpawnTransform());
+		ActiveFlow->SendEvent(Event);
+	}
+	if (Event == ELxSkillFlowEvent::Direct || Event == ELxSkillFlowEvent::ChargeEnd
+		|| Event == ELxSkillFlowEvent::ReleaseEnd || Event == ELxSkillFlowEvent::Cancel) ActiveFlow.Reset();
+	return true;
+}
+
 void ULxSkill::PrepareSkillForCast(const FLxSkillCastContext& InCastContext)
 {
+	if (FlowAsset)
+	{
+		SkillReleaseType = FlowAsset->ReleaseType;
+		AnimationMotionType = FlowAsset->AnimationMotionType;
+	}
 	CurrentCastContext = InCastContext;
 	if (!CurrentCastContext.WorldContextObject && CurrentCastContext.CasterActor)
 	{
@@ -254,7 +301,7 @@ void ULxSkill::PrepareSkillForCast(const FLxSkillCastContext& InCastContext)
 
 	if (!bSkillInitialized)
 	{
-		InitializeSkill(CurrentCastContext);
+		InitializeSkill_Implementation(CurrentCastContext);
 		bSkillInitialized = true;
 	}
 }
@@ -284,13 +331,13 @@ ULxSkillCastModule* ULxSkill::ResolveSkillCastModule() const
 
 bool ULxSkill::BeginSkillCharge()
 {
-	if (!CanSkillCharge() || bCharging || !IsReleaseCooldownReady())
+	if (!FlowAsset || !CanSkillCharge() || bCharging || bSkillReleaseTiming)
 	{
 		return false;
 	}
 
+	if (!DispatchFlowEvent(ELxSkillFlowEvent::ChargeStart)) return false;
 	bCharging = true;
-	StartSkillCharge();
 	return true;
 }
 
@@ -314,8 +361,7 @@ bool ULxSkill::TryCancelSkillRelease()
 	{
 		PersistentSkillUnitGroup->CancelSkillUnits();
 	}
-	CancelSkillRelease();
-	return true;
+	return DispatchFlowEvent(ELxSkillFlowEvent::Cancel);
 }
 
 bool ULxSkill::TryStartSustainedRelease()
@@ -332,8 +378,7 @@ bool ULxSkill::TryStopSustainedRelease()
 	}
 
 	bSustainedReleasing = false;
-	StopSustainedRelease();
-	return true;
+	return DispatchFlowEvent(ELxSkillFlowEvent::ReleaseEnd);
 }
 
 bool ULxSkill::TryCancelSustainedRelease()
@@ -345,8 +390,7 @@ bool ULxSkill::TryCancelSustainedRelease()
 	}
 
 	bSustainedReleasing = false;
-	CancelSustainedRelease();
-	return true;
+	return DispatchFlowEvent(ELxSkillFlowEvent::Cancel);
 }
 
 bool ULxSkill::TryUpdateSustainedReleaseTransform(const FTransform& InTransform)
@@ -356,7 +400,10 @@ bool ULxSkill::TryUpdateSustainedReleaseTransform(const FTransform& InTransform)
 		return false;
 	}
 
-	UpdateSustainedReleaseTransform(InTransform);
+	if (FlowAsset)
+	{
+		if (ActiveFlow.IsValid()) ActiveFlow->UpdateAim(InTransform);
+	}
 	return true;
 }
 
@@ -449,27 +496,16 @@ bool ULxSkill::ApplySkillEntryPackageByIndex(
 
 float ULxSkill::GetEffectiveReleaseCooldown() const
 {
-	return FMath::Max(LxGameplayConstants::MinimumActionIntervalSeconds, ReleaseCooldown);
+	return 0.0f;
 }
 bool ULxSkill::IsReleaseCooldownReady() const
 {
-	if (bSkillReleaseTiming)
-	{
-		return false;
-	}
-
-	const UWorld* World = GetWorld();
-	if (!World)
-	{
-		return true;
-	}
-
-	return World->GetTimeSeconds() - LastReleaseTime >= GetEffectiveReleaseCooldown();
+	return !bSkillReleaseTiming && !bCharging && !bSustainedReleasing;
 }
 
 bool ULxSkill::TryBeginSkillRelease()
 {
-	if (!IsReleaseCooldownReady())
+	if (!FlowAsset || bSkillReleaseTiming)
 	{
 		return false;
 	}
@@ -480,15 +516,12 @@ bool ULxSkill::TryBeginSkillRelease()
 
 void ULxSkill::MarkSkillReleased()
 {
-	if (const UWorld* World = GetWorld())
-	{
-		LastReleaseTime = World->GetTimeSeconds();
-	}
+	// 保留旧蓝图调用兼容性；技能释放不再记录冷却时间。
 }
 
 bool ULxSkill::TryBeginDirectSkillReleaseTiming()
 {
-	return SkillReleaseType == ELxSkillReleaseType::DirectRelease && TryBeginSkillRelease();
+	return GetSkillReleaseType() == ELxSkillReleaseType::DirectRelease && TryBeginSkillRelease();
 }
 
 bool ULxSkill::TryBeginChargeSkillReleaseTiming()
@@ -513,28 +546,19 @@ bool ULxSkill::TryBeginSustainedSkillReleaseTiming()
 	return true;
 }
 
-void ULxSkill::ExecuteDirectSkillRelease()
+bool ULxSkill::ExecuteDirectSkillRelease()
 {
-	if (bSkillReleaseTiming)
-	{
-		ReleaseSkillDirectly();
-	}
+	return bSkillReleaseTiming && DispatchFlowEvent(ELxSkillFlowEvent::Direct);
 }
 
-void ULxSkill::ExecuteChargeSkillRelease()
+bool ULxSkill::ExecuteChargeSkillRelease()
 {
-	if (bSkillReleaseTiming)
-	{
-		EndSkillCharge();
-	}
+	return bSkillReleaseTiming && DispatchFlowEvent(ELxSkillFlowEvent::ChargeEnd);
 }
 
-void ULxSkill::ExecuteSustainedSkillRelease()
+bool ULxSkill::ExecuteSustainedSkillRelease()
 {
-	if (bSkillReleaseTiming)
-	{
-		StartSustainedRelease();
-	}
+	return bSkillReleaseTiming && DispatchFlowEvent(ELxSkillFlowEvent::SustainStart);
 }
 
 void ULxSkill::CompleteSkillReleaseTiming()
@@ -545,7 +569,6 @@ void ULxSkill::CompleteSkillReleaseTiming()
 	}
 
 	bSkillReleaseTiming = false;
-	MarkSkillReleased();
 }
 
 void ULxSkill::CancelSkillReleaseTiming()
@@ -989,6 +1012,35 @@ ULxSkillUnitGroup* ULxSkill::CreateContinuousAttachEffects(const FLxSkillUnitRes
 		}
 		CreatedTargets.Add(HitTarget);
 		SkillUnits.Add(SkillUnit);
+	}
+	return LxSkillCreateInternal::MakeGroup(this, SkillUnits, bActivateAfterCreate);
+}
+
+ULxSkillUnitGroup* ULxSkill::CreateElementAbnormalAttachEffects(const FLxSkillUnitResult& InSourceResult,
+	TSubclassOf<ALxElementAbnormalAttachSkillUnitActor> SkillUnitClass,
+	const FLxElementAbnormalAttachCreateParams& CreateParams, bool bActivateAfterCreate)
+{
+	if (!InSourceResult.bSuccess || InSourceResult.ResultType != ELxSkillUnitResultType::Hit) return nullptr;
+	TArray<ALxElementAbnormalAttachSkillUnitActor*> SkillUnits;
+	FLxSkillUnitSpec Spec;
+	Spec.SkillUnitType = ELxSkillUnitType::ContinuousAttachEffect;
+	Spec.LifeSpec.Duration = CreateParams.AttachEffectSpec.Duration;
+	Spec.HitLimitSpec.MaxHitCountPerTarget = 1;
+	TSet<AActor*> CreatedTargets;
+	for (int32 Index = 0; Index < InSourceResult.HitTargets.Num(); ++Index)
+	{
+		AActor* Target = InSourceResult.HitTargets[Index];
+		if (!IsValid(Target) || CreatedTargets.Contains(Target)) continue;
+		auto* Unit = LxSkillCreateInternal::SpawnSkillUnit(this, SkillUnitClass, Target->GetActorTransform(), Spec);
+		if (!Unit) continue;
+		if (!Unit->InitializeFromPreviousSkillUnitResult(InSourceResult, Index, CreateParams.AttachEffectSpec))
+		{
+			Unit->Destroy();
+			continue;
+		}
+		Unit->InitializeElementAbnormalParameters(CreateParams.AbnormalSpec);
+		CreatedTargets.Add(Target);
+		SkillUnits.Add(Unit);
 	}
 	return LxSkillCreateInternal::MakeGroup(this, SkillUnits, bActivateAfterCreate);
 }

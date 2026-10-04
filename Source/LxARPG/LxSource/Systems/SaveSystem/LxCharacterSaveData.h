@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "LxItemSaveData.h"
+#include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
 #include "LxARPG/LxSource/Model/Quest/DataType/LxQuestRuntimeData.h"
 #include "LxCharacterSaveData.generated.h"
 
@@ -42,7 +43,11 @@ struct LXARPG_API FLxCharacterSaveRecord
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="已有角色内容")
 	bool bHasGameplayData = true;
 
-	/** 用于生成正式玩家的角色蓝图类，不作为档案实例身份。 */
+	/** 角色种族是加载玩家类型的依据；旧档缺少此字段时从原角色类迁移。 */
+	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="角色种族")
+	ELxCharacterRaceType CharacterRace = ELxCharacterRaceType::None;
+
+	/** 缓存种族表解析的角色类，并兼容没有种族字段的旧档；正式加载以种族表为准。 */
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="角色类型")
 	TSoftClassPtr<APawn> CharacterClass;
 

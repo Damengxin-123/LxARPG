@@ -15,15 +15,16 @@ ULxWarehouseInteractionComponent::ULxWarehouseInteractionComponent()
 bool ULxWarehouseInteractionComponent::CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const
 {
 	if (!Super::CapturePersistentData(OutRecord)) return false;
-	LxItemSaveData::CaptureSlots(WarehouseItemSlotList, OutRecord.Slots);
-	return true;
+	return LxInteractionSaveHelpers::CaptureSlots(WarehouseItemSlotList, OutRecord.ItemSlots);
 }
 
 bool ULxWarehouseInteractionComponent::RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord)
 {
 	if (!CanRestorePersistentData(InRecord)) return false;
+	TArray<FLxInteractionItemSaveRecord> Records;
+	if (!LxInteractionSaveHelpers::ReadItemSlots(InRecord, Records)) return false;
 	TArray<TObjectPtr<ULxItemSlotData>> RestoredSlots;
-	if (!LxInteractionSaveHelpers::BuildRestoredSlots(this, InRecord.Slots, WarehouseSlotCount,
+	if (!LxInteractionSaveHelpers::BuildRestoredSlots(this, Records, WarehouseSlotCount,
 		ELxItemSlotType::Warehouse, RestoredSlots)) return false;
 	for (ULxItemSlotData* Slot : WarehouseItemSlotList)
 	{

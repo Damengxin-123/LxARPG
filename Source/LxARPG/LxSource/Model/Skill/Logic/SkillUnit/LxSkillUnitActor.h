@@ -31,6 +31,18 @@ class LXARPG_API ALxSkillUnitActor : public AActor
 	GENERATED_BODY()
 
 public:
+	/** 子单元面向编辑器和技能描述的名称；在蓝图类默认值中填写，支持文本本地化。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="技能单元|描述", meta=(DisplayName="可视化名称"))
+	FText SkillUnitDisplayName;
+
+	/** 获取子单元的可视化名称；未填写时回退到去除生成类后缀的类型名称。 */
+	UFUNCTION(BlueprintPure, Category="技能单元|描述", meta=(DisplayName="获取技能子单元可视化名称"))
+	FText GetSkillUnitDisplayName() const;
+
+	/** 从类型默认值读取名称，无需生成单元；未选择类型时返回空文本。 */
+	UFUNCTION(BlueprintPure, Category="技能单元|描述", meta=(DisplayName="获取技能子单元类型可视化名称"))
+	static FText GetSkillUnitClassDisplayName(UPARAM(DisplayName="技能子单元类型") TSubclassOf<ALxSkillUnitActor> SkillUnitClass);
+
 	ALxSkillUnitActor();
 
 	virtual void BeginPlay() override;
@@ -148,6 +160,9 @@ public:
 	FOnLxSkillUnitPropagationEvent OnSkillUnitPropagationEvaluated;
 
 protected:
+	/** 是否需要从对象树收集碰撞来源；仅消费前置命中结果的单元可关闭。 */
+	virtual bool RequiresOverlapEventSources() const { return true; }
+
 	/** 技能单元参数完成网络同步后刷新客户端表现配置。 */
 	UFUNCTION(Category="技能|技能单元|网络", DisplayName="技能单元参数同步")
 	void OnRep_SkillUnitSpec();

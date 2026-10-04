@@ -1,6 +1,7 @@
 #include "LxAICharacter.h"
 
 #include "Components/WidgetComponent.h"
+#include "LxARPG/LxSource/World/AISpawn/LxAISpawnPointActor.h"
 #include "LxARPG/LxSource/Model/Tags/LxAttributeEntryTags.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
@@ -13,6 +14,16 @@ ALxAICharacter::ALxAICharacter()
 {
 	AIControllerClass = ALxAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+}
+
+void ALxAICharacter::SetSpawnPoint(ALxAISpawnPointActor* InSpawnPoint)
+{
+	SpawnPoint = InSpawnPoint;
+}
+
+ALxAISpawnPointActor* ALxAICharacter::GetSpawnPoint() const
+{
+	return SpawnPoint.Get();
 }
 
 void ALxAICharacter::InitialCharacterInformation()

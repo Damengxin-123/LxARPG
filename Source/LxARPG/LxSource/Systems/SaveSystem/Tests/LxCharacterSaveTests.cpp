@@ -77,7 +77,7 @@ bool FLxItemSaveRoundTripTest::RunTest(const FString& Parameters)
 	FLxCharacterSaveRecord& Player = Save->Players.Add(LxTag_Item_Material_Currency_Gold);
 	Player.SaveID = LxTag_Item_Material_Currency_Gold;
 	Player.BackpackSlotCount = Slots.Num();
-	LxItemSaveData::CaptureSlots(Slots, Player.BackpackSlots);
+	if (!TestTrue(TEXT("完整采集合法空槽与物品"), LxItemSaveData::CaptureSlots(Slots, Player.BackpackSlots))) return false;
 	TArray<uint8> Bytes;
 	if (!TestTrue(TEXT("纯属性存档可序列化"), UGameplayStatics::SaveGameToMemory(Save, Bytes))) return false;
 	ULxGameSaveData* Loaded = Cast<ULxGameSaveData>(UGameplayStatics::LoadGameFromMemory(Bytes));
@@ -87,7 +87,8 @@ bool FLxItemSaveRoundTripTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("恢复全部槽位"), LxItemSaveData::RestoreSlots(GameInstance, LoadedPlayer->BackpackSlots, Slots));
 	TestFalse(TEXT("首个空槽保持为空"), Slots[0]->IsValid());
 	TestFalse(TEXT("末尾空槽保持为空"), Slots[2]->IsValid());
-	const FLxItemSaveRecord Actual = LxItemSaveData::CaptureItem(Slots[1]->GetItem());
+	FLxItemSaveRecord Actual;
+	if (!TestTrue(TEXT("采集恢复后的物品"), LxItemSaveData::CaptureItem(Slots[1]->GetItem(), Actual))) return false;
 	TestEqual(TEXT("物品数量保持"), Actual.ItemCount, 17);
 	if (!TestEqual(TEXT("实例词条数量保持"), Actual.Entries.Num(), 1)) return false;
 	TestEqual(TEXT("实例词条比例保持"), Actual.Entries[0].EntryQuote.EntryProportion, 2.75f);
@@ -99,6 +100,29 @@ bool FLxItemSaveRoundTripTest::RunTest(const FString& Parameters)
 	ULxItemBase* ExistingItem = Slots[1]->GetItem();
 	TestFalse(TEXT("重复槽位索引被拒绝"), LxItemSaveData::RestoreSlots(GameInstance, InvalidSlots, Slots));
 	TestTrue(TEXT("恢复失败不会清空原物品"), Slots[1]->GetItem() == ExistingItem);
+
+	ULxEntryObjectBase* OriginalEntry = ExistingItem->GetItemEntryList()[0];
+	ExistingItem->GetItemEntryList()[0] = Item->GetItemEntryList()[0];
+	AddExpectedError(TEXT("物品存档采集失败"), EAutomationExpectedErrorFlags::Contains, 2);
+	TestFalse(TEXT("缺少对应运行信息不能默认保存为普通词条"), LxItemSaveData::CaptureItem(ExistingItem, Actual));
+	TestEqual(TEXT("采集失败保持此前锁定词条分类"), Actual.Entries[0].EntryLogicType, ELxEntryLogicType::Locked);
+	TArray<FLxItemSlotSaveRecord> CapturedSlots = LoadedPlayer->BackpackSlots;
+	TestFalse(TEXT("物品采集失败向容器上传播"), LxItemSaveData::CaptureSlots(Slots, CapturedSlots));
+	TestEqual(TEXT("容器采集失败保留此前完整槽位数量"), CapturedSlots.Num(), LoadedPlayer->BackpackSlots.Num());
+	TestTrue(TEXT("容器采集失败保留此前物品记录"),
+		FLxItemSaveRecord::StaticStruct()->CompareScriptStruct(&CapturedSlots[1].Item, &LoadedPlayer->BackpackSlots[1].Item, 0));
+	ExistingItem->GetItemEntryList()[0] = nullptr;
+	AddExpectedError(TEXT("物品存档采集失败"), EAutomationExpectedErrorFlags::Contains, 1);
+	TestFalse(TEXT("空词条对象不能被静默跳过"), LxItemSaveData::CaptureItem(ExistingItem, Actual));
+	ExistingItem->GetItemEntryList()[0] = OriginalEntry;
+	TestTrue(TEXT("修复运行时词条后能够正常采集"), LxItemSaveData::CaptureItem(ExistingItem, Actual));
+	TArray<TObjectPtr<ULxItemSlotData>> InvalidSlotObjects = Slots;
+	InvalidSlotObjects[0] = nullptr;
+	AddExpectedError(TEXT("物品存档采集失败"), EAutomationExpectedErrorFlags::Contains, 1);
+	TestFalse(TEXT("无效槽位对象不能被保存为合法空槽"), LxItemSaveData::CaptureSlots(InvalidSlotObjects, CapturedSlots));
+	TestTrue(TEXT("合法空槽仍可正常采集"), LxItemSaveData::CaptureItem(nullptr, Actual));
+	TestFalse(TEXT("合法空槽清空物品标签"), Actual.ItemIDTag.IsValid());
+	TestEqual(TEXT("合法空槽清空物品数量"), Actual.ItemCount, 0);
 	return true;
 }
 

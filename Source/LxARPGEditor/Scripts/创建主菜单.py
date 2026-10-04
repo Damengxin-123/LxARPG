@@ -44,13 +44,9 @@ def create_menu_assets():
     destination = '/Game/项目内容/关卡/总关卡'
     if not unreal.EditorAssetLibrary.does_asset_exist(destination):
         raise RuntimeError('未找到主菜单与正式游玩共用的总关卡：' + destination)
-    asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
-    ui_path = '/Game/项目内容/UI界面/主菜单'
-    if not unreal.EditorAssetLibrary.does_asset_exist(ui_path + '/主菜单'):
-        factory = unreal.WidgetBlueprintFactory()
-        factory.set_editor_property('parent_class', unreal.LxMainMenuWidget)
-        asset = asset_tools.create_asset('主菜单', ui_path, unreal.WidgetBlueprint, factory)
-        unreal.EditorAssetLibrary.save_loaded_asset(asset)
+    # 同一 C++ 编辑器入口生成设计器布局与事件图；保留已存在的自定义布局。
+    if not unreal.LxMainMenuLayoutCommandlet.build_menu_blueprints():
+        raise RuntimeError('主菜单或设置蓝图生成/编译失败，请查看 MainMenuLayout 日志')
     config = Path(unreal.Paths.project_config_dir())
     replace_ini_value(config / 'DefaultEngine.ini', '/Script/EngineSettings.GameMapsSettings',
                       'GameDefaultMap', destination + '.总关卡')

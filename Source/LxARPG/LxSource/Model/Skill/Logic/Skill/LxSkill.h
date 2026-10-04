@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Model/Animation/DataType/LxCharacterAnimationTypes.h"
@@ -6,6 +6,7 @@
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillCastContext.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEnum.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/LxSkillEntryPackage.h"
+#include "LxARPG/LxSource/Model/Skill/DataType/LxSkillFlowAsset.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillMeleeSpec.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitCreateParams.h"
 #include "LxARPG/LxSource/Model/Skill/DataType/SkillUnit/LxSkillUnitResult.h"
@@ -25,6 +26,7 @@ class ALxSingleRaySkillUnitActor;
 class ALxContinuousRaySkillUnitActor;
 class ALxContinuousAttachEffectSkillUnitActor;
 class ALxPeriodicAttachEffectSkillUnitActor;
+class ALxElementAbnormalAttachSkillUnitActor;
 class ALxContinuousAuraEffectSkillUnitActor;
 class ALxPeriodicAuraEffectSkillUnitActor;
 class ALxSpawnEntitySkillUnitActor;
@@ -39,13 +41,20 @@ DECLARE_MULTICAST_DELEGATE_FourParams(FOnLxPersistentSkillHitEntriesReady, ULxSk
 /** 技能持续效果解除事件，通知释放组件向目标发送同来源空替换效果包。 */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnLxSkillEffectsRemoved, ULxSkill*, ALxSkillUnitActor*, const TArray<AActor*>&);
 
-/** 完整技能类型，负责组织技能单元对象，并提供蓄力与释放入口。 */
-UCLASS(Blueprintable, BlueprintType, DisplayName="技能类型")
+/** 缓存的通用技能运行对象，角色通过它把释放事件交给流程资产。 */
+UCLASS(NotBlueprintable, BlueprintType, DisplayName="技能运行对象")
 class LXARPG_API ULxSkill : public UObject
 {
 	GENERATED_BODY()
 
 public:
+	/** 唯一的技能流程配置；未配置流程的对象不能释放。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="技能|流程", meta=(DisplayName="技能流程"))
+	TObjectPtr<ULxSkillFlowAsset> FlowAsset;
+
+	/** 把角色事件交给独立的本次流程；创建或初始化失败返回 false，取消无活动流程视为清理完成。 */
+	virtual bool DispatchFlowEvent(ELxSkillFlowEvent Event);
+
 	/** 玩家技能使用的动作类型；AI近战、远程、防御行为可覆盖该值。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="技能|动画", meta=(DisplayName="攻击动作类型", ValidEnumValues="Attack,RangedAttack,Defend,Skill"))
 	ELxCharacterMotionType AnimationMotionType = ELxCharacterMotionType::Attack;
@@ -58,7 +67,7 @@ public:
 	void InitializeSkill(const FLxSkillCastContext& InCastContext);
 	virtual void InitializeSkill_Implementation(const FLxSkillCastContext& InCastContext);
 
-	/** 尝试开启技能蓄力，供技能释放组件调用并负责类型、冷却与蓄力状态校验。 */
+	/** 尝试开启技能蓄力，供技能释放组件调用并负责类型与释放占用校验。 */
 	UFUNCTION(BlueprintCallable, Category="技能|蓄力", DisplayName="尝试开启技能蓄力")
 	bool TryStartSkillCharge();
 
@@ -66,7 +75,7 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category="技能|蓄力|事件", DisplayName="开启技能蓄力")
 	void StartSkillCharge();
 
-	/** 尝试结束蓄力并释放技能，供技能释放组件调用并负责蓄力状态与冷却校验。 */
+	/** 尝试结束蓄力并释放技能，供技能释放组件调用并负责蓄力状态与释放占用校验。 */
 	UFUNCTION(BlueprintCallable, Category="技能|蓄力", DisplayName="尝试结束蓄力")
 	bool TryEndSkillCharge();
 
@@ -76,7 +85,7 @@ public:
 
 	/**
 	 * 尝试直接释放技能。
-	 * 供技能释放组件调用，负责检查冷却、记录释放时间并通知蓝图执行释放流程。
+	 * 供技能释放组件调用，负责检查释放占用并等待动画通知执行释放流程。
 	 */
 	UFUNCTION(BlueprintCallable, Category="技能|释放", DisplayName="尝试直接释放技能")
 	bool TryReleaseSkillDirectly();
@@ -96,7 +105,7 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category="技能|释放|事件", DisplayName="取消技能释放")
 	void CancelSkillRelease();
 
-	/** 尝试开始持续释放，供技能释放组件调用并负责类型、冷却与持久单元校验。 */
+	/** 尝试开始持续释放，供技能释放组件调用并负责类型、释放占用与持久单元校验。 */
 	UFUNCTION(BlueprintCallable, Category="技能|持续释放", DisplayName="尝试开始持续释放")
 	bool TryStartSustainedRelease();
 
@@ -163,7 +172,7 @@ public:
 
 	/** 获取技能类型配置的词条组合数组，主要供技能详情界面展示。 */
 	UFUNCTION(BlueprintPure, Category="技能|词条", DisplayName="获取技能词条包数组")
-	TArray<FLxSkillEntryPackage> GetSkillEntryPackages() const { return SkillEntryPackages; }
+	TArray<FLxSkillEntryPackage> GetSkillEntryPackages() const { return FlowAsset ? FlowAsset->EntryPackages : SkillEntryPackages; }
 
 	/** 获取所属技能物品的标签 ID，技能类型不再单独维护重复标签。 */
 	UFUNCTION(BlueprintPure, Category="技能|基础信息", DisplayName="获取技能物品标签ID")
@@ -171,42 +180,42 @@ public:
 
 	/** 获取技能释放类型，可用于判断技能是否支持蓄力。 */
 	UFUNCTION(BlueprintPure, Category="技能", DisplayName="获取技能类型")
-	ELxSkillReleaseType GetSkillReleaseType() const { return SkillReleaseType; }
+	ELxSkillReleaseType GetSkillReleaseType() const { return FlowAsset ? FlowAsset->ReleaseType : ELxSkillReleaseType::None; }
 
 	/** 判断释放组件是否需要等待技能显式通知释放结束。 */
 	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="是否等待显式结束释放")
-	bool ShouldHoldReleaseStateUntilExplicitFinish() const { return bHoldReleaseStateUntilExplicitFinish; }
+	bool ShouldHoldReleaseStateUntilExplicitFinish() const { return false; }
 
 	/** 判断再次释放技能时是否关闭正在运行的持久技能单元组。 */
 	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="再次释放是否关闭持久技能")
-	bool ShouldStopPersistentSkillOnRepeatedRelease() const { return bStopPersistentSkillOnRepeatedRelease; }
+	bool ShouldStopPersistentSkillOnRepeatedRelease() const { return false; }
 
 	/** 判断技能是否可以蓄力。 */
 	UFUNCTION(BlueprintPure, Category="技能", DisplayName="是否可以蓄力")
-	bool CanSkillCharge() const { return SkillReleaseType == ELxSkillReleaseType::ChargeRelease; }
+	bool CanSkillCharge() const { return GetSkillReleaseType() == ELxSkillReleaseType::ChargeRelease; }
 
 	/** 判断技能是否采用按住期间持续运行的释放方式。 */
 	UFUNCTION(BlueprintPure, Category="技能|持续释放", DisplayName="是否持续释放技能")
-	bool IsSustainedReleaseSkill() const { return SkillReleaseType == ELxSkillReleaseType::SustainedRelease; }
+	bool IsSustainedReleaseSkill() const { return GetSkillReleaseType() == ELxSkillReleaseType::SustainedRelease; }
 
 	/** 判断当前技能是否处于持续释放运行状态。 */
 	UFUNCTION(BlueprintPure, Category="技能|持续释放", DisplayName="持续释放是否正在运行")
 	bool IsSustainedReleaseActive() const { return bSustainedReleasing; }
 
-	/** 获取技能实际释放冷却，最低限制使用项目统一动作时间间隔。 */
-	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="获取实际释放冷却")
+	/** 兼容旧蓝图：冷却已停用，固定返回零；不得用作循环定时器间隔。 */
+	UFUNCTION(BlueprintPure, Category="技能|兼容", DisplayName="获取实际释放冷却", meta=(DeprecatedFunction, DeprecationMessage="技能冷却已停用，释放速度由动画和释放状态控制。"))
 	float GetEffectiveReleaseCooldown() const;
 
-	/** 判断技能释放冷却是否已经结束。 */
-	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="释放冷却是否结束")
+	/** 兼容旧蓝图：不再检查时间，仅查询技能内部是否没有释放、蓄力或持续占用。 */
+	UFUNCTION(BlueprintPure, Category="技能|兼容", DisplayName="释放冷却是否结束", meta=(DeprecatedFunction, DeprecationMessage="技能冷却已停用，请通过技能释放组件判断是否空闲。"))
 	bool IsReleaseCooldownReady() const;
 
-	/** 尝试开始一次技能释放；仅在冷却结束且没有其他释放占用时建立互斥占用。 */
+	/** 尝试开始一次技能释放；由动画结束或取消释放占用，不检查额外冷却。 */
 	UFUNCTION(BlueprintCallable, Category="技能|释放", DisplayName="尝试开始技能释放")
 	bool TryBeginSkillRelease();
 
-	/** 记录本次技能释放时间，用于后续释放冷却判断。 */
-	UFUNCTION(BlueprintCallable, Category="技能|释放", DisplayName="记录技能释放时间")
+	/** 兼容旧蓝图的空操作，不再记录释放时间或产生冷却。 */
+	UFUNCTION(BlueprintCallable, Category="技能|兼容", DisplayName="记录技能释放时间", meta=(DeprecatedFunction, DeprecationMessage="技能冷却已停用，无需记录释放时间。"))
 	void MarkSkillReleased();
 
 	/** 为释放组件开启直接释放占用，仅完成校验和互斥占用，不立即执行蓝图释放事件。 */
@@ -223,19 +232,19 @@ public:
 	/** 为释放组件开启持续技能的释放占用，仅完成校验和互斥占用。 */
 	bool TryBeginSustainedSkillReleaseTiming();
 
-	/** 收到动画释放通知时执行直接释放蓝图事件。 */
-	void ExecuteDirectSkillRelease();
+	/** 收到动画释放通知时执行直接释放流程，返回是否成功交给流程处理。 */
+	bool ExecuteDirectSkillRelease();
 
-	/** 收到动画释放通知时执行蓄力结束蓝图事件。 */
-	void ExecuteChargeSkillRelease();
+	/** 收到动画释放通知时执行蓄力结束流程，返回是否成功交给流程处理。 */
+	bool ExecuteChargeSkillRelease();
 
-	/** 收到动画释放通知时执行持续释放蓝图事件。 */
-	void ExecuteSustainedSkillRelease();
+	/** 收到动画释放通知时执行持续释放流程，返回是否成功交给流程处理。 */
+	bool ExecuteSustainedSkillRelease();
 
-	/** 收到动画结束通知时记录冷却起点并解除技能内部释放占用。 */
+	/** 收到动画结束通知时解除技能内部释放占用，允许下一次释放。 */
 	void CompleteSkillReleaseTiming();
 
-	/** 取消尚未完成的释放占用，不进入技能冷却。 */
+	/** 取消尚未完成的释放占用。 */
 	void CancelSkillReleaseTiming();
 
 	/** 根据通用技能单元结果中的目标和位置创建直线投射物；输入为空时使用技能释放锚点。 */
@@ -321,6 +330,13 @@ public:
 	ULxSkillUnitGroup* CreateContinuousAttachEffects(const FLxSkillUnitResult& InSourceResult,
 		TSubclassOf<ALxContinuousAttachEffectSkillUnitActor> SkillUnitClass,
 		const FLxContinuousAttachEffectCreateParams& CreateParams, bool bActivateAfterCreate = true);
+
+	/** 根据前置命中结果为每个不同目标创建异常依附单元，由单元内部判定是否生效。 */
+	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|依附效果", DisplayName="创建元素异常依附效果",
+		meta=(AutoCreateRefTerm="InSourceResult", AdvancedDisplay="bActivateAfterCreate"))
+	ULxSkillUnitGroup* CreateElementAbnormalAttachEffects(const FLxSkillUnitResult& InSourceResult,
+		TSubclassOf<ALxElementAbnormalAttachSkillUnitActor> SkillUnitClass,
+		const FLxElementAbnormalAttachCreateParams& CreateParams, bool bActivateAfterCreate = true);
 
 	/** 根据通用结果中的目标列表，为每个有效目标创建周期触发依附效果。 */
 	UFUNCTION(BlueprintCallable, Category="技能|技能单元创建|依附效果", DisplayName="创建周期依附效果",
@@ -410,11 +426,22 @@ public:
 
 	/** 获取直接释放技能响应的输入状态。默认在开始释放时触发。 */
 	UFUNCTION(BlueprintPure, Category="技能|释放", DisplayName="获取直接释放响应状态")
-	ELxSkillReleaseInputState GetDirectReleaseInputState() const { return DirectReleaseInputState; }
+	ELxSkillReleaseInputState GetDirectReleaseInputState() const { return ELxSkillReleaseInputState::Start; }
 
 	virtual UWorld* GetWorld() const override;
 
 protected:
+	/** 独立流程保存的技能来源标签，使词条结算仍能识别原技能物品。 */
+	UPROPERTY(Transient, VisibleAnywhere, Category="技能|流程", meta=(DisplayName="流程技能来源标签"))
+	FGameplayTag FlowSourceSkillId;
+
+	/** 当前受角色控制的流程实例；已发射的自主流程由世界继续持有。 */
+	UPROPERTY(Transient, VisibleAnywhere, meta=(DisplayName="当前维持流程", Category="技能|流程"))
+	TWeakObjectPtr<class ALxSkillFlowExecution> ActiveFlow;
+
+	/** 流程执行器只在初始化时读取配置并建立独立上下文。 */
+	friend class ALxSkillFlowExecution;
+
 	/** 将通用技能单元结果转换为逐项对齐的生成变换，并按创建位置与目标位置计算运动方向。 */
 	TArray<FTransform> BuildSpawnTransforms(const FLxSkillUnitResult& InSourceResult,
 		ELxSkillUnitResultSpawnLocationType SpawnLocationType,
@@ -442,9 +469,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="直接释放响应状态")
 	ELxSkillReleaseInputState DirectReleaseInputState = ELxSkillReleaseInputState::Start;
 
-	/** 技能释放冷却，实际生效值不会低于项目统一动作时间间隔。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="释放冷却", meta=(ClampMin="0.1", UIMin="0.1"))
-	float ReleaseCooldown = 1.0f;
+	/** 仅兼容旧蓝图属性引用，不再参与释放逻辑，也不在配置面板显示。 */
+	UPROPERTY(BlueprintReadWrite, Category="技能|兼容", meta=(DisplayName="已停用的释放冷却", DeprecatedProperty, DeprecationMessage="技能冷却已停用，此值不再生效。"))
+	float ReleaseCooldown = 0.0f;
 
 	/** 直接释放或结束蓄力后，是否保持释放组件占用，直到技能显式通知结束。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="技能|释放", DisplayName="等待显式结束释放")
@@ -490,11 +517,11 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放", DisplayName="技能释放上下文")
 	FLxSkillCastContext CurrentCastContext;
 
-	/** 上一次成功释放技能的世界时间。 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放", DisplayName="上次释放时间")
-	float LastReleaseTime = -100000000.0f;
+	/** 仅兼容旧蓝图读取，不再记录释放时间。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|兼容", meta=(DisplayName="已停用的上次释放时间", DeprecatedProperty, DeprecationMessage="技能冷却已停用，不再记录释放时间。"))
+	float LastReleaseTime = 0.0f;
 
-	/** 当前是否处于释放时间计时中，用于在冷却开始前阻止重复释放。 */
+	/** 当前是否占用技能释放过程，直到动画结束或取消前阻止重复释放。 */
 	UPROPERTY(Transient, BlueprintReadOnly, Category="技能|释放", DisplayName="正在进行技能释放占用")
 	bool bSkillReleaseTiming = false;
 };

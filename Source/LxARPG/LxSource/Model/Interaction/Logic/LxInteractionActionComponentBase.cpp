@@ -10,6 +10,7 @@ bool ULxInteractionActionComponentBase::CapturePersistentData(FLxInteractionFeat
 {
 	if (!OwnerInteractionNode || !OwnerInteractionNode->GetPersistentNodeID().IsValid()) return false;
 	OutRecord = FLxInteractionFeatureSaveRecord();
+	OutRecord.DataVersion = 1;
 	OutRecord.NodeID = OwnerInteractionNode->GetPersistentNodeID();
 	OutRecord.InteractionType = InteractionActionType;
 	OutRecord.InteractionState = InteractionState == ELxInteractionDataState::Interacting
@@ -21,6 +22,7 @@ bool ULxInteractionActionComponentBase::CapturePersistentData(FLxInteractionFeat
 bool ULxInteractionActionComponentBase::CanRestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord) const
 {
 	return (!GetOwner() || GetOwner()->HasAuthority()) && OwnerInteractionNode
+		&& (InRecord.DataVersion == 0 || InRecord.DataVersion == 1)
 		&& InRecord.NodeID.IsValid() && OwnerInteractionNode->GetPersistentNodeID() == InRecord.NodeID
 		&& InteractionActionType == InRecord.InteractionType
 		&& StaticEnum<ELxInteractionDataState>()->IsValidEnumValue(static_cast<int64>(InRecord.InteractionState));

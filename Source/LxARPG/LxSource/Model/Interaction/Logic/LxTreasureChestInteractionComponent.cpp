@@ -19,7 +19,7 @@ ULxTreasureChestInteractionComponent::ULxTreasureChestInteractionComponent()
 bool ULxTreasureChestInteractionComponent::CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const
 {
 	if (!Super::CapturePersistentData(OutRecord)) return false;
-	LxItemSaveData::CaptureSlots(TreasureChestItemSlotList, OutRecord.Slots);
+	if (!LxInteractionSaveHelpers::CaptureSlots(TreasureChestItemSlotList, OutRecord.ItemSlots)) return false;
 	OutRecord.bCompletionBroadcasted = bCompletionBroadcasted;
 	return true;
 }
@@ -27,8 +27,10 @@ bool ULxTreasureChestInteractionComponent::CapturePersistentData(FLxInteractionF
 bool ULxTreasureChestInteractionComponent::RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord)
 {
 	if (!CanRestorePersistentData(InRecord)) return false;
+	TArray<FLxInteractionItemSaveRecord> Records;
+	if (!LxInteractionSaveHelpers::ReadItemSlots(InRecord, Records)) return false;
 	TArray<TObjectPtr<ULxItemSlotData>> RestoredSlots;
-	if (!LxInteractionSaveHelpers::BuildRestoredSlots(this, InRecord.Slots, TreasureChestItemList.Num(),
+	if (!LxInteractionSaveHelpers::BuildRestoredSlots(this, Records, TreasureChestItemList.Num(),
 		ELxItemSlotType::TreasureChest, RestoredSlots)) return false;
 	for (ULxItemSlotData* Slot : TreasureChestItemSlotList)
 	{

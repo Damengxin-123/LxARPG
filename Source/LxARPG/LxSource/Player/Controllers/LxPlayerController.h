@@ -88,12 +88,12 @@ public:
 	/**
 	 * @brief 显示鼠标光标并切换到游戏与界面混合输入模式。
 	 */
-	inline void ShowCursorFun();
+	void ShowCursorFun();
 	// 隐藏鼠标光标
 	/**
 	 * @brief 隐藏鼠标光标并切换回纯游戏输入模式。
 	 */
-	inline void HideCursorFun();
+	void HideCursorFun();
 	
 protected:
 	/**

@@ -7,6 +7,8 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillItem.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkill.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
+#include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationProcessComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemGridWidget.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
@@ -167,15 +169,6 @@ bool ULxShortcutBarWidget::BeginUseSelectedShortcut()
 	}
 
 	UseSelectedShortcutRepeatedly();
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			RepeatedUseTimerHandle,
-			this,
-			&ULxShortcutBarWidget::UseSelectedShortcutRepeatedly,
-			Skill->GetEffectiveReleaseCooldown(),
-			true);
-	}
 	return true;
 }
 
@@ -299,7 +292,25 @@ void ULxShortcutBarWidget::UseSelectedShortcutRepeatedly()
 		return;
 	}
 
-	SelectedShortcutGrid->UseItem();
+	const ALxBaseCharacter* Character = Cast<ALxBaseCharacter>(GetOwningPlayerPawn());
+	const ULxSkillCastModule* CastModule = Character ? Character->GetSkillCastComponent() : nullptr;
+	const ULxCharacterAnimationProcessComponent* Animation = Character ? Character->GetCharacterAnimationProcessComponent() : nullptr;
+	// 客户端也参考当前播放信号，避免动画期间反复向服务端发送释放请求。
+	const bool bClientAnimationPlaying = Character && !Character->HasAuthority() && Animation
+		&& Animation->GetCurrentActionAnimationSignal().CastId.IsValid();
+	if (CastModule && CastModule->IsSkillCastIdle() && !bClientAnimationPlaying)
+	{
+		SelectedShortcutGrid->UseItem();
+	}
+	// 每帧只尝试一次，由实际动画占用决定能否释放，不再按固定冷却间隔轮询。
+	if (bUsingSelectedShortcut && !bChargingSelectedShortcut && !bSustainingSelectedShortcut)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			StopRepeatedUseTimer();
+			RepeatedUseTimerHandle = World->GetTimerManager().SetTimerForNextTick(this, &ULxShortcutBarWidget::UseSelectedShortcutRepeatedly);
+		}
+	}
 }
 
 void ULxShortcutBarWidget::StopRepeatedUseTimer()

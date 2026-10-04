@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
+#include "LxAISpawnPointSaveData.h"
 #include "LxCharacterSaveData.h"
 #include "LxInteractionSaveData.h"
 #include "LxGameSaveData.generated.h"
@@ -21,7 +22,11 @@ public:
 	UPROPERTY(SaveGame, VisibleAnywhere, BlueprintReadOnly, Category="存档", DisplayName="玩家数据")
 	TMap<FGameplayTag, FLxCharacterSaveRecord> Players;
 
-	/** 通过全局唯一的交互对象标签精确索引所有交互功能。 */
+	/** 地图档所属的交互功能；同一地图档内标签唯一，切换角色仍共用该地图进度。 */
 	UPROPERTY(SaveGame, VisibleAnywhere, BlueprintReadOnly, Category="存档", DisplayName="交互对象数据")
 	TMap<FGameplayTag, FLxInteractionSaveRecord> Interactions;
+
+	/** 通过固定刷怪点标签精确索引怪物种类和存活数量，与玩家及交互对象使用独立索引。 */
+	UPROPERTY(SaveGame, VisibleAnywhere, BlueprintReadOnly, Category="存档", DisplayName="固定刷怪点数据")
+	TMap<FGameplayTag, FLxAISpawnPointSaveRecord> SpawnPoints;
 };

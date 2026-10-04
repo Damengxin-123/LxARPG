@@ -24,7 +24,7 @@ public:
 	static ULxWaitMechanismStateChangedAsyncAction* WaitForMechanismStateChanged(
 		UPARAM(DisplayName="可交互对象组件") ULxInteractableComponent* InInteractableComponent);
 
-	/** 每次机关状态改变时执行，并输出改变后的机关状态。 */
+	/** 首次激活时输出当前机关状态，之后每次状态改变时继续输出。 */
 	UPROPERTY(BlueprintAssignable, Category="交互|机关|异步事件", DisplayName="状态改变")
 	FOnLxWaitMechanismStateChangedEvent StateChanged;
 
@@ -32,7 +32,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="交互|机关|异步事件", DisplayName="已取消")
 	FOnLxWaitMechanismStateChangedEvent Cancelled;
 
-	/** 绑定机关状态改变事件并开始持续监听。 */
+	/** 绑定机关状态事件，补发当前状态并开始持续监听。 */
 	virtual void Activate() override;
 
 private:
@@ -52,6 +52,9 @@ private:
 
 	/** 最后一次获取到的机关状态，供取消输出使用。 */
 	ELxMechanismState LastKnownState = ELxMechanismState::Closed;
+
+	/** 标记是否已激活，防止重复绑定代理或重复补发初始状态。 */
+	bool bActivated = false;
 
 	/** 标记异步节点是否已经结束，防止重复广播输出事件。 */
 	bool bFinished = false;

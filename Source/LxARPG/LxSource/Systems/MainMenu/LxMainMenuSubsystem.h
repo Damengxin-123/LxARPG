@@ -4,6 +4,7 @@
 #include "Engine/EngineBaseTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxSaveProfiles.h"
+#include "LxARPG/LxSource/Systems/DatabaseSystem/LxCharacterRaceConfig.h"
 #include "LxMainMenuSubsystem.generated.h"
 
 class APlayerController;
@@ -12,12 +13,17 @@ class ULxMainMenuWidget;
 class ULxSaveProfileStore;
 class ULxGameSaveData;
 
+/** 菜单目录、选择、加载状态或提示变化时通知原生界面逻辑。 */
+DECLARE_MULTICAST_DELEGATE(FLxMenuStateChanged);
+
 /** 跨关卡保存菜单选择、只读预览状态与正式会话的角色地图组合。 */
 UCLASS(DisplayName="主菜单流程")
 class LXARPG_API ULxMainMenuSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 public:
+	/** 由界面基类转发为蓝图事件，监听者无需依赖每帧轮询。 */
+	FLxMenuStateChanged OnMenuStateChanged;
 	/** 绑定关卡旅行失败回调，防止加载失败后界面永久锁定。 */
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	/** 游戏实例结束时解除世界引用。 */
@@ -32,9 +38,12 @@ public:
 	/** 选择地图档，不改变角色档案内容。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|存档", DisplayName="选择地图存档")
 	void SelectWorld(const FGuid& WorldID);
-	/** 从默认角色蓝图建立新档，首次进入时使用其初始内容。 */
+	/** 按种族配置建立新档，首次进入时使用对应角色蓝图的初始内容；旧调用默认选择人类。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|角色", DisplayName="新建角色")
-	void CreateCharacter(const FString& Name);
+	void CreateCharacter(const FString& Name, ELxCharacterRaceType Race = ELxCharacterRaceType::Human);
+	/** 获取数据表配置的可玩种族，用于新建角色界面。 */
+	UFUNCTION(BlueprintCallable, Category="主菜单|角色", DisplayName="获取可选角色种族")
+	TArray<FLxCharacterRaceConfig> GetAvailableCharacterRaces() const;
 	/** 建立新的地图状态存档。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|存档", DisplayName="新建地图存档")
 	void CreateWorld(const FString& Name);
@@ -59,7 +68,7 @@ public:
 	FString GetStatus() const { return Status; }
 	/** 当前角色职业等级与场景名称，供角色信息区域显示。 */
 	FString GetCharacterDescription() const;
-	/** 从角色蓝图默认对象的角色种族属性读取中文名称；未配置时显示未知。 */
+	/** 根据当前存档中的种族读取种族表显示名称。 */
 	UFUNCTION(BlueprintPure, Category="主菜单|角色", DisplayName="获取当前角色种族名称")
 	FString GetCharacterRaceName() const;
 	/** 菜单是否正在执行不可重入的加载操作。 */
@@ -83,6 +92,8 @@ public:
 	/** 给正式角色选择经过地面和碰撞检查的出生位置。 */
 	FTransform GetSafeSpawnTransform(UWorld* World, UClass* PawnClass) const;
 private:
+	/** 在状态更新完成后发布通知，包含失败分支的提示变化。 */
+	void NotifyMenuStateChanged();
 	/** 仅处理本游戏实例的旅行失败，并恢复可操作的菜单提示。 */
 	void HandleTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& Error);
 	/** 首次显示菜单时加载目录并补充空目录的默认档案。 */
@@ -93,8 +104,8 @@ private:
 	void CreateMenuWidget(UWorld* World);
 	/** 清理界面和展示引用，使旧世界可正常回收。 */
 	void ClearPresentation();
-	/** 选中快照缺少新字段时补齐配置，保留旧进度。 */
-	void ResolvePresentation(FLxCharacterSaveRecord& Record) const;
+	/** 从种族表解析角色类型并补齐旧档字段；失败时保留错误原因。 */
+	bool ResolvePresentation(FLxCharacterSaveRecord& Record);
 	/** 激活光照等仅用于展示的环境数据层。 */
 	void ActivatePreviewEnvironment(UWorld* World) const;
 	/** 在当前世界查找默认出生点。 */

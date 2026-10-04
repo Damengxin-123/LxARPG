@@ -48,14 +48,14 @@ struct LXARPG_API FLxItemSlotSaveRecord
 /** 背包、装备、宝箱、商店和仓库共同使用的纯属性转换工具。 */
 namespace LxItemSaveData
 {
-	/** 导出物品数量及实际运行时词条，不保存运行时对象。 */
-	LXARPG_API FLxItemSaveRecord CaptureItem(ULxItemBase* InItem);
+	/** 导出数量及运行时词条；空指针表示空槽，非法实例或词条信息不完整则失败并保留原输出。 */
+	LXARPG_API bool CaptureItem(ULxItemBase* InItem, FLxItemSaveRecord& OutRecord);
 
 	/** 按存档属性重建物品；无效数据或已删除的静态配置返回空指针。 */
 	LXARPG_API ULxItemBase* CreateItem(UObject* InOuter, const FLxItemSaveRecord& InRecord);
 
-	/** 按容器数组顺序导出全部槽位，包括空槽位。 */
-	LXARPG_API void CaptureSlots(const TArray<TObjectPtr<ULxItemSlotData>>& InSlots,
+	/** 按数组顺序导出全部槽位；任何槽位或物品采集失败时保留原输出并返回假。 */
+	LXARPG_API bool CaptureSlots(const TArray<TObjectPtr<ULxItemSlotData>>& InSlots,
 		TArray<FLxItemSlotSaveRecord>& OutRecords);
 
 	/** 先检查并重建全部物品，再一次恢复目标槽位；不触发物品使用行为。 */

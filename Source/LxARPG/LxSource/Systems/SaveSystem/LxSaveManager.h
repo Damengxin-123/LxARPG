@@ -11,6 +11,7 @@ class ULxSaveComponentBase;
 
 /** 正式会话采集完成后交给多存档仓库提交角色和地图快照。 */
 DECLARE_DELEGATE_RetVal_OneParam(bool, FLxPersistSaveSession, const ULxGameSaveData*);
+enum class ELxSaveRecordType : uint8;
 
 /** 游戏实例存档管理模块，统一读盘、按标签索引、收集对象属性并最终落盘。 */
 UCLASS(BlueprintType, DisplayName="存档管理模块")
@@ -38,11 +39,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category="存档", DisplayName="加载游戏存档")
 	bool LoadSave();
 
-	/** 采集所有已注册对象并统一写入本地槽位。 */
+	/** 采集所有已注册对象并统一写入本地槽位；任何对象采集失败都返回失败并保留原文件。 */
 	UFUNCTION(BlueprintCallable, Category="存档", DisplayName="保存全部存档")
 	bool SaveAll();
 
-	/** 最终只保存缓存，不访问可能已被清理的运行对象。 */
+	/** 最终只保存缓存，不访问可能已被清理的运行对象；仍有采集失败时禁止落盘。 */
 	bool SaveCachedData();
 
 	/** 注册对象并按ID恢复；拒绝空ID、重复ID或恢复失败的对象。 */
@@ -51,11 +52,11 @@ public:
 	/** 取消对象注册，保留它最后提交的缓存。 */
 	void UnregisterComponent(ULxSaveComponentBase* Component);
 
-	/** 仅采集已注册且ID未变的对象，防止重名对象覆盖存档。 */
-	void CacheComponent(ULxSaveComponentBase* Component);
+	/** 仅采集已注册且ID未变的对象，成功后提交快照，失败时保留原缓存并回报失败。 */
+	bool CacheComponent(ULxSaveComponentBase* Component);
 
-	/** 世界或流式关卡结束前缓存并注销其中对象，避免之后的清理覆盖快照。 */
-	void CacheWorldBeforeCleanup(UWorld* World, ULevel* Level = nullptr);
+	/** 世界或流式关卡结束前缓存并注销其中对象；采集失败状态在注销后仍保留。 */
+	bool CacheWorldBeforeCleanup(UWorld* World, ULevel* Level = nullptr);
 
 	/** 获取统一缓存，组件仅用它查询和导入导出属性。 */
 	ULxGameSaveData* GetSaveData() const { return SaveData; }
@@ -78,8 +79,8 @@ private:
 		TWeakObjectPtr<ULxSaveComponentBase> Component;
 		/** 注册时的精确标签ID。 */
 		FGameplayTag SaveID;
-		/** 是否位于玩家索引空间。 */
-		bool bPlayer = false;
+		/** 注册时使用的独立记录类型索引空间。 */
+		ELxSaveRecordType RecordType;
 	};
 
 	/** 已加载且跨地图保留的纯属性存档数据。 */
@@ -88,6 +89,9 @@ private:
 
 	/** 参与后续状态采集的存档组件。 */
 	TArray<FRegisteredComponent> RegisteredComponents;
+
+	/** 尚未成功重试的采集失败对象；弱引用失效或注销也不能把旧快照当作最新进度保存。 */
+	TSet<TWeakObjectPtr<ULxSaveComponentBase>> FailedCaptureComponents;
 
 	/** 当前游戏实例使用的存档槽名称。 */
 	FString SlotName = TEXT("LxARPG_AutoSave");

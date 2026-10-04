@@ -6,6 +6,7 @@
 #include "LxARPG/LxSource/Core/Database/LxDataTableBase.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
+#include "LxCharacterRaceConfig.h"
 #include "LxGameDataTablesManager.generated.h"
 
 class UDataTable;
@@ -17,6 +18,19 @@ class LXARPG_API ULxGameDataTablesManager : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
+	/** 可玩种族与玩家角色子类的唯一映射，统一用于创建、预览和加载存档。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|角色", DisplayName="角色种族表",
+		meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxCharacterRaceConfig"))
+	TObjectPtr<UDataTable> CharacterRaceTable = nullptr;
+
+	/** 验证并读取全部可玩种族，拒绝重复种族、无效名称及不可生成的角色类。 */
+	UFUNCTION(BlueprintCallable, Category="数据表配置|角色", DisplayName="获取可玩种族配置")
+	bool GetCharacterRaceConfigs(TArray<FLxCharacterRaceConfig>& OutConfigs, FString& OutError) const;
+
+	/** 按存档种族查询唯一的角色配置，不使用数据表行名称。 */
+	UFUNCTION(BlueprintCallable, Category="数据表配置|角色", DisplayName="查询角色种族配置")
+	bool GetCharacterRaceConfig(ELxCharacterRaceType Race, FLxCharacterRaceConfig& OutConfig, FString& OutError) const;
+
 	// 输入行为信息表，Row Struct 使用 FLxInputActionInfo。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|输入", DisplayName="输入行为信息表")
 	TObjectPtr<UDataTable> m_pInputActionInfoTableConfig = nullptr;

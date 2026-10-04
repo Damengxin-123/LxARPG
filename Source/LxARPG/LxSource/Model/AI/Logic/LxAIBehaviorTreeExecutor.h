@@ -62,8 +62,8 @@ private:
 	void ResetLeafProgress(bool bStopMovement);
 	/** 请求移动到指定位置。 */
 	bool MoveToLocation(const FVector& InLocation, float InAcceptanceRadius);
-	/** 在点位范围内挑选一个距离角色足够远且可到达的巡逻目标。 */
-	bool ChoosePointPatrolDestination(const class ALxAIPointActor& InPoint, const FVector& InSelfLocation);
+	/** 在导航点位或所属刷怪点的圆形范围内挑选距离角色足够远且可到达的巡逻目标。 */
+	bool ChoosePointPatrolDestination(const FVector& InPointCenter, float InPointRadius, const FVector& InSelfLocation);
 	/** 为当前固定路线逃跑路径点选取一次偏离范围内的可导航目标。 */
 	void ChooseRouteFleeDestination(const FVector& InRoutePoint, float InDeviationMeters);
 	/** 检查随机逃跑目标与角色之间的导航直线和角色宽度碰撞通道。 */

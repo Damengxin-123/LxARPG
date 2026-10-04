@@ -14,6 +14,7 @@ public class LxARPG : ModuleRules
 			"Core", 
 			"CoreUObject", 
 			"Engine",
+			"Niagara", // 元素异常依附单元的粒子表现。
 			"AnimGraphRuntime",
 			"InputCore",
 			"EnhancedInput",

@@ -1,4 +1,13 @@
 #include "LxSkillItem.h"
+#include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillCastComponent.h"
+
+FLxSkillItemInformation::FLxSkillItemInformation()
+{
+	ItemType = ELxItemType::Skill;
+	ItemIDTag = LxTag_Item_Skill;
+	ItemCount = 1;
+	ItemCountMax = 1;
+}
 
 ULxSkillItem::ULxSkillItem()
 {
@@ -78,7 +87,10 @@ ELxItemUseState ULxSkillItem::ItemUseEnd()
 
 	if (!SkillObject->CanSkillCharge())
 	{
-		return ELxItemUseState::Failed;
+		ULxSkillCastModule* Module = SkillObject->ResolveSkillCastModule();
+		return SkillObject->IsSustainedReleaseSkill() && Module
+			&& Module->EndUseSkillItem(this, SkillObject->GetSkillCastContext())
+			? ELxItemUseState::CastSkill : ELxItemUseState::Failed;
 	}
 
 	if (!SkillObject->TryEndSkillCharge())
@@ -87,6 +99,12 @@ ELxItemUseState ULxSkillItem::ItemUseEnd()
 	}
 
 	return ELxItemUseState::CastSkill;
+}
+
+void ULxSkillItem::InvalidateSkillItem()
+{
+	SkillItemInformation.ItemCount = 0;
+	BroadcastItemCountChanged();
 }
 
 FLxString ULxSkillItem::ItemCountText()
@@ -113,7 +131,7 @@ void ULxSkillItem::SetItemData(const FLxItemInformationBase* InItemData, FLxItem
 
 	SkillItemInformation = *static_cast<const FLxSkillItemInformation*>(InItemData);
 	SkillItemInformation.ItemCount = InItemCount;
-	CreateSkillObject();
+	SkillObject = nullptr;
 }
 
 FLxItemInformationBase* ULxSkillItem::ItemBase()
@@ -124,10 +142,10 @@ FLxItemInformationBase* ULxSkillItem::ItemBase()
 void ULxSkillItem::CreateSkillObject()
 {
 	SkillObject = nullptr;
-	if (!SkillItemInformation.SkillClass)
+	if (SkillItemInformation.SkillFlow)
 	{
+		SkillObject = NewObject<ULxSkill>(this);
+		SkillObject->FlowAsset = SkillItemInformation.SkillFlow;
 		return;
 	}
-
-	SkillObject = NewObject<ULxSkill>(this, SkillItemInformation.SkillClass);
 }

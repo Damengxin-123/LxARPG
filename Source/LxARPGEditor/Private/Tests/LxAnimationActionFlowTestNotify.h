@@ -16,7 +16,7 @@ public:
 	virtual void Notify(USkeletalMeshComponent* Mesh, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& Event) override;
 };
 
-/** 记录真正进入技能蓝图事件的次数，验证等待通知期间不产生技能行为。 */
+/** 记录真正交给流程资产的释放次数，验证等待通知期间不产生技能行为。 */
 UCLASS(meta=(DisplayName="技能通知测试"))
 class ULxAnimationEventTestSkill : public ULxSkill
 {
@@ -24,8 +24,8 @@ class ULxAnimationEventTestSkill : public ULxSkill
 public:
 	/** 实际释放事件次数，蓄力开始不计入。 */
 	int32 ExecutionCount = 0;
-	/** 仅测试配置释放类型，模拟技能蓝图的类默认值。 */
-	void SetTestReleaseType(ELxSkillReleaseType Type) { SkillReleaseType = Type; }
-	/** 测试技能事件入口，可捕获原生调用的蓝图实现事件。 */
-	virtual void ProcessEvent(UFunction* Function, void* Parameters) override;
+	/** 配置内存中的流程资产与对应入口，不修改项目资产。 */
+	void SetTestReleaseType(ELxSkillReleaseType Type);
+	/** 记录实际发送到新流程的释放事件，并执行正常流程。 */
+	virtual bool DispatchFlowEvent(ELxSkillFlowEvent Event) override;
 };
