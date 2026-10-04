@@ -25,14 +25,14 @@ public:
 	/** 独立存档目录前缀，与旧单槽文件并存。 */
 	UPROPERTY(EditAnywhere, config, Category="主菜单|存档", DisplayName="目录前缀")
 	FString SavePrefix = TEXT("LxARPG_Profiles");
-	/** 首次运行或旧档缺少位置时使用的基础关卡。 */
-	UPROPERTY(EditAnywhere, config, Category="主菜单|场景", DisplayName="默认场景")
+	/** 菜单展示与正式游玩共用的唯一总关卡，各地图档只切换其中的单位状态。 */
+	UPROPERTY(EditAnywhere, config, Category="主菜单|场景", DisplayName="总关卡")
 	TSoftObjectPtr<UWorld> DefaultLevel;
 	/** 首次运行和旧档缺少角色类时使用的可玩角色。 */
 	UPROPERTY(EditAnywhere, config, Category="主菜单|角色", DisplayName="默认角色类型")
 	TSoftClassPtr<ALxPlayerCharacter> DefaultCharacter;
-	/** 返回主菜单时打开的轻量入口关卡。 */
-	UPROPERTY(EditAnywhere, config, Category="主菜单|场景", DisplayName="菜单入口关卡")
+	/** 仅保留旧配置的反序列化兼容；启动与返回菜单统一使用总关卡。 */
+	UPROPERTY(BlueprintReadOnly, config, Category="主菜单|兼容", DisplayName="旧菜单入口关卡")
 	TSoftObjectPtr<UWorld> MenuLevel;
 	/** 正式进入游戏所使用的游戏模式，通常配置项目现有蓝图。 */
 	UPROPERTY(EditAnywhere, config, Category="主菜单|流程", DisplayName="正式游戏模式")

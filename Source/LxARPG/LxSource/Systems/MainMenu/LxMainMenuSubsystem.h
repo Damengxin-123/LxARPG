@@ -87,7 +87,7 @@ private:
 	void HandleTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& Error);
 	/** 首次显示菜单时加载目录并补充空目录的默认档案。 */
 	bool EnsureStore();
-	/** 根据当前角色加载对应背景或更新同关卡的展示对象。 */
+	/** 在总关卡中按角色存档位置更新展示对象，兼容旧入口时才进行关卡跳转。 */
 	void RefreshPreview();
 	/** 创建菜单或正式加载期间的界面。 */
 	void CreateMenuWidget(UWorld* World);
@@ -101,7 +101,7 @@ private:
 	FTransform FindFallbackTransform(UWorld* World) const;
 	/** 多存档管理器的会话提交回调，使用固定的活动档案 ID。 */
 	bool PersistSession(const ULxGameSaveData* Data);
-	/** 执行菜单关卡跳转，清理跨世界展示引用。 */
+	/** 重新载入总关卡进入菜单态，清除上一局已经运行的玩法对象。 */
 	void TravelToMenu(const FSoftObjectPath& Level);
 	/** 持有当前目录和磁盘访问接口。 */
 	UPROPERTY(Transient, VisibleAnywhere, Category="主菜单|存档", DisplayName="存档仓库")

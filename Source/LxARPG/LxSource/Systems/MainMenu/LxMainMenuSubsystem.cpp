@@ -17,6 +17,7 @@
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
 #include "LxARPG/LxSource/Systems/LxLocalPlayerSubsystem.h"
+#include "LxARPG/LxSource/Systems/GameMode/LxARPGGameMode.h"
 #include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxSaveManager.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxGameSaveData.h"
@@ -105,7 +106,10 @@ void ULxMainMenuSubsystem::ResolvePresentation(FLxCharacterSaveRecord& Record) c
 {
 	const ULxMainMenuSettings* Settings = GetDefault<ULxMainMenuSettings>();
 	if (Record.CharacterClass.IsNull()) Record.CharacterClass = Settings->DefaultCharacter.ToSoftObjectPath();
-	if (Record.LevelPath.IsNull()) Record.LevelPath = Settings->DefaultLevel.ToSoftObjectPath();
+	const FSoftObjectPath MainLevel = Settings->DefaultLevel.ToSoftObjectPath();
+	// 角色与地图档案共用总关卡，旧档若来自其他测试地图则回退出生点。
+	if (!Record.LevelPath.IsNull() && Record.LevelPath != MainLevel) Record.bHasSavedTransform = false;
+	Record.LevelPath = MainLevel;
 }
 
 FTransform ULxMainMenuSubsystem::FindFallbackTransform(UWorld* World) const
@@ -129,6 +133,8 @@ void ULxMainMenuSubsystem::CreateMenuWidget(UWorld* World)
 		Input.SetWidgetToFocus(Widget->TakeWidget());
 		Input.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		Controller->SetInputMode(Input);
+		Controller->SetIgnoreMoveInput(true);
+		Controller->SetIgnoreLookInput(true);
 	}
 	if (ULocalPlayer* Player = Controller->GetLocalPlayer())
 	{
@@ -150,6 +156,8 @@ void ULxMainMenuSubsystem::ClearPresentation()
 
 void ULxMainMenuSubsystem::ShowMenu(UWorld* World)
 {
+	if (ULxGameInstanceSubsystem* Global = GetGameInstance()->GetSubsystem<ULxGameInstanceSubsystem>())
+		if (Global->GetSaveManager()) Global->GetSaveManager()->SetReadOnly(true);
 	ActivatePreviewEnvironment(World);
 	GetMutableDefault<ULxMenuPreferences>()->Apply(World);
 	MenuWorld = World;
@@ -206,7 +214,9 @@ void ULxMainMenuSubsystem::TravelToMenu(const FSoftObjectPath& Level)
 	const FString Package = Level.GetLongPackageName();
 	if (!World || !FPackageName::DoesPackageExist(Package)) { bBusy = false; Status = TEXT("找不到角色所在关卡，请检查主菜单场景配置。"); return; }
 	ClearPresentation();
-	UGameplayStatics::OpenLevel(World, FName(Package), true, TEXT("game=/Script/LxARPG.LxMainMenuGameMode"));
+	UClass* Mode = GetDefault<ULxMainMenuSettings>()->GameplayMode.LoadSynchronous();
+	const FString Options = FString(TEXT("game=")) + (Mode ? Mode->GetPathName() : ALxARPGGameMode::StaticClass()->GetPathName());
+	UGameplayStatics::OpenLevel(World, FName(Package), true, Options);
 }
 
 void ULxMainMenuSubsystem::RefreshPreview()
@@ -315,7 +325,16 @@ void ULxMainMenuSubsystem::EnterGame()
 	ActiveCharacterID = SelectedCharacterID; ActiveWorldID = SelectedWorldID;
 	Global->SetSessionSaveManager(Manager);
 	bBusy = true; bEnteringGame = true; Status = TEXT("正在恢复地图与角色…");
-	UWorld* World = GetWorld(); ClearPresentation();
+	UWorld* World = GetWorld();
+	// 总关卡已经处于菜单态时，沿用当前世界及已加载区域，仅切换玩法阶段。
+	if (ALxARPGGameMode* Mode = World ? World->GetAuthGameMode<ALxARPGGameMode>() : nullptr;
+		Mode && Mode->IsShowingMainMenu() && !World->HasBegunPlay())
+	{
+		if (!Mode->BeginMenuSession()) FailGameplayStart(TEXT("无法从主菜单启动当前会话，请重试。"));
+		return;
+	}
+	// 兼容旧版独立菜单关卡，最终仍然只进入配置的总关卡。
+	ClearPresentation();
 	UGameplayStatics::OpenLevel(World, FName(Package), true, FString(TEXT("game=")) + ModeClass->GetPathName());
 }
 
@@ -330,11 +349,14 @@ void ULxMainMenuSubsystem::PrepareGameplayWorld(UWorld* World)
 	GetMutableDefault<ULxMenuPreferences>()->Apply(World);
 	MenuWorld = World; LoadStartedAt = FPlatformTime::Seconds();
 	CreateMenuWidget(World);
-	Preview = World->SpawnActor<ALxMenuPreviewActor>();
-	if (Preview.IsValid() && Character)
+	if (!Preview.IsValid())
 	{
-		Preview->Configure(Character->Record, FindFallbackTransform(World));
-		if (APlayerController* Controller = World->GetFirstPlayerController()) Controller->SetViewTarget(Preview.Get());
+		Preview = World->SpawnActor<ALxMenuPreviewActor>();
+		if (Preview.IsValid() && Character)
+		{
+			Preview->Configure(Character->Record, FindFallbackTransform(World));
+			if (APlayerController* Controller = World->GetFirstPlayerController()) Controller->SetViewTarget(Preview.Get());
+		}
 	}
 }
 
@@ -376,6 +398,8 @@ void ULxMainMenuSubsystem::CompleteGameplayStart(APlayerController* Controller)
 	ClearPresentation();
 	Controller->SetViewTarget(Controller->GetPawn());
 	Controller->SetInputMode(FInputModeGameOnly()); Controller->bShowMouseCursor = false;
+	Controller->ResetIgnoreMoveInput();
+	Controller->ResetIgnoreLookInput();
 	if (ULocalPlayer* Player = Controller->GetLocalPlayer())
 	{
 		if (ULxLocalPlayerSubsystem* Local = Player->GetSubsystem<ULxLocalPlayerSubsystem>())
@@ -391,7 +415,7 @@ void ULxMainMenuSubsystem::FailGameplayStart(const FString& Reason)
 {
 	if (ULxGameInstanceSubsystem* Global = GetGameInstance()->GetSubsystem<ULxGameInstanceSubsystem>()) Global->GetSaveManager()->SetReadOnly(true);
 	bEnteringGame = false; bPlaying = false; bBusy = false; PendingError = Reason; Status = Reason;
-	TravelToMenu(GetDefault<ULxMainMenuSettings>()->MenuLevel.ToSoftObjectPath());
+	TravelToMenu(GetDefault<ULxMainMenuSettings>()->DefaultLevel.ToSoftObjectPath());
 }
 
 bool ULxMainMenuSubsystem::ReturnToMenu()
@@ -401,7 +425,7 @@ bool ULxMainMenuSubsystem::ReturnToMenu()
 	if (!Global || !Global->RequestSaveGame()) { Status = TEXT("保存失败，当前游戏已保留，请重试。"); return false; }
 	Global->GetSaveManager()->SetReadOnly(true);
 	bPlaying = false;
-	TravelToMenu(GetDefault<ULxMainMenuSettings>()->MenuLevel.ToSoftObjectPath());
+	TravelToMenu(GetDefault<ULxMainMenuSettings>()->DefaultLevel.ToSoftObjectPath());
 	return true;
 }
 

@@ -8,6 +8,8 @@
 #include "Engine/GameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "LxARPG/LxSource/Systems/MainMenu/LxMainMenuSubsystem.h"
+#include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxSaveManager.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxCharacterSaveComponent.h"
 
 ALxARPGGameMode::ALxARPGGameMode()
@@ -16,9 +18,39 @@ ALxARPGGameMode::ALxARPGGameMode()
 	bAllowTickBeforeBeginPlay = true;
 }
 
+void ALxARPGGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+	ULxMainMenuSubsystem* Menu = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>() : nullptr;
+	bShowingMainMenu = GetNetMode() != NM_DedicatedServer && Menu && !Menu->HasSession();
+	if (bShowingMainMenu)
+	{
+		if (ULxGameInstanceSubsystem* Global = ULxGameInstanceSubsystem::GetInstance(GetWorld()))
+		{
+			if (ULxSaveManager* Saves = Global->GetSaveManager()) Saves->SetReadOnly(true);
+		}
+	}
+}
+
+bool ALxARPGGameMode::BeginMenuSession()
+{
+	UWorld* World = GetWorld();
+	ULxMainMenuSubsystem* Menu = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>() : nullptr;
+	if (!bShowingMainMenu || !World || World->HasBegunPlay() || !Menu || !Menu->IsEnteringGame()) return false;
+	bShowingMainMenu = false;
+	bWaitingForMenuSession = true;
+	Menu->PrepareGameplayWorld(World);
+	return true;
+}
+
 void ALxARPGGameMode::StartPlay()
 {
 	ULxMainMenuSubsystem* Menu = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>() : nullptr;
+	if (bShowingMainMenu)
+	{
+		if (Menu) Menu->ShowMenu(GetWorld());
+		return;
+	}
 	if (Menu && Menu->IsEnteringGame())
 	{
 		bWaitingForMenuSession = true;
@@ -31,9 +63,13 @@ void ALxARPGGameMode::StartPlay()
 void ALxARPGGameMode::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	if (!bWaitingForMenuSession) return;
-	ULxMainMenuSubsystem* Menu = GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>();
-	if (!Menu->IsGameplayWorldReady()) return;
+	ULxMainMenuSubsystem* Menu = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>() : nullptr;
+	if (bShowingMainMenu)
+	{
+		if (Menu) Menu->TickPreview(DeltaSeconds);
+		return;
+	}
+	if (!bWaitingForMenuSession || !Menu || !Menu->IsGameplayWorldReady()) return;
 	bWaitingForMenuSession = false;
 	bSessionSpawnAllowed = true;
 	Super::StartPlay();
@@ -54,6 +90,7 @@ void ALxARPGGameMode::PostLogin(APlayerController* NewPlayer)
 
 void ALxARPGGameMode::RestartPlayer(AController* NewPlayer)
 {
+	if (bShowingMainMenu) return;
 	ULxMainMenuSubsystem* Menu = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>() : nullptr;
 	if (Menu && Menu->HasSession())
 	{
@@ -70,7 +107,7 @@ void ALxARPGGameMode::HandlePlayerDeath(AController* DeadPlayer)
 
 APawn* ALxARPGGameMode::SpawnPlayerCharacter(AController* NewPlayer)
 {
-	if (!NewPlayer)
+	if (bShowingMainMenu || !NewPlayer)
 	{
 		return nullptr;
 	}

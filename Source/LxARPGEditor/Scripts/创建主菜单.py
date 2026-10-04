@@ -1,4 +1,4 @@
-"""创建主菜单入口关卡和中文界面蓝图，并接入项目启动地图；可重复执行。"""
+"""创建中文主菜单界面蓝图，并让唯一总关卡负责菜单与正式游玩；可重复执行。"""
 import unreal
 from pathlib import Path
 
@@ -40,12 +40,10 @@ def configure_default_human_character():
 
 
 def create_menu_assets():
-    """创建缺失的入口关卡和界面资产，并补充默认角色尚未配置的身份信息。"""
-    destination = '/Game/项目内容/关卡/主菜单'
+    """复用总关卡，创建缺失的界面资产并配置游戏和编辑器的同一启动入口。"""
+    destination = '/Game/项目内容/关卡/总关卡'
     if not unreal.EditorAssetLibrary.does_asset_exist(destination):
-        world = unreal.EditorLoadingAndSavingUtils.new_blank_map(False)
-        world.get_world_settings().set_editor_property('default_game_mode', unreal.LxMainMenuGameMode)
-        unreal.EditorLoadingAndSavingUtils.save_map(world, destination)
+        raise RuntimeError('未找到主菜单与正式游玩共用的总关卡：' + destination)
     asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
     ui_path = '/Game/项目内容/UI界面/主菜单'
     if not unreal.EditorAssetLibrary.does_asset_exist(ui_path + '/主菜单'):
@@ -55,12 +53,14 @@ def create_menu_assets():
         unreal.EditorAssetLibrary.save_loaded_asset(asset)
     config = Path(unreal.Paths.project_config_dir())
     replace_ini_value(config / 'DefaultEngine.ini', '/Script/EngineSettings.GameMapsSettings',
-                      'GameDefaultMap', destination + '.主菜单')
-    # 编辑器运行当前关卡，因此编辑器启动地图也使用主菜单入口。
+                      'GameDefaultMap', destination + '.总关卡')
+    # 编辑器与独立游戏均直接进入总关卡，由 ARPG 游戏模式先显示菜单。
     replace_ini_value(config / 'DefaultEngine.ini', '/Script/EngineSettings.GameMapsSettings',
-                      'EditorStartupMap', destination + '.主菜单')
+                      'EditorStartupMap', destination + '.总关卡')
     replace_ini_value(config / 'DefaultGame.ini', '/Script/LxARPG.LxMainMenuSettings',
-                      'MenuLevel', destination + '.主菜单')
+                      'DefaultLevel', destination + '.总关卡')
+    replace_ini_value(config / 'DefaultGame.ini', '/Script/LxARPG.LxMainMenuSettings',
+                      'MenuLevel', destination + '.总关卡')
     # 追加打包目录而不覆盖项目已有的其它目录条目。
     game_path = config / 'DefaultGame.ini'
     raw = game_path.read_bytes()
