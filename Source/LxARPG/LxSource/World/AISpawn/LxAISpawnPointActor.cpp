@@ -10,6 +10,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "NavigationSystem.h"
 #include "TimerManager.h"
+#include "Misc/ScopeExit.h"
+#include "LxARPG/LxSource/Systems/GameMode/LxARPGGameMode.h"
+#include "LxARPG/LxSource/Systems/MainMenu/LxMainMenuSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxAICharacter.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxAISpawnPointSaveComponent.h"
@@ -215,6 +219,13 @@ void ALxAISpawnPointActor::CheckPopulation()
 	}
 	TGuardValue<bool> UpdatingGuard(bUpdatingPopulation, true);
 	SpawnedMonsters.RemoveAll([](const TWeakObjectPtr<ALxAICharacter>& Character) { return !Character.IsValid(); });
+	const ALxARPGGameMode* Mode = GetWorld()->GetAuthGameMode<ALxARPGGameMode>();
+	const ULxMainMenuSubsystem* Menu = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>() : nullptr;
+	if ((Mode && Mode->IsShowingMainMenu()) || (Menu && Menu->IsEnteringGame()))
+	{
+		ScheduleNextCheck();
+		return;
+	}
 	const int32 Requested = FMath::Min(LxAISpawnPrivate::MaximumSpawnsPerCheck,
 		CalculateSpawnCount(GetCurrentMonsterCount(), BaseMonsterCount, MonsterCountVariation, FMath::FRand()));
 	for (int32 Index = 0; Index < Requested; ++Index)
@@ -332,6 +343,21 @@ bool ALxAISpawnPointActor::RestorePopulation(const FLxAISpawnPointSaveRecord& Re
 		Classes.Add(CharacterClass);
 	}
 	TArray<TWeakObjectPtr<ALxAICharacter>> Restored;
+	// 同一关卡内切换地图档时，旧怪物不能阻挡新存档的落点；失败则恢复旧碰撞。
+	TMap<TWeakObjectPtr<ALxAICharacter>, bool> PreviousCollision;
+	for (const TWeakObjectPtr<ALxAICharacter>& WeakCharacter : SpawnedMonsters)
+	{
+		if (ALxAICharacter* Character = WeakCharacter.Get())
+		{
+			PreviousCollision.Add(Character, Character->GetActorEnableCollision());
+			Character->SetActorEnableCollision(false);
+		}
+	}
+	ON_SCOPE_EXIT
+	{
+		for (const auto& Entry : PreviousCollision)
+			if (ALxAICharacter* Character = Entry.Key.Get()) Character->SetActorEnableCollision(Entry.Value);
+	};
 	for (int32 Index = 0; Index < Record.Population.Num(); ++Index)
 	{
 		for (int32 Count = 0; Count < Record.Population[Index].Count; ++Count)

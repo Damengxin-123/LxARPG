@@ -70,6 +70,7 @@ ALxPlayerController::ALxPlayerController()
 void ALxPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+	InitializePauseMenuInput();
 	if (ULxLocalPlayerSubsystem* LocalPlayerSubsystem = GET_LOCAL_PLAYER_SYSTEM())
 	{
 		LocalPlayerSubsystem->SetPlayerControllerQuote(this);
@@ -295,6 +296,7 @@ void ALxPlayerController::SpawnAndPossessPlayerCharacter()
 
 void ALxPlayerController::ShowCursorFun()
 {
+	if (IsPauseMenuOpen()) return;
 	// 显示鼠标
 	FInputModeGameAndUI InputMode;
 	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
@@ -306,6 +308,7 @@ void ALxPlayerController::ShowCursorFun()
 
 void ALxPlayerController::HideCursorFun()
 {
+	if (IsPauseMenuOpen()) return;
 	// 隐藏鼠标
 	FInputModeGameOnly Mode;
 	SetInputMode(Mode);

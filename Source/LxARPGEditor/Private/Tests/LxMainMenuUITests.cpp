@@ -1,6 +1,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "LxMainMenuUITestWidgets.h"
+#include "LxARPG/LxSource/UI/MainMenu/LxPauseMenuWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
 #include "Components/ScrollBox.h"
@@ -403,6 +404,39 @@ bool FLxMainMenuBlueprintInteractionTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("实际蓝图取消结束编辑"), Settings->IsEditing());
 	TestEqual(TEXT("设置关闭通知回到主界面"), Panels->GetActiveWidgetIndex(), 0);
 	TestEqual(TEXT("蓝图取消不修改用户设置"), GetDefault<ULxMenuPreferences>()->MasterVolume, ActualVolume);
+	return true;
+}
+
+/** 验证实际暂停蓝图布局、四个按钮和设置切换，并可输出离屏预览。 */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxPauseMenuBlueprintTest, "LxARPG.Menu.UI.PauseBlueprint",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+/** 使用真实蓝图资产检查表现层，不启动正式会话或修改用户存档。 */
+bool FLxPauseMenuBlueprintTest::RunTest(const FString& Parameters)
+{
+	UClass* Class = LoadClass<ULxPauseMenuWidget>(nullptr, TEXT("/Game/项目内容/UI界面/主菜单/暂停菜单.暂停菜单_C"));
+	if (!TestNotNull(TEXT("暂停菜单蓝图已生成"), Class)) return false;
+	TStrongObjectPtr<ULxPauseMenuWidget> Menu(NewObject<ULxPauseMenuWidget>(GetTransientPackage(), Class));
+	Menu->Initialize();
+	const TSharedRef<SWidget> Slate = Menu->TakeWidget();
+	UWidgetSwitcher* Panels = Cast<UWidgetSwitcher>(Menu->GetWidgetFromName(TEXT("暂停面板")));
+	ULxSettingsWidget* Settings = Cast<ULxSettingsWidget>(Menu->GetWidgetFromName(TEXT("设置界面")));
+	if (!TestNotNull(TEXT("暂停蓝图包含面板切换器"), Panels)
+		|| !TestNotNull(TEXT("暂停蓝图包含设置子界面"), Settings)) return false;
+	for (const TCHAR* Name : { TEXT("游戏设置"), TEXT("返回主菜单"), TEXT("继续游戏"), TEXT("退出游戏") })
+	{
+		UButton* Button = Cast<UButton>(Menu->GetWidgetFromName(Name));
+		if (TestNotNull(Name, Button)) TestTrue(FString(Name) + TEXT("已连接蓝图点击事件"), Button->OnClicked.IsBound());
+	}
+	const bool bRender = FParse::Param(FCommandLine::Get(), TEXT("LxMenuUIRenderPreviews")) && FApp::CanEverRender();
+	if (bRender && !RenderMenuBlueprintPreview(*this, Slate, TEXT("暂停菜单预览.png"))) return false;
+	Menu->OpenSettings();
+	TestEqual(TEXT("设置切换通知驱动实际蓝图"), Panels->GetActiveWidgetIndex(), 1);
+	TestTrue(TEXT("打开设置开始编辑"), Settings->IsEditing());
+	if (bRender && !RenderMenuBlueprintPreview(*this, Slate, TEXT("暂停设置预览.png"))) return false;
+	Settings->CancelSettings();
+	TestEqual(TEXT("取消设置回到暂停选项"), Panels->GetActiveWidgetIndex(), 0);
+	Menu->RegisterSettingsWidget(nullptr);
 	return true;
 }
 

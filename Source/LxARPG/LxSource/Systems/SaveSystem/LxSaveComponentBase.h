@@ -60,6 +60,11 @@ public:
 	/** 停止参与管理器采集；本方法不会删除已经缓存的数据。 */
 	void DetachFromSaveManager();
 
+	/** 在首次恢复前保留单位的初始数据，用于切换到没有该单位记录的新地图档。 */
+	bool CaptureInitialState();
+	/** 将新档覆盖到初始数据上并原地恢复，缺失节点不会沿用上一份地图档。 */
+	bool RestoreSessionState(const ULxGameSaveData* InSaveData);
+
 protected:
 	/** 可选的显式存档标签；派生类可在未配置时使用所属对象的ID。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="存档", DisplayName="存档ID标签")
@@ -69,6 +74,9 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	/** 仅保存本组件的初始记录，不写入磁盘，也不随菜单切换丢失。 */
+	UPROPERTY(Transient, VisibleAnywhere, Category="存档|会话", DisplayName="单位初始数据")
+	TObjectPtr<ULxGameSaveData> InitialState;
 	/** Actor 发出结束事件时先缓存，发生在其组件统一结束之前。 */
 	UFUNCTION(Category="存档|生命周期", DisplayName="处理所属对象结束运行")
 	void HandleOwnerEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason);

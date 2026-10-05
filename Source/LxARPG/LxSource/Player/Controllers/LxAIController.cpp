@@ -9,6 +9,9 @@
 #include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "TimerManager.h"
+#include "LxARPG/LxSource/Systems/GameMode/LxARPGGameMode.h"
+#include "LxARPG/LxSource/Systems/MainMenu/LxMainMenuSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "LxARPG/LxSource/Model/AI/Logic/LxAIBehaviorTreeExecutor.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterAttributeComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxAICharacter.h"
@@ -121,8 +124,24 @@ FGuid ALxAIController::GetCurrentBehaviorActionNodeId() const
 	return BehaviorTreeExecutor ? BehaviorTreeExecutor->GetCurrentActionNodeId() : FGuid();
 }
 
+void ALxAIController::SuspendForMainMenu()
+{
+	if (BehaviorTreeExecutor) BehaviorTreeExecutor->ResetExecution();
+	StopMovement();
+	TargetMemory.Reset();
+	DynamicHostileTargets.Reset();
+	LastAnalysisTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+}
+
 void ALxAIController::RunAnalysisDecision()
 {
+	const ALxARPGGameMode* Mode = GetWorld() ? GetWorld()->GetAuthGameMode<ALxARPGGameMode>() : nullptr;
+	const ULxMainMenuSubsystem* Menu = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>() : nullptr;
+	if ((Mode && Mode->IsShowingMainMenu()) || (Menu && Menu->IsEnteringGame()))
+	{
+		LastAnalysisTime = GetWorld()->GetTimeSeconds();
+		return;
+	}
 	ALxAICharacter* AICharacter = GetAICharacter();
 	if (!AnalysisSession || !BehaviorTreeExecutor || !AICharacter || !AICharacter->HasAuthority() ||
 		!AICharacter->IsAIAutomaticControlEnabled()) return;

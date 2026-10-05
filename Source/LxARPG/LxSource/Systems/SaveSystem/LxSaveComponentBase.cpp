@@ -2,6 +2,8 @@
 
 #include "GameFramework/Actor.h"
 #include "LxSaveManager.h"
+#include "LxGameSaveData.h"
+#include "UObject/StrongObjectPtr.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
 
 ULxSaveComponentBase::ULxSaveComponentBase()
@@ -22,6 +24,8 @@ bool ULxSaveComponentBase::InitializeSaveComponent()
 	}
 	ULxGameInstanceSubsystem* Subsystem = ULxGameInstanceSubsystem::GetInstance(GetWorld());
 	ULxSaveManager* Manager = Subsystem ? Subsystem->GetSaveManager() : nullptr;
+	if (!IsPlayerSaveComponent() && GetSaveID().IsValid() && !CaptureInitialState()) return false;
+	if (SaveManager.IsValid() && SaveManager.Get() != Manager) DetachFromSaveManager();
 	if (!Manager || !Manager->RegisterComponent(this))
 	{
 		return false;
@@ -38,6 +42,31 @@ bool ULxSaveComponentBase::CacheSaveData()
 		return Manager->CacheComponent(this);
 	}
 	return false;
+}
+
+bool ULxSaveComponentBase::CaptureInitialState()
+{
+	if (InitialState) return true;
+	TStrongObjectPtr<ULxGameSaveData> Snapshot(NewObject<ULxGameSaveData>(this));
+	if (!CaptureSaveData(Snapshot.Get())) return false;
+	InitialState = Snapshot.Get();
+	return true;
+}
+
+bool ULxSaveComponentBase::RestoreSessionState(const ULxGameSaveData* InSaveData)
+{
+	if (!InitialState || !InSaveData) return false;
+	TStrongObjectPtr<ULxGameSaveData> Snapshot(DuplicateObject(InitialState.Get(), this));
+	const FGameplayTag ID = GetSaveID();
+	if (const FLxInteractionSaveRecord* Record = InSaveData->Interactions.Find(ID))
+	{
+		FLxInteractionSaveRecord& Target = Snapshot->Interactions.FindOrAdd(ID);
+		Target.InteractionIDTag = Record->InteractionIDTag;
+		for (const auto& Feature : Record->Features) Target.Features.Add(Feature.Key, Feature.Value);
+	}
+	if (const FLxAISpawnPointSaveRecord* Record = InSaveData->SpawnPoints.Find(ID)) Snapshot->SpawnPoints.Add(ID, *Record);
+	if (const FLxCharacterSaveRecord* Record = InSaveData->Players.Find(ID)) Snapshot->Players.Add(ID, *Record);
+	return RestoreSaveData(Snapshot.Get());
 }
 
 void ULxSaveComponentBase::DetachFromSaveManager()

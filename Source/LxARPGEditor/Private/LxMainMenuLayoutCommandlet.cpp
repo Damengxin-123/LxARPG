@@ -45,6 +45,7 @@
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "LxARPG/LxSource/UI/MainMenu/LxMainMenuWidget.h"
 #include "LxARPG/LxSource/UI/MainMenu/LxSettingsWidget.h"
+#include "LxARPG/LxSource/UI/MainMenu/LxPauseMenuWidget.h"
 
 namespace LxMenuLayout
 {
@@ -660,10 +661,70 @@ bool Run(bool bApply)
 	}
 	return Verify(Menu, ULxMainMenuWidget::StaticClass());
 }
+
+/** 生成屏幕居中的暂停菜单；所有布局和按钮事件均保存到中文控件蓝图。 */
+bool RunPauseMenu(bool bApply)
+{
+	UWidgetBlueprint* Settings = LoadObject<UWidgetBlueprint>(nullptr, SettingsPath);
+	if (!Settings || !Settings->GeneratedClass) return false;
+	UWidgetBlueprint* Pause = LoadOrCreate(TEXT("/Game/项目内容/UI界面/主菜单/暂停菜单"), ULxPauseMenuWidget::StaticClass(), bApply);
+	if (!Pause || !Pause->ParentClass->IsChildOf(ULxPauseMenuWidget::StaticClass())) return false;
+	if (bApply && IsEmpty(Pause))
+	{
+		UCanvasPanel* Root = Make<UCanvasPanel>(Pause, TEXT("暂停画布"));
+		Pause->WidgetTree->RootWidget = Root;
+		UBorder* Shade = Make<UBorder>(Pause, TEXT("全屏遮罩"));
+		Shade->SetBrushColor(FLinearColor(0.005f, 0.008f, 0.014f, 0.72f));
+		Place(Root, Shade, FAnchors(0, 0, 1, 1));
+		UWidgetSwitcher* Switcher = Make<UWidgetSwitcher>(Pause, TEXT("暂停面板"));
+		UVerticalBox* Menu = Make<UVerticalBox>(Pause, TEXT("菜单内容"));
+		Row(Menu, Label(Pause, TEXT("暂停标题"), TEXT("游戏已暂停"), 30), 24);
+		const TCHAR* Buttons[] = { TEXT("游戏设置"), TEXT("返回主菜单"), TEXT("继续游戏"), TEXT("退出游戏") };
+		const TCHAR* Functions[] = { TEXT("OpenSettings"), TEXT("ReturnToMainMenu"), TEXT("ResumeGame"), TEXT("QuitGame") };
+		for (const TCHAR* Name : Buttons)
+		{
+			USizeBox* Size = Make<USizeBox>(Pause, *(FString(Name) + TEXT("尺寸")));
+			Size->SetHeightOverride(56.f);
+			Size->AddChild(Button(Pause, Name, Name, 22));
+			Row(Menu, Size, 14.f);
+		}
+		UTextBlock* Status = Label(Pause, TEXT("操作提示"), TEXT(""), 17);
+		Status->SetAutoWrapText(true);
+		Bind(Pause, Status, TEXT("Text"), TEXT("GetStatusText"));
+		Row(Menu, Status, 8);
+		Row(Menu, Label(Pause, TEXT("按键提示"), TEXT("按 Esc 继续游戏"), 16), 0);
+		Switcher->AddChild(Menu);
+		UUserWidget* SettingsWidget = Pause->WidgetTree->ConstructWidget<UUserWidget>(Settings->GeneratedClass.Get(), TEXT("设置界面"));
+		SettingsWidget->bIsVariable = true;
+		Switcher->AddChild(SettingsWidget);
+		Switcher->SetActiveWidgetIndex(0);
+		USizeBox* Width = Make<USizeBox>(Pause, TEXT("菜单宽度"));
+		Width->SetWidthOverride(620.f);
+		Width->AddChild(Frame(Pause, TEXT("暂停窗口"), Switcher));
+		Place(Root, Width, FAnchors(0.5f), FMargin(0), FVector2D(0.5f));
+		CastChecked<UCanvasPanelSlot>(Width->Slot)->SetAutoSize(true);
+		if (!Compile(Pause)) return false;
+		UEdGraph* Graph = NewGraph(Pause);
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Buttons); ++Index)
+			Click(Pause, Graph, Buttons[Index], Functions[Index], Index * 320);
+		UK2Node_Event* Construct = Event(Graph, UUserWidget::StaticClass(), TEXT("Construct"), 1400);
+		UK2Node_CallFunction* Register = Call(Graph, Pause->ParentClass, TEXT("RegisterSettingsWidget"), 360, 1400);
+		Connect(Construct->FindPinChecked(TEXT("then")), Register->GetExecPin());
+		Connect(Widget(Graph, TEXT("设置界面"), 360, 1600)->GetValuePin(), ValueInput(Register));
+		UK2Node_Event* Panel = Event(Graph, Pause->ParentClass, TEXT("ReceivePanelChanged"), 1900);
+		UK2Node_CallFunction* SetPanel = WidgetCall(Graph, TEXT("暂停面板"), UWidgetSwitcher::StaticClass(), TEXT("SetActiveWidgetIndex"), 360, 1900);
+		Connect(Panel->FindPinChecked(TEXT("then")), SetPanel->GetExecPin());
+		Connect(Call(Graph, Pause->ParentClass, TEXT("GetActivePanelIndex"), 360, 2120)->GetReturnValuePin(), ValueInput(SetPanel));
+		if (!Compile(Pause) || !Save(Pause)) return false;
+	}
+	return Verify(Pause, ULxPauseMenuWidget::StaticClass());
+}
 }
 
 int32 ULxMainMenuLayoutCommandlet::Main(const FString& Params)
 {
+	if (FParse::Param(*Params, TEXT("PauseMenu")))
+		return LxMenuLayout::RunPauseMenu(FParse::Param(*Params, TEXT("Apply"))) ? 0 : 1;
 	if (FParse::Param(*Params, TEXT("RestoreAppearance")))
 	{
 		UWidgetBlueprint* Settings = LoadObject<UWidgetBlueprint>(nullptr, LxMenuLayout::SettingsPath);

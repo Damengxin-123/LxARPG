@@ -1,4 +1,5 @@
 #include "LxTogglePanelUIManager.h"
+#include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
@@ -31,6 +32,7 @@ void ULxTogglePanelUIManager::RegisterPanelWidget(ULxUIBaseObject* InWidget, ELx
 
 bool ULxTogglePanelUIManager::SetPanelVisible(ULxUIBaseObject* InWidget, bool bInVisible)
 {
+	if (bInVisible && PlayerController && PlayerController->IsPauseMenuOpen()) return false;
 	const FLxTogglePanelWidgetData* PanelData = FindPanelDataByWidget(InWidget);
 	if (!PanelData)
 	{
@@ -53,6 +55,7 @@ bool ULxTogglePanelUIManager::TogglePanelWidget(ULxUIBaseObject* InWidget)
 
 bool ULxTogglePanelUIManager::HandleInputValue(ELxInputActionID InInputActionID, const FLxInputValue& InValue)
 {
+	if (PlayerController && PlayerController->IsPauseMenuOpen()) return true;
 	ULxUIBaseObject* TargetWidget = InputActionToWidget.FindRef(InInputActionID);
 	if (!TargetWidget)
 	{

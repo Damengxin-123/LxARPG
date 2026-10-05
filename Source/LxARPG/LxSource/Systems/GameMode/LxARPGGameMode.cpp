@@ -12,6 +12,8 @@
 #include "LxARPG/LxSource/Systems/SaveSystem/LxSaveManager.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxCharacterSaveComponent.h"
+#include "LxARPG/LxSource/Player/Controllers/LxAIController.h"
+#include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 
 ALxARPGGameMode::ALxARPGGameMode()
 {
@@ -37,11 +39,30 @@ bool ALxARPGGameMode::BeginMenuSession()
 {
 	UWorld* World = GetWorld();
 	ULxMainMenuSubsystem* Menu = GetGameInstance() ? GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>() : nullptr;
-	if (!bShowingMainMenu || !World || World->HasBegunPlay() || !Menu || !Menu->IsEnteringGame()) return false;
+	if (!bShowingMainMenu || !World || !Menu || !Menu->IsEnteringGame()) return false;
 	bShowingMainMenu = false;
 	bWaitingForMenuSession = true;
+	bSessionSpawnAllowed = false;
 	Menu->PrepareGameplayWorld(World);
 	return true;
+}
+
+void ALxARPGGameMode::ReturnToMainMenu()
+{
+	bShowingMainMenu = true;
+	bWaitingForMenuSession = false;
+	bSessionSpawnAllowed = false;
+	APlayerController* Controller = GetWorld()->GetFirstPlayerController();
+	if (ALxPlayerController* Player = Cast<ALxPlayerController>(Controller)) Player->ResumeFromPauseMenu();
+	if (Controller)
+	{
+		Controller->SetPause(false);
+		APawn* Pawn = Controller->GetPawn();
+		Controller->UnPossess();
+		if (Pawn) Pawn->Destroy();
+	}
+	for (TActorIterator<ALxAIController> It(GetWorld()); It; ++It) It->SuspendForMainMenu();
+	if (ULxMainMenuSubsystem* Menu = GetGameInstance()->GetSubsystem<ULxMainMenuSubsystem>()) Menu->ShowMenu(GetWorld());
 }
 
 void ALxARPGGameMode::StartPlay()
@@ -50,6 +71,8 @@ void ALxARPGGameMode::StartPlay()
 	if (bShowingMainMenu)
 	{
 		if (Menu) Menu->ShowMenu(GetWorld());
+		// 水体、地形和动态材质需要正常初始化，菜单只隔离玩家和玩法决策。
+		Super::StartPlay();
 		return;
 	}
 	if (Menu && Menu->IsEnteringGame())
@@ -73,7 +96,7 @@ void ALxARPGGameMode::Tick(float DeltaSeconds)
 	if (!bWaitingForMenuSession || !Menu || !Menu->IsGameplayWorldReady()) return;
 	bWaitingForMenuSession = false;
 	bSessionSpawnAllowed = true;
-	Super::StartPlay();
+	if (!GetWorld()->HasBegunPlay()) Super::StartPlay();
 	APlayerController* Controller = GetWorld()->GetFirstPlayerController();
 	if (Controller && !Controller->GetPawn()) RestartPlayer(Controller);
 	Menu->CompleteGameplayStart(Controller);

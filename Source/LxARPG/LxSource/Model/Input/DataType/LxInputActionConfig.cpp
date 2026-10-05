@@ -1,4 +1,5 @@
 #include "LxInputActionConfig.h"
+#include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Components/ActorComponent.h"
@@ -190,6 +191,8 @@ namespace LxInputActionConfig
 
 	void SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue, const APlayerController* SourcePlayerController)
 	{
+		const ALxPlayerController* Controller = Cast<ALxPlayerController>(SourcePlayerController);
+		if (Controller && Controller->IsPauseMenuOpen()) return;
 		if (TArray<TWeakObjectPtr<UObject>>* ReceivedObjects = GInputReceivedObjectMap.Find(InInputActionID))
 		{
 			ReceivedObjects->RemoveAll([](const TWeakObjectPtr<UObject>& ReceivedObject)

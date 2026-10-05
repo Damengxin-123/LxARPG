@@ -57,4 +57,47 @@ bool FLxMenuWorldLifecycleTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+/** 验证切换地图档会覆盖已有单位且为缺失节点恢复初始值，不重建世界或写盘。 */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxMenuPersistentWorldTest, "LxARPG.Menu.PersistentWorldData", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FLxMenuPersistentWorldTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
+	ON_SCOPE_EXIT { World->DestroyWorld(false); };
+	AActor* Actor = World->SpawnActor<AActor>();
+	ULxSaveSystemTestComponent* Component = NewObject<ULxSaveSystemTestComponent>(Actor);
+	const FGameplayTag ID = FGameplayTag::RequestGameplayTag(TEXT("角色.默认角色"));
+	const FGuid Node = FGuid::NewGuid();
+	Component->ConfigureIdentity(ID, false);
+	Component->InteractionRecord.InteractionIDTag = ID;
+	FLxInteractionFeatureSaveRecord& Feature = Component->InteractionRecord.Features.Add(Node);
+	Feature.NodeID = Node;
+	Feature.MechanismState = ELxMechanismState::Closed;
+	TestTrue(TEXT("保留单位初始状态"), Component->CaptureInitialState());
+	TStrongObjectPtr<ULxGameSaveData> First(NewObject<ULxGameSaveData>());
+	First->Interactions.Add(ID, Component->InteractionRecord);
+	First->Interactions[ID].Features[Node].MechanismState = ELxMechanismState::Opened;
+	TStrongObjectPtr<ULxGameSaveData> Empty(NewObject<ULxGameSaveData>());
+	TStrongObjectPtr<ULxSaveManager> Manager(NewObject<ULxSaveManager>());
+	int32 Writes = 0;
+	TestTrue(TEXT("安装背景地图档"), Manager->InitializeSession(First.Get(), FLxPersistSaveSession::CreateLambda(
+		[&Writes](const ULxGameSaveData*) { ++Writes; return true; })));
+	Manager->SetReadOnly(true);
+	TestTrue(TEXT("只读背景可注册并恢复单位"), Manager->RegisterComponent(Component));
+	TestTrue(TEXT("背景采用最后地图档的机关状态"), Component->InteractionRecord.Features[Node].MechanismState == ELxMechanismState::Opened);
+	TestFalse(TEXT("菜单期间不采集单位"), Manager->CacheComponent(Component));
+	TestTrue(TEXT("原地切换到新地图档"), Manager->ReplaceSession(Empty.Get(), true));
+	TestTrue(TEXT("新地图档的缺失单位回到初始状态"), Component->InteractionRecord.Features[Node].MechanismState == ELxMechanismState::Closed);
+	TestTrue(TEXT("原地切回旧地图档"), Manager->ReplaceSession(First.Get(), true));
+	TestTrue(TEXT("旧地图档进度重新恢复"), Component->InteractionRecord.Features[Node].MechanismState == ELxMechanismState::Opened);
+	const int32 Restores = Component->RestoreCount;
+	TestTrue(TEXT("同地图切角色仅替换会话数据"), Manager->ReplaceSession(First.Get(), false));
+	TestEqual(TEXT("同地图不再次恢复单位"), Component->RestoreCount, Restores);
+	TestEqual(TEXT("所有菜单切换不写盘"), Writes, 0);
+	Manager->SetReadOnly(false);
+	TestFalse(TEXT("正式游戏不能直接覆盖会话"), Manager->ReplaceSession(Empty.Get(), true));
+	TestTrue(TEXT("原单位仍参与正式会话保存"), Manager->SaveAll());
+	TestEqual(TEXT("进入游戏后统一提交一次"), Writes, 1);
+	return true;
+}
+
 #endif

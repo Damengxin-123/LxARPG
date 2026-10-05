@@ -24,8 +24,10 @@ public:
 	/** 查询当前世界是否仍在只读主菜单阶段。 */
 	bool IsShowingMainMenu() const { return bShowingMainMenu; }
 
-	/** 在尚未开始玩法的当前世界启动选中会话，区域就绪后再分发游戏开始事件。 */
+	/** 在同一个已运行世界启动选中会话，区域就绪后接管角色。 */
 	bool BeginMenuSession();
+	/** 保存完成后原地回到菜单，保留关卡和环境对象。 */
+	void ReturnToMainMenu();
 
 	/** 菜单发起的会话先等待角色位置周边加载，再启动关卡玩法。 */
 	virtual void StartPlay() override;
@@ -51,7 +53,7 @@ public:
 	virtual APawn* SpawnPlayerCharacter(AController* NewPlayer);
 
 protected:
-	/** 当前世界停留在只读主菜单，尚未分发正式玩法的开始事件。 */
+	/** 当前世界停留在只读主菜单，环境照常运行。 */
 	bool bShowingMainMenu = false;
 	/** 当前正式关卡正在等待角色所在区域加载。 */
 	bool bWaitingForMenuSession = false;

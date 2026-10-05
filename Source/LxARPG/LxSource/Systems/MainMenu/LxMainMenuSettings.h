@@ -10,6 +10,7 @@ class UAnimSequence;
 class UWorld;
 class UDataLayerAsset;
 class ULxMainMenuWidget;
+class ULxPauseMenuWidget;
 
 /** 主菜单、初始角色与场景展示的项目配置。 */
 UCLASS(config=Game, defaultconfig, DisplayName="主菜单设置")
@@ -22,6 +23,9 @@ public:
 	/** 提供完整布局的主菜单控件蓝图，必须继承主菜单逻辑基类。 */
 	UPROPERTY(EditAnywhere, config, Category="主菜单|界面", DisplayName="主菜单界面类型")
 	TSoftClassPtr<ULxMainMenuWidget> MenuWidgetClass;
+	/** 游戏中按 Esc 打开的暂停菜单蓝图。 */
+	UPROPERTY(EditAnywhere, config, Category="主菜单|界面", DisplayName="暂停菜单界面类型")
+	TSoftClassPtr<ULxPauseMenuWidget> PauseMenuWidgetClass;
 	/** 独立存档目录前缀，与旧单槽文件并存。 */
 	UPROPERTY(EditAnywhere, config, Category="主菜单|存档", DisplayName="目录前缀")
 	FString SavePrefix = TEXT("LxARPG_Profiles");

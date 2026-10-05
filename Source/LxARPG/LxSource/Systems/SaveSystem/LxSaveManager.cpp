@@ -98,6 +98,62 @@ bool ULxSaveManager::InitializeSession(const ULxGameSaveData* InData, FLxPersist
 	return true;
 }
 
+bool ULxSaveManager::ReplaceSession(const ULxGameSaveData* InData, bool bRestoreWorld)
+{
+	if (!bReadOnly || !bLoaded || !SessionWriter.IsBound() || !InData) return false;
+	// 切档前采集回滚快照；它只用于内存恢复，不提交到存档缓存或磁盘。
+	TArray<TStrongObjectPtr<ULxGameSaveData>> RollbackData;
+	TArray<TWeakObjectPtr<ULxSaveComponentBase>> RollbackComponents;
+	if (bRestoreWorld)
+	{
+		for (const FRegisteredComponent& Entry : RegisteredComponents)
+		{
+			ULxSaveComponentBase* Component = Entry.Component.Get();
+			if (!Component || Component->IsPlayerSaveComponent()) continue;
+			TStrongObjectPtr<ULxGameSaveData> Snapshot(NewObject<ULxGameSaveData>(this));
+			if (!Component->CaptureSaveData(Snapshot.Get())) return false;
+			RollbackComponents.Add(Component);
+			RollbackData.Add(MoveTemp(Snapshot));
+		}
+	}
+	TStrongObjectPtr<ULxGameSaveData> PreviousData(SaveData);
+	SaveData = DuplicateObject(InData, this);
+	bDirty = false;
+	bRestoreFailed = false;
+	FailedCaptureComponents.Reset();
+	const TArray<FRegisteredComponent> Components = RegisteredComponents;
+	for (const FRegisteredComponent& Entry : Components)
+	{
+		ULxSaveComponentBase* Component = Entry.Component.Get();
+		if (!Component) continue;
+		if (Component->IsPlayerSaveComponent())
+		{
+			// 角色由新会话重新创建，不允许旧角色继续参与另一角色档的采集。
+			Component->DetachFromSaveManager();
+			UnregisterComponent(Component);
+		}
+		else if (bRestoreWorld && !Component->RestoreSessionState(SaveData))
+		{
+			bRestoreFailed = true;
+			UE_LOG(LogTemp, Error, TEXT("地图单位原地恢复失败：%s。"), *Entry.SaveID.ToString());
+		}
+	}
+	RegisteredComponents.RemoveAll([](const FRegisteredComponent& Entry) { return !Entry.Component.IsValid(); });
+	if (bRestoreFailed)
+	{
+		for (int32 Index = 0; Index < RollbackComponents.Num(); ++Index)
+		{
+			if (ULxSaveComponentBase* Component = RollbackComponents[Index].Get())
+			{
+				if (!Component->RestoreSaveData(RollbackData[Index].Get()))
+					UE_LOG(LogTemp, Error, TEXT("地图单位回滚失败：%s，继续保持只读保护。"), *Component->GetSaveID().ToString());
+			}
+		}
+		SaveData = PreviousData.Get();
+	}
+	return !bRestoreFailed;
+}
+
 bool ULxSaveManager::LoadSave()
 {
 	if (bLoaded)
@@ -175,7 +231,8 @@ bool ULxSaveManager::SaveCachedData()
 
 bool ULxSaveManager::RegisterComponent(ULxSaveComponentBase* Component)
 {
-	if (bReadOnly || !bLoaded || !SaveData || !IsValid(Component) || !Component->GetOwner() || !Component->GetOwner()->HasAuthority())
+	if (!bLoaded || !SaveData || !IsValid(Component) || !Component->GetOwner() || !Component->GetOwner()->HasAuthority()
+		|| (bReadOnly && (!SessionWriter.IsBound() || Component->IsPlayerSaveComponent())))
 	{
 		return false;
 	}

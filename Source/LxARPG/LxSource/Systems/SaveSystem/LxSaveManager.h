@@ -23,7 +23,10 @@ public:
 	/** 为全新的管理器安装正式会话缓存；拒绝替换已经开始使用的缓存。 */
 	bool InitializeSession(const ULxGameSaveData* InData, FLxPersistSaveSession InWriter);
 
-	/** 开关菜单只读保护，阻止注册、采集和落盘。 */
+	/** 在只读菜单中更换会话数据，保留已注册单位；切换地图档时原地恢复单位初始值和存档。 */
+	bool ReplaceSession(const ULxGameSaveData* InData, bool bRestoreWorld);
+
+	/** 开关菜单只读保护，禁止采集和落盘；多存档会话仍可注册并恢复背景单位。 */
 	void SetReadOnly(bool bInReadOnly) { bReadOnly = bInReadOnly; }
 
 	/** 查询当前是否为菜单只读模式。 */

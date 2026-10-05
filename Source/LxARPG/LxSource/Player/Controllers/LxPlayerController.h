@@ -4,10 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Components/SlateWrapperTypes.h"
 #include "LxPlayerController.generated.h"
 
 
 class ALxBaseCharacter;
+class IInputProcessor;
+class SWidget;
+class ULxPauseMenuWidget;
+class ULxUIManager;
 class AActor;
 class ULxInputComponent;
 class ULxPlayerChatComponent;
@@ -26,6 +31,19 @@ class LXARPG_API ALxPlayerController : public APlayerController
 public:
 
 	ALxPlayerController();
+
+	/** 切换游戏内暂停菜单；菜单阶段和其他暂停来源不会被接管。 */
+	UFUNCTION(BlueprintCallable, Category="游戏|暂停菜单", meta=(DisplayName="切换暂停菜单"))
+	bool TogglePauseMenu();
+	/** 关闭当前暂停菜单并恢复世界、角色界面和输入状态。 */
+	UFUNCTION(BlueprintCallable, Category="游戏|暂停菜单", meta=(DisplayName="关闭暂停菜单并继续"))
+	void ResumeFromPauseMenu();
+	/** 查询暂停菜单是否正在阻止玩法和角色界面。 */
+	UFUNCTION(BlueprintPure, Category="游戏|暂停菜单", meta=(DisplayName="暂停菜单是否打开"))
+	bool IsPauseMenuOpen() const { return PauseMenuWidget != nullptr; }
+	/** 获取暂停菜单，供蓝图扩展与验证。 */
+	UFUNCTION(BlueprintPure, Category="游戏|暂停菜单", meta=(DisplayName="获取暂停菜单"))
+	ULxPauseMenuWidget* GetPauseMenuWidget() const { return PauseMenuWidget; }
 	
 	/**
 	 * @brief 创建玩家角色。
@@ -102,9 +120,26 @@ protected:
 	 * 会初始化输入组件、系统操作组件以及本地玩家子系统引用。
 	 */
 	virtual void BeginPlay() override;
+	/** 控制器销毁时解除按键监听并清理暂停状态。 */
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 
 private:
+	/** 注册只处理当前游戏视口 Esc 的输入预处理器。 */
+	void InitializePauseMenuInput();
+	/** 暂停期间置于角色界面上方的蓝图实例。 */
+	UPROPERTY(Transient, VisibleAnywhere, Category="游戏|暂停菜单", meta=(DisplayName="暂停菜单实例"))
+	TObjectPtr<ULxPauseMenuWidget> PauseMenuWidget;
+	/** 暂停时隐藏的角色界面，弱引用避免跨关卡保留。 */
+	TWeakObjectPtr<ULxUIManager> PausedGameplayUI;
+	/** 角色界面原始可见性。 */
+	ESlateVisibility PreviousGameplayVisibility = ESlateVisibility::Visible;
+	/** 打开菜单前的鼠标显示状态。 */
+	bool bCursorBeforePause = false;
+	/** 打开菜单前的焦点，关闭时恢复仍然存在的控件。 */
+	TWeakPtr<SWidget> FocusBeforePause;
+	/** 支持 UI 焦点与暂停状态下处理 Esc，并在结束时注销。 */
+	TSharedPtr<IInputProcessor> PauseInputProcessor;
 	
 	/**
  	 * @brief 当玩家控制器开始控制一个新的Pawn时调用。

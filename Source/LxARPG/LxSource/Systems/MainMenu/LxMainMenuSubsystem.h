@@ -47,7 +47,7 @@ public:
 	/** 建立新的地图状态存档。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|存档", DisplayName="新建地图存档")
 	void CreateWorld(const FString& Name);
-	/** 验证选中的两个档案并进入正式关卡。 */
+	/** 验证选中的两个档案，在当前关卡中恢复单位并进入游玩状态。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|流程", DisplayName="进入选中存档")
 	void EnterGame();
 	/** 保存正式游戏后返回菜单，失败时保留当前游戏。 */
@@ -98,7 +98,7 @@ private:
 	void HandleTravelFailure(UWorld* World, ETravelFailure::Type FailureType, const FString& Error);
 	/** 首次显示菜单时加载目录并补充空目录的默认档案。 */
 	bool EnsureStore();
-	/** 在总关卡中按角色存档位置更新展示对象，兼容旧入口时才进行关卡跳转。 */
+	/** 在总关卡中按角色存档位置更新同一个展示对象，不触发关卡旅行。 */
 	void RefreshPreview();
 	/** 创建菜单或正式加载期间的界面。 */
 	void CreateMenuWidget(UWorld* World);
@@ -112,8 +112,8 @@ private:
 	FTransform FindFallbackTransform(UWorld* World) const;
 	/** 多存档管理器的会话提交回调，使用固定的活动档案 ID。 */
 	bool PersistSession(const ULxGameSaveData* Data);
-	/** 重新载入总关卡进入菜单态，清除上一局已经运行的玩法对象。 */
-	void TravelToMenu(const FSoftObjectPath& Level);
+	/** 首次显示菜单时安装最后使用的地图数据，供已加载及后续流送的单位恢复。 */
+	bool InitializeBackgroundSession();
 	/** 持有当前目录和磁盘访问接口。 */
 	UPROPERTY(Transient, VisibleAnywhere, Category="主菜单|存档", DisplayName="存档仓库")
 	TObjectPtr<ULxSaveProfileStore> Store;
@@ -135,9 +135,11 @@ private:
 	FGuid ActiveCharacterID;
 	/** 正式会话固定地图身份。 */
 	FGuid ActiveWorldID;
+	/** 当前世界单位实际使用的地图档，角色浏览不会改变此值。 */
+	FGuid LoadedWorldID;
 	/** 当前界面提示。 */
 	FString Status;
-	/** 正式加载失败后跨关卡保留的提示，用户重新选择时清除。 */
+	/** 正式加载失败后保留的提示，用户重新选择时清除。 */
 	FString PendingError;
 	/** 正在加载或切换场景。 */
 	bool bBusy = false;
@@ -145,6 +147,8 @@ private:
 	bool bEnteringGame = false;
 	/** 已完成正式角色恢复。 */
 	bool bPlaying = false;
+	/** 进入菜单前的自动镜头管理设置，正式游戏恢复时归还控制器。 */
+	bool bAutomaticCameraBeforeMenu = true;
 	/** 场景加载开始的实际时间，用于没有游戏 Tick 的加载超时。 */
 	double LoadStartedAt = 0;
 };

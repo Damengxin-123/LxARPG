@@ -33,7 +33,6 @@ ALxMenuPreviewActor::ALxMenuPreviewActor()
 bool ALxMenuPreviewActor::Configure(const FLxCharacterSaveRecord& Record, const FTransform& FallbackTransform)
 {
 	Mesh->SetVisibility(false);
-	PresentationReadySince = 0;
 	SetActorTransform(Record.bHasSavedTransform && !Record.SavedTransform.ContainsNaN() ? Record.SavedTransform : FallbackTransform);
 	USkeletalMesh* Asset = Record.PreviewMesh.LoadSynchronous();
 	FTransform MeshTransform = Record.PreviewMeshTransform;
@@ -44,6 +43,7 @@ bool ALxMenuPreviewActor::Configure(const FLxCharacterSaveRecord& Record, const 
 		Asset = Default->GetMesh()->GetSkeletalMeshAsset(); MeshTransform = Default->GetMesh()->GetRelativeTransform();
 	}
 	Mesh->SetSkeletalMesh(Asset);
+	Mesh->EmptyOverrideMaterials();
 	Mesh->SetRelativeTransform(MeshTransform);
 	for (int32 Index = 0; Index < Record.PreviewMaterials.Num(); ++Index)
 	{
@@ -98,11 +98,9 @@ void ALxMenuPreviewActor::Reveal()
 
 bool ALxMenuPreviewActor::IsPresentationReady()
 {
-	if (!IsSceneReady()) { PresentationReadySince = 0; return false; }
+	if (!IsSceneReady()) return false;
 	if (!Mesh->IsVisible()) Reveal();
-	if (PresentationReadySince == 0) PresentationReadySince = FPlatformTime::Seconds();
-	// 机位变化可能在下一帧才触发材质编译，保留遮罩直到资源连续稳定一秒。
-	return FPlatformTime::Seconds() - PresentationReadySince >= 1;
+	return true;
 }
 
 void ALxMenuPreviewActor::Tick(float DeltaSeconds)

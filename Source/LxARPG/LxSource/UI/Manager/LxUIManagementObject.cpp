@@ -1,4 +1,5 @@
 #include "LxUIManagementObject.h"
+#include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
@@ -64,6 +65,7 @@ bool ULxUIManagementObject::IsWidgetVisible(const ULxUIBaseObject* InWidget) con
 
 void ULxUIManagementObject::SetWidgetVisibility(ULxUIBaseObject* InWidget, bool bInVisible) const
 {
+	if (bInVisible && PlayerController && PlayerController->IsPauseMenuOpen()) return;
 	if (InWidget)
 	{
 		InWidget->SetVisibility(bInVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);

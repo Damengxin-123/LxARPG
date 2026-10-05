@@ -14,6 +14,10 @@ public class LxARPGEditor : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		// UE 5.8 轻量发射器的资源制作接口位于 Internal；仅编辑器生成工具使用。
+		PrivateIncludePaths.Add(System.IO.Path.Combine(GetModuleDirectory("Niagara"), "Internal"));
+		PrivateIncludePaths.Add(System.IO.Path.Combine(GetModuleDirectory("NiagaraShader"), "Internal"));
+
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
 			"Core",
@@ -38,6 +42,12 @@ public class LxARPGEditor : ModuleRules
 			"GameplayTags",
 			"GameplayTagsEditor",
 			"Niagara",
+			"NiagaraEditor", // 制作技能粒子系统。
+			"NiagaraShader",
+			"MeshDescription",
+			"StaticMeshDescription",
+			"RenderCore",
+			"RHI",
 			"InputCore",
 			"ImageCore",
 			"Landscape",

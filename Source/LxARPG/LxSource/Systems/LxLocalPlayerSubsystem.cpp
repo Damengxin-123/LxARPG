@@ -50,7 +50,8 @@ void ULxLocalPlayerSubsystem::SetGameState(const ELxGameState InGameState)
 
 bool ULxLocalPlayerSubsystem::IsCharacterFeatureAvailable() const
 {
-	return m_GameState == ELxGameState::InGame || m_GameState == ELxGameState::InOnlineGame;
+	return (m_GameState == ELxGameState::InGame || m_GameState == ELxGameState::InOnlineGame)
+		&& (!m_pPlayerController || !m_pPlayerController->IsPauseMenuOpen());
 }
 
 void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPlayerController)

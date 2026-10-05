@@ -2,6 +2,7 @@
 
 ULxMainMenuSettings::ULxMainMenuSettings()
 {
+	PauseMenuWidgetClass = TSoftClassPtr<ULxPauseMenuWidget>(FSoftObjectPath(TEXT("/Game/项目内容/UI界面/主菜单/暂停菜单.暂停菜单_C")));
 	MenuWidgetClass = TSoftClassPtr<ULxMainMenuWidget>(FSoftObjectPath(TEXT("/Game/项目内容/UI界面/主菜单/主菜单.主菜单_C")));
 	DefaultLevel = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/项目内容/关卡/总关卡.总关卡")));
 	MenuLevel = DefaultLevel;

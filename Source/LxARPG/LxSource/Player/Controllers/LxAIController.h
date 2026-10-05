@@ -44,6 +44,8 @@ class LXARPG_API ALxAIController : public AAIController
 public:
 	/** 创建并配置 AI 感知组件。 */
 	ALxAIController();
+	/** 返回菜单时终止当前行为和移动，保留角色实例及已恢复的单位数据。 */
+	void SuspendForMainMenu();
 	/** 获取当前 AI 私有感知记忆数量。 */
 	UFUNCTION(BlueprintPure, Category="AI|感知", DisplayName="获取AI目标记忆数量")
 	int32 GetTargetMemoryCount() const { return TargetMemory.Num(); }

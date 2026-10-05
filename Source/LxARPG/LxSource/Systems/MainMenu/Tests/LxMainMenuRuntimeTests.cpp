@@ -27,7 +27,7 @@ class FLxMenuRuntimeCommand : public IAutomationLatentCommand
 public:
 	/** 记录测试对象和截止时间，防止加载失败时无限等待。 */
 	explicit FLxMenuRuntimeCommand(FAutomationTestBase* InTest) : Test(InTest), Started(FPlatformTime::Seconds()) {}
-	/** 每帧只推进已就绪的步骤，覆盖同世界进入游戏、返回重建和玩家恢复。 */
+	/** 每帧只推进已就绪的步骤，覆盖同世界进入、返回菜单和玩家恢复。 */
 	virtual bool Update() override
 	{
 		if (FPlatformTime::Seconds() - Started > 180) { Test->AddError(TEXT("主菜单完整流程测试超时")); return true; }
@@ -106,7 +106,8 @@ public:
 			ReturnedMenuWorld = World;
 			Test->TestEqual(TEXT("返回菜单保留角色选择"), Menu->GetSelectedCharacter()->ID, OriginalID);
 			Test->TestEqual(TEXT("返回菜单保留地图选择"), Menu->GetSelectedWorldID(), MapID);
-			Test->TestFalse(TEXT("返回菜单后世界不运行玩法"), World->HasBegunPlay());
+			Test->TestTrue(TEXT("返回菜单仍是最初的世界实例"), InitialMenuWorld.Get() == World);
+			Test->TestTrue(TEXT("返回菜单后环境继续运行"), World->HasBegunPlay());
 			TStrongObjectPtr<ULxCharacterProfileSave> SavedCharacter(Cast<ULxCharacterProfileSave>(LxSaveFile::Read(Menu->GetSelectedCharacter()->Slot, GetDefault<ULxGameSettings>()->SaveUserIndex)));
 			if (!Test->TestNotNull(TEXT("返回菜单后可读取刚保存的角色"), SavedCharacter.Get())) return true;
 			Test->TestTrue(TEXT("正式角色位置已写入存档"), SavedCharacter->Record.bHasSavedTransform && SavedCharacter->Record.SavedTransform.GetLocation().Equals(SavedPlayerLocation, 0.1f));
@@ -158,7 +159,7 @@ private:
 			|| !Test->TestNotNull(TEXT("菜单具有本地玩家控制器"), Controller)) return false;
 		bool bPassed = Test->TestTrue(TEXT("ARPG 游戏模式处于主菜单状态"), Mode->IsShowingMainMenu());
 		bPassed &= Test->TestEqual(TEXT("菜单始终位于配置的总关卡"), World->GetOutermost()->GetName(), GetDefault<ULxMainMenuSettings>()->DefaultLevel.ToSoftObjectPath().GetLongPackageName());
-		bPassed &= Test->TestFalse(TEXT("菜单世界尚未开始玩法"), World->HasBegunPlay());
+		bPassed &= Test->TestTrue(TEXT("菜单场景正常分发开始运行，水体等环境完成初始化"), World->HasBegunPlay());
 		bPassed &= Test->TestNull(TEXT("菜单控制器没有接管正式角色"), Controller->GetPawn());
 		bPassed &= Test->TestTrue(TEXT("菜单锁定移动输入"), Controller->IsMoveInputIgnored());
 		bPassed &= Test->TestTrue(TEXT("菜单锁定视角输入"), Controller->IsLookInputIgnored());
@@ -200,7 +201,7 @@ private:
 	FGuid MapID;
 	/** 首次显示菜单的世界实例，角色切换和首次进入游戏不得替换该世界。 */
 	TWeakObjectPtr<UWorld> InitialMenuWorld;
-	/** 返回菜单允许重建总关卡，第二次进入游戏继续复用该世界。 */
+	/** 返回菜单必须保留总关卡，第二次进入游戏继续复用该世界。 */
 	TWeakObjectPtr<UWorld> ReturnedMenuWorld;
 	/** 正式角色实际保存的位置，用于验证返回菜单后的展示位置。 */
 	FVector SavedPlayerLocation = FVector::ZeroVector;
