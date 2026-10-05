@@ -1,5 +1,7 @@
 #include "LxUITitleBarWidget.h"
 
+#include "Blueprint/WidgetTree.h"
+#include "Components/PanelWidget.h"
 #include "InputCoreTypes.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 
@@ -10,27 +12,58 @@ void ULxUITitleBarWidget::SetTargetUIObject(ULxUIBaseObject* InTargetUIObject)
 
 ULxUIBaseObject* ULxUITitleBarWidget::GetTargetUIObject() const
 {
-	return TargetUIObject;
+	if (IsValid(TargetUIObject))
+	{
+		return TargetUIObject;
+	}
+
+	const UWidget* CurrentWidget = this;
+	TSet<const UWidget*> VisitedWidgets;
+	while (IsValid(CurrentWidget) && !VisitedWidgets.Contains(CurrentWidget))
+	{
+		VisitedWidgets.Add(CurrentWidget);
+		UWidget* ParentWidget = CurrentWidget->GetParent();
+		if (!ParentWidget)
+		{
+			// 布局根节点没有面板父级，需通过所属控件树跨越用户控件边界。
+			const UWidgetTree* OwningTree = CurrentWidget->GetTypedOuter<UWidgetTree>();
+			ParentWidget = OwningTree ? Cast<UUserWidget>(OwningTree->GetOuter()) : nullptr;
+		}
+
+		if (ULxUIBaseObject* ParentUI = Cast<ULxUIBaseObject>(ParentWidget); IsValid(ParentUI))
+		{
+			return ParentUI;
+		}
+		CurrentWidget = ParentWidget;
+	}
+
+	return nullptr;
 }
 
 bool ULxUITitleBarWidget::CloseTargetUI()
 {
-	if (!TargetUIObject)
+	ULxUIBaseObject* TargetUI = GetTargetUIObject();
+	if (!TargetUI)
 	{
 		return false;
 	}
 
-	TargetUIObject->CloseUIDisplay();
+	EndTitleBarDrag();
+	TargetUI->CloseUIDisplay();
 	return true;
 }
 
 FReply ULxUITitleBarWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (bEnableDrag && TargetUIObject && InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	if (bEnableDrag && InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		bIsDraggingTitleBar = true;
-		TargetUIObject->BeginUIDrag(InMouseEvent.GetScreenSpacePosition());
-		return FReply::Handled().CaptureMouse(TakeWidget());
+		if (ULxUIBaseObject* TargetUI = GetTargetUIObject())
+		{
+			DragTargetUIObject = TargetUI;
+			bIsDraggingTitleBar = true;
+			TargetUI->BeginUIDrag(InMouseEvent.GetScreenSpacePosition());
+			return FReply::Handled().CaptureMouse(TakeWidget());
+		}
 	}
 
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
@@ -38,9 +71,9 @@ FReply ULxUITitleBarWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry,
 
 FReply ULxUITitleBarWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (bIsDraggingTitleBar && TargetUIObject)
+	if (ULxUIBaseObject* DragTarget = DragTargetUIObject.Get(); bIsDraggingTitleBar && DragTarget)
 	{
-		TargetUIObject->UpdateUIDrag(InMouseEvent.GetScreenSpacePosition());
+		DragTarget->UpdateUIDrag(InMouseEvent.GetScreenSpacePosition());
 		return FReply::Handled();
 	}
 
@@ -51,12 +84,7 @@ FReply ULxUITitleBarWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, c
 {
 	if (bIsDraggingTitleBar && InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		if (TargetUIObject)
-		{
-			TargetUIObject->EndUIDrag();
-		}
-
-		bIsDraggingTitleBar = false;
+		EndTitleBarDrag();
 		return FReply::Handled().ReleaseMouseCapture();
 	}
 
@@ -65,22 +93,23 @@ FReply ULxUITitleBarWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, c
 
 void ULxUITitleBarWidget::NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
 {
-	if (bIsDraggingTitleBar && TargetUIObject)
-	{
-		TargetUIObject->EndUIDrag();
-	}
-
-	bIsDraggingTitleBar = false;
+	EndTitleBarDrag();
 	Super::NativeOnMouseCaptureLost(CaptureLostEvent);
 }
 
 void ULxUITitleBarWidget::NativeDestruct()
 {
-	if (bIsDraggingTitleBar && TargetUIObject)
+	EndTitleBarDrag();
+	Super::NativeDestruct();
+}
+
+void ULxUITitleBarWidget::EndTitleBarDrag()
+{
+	if (ULxUIBaseObject* DragTarget = DragTargetUIObject.Get(); bIsDraggingTitleBar && DragTarget)
 	{
-		TargetUIObject->EndUIDrag();
+		DragTarget->EndUIDrag();
 	}
 
 	bIsDraggingTitleBar = false;
-	Super::NativeDestruct();
+	DragTargetUIObject.Reset();
 }
