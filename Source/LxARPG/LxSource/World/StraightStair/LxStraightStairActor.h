@@ -8,6 +8,7 @@
 
 class UMaterialInterface;
 class UProceduralMeshComponent;
+class ULxGeneratedMeshRenderComponent;
 struct FPropertyChangedEvent;
 
 /**
@@ -42,6 +43,10 @@ public:
 	/** 保存实时生成直线楼梯的程序化网格体组件。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="直线楼梯|网格体", meta=(DisplayName="直线楼梯网格体"))
 	TObjectPtr<UProceduralMeshComponent> StraightStairMesh;
+
+ /** 保留原网格碰撞，使用可保存的 Nanite 几何承担显示与投影。 */
+ UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="生成优化", meta=(DisplayName="优化渲染网格"))
+ TObjectPtr<ULxGeneratedMeshRenderComponent> OptimizedMesh;
 
 	/** 楼梯包含的台阶数量；修改后保持整体尺寸并重新计算单阶尺寸。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="直线楼梯|台阶", meta=(DisplayName="台阶数量", ClampMin="1", ClampMax="512", UIMin="1", UIMax="100"))

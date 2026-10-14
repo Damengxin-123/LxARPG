@@ -5,6 +5,8 @@
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTypes.h"
 #include "LxProfessionDefinition.generated.h"
 
+class ULxProfessionTreeDefinition;
+
 /** 职业等级效果构建器，用于在职业蓝图中按节点顺序收集每一级效果。 */
 UCLASS(BlueprintType, DisplayName="职业等级效果构建器")
 class LXARPG_API ULxProfessionLevelBuilder : public UObject
@@ -53,6 +55,8 @@ public:
 
 	/** 使用职业表中的标签 ID 初始化职业定义实例。 */
 	void InitializeProfessionDefinition(FGameplayTag InProfessionIDTag);
+	/** 从体系资产创建兼容现有蓝图接口的只读职业视图，不执行旧职业蓝图等级链。 */
+	void InitializeFromTree(ULxProfessionTreeDefinition* Definition);
 
 	/** 获取职业类型。 */
 	UFUNCTION(BlueprintPure, Category="职业|基础", DisplayName="获取职业类型")
@@ -60,7 +64,7 @@ public:
 
 	/** 获取职业显示名称。 */
 	UFUNCTION(BlueprintPure, Category="职业|基础", DisplayName="获取职业显示名称")
-	FText GetProfessionDisplayName() const { return ProfessionBaseInfo.ProfessionName.GetStyledText(); }
+	FText GetProfessionDisplayName() const { return TreeDefinition ? ProfessionBaseInfo.ProfessionName.Text : ProfessionBaseInfo.ProfessionName.GetStyledText(); }
 
 	/** 获取职业基础信息。 */
 	UFUNCTION(BlueprintPure, Category="职业|基础", DisplayName="获取职业基础信息")
@@ -74,7 +78,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="职业|基础", DisplayName="获取职业文字描述")
 	FText GetProfessionDescription() const { return ProfessionBaseInfo.ProfessionDescription; }
 
-	/** 获取职业等级上限，等于蓝图等级链构建出的等级数量。 */
+	/** 获取职业等级上限，体系职业取资产中配置的等级数量。 */
 	UFUNCTION(BlueprintCallable, Category="职业|等级效果", DisplayName="获取职业等级上限")
 	int32 GetMaxLevel();
 
@@ -151,6 +155,9 @@ protected:
 	TArray<FLxProfessionInfluenceRule> InfluenceRules;
 
 private:
+	/** 当前运行时视图对应的唯一静态职业定义。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="职业|运行时", meta=(DisplayName="静态职业定义", AllowPrivateAccess="true"))
+	TObjectPtr<ULxProfessionTreeDefinition> TreeDefinition;
 	/** 职业表注入的运行时职业标签 ID，优先于蓝图默认配置。 */
 	UPROPERTY(Transient)
 	FGameplayTag RuntimeProfessionIDTag;

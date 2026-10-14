@@ -4,6 +4,67 @@
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 #include "LxARPG/LxSource/Model/Profession/Logic/LxProfessionDefinition.h"
+#include "Components/Button.h"
+#include "Components/TextBlock.h"
+#include "Components/ProgressBar.h"
+
+void ULxProfessionWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	if (auto* Button = Cast<UButton>(GetWidgetFromName(TEXT("查询战斗职业")))) Button->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowCombatProfessions);
+	if (auto* Button = Cast<UButton>(GetWidgetFromName(TEXT("查询采集职业")))) Button->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowGatheringProfessions);
+	if (auto* Button = Cast<UButton>(GetWidgetFromName(TEXT("查询制造职业")))) Button->OnClicked.AddUniqueDynamic(this, &ThisClass::ShowCraftingProfessions);
+	if (auto* Button = Cast<UButton>(GetWidgetFromName(TEXT("学习职业按钮")))) Button->OnClicked.AddUniqueDynamic(this, &ThisClass::LearnSelectedProfession);
+	RefreshProfessionPresentation();
+}
+
+void ULxProfessionWidget::ShowCombatProfessions() { SetProfessionTypeFilter(ELxProfessionType::Combat); }
+void ULxProfessionWidget::ShowGatheringProfessions() { SetProfessionTypeFilter(ELxProfessionType::Gathering); }
+void ULxProfessionWidget::ShowCraftingProfessions() { SetProfessionTypeFilter(ELxProfessionType::Crafting); }
+
+void ULxProfessionWidget::SetProfessionTypeFilter(ELxProfessionType Type)
+{
+	ProfessionTypeFilter = Type; SelectedProfessionIDTag = FGameplayTag(); RefreshProfessionList();
+}
+
+void ULxProfessionWidget::LearnSelectedProfession()
+{
+	if (m_pCharacterDataTransferComponent && SelectedProfessionIDTag.IsValid())
+		m_pCharacterDataTransferComponent->LearnProfession(SelectedProfessionIDTag, 1, true, true);
+	RefreshProfessionList();
+}
+
+void ULxProfessionWidget::RefreshProfessionPresentation()
+{
+	const auto* Data = SelectedProfessionUIData.Get();
+	// 此处只更新数据和状态，控件的层次、字体、颜色与尺寸均在蓝图中配置。
+	const auto SetText = [this](const TCHAR* Name, const FString& Value)
+	{
+		if (auto* Text = Cast<UTextBlock>(GetWidgetFromName(Name))) Text->SetText(FText::FromString(Value));
+	};
+	SetText(TEXT("详情职业名称"), Data && Data->ProfessionDefinition ? Data->ProfessionDefinition->GetProfessionBaseInfo().ProfessionName.Text.ToString() : TEXT("选择一个职业"));
+	const TCHAR* Category = ProfessionTypeFilter == ELxProfessionType::Combat ? TEXT("战斗") : ProfessionTypeFilter == ELxProfessionType::Gathering ? TEXT("采集") : ProfessionTypeFilter == ELxProfessionType::Crafting ? TEXT("生产") : TEXT("全部");
+	SetText(TEXT("职业数量"), FString::Printf(TEXT("%s · %d 个职业"), Category, ProfessionListUIDataList.Num()));
+	FLxProfessionLearnCheckResult Check;
+	const bool bCanLearn = Data && !Data->bLearned && m_pCharacterDataTransferComponent
+		&& m_pCharacterDataTransferComponent->CanLearnProfession(Data->ProfessionIDTag, Check);
+	const bool bMax = Data && Data->bLearned && Data->CurrentLevel >= Data->MaxLevel;
+	const float Required = Data && Data->ProfessionDefinition ? Data->ProfessionDefinition->GetRequiredExperienceForNextLevel(Data->CurrentLevel) : 0.f;
+	SetText(TEXT("职业等级摘要"), Data ? FString::Printf(TEXT("等级 %d / %d"), Data->CurrentLevel, Data->MaxLevel) : TEXT("尚未选择"));
+	SetText(TEXT("职业经验摘要"), !Data || !Data->bLearned ? TEXT("学习后开始积累经验") : bMax ? TEXT("已达到最高等级")
+		: FString::Printf(TEXT("经验 %.0f / %.0f"), Data->CurrentExperience, Required));
+	SetText(TEXT("学习职业文本"), Data && Data->bLearned ? TEXT("已学习") : bCanLearn ? TEXT("学习职业") : TEXT("前置未满足"));
+	SetText(TEXT("职业空状态"), ProfessionListUIDataList.IsEmpty() ? TEXT("此分类暂无职业") : TEXT("选择职业查看成长与加成"));
+	const auto* Details = SelectedProfessionDetailUIData.Get();
+	const bool bRequirements = Details && Details->bHasRequirementDisplayText;
+	const bool bInfluences = Details && Details->bHasInfluenceDisplayText;
+	if (auto* Card = GetWidgetFromName(TEXT("前置条件卡片"))) Card->SetVisibility(bRequirements ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	if (auto* Card = GetWidgetFromName(TEXT("入向影响卡片"))) Card->SetVisibility(bInfluences ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	if (auto* Rules = GetWidgetFromName(TEXT("职业规则双栏"))) Rules->SetVisibility(bRequirements || bInfluences ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	if (auto* Button = Cast<UButton>(GetWidgetFromName(TEXT("学习职业按钮")))) Button->SetIsEnabled(bCanLearn);
+	if (auto* Bar = Cast<UProgressBar>(GetWidgetFromName(TEXT("职业总经验进度"))))
+		Bar->SetPercent(bMax ? 1.f : Data && Required > 0.f ? FMath::Clamp(Data->CurrentExperience / Required, 0.f, 1.f) : 0.f);
+}
 
 void ULxProfessionWidget::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)
 {
@@ -42,6 +103,7 @@ void ULxProfessionWidget::RefreshProfessionList()
 		for (const FLxProfessionRuntimeData& LearnedProfessionData : LearnedProfessionList)
 		{
 			ULxProfessionDefinition* ProfessionDefinition = m_pCharacterDataTransferComponent->GetProfessionDefinition(LearnedProfessionData.ProfessionIDTag);
+			if (ProfessionDefinition && ProfessionTypeFilter != ELxProfessionType::None && ProfessionDefinition->GetProfessionType() != ProfessionTypeFilter) continue;
 			if (ULxProfessionListItemUIData* UIData = BuildProfessionListItemUIData(ProfessionDefinition))
 			{
 				ProfessionListUIDataList.Add(UIData);
@@ -62,13 +124,9 @@ void ULxProfessionWidget::RefreshProfessionList()
 		TArray<ULxProfessionDefinition*> ProfessionDefinitions;
 		m_pCharacterDataTransferComponent->GetAllProfessionDefinitions(ProfessionDefinitions);
 
-		ProfessionDefinitions.Sort([](const ULxProfessionDefinition& Left, const ULxProfessionDefinition& Right)
-		{
-			return Left.GetProfessionIDTag().ToString() < Right.GetProfessionIDTag().ToString();
-		});
-
 		for (ULxProfessionDefinition* ProfessionDefinition : ProfessionDefinitions)
 		{
+			if (ProfessionTypeFilter != ELxProfessionType::None && ProfessionDefinition->GetProfessionType() != ProfessionTypeFilter) continue;
 			if (ULxProfessionListItemUIData* UIData = BuildProfessionListItemUIData(ProfessionDefinition))
 			{
 				ProfessionListUIDataList.Add(UIData);
@@ -467,6 +525,7 @@ void ULxProfessionWidget::NotifySelectedProfessionUpdated()
 	OnSelectedProfessionUpdated(SafeSelectedProfessionUIData);
 	OnSelectedProfessionDetailUIDataUpdated.Broadcast(SafeSelectedProfessionDetailUIData);
 	OnSelectedProfessionDetailUpdated(SafeSelectedProfessionDetailUIData);
+	RefreshProfessionPresentation();
 }
 
 void ULxProfessionWidget::HandleProfessionChanged()

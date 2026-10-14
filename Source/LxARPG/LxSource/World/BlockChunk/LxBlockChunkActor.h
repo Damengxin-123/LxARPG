@@ -9,6 +9,7 @@
 
 class UMaterialInterface;
 class UProceduralMeshComponent;
+class ULxGeneratedMeshRenderComponent;
 
 /**
  * 按 16×16×16 网格保存并显示方块地形的区块演员。
@@ -45,6 +46,10 @@ public:
 	/** 保存区块合并后的渲染网格和碰撞。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="方块区块|网格体", meta=(DisplayName="区块程序化网格体"))
 	TObjectPtr<UProceduralMeshComponent> ChunkMesh;
+
+ /** 保留原网格碰撞，使用可保存的 Nanite 几何承担显示与投影。 */
+ UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="生成优化", meta=(DisplayName="优化渲染网格"))
+ TObjectPtr<ULxGeneratedMeshRenderComponent> OptimizedMesh;
 
 	/** 区块在无限方块网格中的二维坐标，用于让相邻区块连续采样地形噪声。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="方块区块|生成", meta=(DisplayName="区块坐标"))
@@ -112,7 +117,7 @@ private:
 	/** 返回指定方块类型经过表面方向明暗修正后的顶点颜色。 */
 	FLinearColor GetBlockFaceColor(ELxBlockType BlockType, const FVector& FaceNormal) const;
 
-	/** 按 X 优先、Y 次之、Z 最后排列保存区块中的 4096 个方块。 */
-	UPROPERTY(Transient)
+	/** 按 X 优先、Y 次之、Z 最后保存方块；重载复用网格后仍可逐块编辑。 */
+	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category="生成优化", meta=(DisplayName="方块源数据"))
 	TArray<ELxBlockType> Blocks;
 };

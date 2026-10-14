@@ -5,6 +5,7 @@
 #include "LxItemUIData.generated.h"
 
 class ULxItemSlotData;
+class ULxUIBaseObject;
 
 /**
  * TileView 物品格子数据。
@@ -21,4 +22,8 @@ public:
 	/** 当前格子关联的槽位数据。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品格子数据|槽位数据")
 	TObjectPtr<ULxItemSlotData> m_pSlotData = nullptr;
+
+	/** 格子所属业务窗口，虚拟列表复用格子时同步更新快捷操作接收者。 */
+	UPROPERTY(BlueprintReadWrite, Category="物品格子数据|操作", meta=(DisplayName="所属物品窗口"))
+	TWeakObjectPtr<ULxUIBaseObject> ItemOwnerWindow;
 };

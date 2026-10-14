@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipmentState.h"
 #include "LxItemSaveData.generated.h"
 
 class ULxItemBase;
@@ -21,7 +22,19 @@ struct LXARPG_API FLxItemSaveRecord
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|物品", DisplayName="物品数量")
 	int32 ItemCount = 0;
 
-	/** 当前实例的词条引用、比例、冷却时间和逻辑分类。 */
+    /** 装备实例标识；角色槽位单独引用装备集合，其他容器随物品保存完整记录。 */
+    UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|装备", DisplayName="装备实例ID")
+    FGuid EquipmentInstanceID;
+
+    /** 区分新格式装备记录和旧格式实例词条，包括零普通词条的装备。 */
+    UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|装备", DisplayName="具有装备记录")
+    bool bHasEquipmentState = false;
+
+    /** 非角色容器内联保存的装备状态，角色档采集时提取到独立集合。 */
+    UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|装备", DisplayName="装备记录")
+    FLxEquipmentSaveRecord Equipment;
+
+    /** 非装备实例词条；旧装备词条只用于兼容读取。 */
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|物品", DisplayName="实例词条")
 	TArray<FLxItemEntryConfig> Entries;
 };

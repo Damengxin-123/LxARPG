@@ -1,4 +1,5 @@
 #include "LxItemSlotData.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxSafeItemOperations.h"
 
 bool ULxItemSlotData::IsValid()
 {
@@ -7,38 +8,54 @@ bool ULxItemSlotData::IsValid()
 
 void ULxItemSlotData::ItemUse()
 {
-	if (!IsValid()
+	if (LxSafeItemOperations::IsSlotBusy(this) || !IsValid()
 		|| m_eSlotType == ELxItemSlotType::TreasureChest
 		|| m_eSlotType == ELxItemSlotType::Transaction)
 	{
 		return;
 	}
 
-	m_pItemData->ItemUse();
+	// 使用期间可能清空槽位并解绑监听，保留使用前的事件副本以确保最后一个物品仍触发效果。
+	ULxItemBase* UsedItem = m_pItemData;
+	const FOnLxItemUseSucceeded UseListeners = UsedItem->OnItemUseSucceeded;
+	if (UsedItem->ItemUse() == ELxItemUseState::ActivateEntry)
+	{
+		UseListeners.Broadcast(UsedItem);
+	}
 }
 
 void ULxItemSlotData::StartUseItem()
 {
-	if (!IsValid()
+	if (LxSafeItemOperations::IsSlotBusy(this) || !IsValid()
 		|| m_eSlotType == ELxItemSlotType::TreasureChest
 		|| m_eSlotType == ELxItemSlotType::Transaction)
 	{
 		return;
 	}
 
-	m_pItemData->ItemUseStart();
+	ULxItemBase* UsedItem = m_pItemData;
+	const FOnLxItemUseSucceeded UseListeners = UsedItem->OnItemUseSucceeded;
+	if (UsedItem->ItemUseStart() == ELxItemUseState::ActivateEntry)
+	{
+		UseListeners.Broadcast(UsedItem);
+	}
 }
 
 void ULxItemSlotData::EndUseItem()
 {
-	if (!IsValid()
+	if (LxSafeItemOperations::IsSlotBusy(this) || !IsValid()
 		|| m_eSlotType == ELxItemSlotType::TreasureChest
 		|| m_eSlotType == ELxItemSlotType::Transaction)
 	{
 		return;
 	}
 
-	m_pItemData->ItemUseEnd();
+	ULxItemBase* UsedItem = m_pItemData;
+	const FOnLxItemUseSucceeded UseListeners = UsedItem->OnItemUseSucceeded;
+	if (UsedItem->ItemUseEnd() == ELxItemUseState::ActivateEntry)
+	{
+		UseListeners.Broadcast(UsedItem);
+	}
 }
 
 void ULxItemSlotData::InitItemSlot(ELxItemSlotType InItemSlotType, FGameplayTag InItemType, ULxItemBase* InItemData)
@@ -54,8 +71,10 @@ void ULxItemSlotData::InitItemSlot(ELxItemSlotType InItemSlotType, FGameplayTag 
 	SetItem(InItemData);
 }
 
-bool ULxItemSlotData::SetItem(ULxItemBase* InItemData)
+bool ULxItemSlotData::SetItem(ULxItemBase* InItemData, bool bBroadcast)
 {
+	// 安全事务内部使用静默提交；常规入口不能在事务通知回调中覆盖槽位。
+	if (bBroadcast && LxSafeItemOperations::IsSlotBusy(this)) return false;
 	if (InItemData == nullptr || !InItemData->ItemIsValid())
 	{
 		return false;
@@ -69,7 +88,10 @@ bool ULxItemSlotData::SetItem(ULxItemBase* InItemData)
 	m_pItemData = InItemData;
 	m_pItemData->OnItemCountChanged.RemoveAll(this);
 	m_pItemData->OnItemCountChanged.AddUObject(this, &ULxItemSlotData::HandleItemCountChanged);
-	OnItemDataChanged.Broadcast(m_pItemData);
+	if (bBroadcast)
+	{
+		NotifyItemDataChanged();
+	}
 	return true;
 }
 
@@ -105,14 +127,23 @@ void ULxItemSlotData::SetItemValueRate(float InItemValueRate)
 	OnItemDataChanged.Broadcast(m_pItemData);
 }
 
-void ULxItemSlotData::ClearItem()
+void ULxItemSlotData::ClearItem(bool bBroadcast)
 {
+	if (bBroadcast && LxSafeItemOperations::IsSlotBusy(this)) return;
 	if (m_pItemData)
 	{
 		m_pItemData->OnItemCountChanged.RemoveAll(this);
 	}
 
 	m_pItemData = nullptr;
+	if (bBroadcast)
+	{
+		NotifyItemDataChanged();
+	}
+}
+
+void ULxItemSlotData::NotifyItemDataChanged()
+{
 	OnItemDataChanged.Broadcast(m_pItemData);
 }
 
@@ -150,6 +181,10 @@ void ULxItemSlotData::SetCanTrade(bool bInCanTrade)
 
 ELxItemSlotDropResult ULxItemSlotData::ItemEnterToThis(ULxItemSlotData* InItemSlot)
 {
+	if (LxSafeItemOperations::IsSlotBusy(this) || LxSafeItemOperations::IsSlotBusy(InItemSlot))
+	{
+		return ELxItemSlotDropResult::CannotEnter;
+	}
 	if (InItemSlot == nullptr || !InItemSlot->IsValid())
 	{
 		return ELxItemSlotDropResult::FailedInvalidSource;

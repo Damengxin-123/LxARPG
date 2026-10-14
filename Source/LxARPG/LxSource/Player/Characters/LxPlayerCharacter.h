@@ -6,6 +6,7 @@
 #include "LxPlayerCharacter.generated.h"
 
 class UCameraComponent;
+class ULxItemManufacturingComponent;
 class ULxCharacterSaveComponent;
 class ULxInteractableComponent;
 class ULxPlayerAimModule;
@@ -22,6 +23,13 @@ class LXARPG_API ALxPlayerCharacter : public ALxBaseCharacter, public ILxInterac
 public:
 	/** 创建玩家角色对象，并初始化玩家专属组件。 */
 	ALxPlayerCharacter();
+
+	/** 获取本次会话选择的角色配置标签，用于存档采集和蓝图身份判断。 */
+	UFUNCTION(BlueprintPure, Category="角色|存档", DisplayName="获取角色配置ID")
+	FGameplayTag GetCharacterConfigID() const { return CharacterConfigID; }
+
+	/** 由存档恢复会话配置身份，避免相同角色类的多个配置在再次保存时串档。 */
+	void SetCharacterConfigIDForSession(FGameplayTag InConfigID) { CharacterConfigID = InConfigID; }
 
 	/** 初始化玩家角色专属组件。 */
 	virtual void InitialCharacterInformation() override;
@@ -53,7 +61,18 @@ public:
 	virtual void ReceiveInteractableComponent_Implementation(ULxInteractableComponent* InInteractableComponent) override;
 	virtual void RemoveInteractableComponent_Implementation(ULxInteractableComponent* InInteractableComponent) override;
 
+    /** 获取玩家的物品制造组件，装备打造由该组件统一结算。 */
+    UFUNCTION(BlueprintPure, Category="组件|物品制造", DisplayName="获取物品制造组件")
+    ULxItemManufacturingComponent* GetItemManufacturingComponent() const { return ItemManufacturingComponent; }
+
 protected:
+    /** 随玩家创建的物品制造组件。 */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="组件|物品制造", DisplayName="物品制造组件")
+    TObjectPtr<ULxItemManufacturingComponent> ItemManufacturingComponent;
+	/** 本次会话的配置身份由新建或加载流程设置，不写入角色蓝图默认值。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="角色|存档", DisplayName="角色配置ID")
+	FGameplayTag CharacterConfigID;
+
 	/** 角色存档适配组件，在全部角色内容初始化后才注册并恢复数据。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="角色|存档", DisplayName="玩家存档组件")
 	TObjectPtr<ULxCharacterSaveComponent> CharacterSaveComponent;

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
+#include "GameplayTagContainer.h"
 #include "LxMainMenuSettings.generated.h"
 
 class ALxPlayerCharacter;
@@ -32,6 +33,9 @@ public:
 	/** 菜单展示与正式游玩共用的唯一总关卡，各地图档只切换其中的单位状态。 */
 	UPROPERTY(EditAnywhere, config, Category="主菜单|场景", DisplayName="总关卡")
 	TSoftObjectPtr<UWorld> DefaultLevel;
+	/** 首次启动自动创建旅人时使用的角色配置标签；未设置时仅允许默认角色类唯一匹配。 */
+	UPROPERTY(EditAnywhere, config, Category="主菜单|角色", DisplayName="默认角色配置ID")
+	FGameplayTag DefaultCharacterConfigID;
 	/** 仅用于兼容没有种族和角色类的旧档；新建角色通过数据表管理器的角色种族表选择类型。 */
 	UPROPERTY(EditAnywhere, config, Category="主菜单|角色", DisplayName="默认角色类型")
 	TSoftClassPtr<ALxPlayerCharacter> DefaultCharacter;

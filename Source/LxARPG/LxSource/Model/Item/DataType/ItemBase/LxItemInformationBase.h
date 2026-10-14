@@ -26,14 +26,14 @@ struct FLxItemInformationBase : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品类型")
 	ELxItemType ItemType = ELxItemType::None;
 
-	/** 最大堆叠数量。 */
+	/** 最大堆叠数量，范围为0～9999；上限为零时只能保留零数量。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="最大堆叠数量",
-		meta=(EditCondition="ItemType != ELxItemType::Equipment && ItemType != ELxItemType::Buff && ItemType != ELxItemType::Skill", EditConditionHides))
+		meta=(ClampMin="0", ClampMax="9999", UIMin="0", UIMax="9999", EditCondition="ItemType != ELxItemType::Equipment && ItemType != ELxItemType::Buff && ItemType != ELxItemType::Skill", EditConditionHides))
 	int32 ItemCountMax = 99;
 
-	/** 当前物品数量；可堆叠物品由数据表配置，运行时物品对象会写入实际数量。 */
+	/** 当前单堆物品数量，范围为0～9999且不超过该物品的堆叠上限。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品数量",
-		meta=(EditCondition="ItemType != ELxItemType::Equipment && ItemType != ELxItemType::Buff && ItemType != ELxItemType::Skill", EditConditionHides))
+		meta=(ClampMin="0", ClampMax="9999", UIMin="0", UIMax="9999", EditCondition="ItemType != ELxItemType::Equipment && ItemType != ELxItemType::Buff && ItemType != ELxItemType::Skill", EditConditionHides))
 	int32 ItemCount = 0;
 
 	/** 物品稀有度。 */
@@ -75,7 +75,8 @@ struct FLxItemQuote
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品ID", meta=(Categories="物品"))
 	FGameplayTag ItemIDTag;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品数量")
+	/** 批量领取、查询或扣除的合计数量；超过单堆上限时由容器拆分到多个槽位。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品", DisplayName="物品数量", meta=(ClampMin="0", UIMin="0"))
 	int32 ItemCount = 0;
 
 	FLxItemQuote() {}

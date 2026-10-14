@@ -8,6 +8,7 @@
 
 class UMaterialInterface;
 class UProceduralMeshComponent;
+class ULxGeneratedMeshRenderComponent;
 
 /**
  * 可快速生成实心或中空圆环柱体的演员。
@@ -36,6 +37,10 @@ public:
 	/** 保存实时生成圆环柱体的程序化网格体组件。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="圆环柱体|网格体", meta=(DisplayName="圆环柱体网格体"))
 	TObjectPtr<UProceduralMeshComponent> RingCylinderMesh;
+
+ /** 保留原网格碰撞，使用可保存的 Nanite 几何承担显示与投影。 */
+ UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="生成优化", meta=(DisplayName="优化渲染网格"))
+ TObjectPtr<ULxGeneratedMeshRenderComponent> OptimizedMesh;
 
 	/** 中间孔洞的本地半径；设为 0 时生成实心圆柱体，最大不会超过外圈半径。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="圆环柱体|形状", meta=(DisplayName="中空半径", ClampMin="0.0", ClampMax="49.9", UIMin="0.0", UIMax="49.9", Units="cm"))

@@ -18,6 +18,8 @@ class LXARPG_API ULxUIBaseObject : public UUserWidget, public ILxInputReceiveInt
 public:
 	virtual void UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent);
 	virtual void NativeDestruct() override;
+	/** 普通点击通知所属角色窗口激活，Alt 快捷操作保留原目标顺序。 */
+	virtual FReply NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 	virtual bool HandleInputEvent(ELxInputActionID InputID, const FLxInputValue& Value){ return false; };
 	virtual void HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue) override;
@@ -37,6 +39,10 @@ public:
 	/** 获取当前 UI 所属的主 UI 管理器。 */
 	UFUNCTION(BlueprintPure, Category="UI界面|管理", DisplayName="获取所属UI管理器")
 	ULxUIManager* GetOwningUIManager() const;
+
+	/** 沿控件父级与控件树边界查找所属角色业务窗口。 */
+	UFUNCTION(BlueprintPure, Category="UI界面|管理", DisplayName="获取所属角色窗口")
+	ULxUIBaseObject* GetOwningRoleWindow() const;
 
 	/** 开始拖动当前 UI，并记录鼠标屏幕位置。 */
 	UFUNCTION(BlueprintCallable, Category="UI界面|拖动", DisplayName="开始拖动界面")

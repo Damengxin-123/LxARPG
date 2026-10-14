@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LxRingSurfaceActor.h"
+#include "LxARPG/LxSource/World/GeneratedMesh/LxCompactProceduralMeshComponent.h"
+#include "LxARPG/LxSource/World/GeneratedMesh/LxGeneratedMeshRenderComponent.h"
+#include "Misc/ScopeExit.h"
 
 #include "Materials/MaterialInterface.h"
 #include "ProceduralMeshComponent.h"
@@ -9,7 +12,7 @@ ALxRingSurfaceActor::ALxRingSurfaceActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	RingSurfaceMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("RingSurfaceMesh"));
+	RingSurfaceMesh = CreateDefaultSubobject<ULxCompactProceduralMeshComponent>(TEXT("RingSurfaceMesh"));
 	SetRootComponent(RingSurfaceMesh);
 	RingSurfaceMesh->SetMobility(EComponentMobility::Movable);
 	RingSurfaceMesh->SetCastShadow(true);
@@ -22,16 +25,20 @@ ALxRingSurfaceActor::ALxRingSurfaceActor()
 	RingSurfaceMesh->bUseAsyncCooking = false;
 	RingSurfaceMesh->bUseComplexAsSimpleCollision = false;
 	RingSurfaceMesh->CanCharacterStepUpOn = ECB_Yes;
+ OptimizedMesh=CreateDefaultSubobject<ULxGeneratedMeshRenderComponent>(TEXT("OptimizedMesh"));
+ OptimizedMesh->SetupAttachment(RingSurfaceMesh);
 }
 
 void ALxRingSurfaceActor::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	RebuildRingSurface();
+	if (!OptimizedMesh || !OptimizedMesh->IsSourceCurrent()) { RebuildRingSurface(); }
 }
 
 void ALxRingSurfaceActor::RebuildRingSurface()
 {
+ // 包括无效参数和空几何在内的所有出口都同步渲染缓存。
+ ON_SCOPE_EXIT { if (OptimizedMesh) { OptimizedMesh->Synchronize(RingSurfaceMesh); } };
 	ClearGeneratedRingSurface();
 	if (!IsValid(RingSurfaceMesh))
 	{
@@ -178,6 +185,7 @@ void ALxRingSurfaceActor::ClearGeneratedRingSurface()
 		RingSurfaceMesh->ClearAllMeshSections();
 		RingSurfaceMesh->ClearCollisionConvexMeshes();
 	}
+ if (OptimizedMesh) { OptimizedMesh->MarkSourceDirty(); OptimizedMesh->SetVisibility(false); }
 }
 
 void ALxRingSurfaceActor::BuildStableCollision(

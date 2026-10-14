@@ -4,7 +4,11 @@
 #include "LxUIBaseObject.h"
 
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "Blueprint/IUserListEntry.h"
+#include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/ListViewBase.h"
+#include "Components/PanelWidget.h"
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
 
 #include "LxARPG/LxSource/Model/Input/DataType/LxInputActionConfig.h"
@@ -16,8 +20,22 @@ void ULxUIBaseObject::UpdateUIComponents(ULxCharacterDataTransferComponent* Char
 
 void ULxUIBaseObject::NativeDestruct()
 {
+	if (ULxUIManager* UIManager = OwningUIManager.Get()) UIManager->UnmountRoleWindow(this);
 	UnregisterAllInputActionReceives();
 	Super::NativeDestruct();
+}
+
+FReply ULxUIBaseObject::NativeOnPreviewMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (!InMouseEvent.IsAltDown())
+	{
+		if (ULxUIBaseObject* Window = GetOwningRoleWindow())
+		{
+			if (ULxUIManager* UIManager = Window->GetOwningUIManager()) UIManager->ActivateRoleWindow(Window);
+		}
+	}
+	// 预览阶段只记录激活，继续把点击交给按钮、格子及蓝图布局中的具体控件。
+	return FReply::Unhandled();
 }
 
 void ULxUIBaseObject::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
@@ -70,8 +88,41 @@ ULxUIManager* ULxUIBaseObject::GetOwningUIManager() const
 	return OwningUIManager.Get();
 }
 
+ULxUIBaseObject* ULxUIBaseObject::GetOwningRoleWindow() const
+{
+	const UWidget* CurrentWidget = this;
+	TSet<const UWidget*> VisitedWidgets;
+	while (IsValid(CurrentWidget) && !VisitedWidgets.Contains(CurrentWidget))
+	{
+		VisitedWidgets.Add(CurrentWidget);
+		if (const ULxUIBaseObject* CurrentUI = Cast<ULxUIBaseObject>(CurrentWidget))
+		{
+			if (ULxUIManager* UIManager = CurrentUI->GetOwningUIManager(); UIManager && UIManager->IsMountedRoleWindow(CurrentUI))
+				return const_cast<ULxUIBaseObject*>(CurrentUI);
+		}
+		const UWidget* ParentWidget = CurrentWidget->GetParent();
+		if (!ParentWidget)
+		{
+			// 虚拟列表生成的物品格子没有普通面板父级，通过列表接口回到背包或仓库布局。
+			if (const IUserListEntry* ListEntry = Cast<IUserListEntry>(CurrentWidget)) ParentWidget = ListEntry->GetOwningListView();
+		}
+		if (!ParentWidget)
+		{
+			// 控件树根没有面板父级，通过所属用户控件继续向上查找业务窗口。
+			const UWidgetTree* OwningTree = CurrentWidget->GetTypedOuter<UWidgetTree>();
+			ParentWidget = OwningTree ? Cast<UUserWidget>(OwningTree->GetOuter()) : nullptr;
+		}
+		CurrentWidget = ParentWidget;
+	}
+	return nullptr;
+}
+
 void ULxUIBaseObject::BeginUIDrag(FVector2D InMouseScreenPosition)
 {
+	if (ULxUIBaseObject* Window = GetOwningRoleWindow())
+	{
+		if (ULxUIManager* UIManager = Window->GetOwningUIManager()) UIManager->ActivateRoleWindow(Window);
+	}
 	bIsUIDragging = true;
 	LastUIDragMouseScreenPosition = InMouseScreenPosition;
 }

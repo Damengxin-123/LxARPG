@@ -49,9 +49,11 @@ public class LxARPGEditor : ModuleRules
 			"RenderCore",
 			"RHI",
 			"InputCore",
+			"Json", // 网格保存基准输出逐组件摘要和分段耗时。
 			"ImageCore",
 			"Landscape",
 			"PropertyEditor",
+			"ProceduralMeshComponent", // 砖墙编辑器交互回归测试直接检查程序化网格。
 			"Slate",
 			"SlateCore",
 			"SlateRHIRenderer", // 离屏烘焙旧主菜单装饰图片。

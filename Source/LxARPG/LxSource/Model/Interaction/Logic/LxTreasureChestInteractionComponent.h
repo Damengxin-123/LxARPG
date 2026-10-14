@@ -3,11 +3,13 @@
 #include "CoreMinimal.h"
 #include "LxInteractionActionComponentBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxItemSaveData.h"
 #include "LxTreasureChestInteractionComponent.generated.h"
 
 class ULxCharacterBackpackModule;
 class ULxItemBase;
 class ULxItemSlotData;
+class ULxItemTransferTicket;
 
 /** 宝箱状态改变，仅供 C++ 监听。 */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxTreasureChestStateChanged, ELxInteractionDataState);
@@ -50,6 +52,16 @@ public:
 
 	bool MoveTreasureChestSlotToBackpack(ULxCharacterBackpackModule* BackpackComponent, int32 TreasureChestSlotIndex, int32 BackpackSlotIndex);
 
+	/** 只读建立宝箱取出凭证，接收成功前不减少或移除原物品。 */
+	UFUNCTION(BlueprintCallable, Category="交互|宝箱|安全操作", DisplayName="安全提取宝箱物品")
+	ULxItemTransferTicket* BeginSafeExtractItem(int32 SlotIndex, FText& OutReason);
+
+	/** 安全取出开始提交时，延后槽位刷新与宝箱完成判断。 */
+	void BeginSafeItemBatch();
+
+	/** 安全取出完整提交后，只发布一次库存及宝箱完成状态。 */
+	void EndSafeItemBatch();
+
 	/** 刷新宝箱物品缓存，并广播槽位列表变化。 */
 	UFUNCTION(BlueprintCallable, Category="交互|宝箱", DisplayName="刷新宝箱槽位")
 	void RefreshTreasureChestSlots();
@@ -88,9 +100,11 @@ protected:
 	TArray<TObjectPtr<ULxItemSlotData>> TreasureChestItemSlotList;
 
 	UPROPERTY(ReplicatedUsing=OnRep_TreasureChestSlots)
-	TArray<FLxItemQuote> ReplicatedTreasureChestSlots;
+	TArray<FLxItemSaveRecord> ReplicatedTreasureChestSlots;
 
 private:
+	/** 当前安全提交的嵌套深度，避免完成事件观察到中间库存。 */
+	int32 SafeItemBatchDepth = 0;
 	/** 按蓝图配置创建物品对象和宝箱槽位。 */
 	void InitializeTreasureChestSlots();
 	/** 从槽位中重建当前有效物品缓存。 */

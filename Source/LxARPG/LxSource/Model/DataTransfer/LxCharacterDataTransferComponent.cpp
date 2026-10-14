@@ -1,4 +1,5 @@
 #include "LxCharacterDataTransferComponent.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxSafeItemOperations.h"
 #include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterStateAttributeObject.h"
 #include "LxARPG/LxSource/Model/Animation/Logic/LxCharacterAnimationProcessComponent.h"
 
@@ -9,6 +10,7 @@
 #include "LxARPG/LxSource/Model/Content/Logic/LxCharacterContentComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectCacheComponent.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxCharacterEffectTransferComponent.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipment.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
@@ -1077,7 +1079,16 @@ void ULxCharacterDataTransferComponent::BuildEffectPackageFromEntryPackage(const
 			continue;
 		}
 
-		EntryObject->AppendEffectsToPackage(OutEffectPackage);
+		// 装备词条缓存保留原始引用，仅在生成实际效果包时应用所属装备的强化倍率。
+		float EffectScale = 1.f;
+		if (InEntryPackage.EntrySource == ELxCharacterEntrySource::Equipment)
+		{
+			if (const ULxEquipment* Equipment = Cast<ULxEquipment>(EntryObject->GetOuter()))
+			{
+				EffectScale = Equipment->GetItemEntryEffectMultiplier();
+			}
+		}
+		EntryObject->AppendEffectsToPackage(OutEffectPackage, EffectScale);
 	}
 }
 
@@ -1137,6 +1148,27 @@ void ULxCharacterDataTransferComponent::HandleAttributeSnapshotChanged(const FLx
 void ULxCharacterDataTransferComponent::HandleBackpackDataChanged()
 {
 	BroadcastBackpackData();
+}
+
+ULxItemTransferTicket* ULxCharacterDataTransferComponent::BeginSafeBackpackExtract(ULxItemSlotData* SourceSlot, FText& OutReason)
+{
+	if (!BackpackComponent || !SourceSlot
+		|| BackpackComponent->GetBackpackSlotAt(SourceSlot->GetSlotIndex()) != SourceSlot)
+	{
+		OutReason = NSLOCTEXT("LxItemOperations", "BackpackSourceInvalid", "背包来源槽位已失效");
+		return nullptr;
+	}
+	return BackpackComponent->BeginSafeExtractItem(SourceSlot->GetSlotIndex(), OutReason);
+}
+
+bool ULxCharacterDataTransferComponent::CanAcceptSafeBackpackItem(ULxItemTransferTicket* Ticket, FText& OutReason) const
+{
+	if (!BackpackComponent)
+	{
+		OutReason = NSLOCTEXT("LxItemOperations", "BackpackMissing", "当前背包不可用");
+		return false;
+	}
+	return BackpackComponent->CanAcceptSafeItem(Ticket, OutReason);
 }
 
 void ULxCharacterDataTransferComponent::HandleBackpackItemUsed(ULxItemBase* UsedItem)

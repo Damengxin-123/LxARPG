@@ -8,6 +8,7 @@
 
 class UMaterialInterface;
 class UProceduralMeshComponent;
+class ULxGeneratedMeshRenderComponent;
 
 /**
  * 可在编辑器中实时生成带厚度圆环平面的演员。
@@ -36,6 +37,10 @@ public:
 	/** 保存实时生成圆环平面的程序化网格体组件。 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="圆环平面|网格体", meta=(DisplayName="圆环平面网格体"))
 	TObjectPtr<UProceduralMeshComponent> RingSurfaceMesh;
+
+ /** 保留原网格碰撞，使用可保存的 Nanite 几何承担显示与投影。 */
+ UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="生成优化", meta=(DisplayName="优化渲染网格"))
+ TObjectPtr<ULxGeneratedMeshRenderComponent> OptimizedMesh;
 
 	/** 圆环外缘的完整直径，单位为厘米。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="圆环平面|形状", meta=(DisplayName="外直径", ClampMin="2.0", UIMin="100.0", Units="cm"))

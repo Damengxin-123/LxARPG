@@ -10,6 +10,7 @@
 #include "LxGameDataTablesManager.generated.h"
 
 class UDataTable;
+class ULxProfessionTreeAsset;
 
 
 UCLASS(Blueprintable, DisplayName="数据表格管理对象")
@@ -18,18 +19,21 @@ class LXARPG_API ULxGameDataTablesManager : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	/** 可玩种族与玩家角色子类的唯一映射，统一用于创建、预览和加载存档。 */
+	/** 全部职业、前置、增益和升级公式的唯一运行时配置来源。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|职业", meta=(DisplayName="职业体系资产"))
+	TObjectPtr<ULxProfessionTreeAsset> ProfessionTreeAsset;
+	/** 以角色配置标签唯一映射玩家角色子类，统一用于创建、预览和加载存档。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|角色", DisplayName="角色种族表",
 		meta=(RequiredAssetDataTags="RowStructure=/Script/LxARPG.LxCharacterRaceConfig"))
 	TObjectPtr<UDataTable> CharacterRaceTable = nullptr;
 
-	/** 验证并读取全部可玩种族，拒绝重复种族、无效名称及不可生成的角色类。 */
+	/** 验证并读取全部角色配置，只要求配置标签唯一，种族和显示名称允许重复。 */
 	UFUNCTION(BlueprintCallable, Category="数据表配置|角色", DisplayName="获取可玩种族配置")
 	bool GetCharacterRaceConfigs(TArray<FLxCharacterRaceConfig>& OutConfigs, FString& OutError) const;
 
-	/** 按存档种族查询唯一的角色配置，不使用数据表行名称。 */
+	/** 按精确配置标签查询角色，不使用种族、显示名称或数据表行名称。 */
 	UFUNCTION(BlueprintCallable, Category="数据表配置|角色", DisplayName="查询角色种族配置")
-	bool GetCharacterRaceConfig(ELxCharacterRaceType Race, FLxCharacterRaceConfig& OutConfig, FString& OutError) const;
+	bool GetCharacterRaceConfig(FGameplayTag CharacterConfigID, FLxCharacterRaceConfig& OutConfig, FString& OutError) const;
 
 	// 输入行为信息表，Row Struct 使用 FLxInputActionInfo。
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|输入", DisplayName="输入行为信息表")
@@ -97,7 +101,7 @@ public:
 	TObjectPtr<UDataTable> m_pSkillItemTable = nullptr;
 
 	// 角色职业表，Row Struct 使用 FLxProfessionDefinitionTableRow。
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="数据表配置|职业", DisplayName="角色职业表")
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="请使用职业体系资产"))
 	TObjectPtr<UDataTable> m_pProfessionDefinitionTable = nullptr;
 
 	/** 任务系列静态资产索引表，首版由任务静态数据模块读取并建立软引用映射。 */

@@ -1,4 +1,5 @@
 #include "LxFunctionPageInteractionComponent.h"
+#include "LxARPG/LxSource/UI/Crafting/LxEquipmentCraftingWidget.h"
 
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
@@ -16,15 +17,19 @@ ULxFunctionPageInteractionComponent::ULxFunctionPageInteractionComponent()
 
 void ULxFunctionPageInteractionComponent::ApplyConfig(const FLxFunctionPageInteractionConfig& InConfig)
 {
+	CraftService = InConfig.CraftService;
 	FunctionPageID = InConfig.FunctionPageID;
-	PageWidgetClass = InConfig.PageWidgetClass;
+    PageWidgetClass = InConfig.PageWidgetClass;
+    if (!PageWidgetClass && IsEquipmentCraftingPage())
+        PageWidgetClass = LoadClass<ULxEquipmentCraftingWidget>(nullptr, TEXT("/Game/项目内容/UI/角色UI界面/制造界面/装备打造.装备打造_C"));
 }
 
 bool ULxFunctionPageInteractionComponent::CheckInteractionRequirement_Implementation(
 	ULxPlayerInteractionModule* PlayerInteractionComponent) const
 {
 	return Super::CheckInteractionRequirement_Implementation(PlayerInteractionComponent)
-		&& PageWidgetClass && !PageWidgetClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated);
+		&& PageWidgetClass && !PageWidgetClass->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated)
+        && (!IsEquipmentCraftingPage() || PageWidgetClass->IsChildOf(ULxEquipmentCraftingWidget::StaticClass()));
 }
 
 bool ULxFunctionPageInteractionComponent::ExecuteInteraction_Implementation(

@@ -35,6 +35,7 @@ bool ULxCharacterSaveComponent::CaptureSaveData(ULxGameSaveData* InSaveData) con
 	{
 		return false;
 	}
+	if (!Record.ExtractEquipmentInstances()) return false;
 	Record.QuestRecords = Content->GetQuestModule()->GetAllQuestRecords();
 	Content->GetProfessionModule()->CaptureProfessionSaveData(Record.Professions);
 	InSaveData->Players.Add(Record.SaveID, MoveTemp(Record));
@@ -64,17 +65,19 @@ bool ULxCharacterSaveComponent::RestoreSaveData(const ULxGameSaveData* InSaveDat
 	{
 		return true;
 	}
-	// 先检查四类数据，避免坏存档导致背包已替换但任务或职业恢复失败。
-	if (!Content->GetBackpackModule()->RestoreBackpackSaveData(Record->BackpackSlotCount, Record->BackpackSlots, false)
-		|| !Content->GetEquipmentModule()->RestoreEquipmentSaveData(Record->EquipmentSlots, false)
+    TArray<FLxItemSlotSaveRecord> BackpackSlots, EquipmentSlots;
+    if (!Record->ResolveEquipmentInstances(BackpackSlots, EquipmentSlots)) return false;
+    // 先检查四类数据，避免坏存档导致背包已替换但任务或职业恢复失败。
+	if (!Content->GetBackpackModule()->RestoreBackpackSaveData(Record->BackpackSlotCount, BackpackSlots, false)
+		|| !Content->GetEquipmentModule()->RestoreEquipmentSaveData(EquipmentSlots, false)
 		|| !Content->GetQuestModule()->RestoreQuestSaveData(Record->QuestRecords, false)
 		|| !Content->GetProfessionModule()->RestoreProfessionSaveData(Record->Professions, false))
 	{
 		return false;
 	}
 	// 职业先恢复，再由装备刷新来源效果，避免装备授予的职业进度被随后覆盖。
-	return Content->GetBackpackModule()->RestoreBackpackSaveData(Record->BackpackSlotCount, Record->BackpackSlots)
+	return Content->GetBackpackModule()->RestoreBackpackSaveData(Record->BackpackSlotCount, BackpackSlots)
 		&& Content->GetQuestModule()->RestoreQuestSaveData(Record->QuestRecords)
 		&& Content->GetProfessionModule()->RestoreProfessionSaveData(Record->Professions)
-		&& Content->GetEquipmentModule()->RestoreEquipmentSaveData(Record->EquipmentSlots);
+		&& Content->GetEquipmentModule()->RestoreEquipmentSaveData(EquipmentSlots);
 }

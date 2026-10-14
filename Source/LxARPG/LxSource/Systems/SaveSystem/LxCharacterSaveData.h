@@ -43,11 +43,15 @@ struct LXARPG_API FLxCharacterSaveRecord
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="已有角色内容")
 	bool bHasGameplayData = true;
 
-	/** 角色种族是加载玩家类型的依据；旧档缺少此字段时从原角色类迁移。 */
+	/** 持久化选中的角色配置身份，允许相同种族、名称甚至相同角色类拥有不同配置。 */
+	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="角色配置ID")
+	FGameplayTag CharacterConfigID;
+
+	/** 角色种族用于逻辑判断；加载时由配置标签对应的数据表行同步。 */
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="角色种族")
 	ELxCharacterRaceType CharacterRace = ELxCharacterRaceType::None;
 
-	/** 缓存种族表解析的角色类，并兼容没有种族字段的旧档；正式加载以种族表为准。 */
+	/** 缓存配置标签解析的角色类，并作为没有配置标签的旧档迁移依据。 */
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="角色类型")
 	TSoftClassPtr<APawn> CharacterClass;
 
@@ -91,7 +95,16 @@ struct LXARPG_API FLxCharacterSaveRecord
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="装备记录")
 	TArray<FLxItemSlotSaveRecord> EquipmentSlots;
 
-	/** 已接取、可提交和已完成任务的状态。 */
+    /** 玩家携带装备的独立集合；背包和穿戴槽位仅存实例ID，其他单位仍自行保存装备。 */
+    UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="随身装备实例")
+    TMap<FGuid, FLxEquipmentSaveRecord> EquipmentInstances;
+
+    /** 将槽位中的装备提取成独立实例集合，重复身份会拒绝采集。 */
+    bool ExtractEquipmentInstances();
+    /** 检查全部装备引用并生成可恢复的槽位副本，不修改源存档。 */
+    bool ResolveEquipmentInstances(TArray<FLxItemSlotSaveRecord>& OutBackpack, TArray<FLxItemSlotSaveRecord>& OutEquipment) const;
+
+    /** 已接取、可提交和已完成任务的状态。 */
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="任务记录")
 	TArray<FLxQuestRuntimeRecord> QuestRecords;
 

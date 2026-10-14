@@ -1,4 +1,5 @@
 #include "LxWarehouseWidget.h"
+#include "LxARPG/LxSource/UI/ItemOperations/LxItemOperationUIRouter.h"
 
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxInteractionNode.h"
 #include "LxARPG/LxSource/Model/PlayerControl/Logic/LxPlayerInteractionModule.h"
@@ -13,6 +14,55 @@ void ULxWarehouseWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	HideWarehouseInteraction();
+}
+
+bool ULxWarehouseWidget::GetQuickItemContainer_Implementation(FLxItemContainerAddress& OutContainer) const
+{
+	if (!IsVisible() || !GetIsEnabled() || !WarehouseComponent || !WarehouseComponent->GetOwner()) return false;
+	OutContainer = FLxItemContainerAddress();
+	OutContainer.Kind = ELxItemContainerKind::Warehouse;
+	OutContainer.Owner = WarehouseComponent->GetOwner();
+	OutContainer.RuntimeNodeIndex = WarehouseComponent->GetRuntimeNodeIndex();
+	OutContainer.InteractionTreeRevision = WarehouseComponent->GetInteractionTreeRevision();
+	return true;
+}
+
+ULxItemTransferTicket* ULxWarehouseWidget::PrepareQuickItemTransfer_Implementation(ULxItemSlotData* SourceSlot, FText& OutReason)
+{
+	FLxItemContainerAddress Address;
+	if (!GetQuickItemContainer_Implementation(Address) || !SourceSlot
+		|| WarehouseComponent->GetWarehouseSlotAt(SourceSlot->GetSlotIndex()) != SourceSlot)
+	{
+		OutReason = NSLOCTEXT("LxItemOperations", "WarehouseSourceInvalid", "仓库来源槽位已失效");
+		return nullptr;
+	}
+	return WarehouseComponent->BeginSafeExtractItem(SourceSlot->GetSlotIndex(), OutReason);
+}
+
+bool ULxWarehouseWidget::CanReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket, FText& OutReason) const
+{
+	FLxItemContainerAddress Address;
+	if (!GetQuickItemContainer_Implementation(Address))
+	{
+		OutReason = NSLOCTEXT("LxItemOperations", "WarehouseWindowInvalid", "仓库窗口已失效");
+		return false;
+	}
+	return WarehouseComponent->CanAcceptSafeItem(Ticket, OutReason);
+}
+
+bool ULxWarehouseWidget::ReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket,
+	const FLxItemOperationRequest& Request, ULxUIBaseObject* SourceWindow, FText& OutReason)
+{
+	FLxItemOperationRequest Received = Request;
+	if (!GetQuickItemContainer_Implementation(Received.Target)) return false;
+	ULxUIManager* Layout = GetOwningUIManager();
+	return Layout && Layout->GetItemOperationRouter()->SubmitOperation(Received, Ticket, SourceWindow, OutReason);
+}
+
+void ULxWarehouseWidget::NotifyQuickItemOperationResult_Implementation(const FLxItemOperationResult& Result)
+{
+	LastItemOperationResult = Result;
+	OnItemOperationCompleted(Result);
 }
 
 void ULxWarehouseWidget::NativeDestruct()
@@ -95,6 +145,7 @@ TArray<UObject*> ULxWarehouseWidget::GetWarehouseItemUIDataList()
 	{
 		ULxItemUIData* ItemUIData = NewObject<ULxItemUIData>(this);
 		ItemUIData->m_pSlotData = ItemSlot;
+		ItemUIData->ItemOwnerWindow = this;
 		ItemUIDataList.Add(ItemUIData);
 	}
 	return ItemUIDataList;

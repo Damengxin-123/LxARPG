@@ -6,7 +6,10 @@
 
 namespace LxEntryConfig
 {
-	void ClearEntryConfig();
+    /** 获取默认锻造池：只选择可持续生效的属性数值与属性影响词条。 */
+    LXARPG_API TArray<FGameplayTag> GetEquipmentForgeEntryIDs();
+
+    void ClearEntryConfig();
 
 	void SetAttributeGainEntryData(const FLxEntryAttributeGain& InEntryData);
 	void SetAttributeInfluenceEntryData(const FLxEntryAttributeInfluence& InEntryData);

@@ -255,9 +255,9 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxMainMenuBlueprintInteractionTest, "LxARPG.Me
 bool FLxMainMenuBlueprintInteractionTest::RunTest(const FString& Parameters)
 {
 	UClass* MenuClass = LoadClass<ULxMainMenuWidget>(nullptr,
-		TEXT("/Game/项目内容/UI界面/主菜单/主菜单.主菜单_C"));
+		TEXT("/Game/项目内容/UI/主菜单界面/主菜单.主菜单_C"));
 	UClass* SettingsClass = LoadClass<ULxSettingsWidget>(nullptr,
-		TEXT("/Game/项目内容/UI界面/主菜单/设置.设置_C"));
+		TEXT("/Game/项目内容/UI/主菜单界面/设置.设置_C"));
 	if (!TestNotNull(TEXT("加载实际主菜单蓝图子类"), MenuClass)
 		|| !TestNotNull(TEXT("加载实际设置蓝图子类"), SettingsClass)) return false;
 	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
@@ -301,7 +301,7 @@ bool FLxMainMenuBlueprintInteractionTest::RunTest(const FString& Parameters)
 		TEXT("小按钮高亮"), TEXT("切换框"), TEXT("切换框高亮"), TEXT("铭牌"), TEXT("弹窗")};
 	for (const TCHAR* Name : ImageNames)
 	{
-		const FString Path = FString(TEXT("/Game/项目内容/UI界面/主菜单/图像/")) + Name + TEXT(".") + Name;
+		const FString Path = FString(TEXT("/Game/项目内容/UI/主菜单界面/图像/")) + Name + TEXT(".") + Name;
 		UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *Path);
 		if (TestNotNull(FString(TEXT("原界面图像资产可加载：")) + Name, Texture))
 		{
@@ -309,10 +309,12 @@ bool FLxMainMenuBlueprintInteractionTest::RunTest(const FString& Parameters)
 			TestTrue(FString(TEXT("原界面图像具有可渲染像素层级：")) + Name, Texture->GetNumMips() > 0);
 		}
 	}
-	UTexture2D* NormalArt = LoadObject<UTexture2D>(nullptr, TEXT("/Game/项目内容/UI界面/主菜单/图像/按钮.按钮"));
-	UTexture2D* HighlightArt = LoadObject<UTexture2D>(nullptr, TEXT("/Game/项目内容/UI界面/主菜单/图像/按钮高亮.按钮高亮"));
-	TestTrue(TEXT("打开存档默认使用原高亮图像"), OpenWorlds->GetStyle().Normal.GetResourceObject() == HighlightArt);
-	TestTrue(TEXT("主按钮悬停画刷使用原高亮图像"), OpenSettings->GetStyle().Hovered.GetResourceObject() == HighlightArt);
+	UTexture2D* NormalArt = LoadObject<UTexture2D>(nullptr, TEXT("/Game/项目内容/美术资产/界面主题/象牙按钮.象牙按钮"));
+	UTexture2D* HighlightArt = LoadObject<UTexture2D>(nullptr, TEXT("/Game/项目内容/美术资产/界面主题/浅蓝物品格.浅蓝物品格"));
+	TestNotNull(TEXT("象牙按钮主题资产可加载"), NormalArt);
+	TestNotNull(TEXT("浅蓝选中主题资产可加载"), HighlightArt);
+	TestTrue(TEXT("打开存档默认使用浅蓝选中图像"), OpenWorlds->GetStyle().Normal.GetResourceObject() == HighlightArt);
+	TestTrue(TEXT("主按钮悬停画刷使用浅蓝图像"), OpenSettings->GetStyle().Hovered.GetResourceObject() == HighlightArt);
 	OpenSettings->OnHovered.Broadcast();
 	TestTrue(TEXT("悬停设置后保留设置按钮高亮"), OpenSettings->GetStyle().Normal.GetResourceObject() == HighlightArt);
 	TestTrue(TEXT("悬停另一按钮恢复存档按钮普通图像"), OpenWorlds->GetStyle().Normal.GetResourceObject() == NormalArt);
@@ -372,7 +374,7 @@ bool FLxMainMenuBlueprintInteractionTest::RunTest(const FString& Parameters)
 	SelectedEntry->TakeWidget();
 	UButton* SelectedButton = Cast<UButton>(SelectedEntry->GetWidgetFromName(TEXT("存档按钮")));
 	if (!TestNotNull(TEXT("新条目仍包含选择按钮"), SelectedButton)) return false;
-	TestTrue(TEXT("选中的存档恢复原金色状态"), SelectedButton->GetBackgroundColor().Equals(FLinearColor(0.45f, 0.32f, 0.13f)));
+	TestTrue(TEXT("选中的存档恢复浅蓝状态"), SelectedButton->GetBackgroundColor().Equals(FLinearColor::FromSRGBColor(FColor::FromHex(TEXT("B9D9EC")))));
 	if (bRenderPreviews && !RenderMenuBlueprintPreview(*this, MenuSlate.ToSharedRef(), TEXT("存档界面预览.png"))) return false;
 	Catalog->Worlds.Reset(); Menu->RefreshMenu();
 	TestEqual(TEXT("目录变空后移除所有旧条目"), WorldList->GetChildrenCount(), 0);
@@ -414,7 +416,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxPauseMenuBlueprintTest, "LxARPG.Menu.UI.Paus
 /** 使用真实蓝图资产检查表现层，不启动正式会话或修改用户存档。 */
 bool FLxPauseMenuBlueprintTest::RunTest(const FString& Parameters)
 {
-	UClass* Class = LoadClass<ULxPauseMenuWidget>(nullptr, TEXT("/Game/项目内容/UI界面/主菜单/暂停菜单.暂停菜单_C"));
+	UClass* Class = LoadClass<ULxPauseMenuWidget>(nullptr, TEXT("/Game/项目内容/UI/主菜单界面/暂停菜单.暂停菜单_C"));
 	if (!TestNotNull(TEXT("暂停菜单蓝图已生成"), Class)) return false;
 	TStrongObjectPtr<ULxPauseMenuWidget> Menu(NewObject<ULxPauseMenuWidget>(GetTransientPackage(), Class));
 	Menu->Initialize();

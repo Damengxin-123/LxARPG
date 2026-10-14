@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LxBlockChunkActor.h"
+#include "LxARPG/LxSource/World/GeneratedMesh/LxCompactProceduralMeshComponent.h"
+#include "LxARPG/LxSource/World/GeneratedMesh/LxGeneratedMeshRenderComponent.h"
+#include "Misc/ScopeExit.h"
 
 #include "Materials/MaterialInterface.h"
 #include "ProceduralMeshComponent.h"
@@ -24,7 +27,7 @@ ALxBlockChunkActor::ALxBlockChunkActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	ChunkMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ChunkMesh"));
+	ChunkMesh = CreateDefaultSubobject<ULxCompactProceduralMeshComponent>(TEXT("ChunkMesh"));
 	SetRootComponent(ChunkMesh);
 	ChunkMesh->SetMobility(EComponentMobility::Static);
 	ChunkMesh->SetCastShadow(true);
@@ -44,12 +47,14 @@ ALxBlockChunkActor::ALxBlockChunkActor()
 	{
 		ChunkMaterial = VertexColorMaterial.Object;
 	}
+ OptimizedMesh=CreateDefaultSubobject<ULxGeneratedMeshRenderComponent>(TEXT("OptimizedMesh"));
+ OptimizedMesh->SetupAttachment(ChunkMesh);
 }
 
 void ALxBlockChunkActor::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	RebuildBlockChunk();
+	if (!OptimizedMesh || !OptimizedMesh->IsSourceCurrent()) { RebuildBlockChunk(); }
 }
 
 void ALxBlockChunkActor::RebuildBlockChunk()
@@ -66,6 +71,7 @@ void ALxBlockChunkActor::ClearBlockChunk()
 		ChunkMesh->ClearAllMeshSections();
 		ChunkMesh->ClearCollisionConvexMeshes();
 	}
+ if (OptimizedMesh) { OptimizedMesh->MarkSourceDirty(); OptimizedMesh->SetVisibility(false); }
 }
 
 ELxBlockType ALxBlockChunkActor::GetBlock(const FIntVector& BlockCoordinate) const
@@ -152,6 +158,8 @@ void ALxBlockChunkActor::GenerateTerrainBlocks()
 
 void ALxBlockChunkActor::BuildChunkMesh()
 {
+ // 包括无效参数和空几何在内的所有出口都同步渲染缓存。
+ ON_SCOPE_EXIT { if (OptimizedMesh) { OptimizedMesh->Synchronize(ChunkMesh); } };
 	if (!IsValid(ChunkMesh) || Blocks.Num() != ChunkLength * ChunkLength * ChunkLength)
 	{
 		return;

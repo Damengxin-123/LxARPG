@@ -72,6 +72,10 @@ public:
 	 */
 	virtual FText GetDisplayName() const { return FLxString("None").ToFText(); };
 
+	/** 按额外倍率生成词条显示文本；计算只作用于返回文本，不修改缓存和原始生效比例。 */
+	UFUNCTION(BlueprintPure, Category="词条|显示", DisplayName="获取缩放后的词条显示文本")
+	virtual FText GetDisplayNameWithScale(float InDisplayScale = 1.f) const { return GetDisplayName(); }
+
 	/**
 	 * 将当前词条转换并追加到效果数据包。
 	 *
@@ -114,6 +118,9 @@ public:
 
 	virtual FText GetDisplayName() const override;
 
+	/** 按显示倍率计算属性增益数值，缓存中的属性值和词条比例保持原值。 */
+	virtual FText GetDisplayNameWithScale(float InDisplayScale) const override;
+
 	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
 protected:
 	/** 将基础词条数据转换并缓存为属性增益词条数据。 */
@@ -140,6 +147,9 @@ public:
 
 	/** 获取格式化后的属性影响词条显示名称。 */
 	virtual FText GetDisplayName() const override;
+
+	/** 按显示倍率计算属性影响比例，不改写词条缓存。 */
+	virtual FText GetDisplayNameWithScale(float InDisplayScale) const override;
 
 	/** 将属性影响配置追加到模块效果包。 */
 	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
@@ -172,6 +182,9 @@ public:
 	virtual const FLxEntryBase* GetEntryBase() const override { return &AttributeRecoveryData; }
 
 	virtual FText GetDisplayName() const override;
+
+	/** 按显示倍率计算回复数值，不改写词条缓存。 */
+	virtual FText GetDisplayNameWithScale(float InDisplayScale) const override;
 
 	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
 protected:
@@ -380,6 +393,9 @@ public:
 	virtual const FLxEntryBase* GetEntryBase() const override { return &DamageData; }
 
 	virtual FText GetDisplayName() const override;
+
+	/** 按显示倍率计算伤害属性比例，不改写词条缓存。 */
+	virtual FText GetDisplayNameWithScale(float InDisplayScale) const override;
 
 	virtual void AppendEffectsToPackage(FLxEffectPackage& InOutEffectPackage, float InEffectScale = 1.f) const override;
 

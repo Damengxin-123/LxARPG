@@ -28,13 +28,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, config, Category="存档", DisplayName="存档用户索引", meta=(ClampMin="0"))
 	int32 SaveUserIndex = 0;
 
-	/** 游戏数据表管理器类型，用于加载物品、词条、属性等数据表。 */
+	/** 游戏数据表管理器软类型，运行时按需加载，避免引擎启动期间提前加载特效等依赖资产。 */
 	UPROPERTY(EditDefaultsOnly, config, Category="数据|管理器类型", DisplayName="游戏数据表管理器类型")
-	TSubclassOf<ULxGameDataTablesManager> GameDataTablesManagerClass;
+	TSoftClassPtr<ULxGameDataTablesManager> GameDataTablesManagerClass;
 
-	/** 主 UI 管理器类型，用于创建主 UI 蓝图并统一管理所有子 UI 层级。 */
+	/** 主 UI 管理器软类型，在创建玩家界面时加载蓝图及其子界面依赖。 */
 	UPROPERTY(EditDefaultsOnly, config, Category="UI|管理器类型", DisplayName="UI管理器类型")
-	TSubclassOf<ULxUIManager> UIManagerClass;
+	TSoftClassPtr<ULxUIManager> UIManagerClass;
 
 	/** 交互 UI 管理器类型。该对象现在由主 UI 管理器创建，不再单独 AddToPlayerScreen。 */
 	UPROPERTY(EditDefaultsOnly, config, Category="UI|管理器类型", DisplayName="交互UI管理器类型")

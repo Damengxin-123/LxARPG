@@ -103,7 +103,8 @@ namespace LxUIThemePreviewPrivate
 }
 
 /** 按编辑器预览尺寸和设计时预构造结果绘制布局，并保存深色背景的界面核对图片。 */
-bool LxUITheme::RenderPreview(UWidgetBlueprint* Blueprint, const FString& Directory, bool bSelectedItemGrid)
+bool LxUITheme::RenderPreview(UWidgetBlueprint* Blueprint, const FString& Directory, bool bSelectedItemGrid,
+	TFunction<void(UUserWidget*)> PrepareRuntimeData, UObject* RuntimeOuter)
 {
 	using namespace LxUIThemePreviewPrivate;
 	if (!Blueprint || !Blueprint->GeneratedClass || !Blueprint->GeneratedClass->IsChildOf(UUserWidget::StaticClass())
@@ -119,10 +120,9 @@ bool LxUITheme::RenderPreview(UWidgetBlueprint* Blueprint, const FString& Direct
 		return false;
 	}
 
-	TStrongObjectPtr<UUserWidget> Preview(NewObject<UUserWidget>(GetTransientPackage(), Blueprint->GeneratedClass, NAME_None, RF_Transient));
-	// 必须先设置设计器标记再初始化；嵌套控件继承标记，预构造收到 IsDesignTime=true。
-	// 临时实例不创建 World、GameInstance 或存档管理器，不执行游戏初始化、Construct 或 Tick。
-	PrepareDesignWidget(Preview.Get());
+	TStrongObjectPtr<UUserWidget> Preview(NewObject<UUserWidget>(RuntimeOuter ? RuntimeOuter : GetTransientPackage(), Blueprint->GeneratedClass, NAME_None, RF_Transient));
+	// 默认预览使用设计器标记；提供运行数据时保留正常构造流程，由调用者传入测试世界。
+	if (!PrepareRuntimeData) PrepareDesignWidget(Preview.Get());
 	Preview->Initialize();
 	ON_SCOPE_EXIT { Preview->ReleaseSlateResources(true); };
 	if (!Preview->WidgetTree || !Preview->WidgetTree->RootWidget)
@@ -130,11 +130,15 @@ bool LxUITheme::RenderPreview(UWidgetBlueprint* Blueprint, const FString& Direct
 		UE_LOG(LogTemp, Error, TEXT("控件蓝图没有可预览的设计器布局：%s"), *Blueprint->GetPathName());
 		return false;
 	}
-	Preview->WidgetTree->ForEachWidgetAndDescendants([](UWidget* Widget)
+	Preview->WidgetTree->ForEachWidgetAndDescendants([&PrepareRuntimeData](UWidget* Widget)
 	{
-		if (UUserWidget* Child = Cast<UUserWidget>(Widget)) PrepareDesignWidget(Child);
+		if (UUserWidget* Child = Cast<UUserWidget>(Widget))
+		{
+			if (!PrepareRuntimeData) PrepareDesignWidget(Child);
+		}
 	});
 	const TSharedRef<SWidget> Content = Preview->TakeWidget();
+	if (PrepareRuntimeData) PrepareRuntimeData(Preview.Get());
 	if (bSelectedItemGrid && !PrepareSelectedItemGrid(Preview.Get())) return false;
 	Content->SlatePrepass();
 	const FVector2D ScreenSize(1280.0, 720.0);
@@ -200,7 +204,7 @@ bool LxUITheme::RenderPreview(UWidgetBlueprint* Blueprint, const FString& Direct
 		UE_LOG(LogTemp, Error, TEXT("无法保存界面预览图片：%s"), *Filename);
 		return false;
 	}
-	UE_LOG(LogTemp, Display, TEXT("已输出界面设计器预览：%s（%d×%d；动态列表与运行时数据不在此次预览中）"),
-		*Filename, ImageSize.X, ImageSize.Y);
+	UE_LOG(LogTemp, Display, TEXT("已输出界面预览：%s（%d×%d；%s）"),
+		*Filename, ImageSize.X, ImageSize.Y, PrepareRuntimeData ? TEXT("包含运行时数据") : TEXT("仅设计器布局"));
 	return true;
 }

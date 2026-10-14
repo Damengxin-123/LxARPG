@@ -5,6 +5,7 @@
 #include "LxAISpawnPointSaveData.h"
 #include "LxCharacterSaveData.h"
 #include "LxInteractionSaveData.h"
+#include "LxARPG/LxSource/Systems/WorldInfo/LxWorldTimeSaveData.h"
 #include "LxGameSaveData.generated.h"
 
 /** 游戏实例的存档，只保存可重建运行对象的属性和稳定标识。 */
@@ -14,6 +15,9 @@ class LXARPG_API ULxGameSaveData : public USaveGame
 	GENERATED_BODY()
 
 public:
+	/** 地图共享时间，独立于角色；旧档缺失字段时使用默认早晨时间。 */
+	UPROPERTY(SaveGame, VisibleAnywhere, BlueprintReadOnly, Category="存档|世界信息", DisplayName="世界时间")
+	FLxWorldTimeSaveData WorldTime;
 	/** 存档格式版本；不兼容的版本不会被自动覆盖。 */
 	UPROPERTY(SaveGame, VisibleAnywhere, BlueprintReadOnly, Category="存档", DisplayName="格式版本")
 	int32 FormatVersion = 1;

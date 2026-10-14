@@ -18,8 +18,12 @@ class ULxUIManager;
 class ULxCharacterDataTransferComponent;
 class ULxSkillCastModule;
 class ULxSkillItem;
+class ULxSkill;
 class ULxTradeContainerInteractionComponent;
 class UTexture2D;
+
+/** 格子请求快捷存取或拆分时通知 C++ 宿主，具体数据操作由宿主转发。 */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLxItemGridQuickAction, ULxItemSlotData*, bool);
 
 /**
  * @brief 物品格子控件
@@ -33,6 +37,20 @@ class LXARPG_API ULxItemGridWidget : public ULxUIBaseObject, public IUserObjectL
 	GENERATED_BODY()
 
 public:
+	/** 快捷操作请求通知；第二个参数为真表示拆分，为否表示快速存取。 */
+	FOnLxItemGridQuickAction OnQuickItemActionRequested;
+
+	/** 设置格子所属物品窗口，手动布局与虚拟列表使用相同路由入口。 */
+	UFUNCTION(BlueprintCallable, Category="物品格子|操作", meta=(DisplayName="设置格子所属物品窗口"))
+	void SetItemOwnerWindow(ULxUIBaseObject* InWindow);
+
+	/** 请求快捷操作，空格、增益、技能及其展示格子均会被拒绝。 */
+	UFUNCTION(BlueprintCallable, Category="物品格子|操作", meta=(DisplayName="请求物品格子快捷操作"))
+	bool RequestQuickItemAction(bool bSplitStack);
+
+	/** 子类蓝图接收快捷操作意图，用于音效或扩展显示；不在此事件修改物品。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="物品格子|操作", meta=(DisplayName="物品格子快捷操作请求"))
+	void OnQuickItemAction(ULxItemSlotData* SourceSlot, bool bSplitStack);
 	/** 控件完成构造后主动刷新一次显示，确保预设的默认图标立即应用。 */
 	virtual void NativeConstruct() override;
 
@@ -42,6 +60,11 @@ public:
 	 * @param ListItemObject 指向新设置的列表项对象的指针，通常是一个包含物品信息的对象。
 	 */
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+
+	/** 虚拟列表释放格子时取消原使用输入，避免复用后继续操作旧物品。 */
+	virtual void NativeOnEntryReleased() override;
+	/** 格子卸载时取消尚未释放的输入，并解除槽位通知。 */
+	virtual void NativeDestruct() override;
 
 	virtual void HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue) override;
 
@@ -226,6 +249,9 @@ protected:
 	/** 处理鼠标按钮抬起事件，用于结束按住使用或技能蓄力。 */
 	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
+	/** 捕获丢失时只取消原输入，普通物品不执行抬起使用。 */
+	virtual void NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
+
 	/**
 	 * @brief 当检测到拖拽操作时调用此方法。
 	 * 该方法在用户开始拖拽当前格子中的物品时被触发，用于初始化并返回一个`UDragDropOperation`对象来处理拖拽过程。
@@ -267,6 +293,34 @@ protected:
 
 
 private:
+	/** 当前格子所属业务窗口，列表项改变时更新。 */
+	UPROPERTY(Transient)
+	TWeakObjectPtr<ULxUIBaseObject> ItemOwnerWindow;
+
+	/** 本次右键属于拆分输入，松开时必须阻止原来的使用流程。 */
+	bool bSuppressRightMouseRelease = false;
+
+	/** 只有确实开始使用时才允许右键松开结束使用。 */
+	bool bStartedRightMouseUse = false;
+
+	/** 按下时固定使用来源，格子复用后不结束另一件物品的使用。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxItemSlotData> RightMouseUseSlot = nullptr;
+
+	/** 按下时的独立物品实例，防止同一槽位换物品后误用新物品。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxItemBase> RightMouseUseItem = nullptr;
+
+	/** 按下时已经开始释放的技能对象，物品失效后仍可以取消原释放。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxSkill> RightMouseUseSkill = nullptr;
+
+	/** 原技能释放模块，切换角色或列表复用时不向新模块发送结束输入。 */
+	UPROPERTY(Transient)
+	TWeakObjectPtr<ULxSkillCastModule> RightMouseSkillCastComponent;
+
+	/** 正常抬起时结束原实例；捕获丢失、复用和实例替换只取消原输入。 */
+	void FinishRightMouseUse(bool bReleased);
 	ULxUIManager* GetUIManager() const;
 
 	void ShowItemTooltip(const FVector2D& InMouseScreenPosition) const;

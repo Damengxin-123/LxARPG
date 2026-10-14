@@ -43,16 +43,16 @@ public:
 			InitialMenuWorld = World;
 			OriginalID = Menu->GetSelectedCharacter()->ID;
 			Test->TestEqual(TEXT("菜单种族读取表中中文名"), Menu->GetCharacterRaceName(), FString(TEXT("人类")));
-			Test->TestEqual(TEXT("新建界面仅提供已配置的人类"), Menu->GetAvailableCharacterRaces().Num(), 1);
+			Test->TestTrue(TEXT("新建界面提供已配置角色"), !Menu->GetAvailableCharacterRaces().IsEmpty());
 			FScreenshotRequest::RequestScreenshot(FPaths::ProjectSavedDir() / TEXT("Automation/MainMenu/主菜单.png"), true, false);
 			++Step; NextStepAt = FPlatformTime::Seconds() + 2;
 		}
 		else if (Step == 1)
 		{
 			const int32 Before = Menu->GetCharacters().Num();
-			Menu->CreateCharacter(TEXT("不应创建的精灵"), ELxCharacterRaceType::Elves);
+			Menu->CreateCharacter(TEXT("不应创建的角色"), FGameplayTag());
 			Test->TestEqual(TEXT("未配置种族不产生存档"), Menu->GetCharacters().Num(), Before);
-			Menu->CreateCharacter(TEXT("测试角色二"), ELxCharacterRaceType::Human);
+			Menu->CreateCharacter(TEXT("测试角色二"), GetDefault<ULxMainMenuSettings>()->DefaultCharacterConfigID);
 			++Step; NextStepAt = FPlatformTime::Seconds() + 1;
 		}
 		else if (Step == 2)

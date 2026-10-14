@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LxEquipmentEnum.h"
+#include "LxEquipmentState.h"
 #include "LxARPG/LxSource/Model/Entry/DataType/LxItemEntryData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxEquipment.generated.h"
@@ -12,7 +13,7 @@
  * @brief 装备静态信息。
  *
  * 装备物品在新物品体系中的基础数据结构，继承通用物品静态信息，
- * 并额外记录装备部位、强化值和锻造潜能等装备专属属性。
+ * 并额外记录装备部位、固定词条开关、锻造候选池及运行时强化度。
  */
 USTRUCT(BlueprintType, DisplayName="装备物品信息")
 struct FLxEquipmentInformation : public FLxItemInformationBase
@@ -22,11 +23,23 @@ struct FLxEquipmentInformation : public FLxItemInformationBase
 	/** @brief 装备部位类型，例如武器、饰品等。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|装备", DisplayName="装备部位")
 	ELxEquipmentType EquipmentType = ELxEquipmentType::EquipmentSizeMax;
-	/** @brief 装备强化值覆盖项。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|装备", DisplayName="强化值覆盖")
+    /** 固定装备的普通词条来自静态配置，只允许强化。 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|装备", DisplayName="固定普通词条")
+    bool bFixedNormalEntries = false;
+
+    /** 新增词条的静态候选池，剔除装备已经拥有的词条后等概率抽取。 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|装备", DisplayName="锻造词条池", meta=(Categories="词条"))
+    TArray<FGameplayTag> ForgeEntryPool;
+
+    /** 当前强化度仅用于运行时显示，不写入静态词条。 */
+    UPROPERTY(Transient, BlueprintReadOnly, Category="物品|装备", DisplayName="强化度")
+    float Enhancement = 0.f;
+
+    /** 旧资产的强化初值（百分数），仅保留反序列化兼容。 */
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="请使用装备实例强化度"))
 	int32 EnhancementValueOverride = 0;
-	/** @brief 装备锻造潜能。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="物品|装备", DisplayName="锻造潜力")
+	/** 旧资产的锻造潜能，仅保留反序列化兼容，不参与打造。 */
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="锻造不再消耗潜力"))
 	int32 ForgePotential = 1;
 	
 	
@@ -77,13 +90,17 @@ struct FLxEquipmentInformation : public FLxItemInformationBase
  * UObject 化后的装备类型，负责提供装备物品的通用接口实现，
  * 并通过 FLxEquipmentInformation 保存当前装备的静态属性。
  */
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, DisplayName="装备实例")
 class LXARPG_API ULxEquipment : public ULxItemBase
 {
 	GENERATED_BODY()
 
 public:
-	ULxEquipment();
+    /** 普通词条数量上限，稀有度阈值统一按此值计算。 */
+    static constexpr int32 MaxNormalEntries = 20;
+
+    /** 创建装备的静态信息容器。 */
+    ULxEquipment();
 	virtual ~ULxEquipment() override;
 	
 	/** @brief 使用装备时返回安装装备的使用状态。 */
@@ -98,11 +115,46 @@ public:
 	/** 获取当前装备信息副本，用于 UI 显示。 */
 	FLxEquipmentInformation EquipmentInformation() const;
 
+    /** 获取装备实例标识，同一物品ID的多件装备各自独立。 */
+    UFUNCTION(BlueprintPure, Category="装备", DisplayName="获取装备实例ID")
+    FGuid GetInstanceID() const { return InstanceID; }
+
+    /** 获取当前强化度，0.3表示总增30%。 */
+    UFUNCTION(BlueprintPure, Category="装备", DisplayName="获取强化度")
+    float GetEnhancement() const { return m_fEquipmentInformation.Enhancement; }
+
+    /** 查询装备是否锁定全部普通词条。 */
+    UFUNCTION(BlueprintPure, Category="装备", DisplayName="是否固定词条装备")
+    bool HasFixedEntries() const { return m_fEquipmentInformation.bFixedNormalEntries; }
+
+    /** 获取未经强化缩放的普通词条。 */
+    UFUNCTION(BlueprintPure, Category="装备", DisplayName="获取普通词条")
+    TArray<FLxEquipmentEntry> GetNormalEntries() const;
+
+    /** 提取最小装备状态，不包含静态基础词条。 */
+    FLxEquipmentSaveRecord CaptureEquipmentState() const;
+    /** 验证并恢复装备状态；失败不会修改当前装备。 */
+    bool RestoreEquipmentState(const FLxEquipmentSaveRecord& State, const FGuid& InInstanceID);
+    /** 迁移旧物品存档，只接受普通词条，基础词条始终读取静态配置。 */
+    virtual bool RestoreItemEntries(const TArray<FLxItemEntryConfig>& InEntries) override;
+    /** 原子更新强化和普通词条，固定装备拒绝词条变化。 */
+    bool ApplyCraftingState(float Enhancement, const TArray<FLxEquipmentEntry>& Entries);
+    /** 按普通词条数量计算装备稀有度，支持边界测试与界面预览。 */
+    static ELxItemRarityType CalculateRarity(bool bFixed, int32 Count);
+
 protected:
-	virtual void SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount) override;
+    /** 生成显示文本与实际效果包时乘以强化倍率，词条配置和对象缓存保留原值。 */
+    virtual float GetEntryEffectMultiplier() const override { return 1.f + GetEnhancement(); }
+    /** 初始化装备模板及其独立实例标识。 */
+    virtual void SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount) override;
 
 	virtual FLxItemInformationBase* ItemBase() override;
 private:
-	/** @brief 当前装备的静态信息。 */
+    /** 按静态基础词条和未经缩放的普通词条重建运行时效果。 */
+    bool RebuildEquipment(float Enhancement, const TArray<FLxEquipmentEntry>& Entries);
+    /** 每件装备的稳定身份，跨容器移动时不变 */
+    UPROPERTY(Transient, VisibleInstanceOnly, Category="装备打造|运行时", DisplayName="每件装备的稳定身份，跨容器移动时不变")
+    FGuid InstanceID;
+    /** @brief 当前装备的静态信息及未经缩放的词条。 */
 	FLxEquipmentInformation m_fEquipmentInformation;
 };

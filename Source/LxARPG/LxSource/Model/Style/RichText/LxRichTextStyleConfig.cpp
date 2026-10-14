@@ -8,6 +8,7 @@ namespace
 	TWeakObjectPtr<UDataTable> GRichTextStyleDataTable;
 	TMap<FGameplayTag, FLxRichTextStyleRow> GRichTextStyleRowMap;
 
+	/** 只缓存结构正确且目标行确实存在的样式引用，避免生成无法识别的富文本标签。 */
 	bool IsValidRichTextStyleRowHandle(const FDataTableRowHandle& InStyleRow)
 	{
 		if (!InStyleRow.DataTable || InStyleRow.RowName.IsNone())
@@ -16,7 +17,8 @@ namespace
 		}
 
 		const UScriptStruct* RowStruct = InStyleRow.DataTable->GetRowStruct();
-		return RowStruct && RowStruct->IsChildOf(FRichTextStyleRow::StaticStruct());
+		return RowStruct && RowStruct->IsChildOf(FRichTextStyleRow::StaticStruct())
+			&& InStyleRow.DataTable->FindRowUnchecked(InStyleRow.RowName) != nullptr;
 	}
 }
 

@@ -22,7 +22,12 @@ class LXARPG_API ULxCharacterEquipmentModule : public ULxCharacterContentModuleB
 	GENERATED_BODY()
 
 public:
-	/** 获取全部装备槽位。 */
+    /** 复制完整装备状态，客户端使用同样的强化和普通词条。 */
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    /** 采集服务端已穿戴装备的最新快照。 */
+    void SyncReplicatedEquipment();
+
+    /** 获取全部装备槽位。 */
 	TArray<TObjectPtr<ULxItemSlotData>>& GetEquipmentSlots();
 
 	/** 整体恢复装备槽位后只广播一次变化；关闭应用时只验证，由中转组件替换现有效果。 */
@@ -33,6 +38,12 @@ public:
 	TArray<FGameplayTag> EquipmentSlotsConfig;
 
 private:
+    /** 完整穿戴槽位快照，包含动态装备数据。 */
+    UPROPERTY(ReplicatedUsing=OnRep_EquipmentSlots)
+    TArray<FLxItemSlotSaveRecord> ReplicatedEquipmentSlots;
+    /** 客户端重建装备效果并通知角色数据中转组件。 */
+    UFUNCTION(Category="装备|同步", DisplayName="接收装备同步")
+    void OnRep_EquipmentSlots();
 	/** 初始化装备槽位并通知数据中转组件。 */
 	virtual void OnModuleInitialize() override;
 

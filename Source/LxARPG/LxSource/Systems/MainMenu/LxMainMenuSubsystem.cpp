@@ -95,7 +95,9 @@ bool ULxMainMenuSubsystem::EnsureStore()
 	if (GetCharacters().IsEmpty())
 	{
 		FLxCharacterSaveRecord Record;
-		if (!LxCharacterRace::CreateCharacterRecord(ELxCharacterRaceType::Human, Record, Status)) return false;
+		Record.CharacterConfigID = GetDefault<ULxMainMenuSettings>()->DefaultCharacterConfigID;
+		if (!LxCharacterRace::ResolveCharacterRecord(Record, Status)
+			|| !LxCharacterRace::CreateCharacterRecord(Record.CharacterConfigID, Record, Status)) return false;
 		if (!Store->CreateCharacter(TEXT("旅人"), Record).IsValid()) { Status = Store->GetLastError(); return false; }
 	}
 	SelectedCharacterID = Store->GetCatalog()->LastCharacterID;
@@ -232,7 +234,7 @@ FString ULxMainMenuSubsystem::GetCharacterRaceName() const
 	const ULxGameDataTablesManager* Manager = LxCharacterRace::GetConfiguredManager();
 	FLxCharacterRaceConfig Config;
 	FString Error;
-	return Manager && Manager->GetCharacterRaceConfig(Character->Record.CharacterRace, Config, Error) ? Config.RaceName.ToString() : TEXT("未知");
+	return Manager && Manager->GetCharacterRaceConfig(Character->Record.CharacterConfigID, Config, Error) ? Config.RaceName.ToString() : TEXT("未知");
 }
 
 void ULxMainMenuSubsystem::RefreshPreview()
@@ -293,12 +295,12 @@ void ULxMainMenuSubsystem::SelectWorld(const FGuid& WorldID)
 	}
 }
 
-void ULxMainMenuSubsystem::CreateCharacter(const FString& Name, ELxCharacterRaceType Race)
+void ULxMainMenuSubsystem::CreateCharacter(const FString& Name, FGameplayTag CharacterConfigID)
 {
 	ON_SCOPE_EXIT { NotifyMenuStateChanged(); };
 	if (bBusy || HasSession() || !EnsureStore()) return;
 	FLxCharacterSaveRecord Record;
-	if (!LxCharacterRace::CreateCharacterRecord(Race, Record, Status)) return;
+	if (!LxCharacterRace::CreateCharacterRecord(CharacterConfigID, Record, Status)) return;
 	const FGuid ID = Store->CreateCharacter(Name, Record);
 	if (!ID.IsValid()) { Status = TEXT("新建角色失败，请检查角色名称和存档目录。"); return; }
 	SelectedCharacterID = ID;

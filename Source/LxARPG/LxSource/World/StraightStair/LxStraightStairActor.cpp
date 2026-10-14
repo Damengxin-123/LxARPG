@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LxStraightStairActor.h"
+#include "LxARPG/LxSource/World/GeneratedMesh/LxCompactProceduralMeshComponent.h"
+#include "LxARPG/LxSource/World/GeneratedMesh/LxGeneratedMeshRenderComponent.h"
+#include "Misc/ScopeExit.h"
 
 #include "KismetProceduralMeshLibrary.h"
 #include "ProceduralMeshComponent.h"
@@ -10,7 +13,7 @@ ALxStraightStairActor::ALxStraightStairActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	StraightStairMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("StraightStairMesh"));
+	StraightStairMesh = CreateDefaultSubobject<ULxCompactProceduralMeshComponent>(TEXT("StraightStairMesh"));
 	SetRootComponent(StraightStairMesh);
 	StraightStairMesh->SetMobility(EComponentMobility::Movable);
 	StraightStairMesh->SetCastShadow(true);
@@ -22,12 +25,14 @@ ALxStraightStairActor::ALxStraightStairActor()
 	StraightStairMesh->bUseComplexAsSimpleCollision = false;
 	StraightStairMesh->CanCharacterStepUpOn = ECB_Yes;
 	StraightStairMesh->SetCollisionProfileName(TEXT("BlockAll"));
+ OptimizedMesh=CreateDefaultSubobject<ULxGeneratedMeshRenderComponent>(TEXT("OptimizedMesh"));
+ OptimizedMesh->SetupAttachment(StraightStairMesh);
 }
 
 void ALxStraightStairActor::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	RebuildStraightStair();
+	if (!OptimizedMesh || !OptimizedMesh->IsSourceCurrent()) { RebuildStraightStair(); }
 }
 
 #if WITH_EDITOR
@@ -70,6 +75,8 @@ void ALxStraightStairActor::PostEditChangeProperty(FPropertyChangedEvent& Proper
 
 void ALxStraightStairActor::RebuildStraightStair()
 {
+ // 包括无效参数和空几何在内的所有出口都同步渲染缓存。
+ ON_SCOPE_EXIT { if (OptimizedMesh) { OptimizedMesh->Synchronize(StraightStairMesh); } };
 	ClearGeneratedStraightStair();
 	if (!IsValid(StraightStairMesh))
 	{
@@ -206,6 +213,7 @@ void ALxStraightStairActor::ClearGeneratedStraightStair()
 		StraightStairMesh->ClearAllMeshSections();
 		StraightStairMesh->ClearCollisionConvexMeshes();
 	}
+ if (OptimizedMesh) { OptimizedMesh->MarkSourceDirty(); OptimizedMesh->SetVisibility(false); }
 }
 
 void ALxStraightStairActor::SanitizeDimensions()

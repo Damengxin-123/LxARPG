@@ -1,4 +1,5 @@
 #include "LxPlayerCharacter.h"
+#include "LxARPG/LxSource/Model/Item/Crafting/LxItemManufacturingComponent.h"
 
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -12,6 +13,7 @@
 
 ALxPlayerCharacter::ALxPlayerCharacter()
 {
+	ItemManufacturingComponent = CreateDefaultSubobject<ULxItemManufacturingComponent>(TEXT("物品制造组件"));
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;

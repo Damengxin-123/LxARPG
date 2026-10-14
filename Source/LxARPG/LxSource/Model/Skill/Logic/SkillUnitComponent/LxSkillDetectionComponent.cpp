@@ -7,6 +7,7 @@
 
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/Actor.h"
+#include "LxARPG/LxSource/World/Ocean/LxOceanActor.h"
 
 void ULxSkillDetectionComponent::SetTargetFilterSpec(const FLxSkillTargetFilterSpec& InTargetFilterSpec)
 {
@@ -139,10 +140,19 @@ void ULxSkillDetectionComponent::HandleBeginOverlap(UPrimitiveComponent* Overlap
 
 	const bool bIsTarget = IsTargetCandidateValid(OtherActor);
 	// 非 Sweep 方式产生的 Overlap 通常没有有效 ImpactPoint，此时使用触发碰撞体的实时位置。
-	const FVector HitLocation = bFromSweep
+	FVector HitLocation = bFromSweep
 		? FVector(SweepResult.ImpactPoint)
 		: (OverlappedComponent ? OverlappedComponent->GetComponentLocation() : OtherActor->GetActorLocation());
 	FVector HitNormal = SweepResult.ImpactNormal;
+	// 海洋使用平均海面的查询薄层，统一输出准确海平面位置和向上法线。
+	const ALxOceanActor* Ocean = Cast<ALxOceanActor>(OtherActor);
+	if (Ocean)
+	{
+		// 闭合海岸内部没有海面，过滤包围盒重叠产生的虚假海洋命中。
+		if (!Ocean->HasOceanAtLocation(HitLocation)) return;
+		HitLocation = Ocean->ProjectToSeaLevel(HitLocation);
+		HitNormal = FVector::UpVector;
+	}
 	if (!bFromSweep && HitNormal.IsNearlyZero() && OverlappedComponent)
 	{
 		HitNormal = (OverlappedComponent->GetComponentLocation() - OtherActor->GetActorLocation()).GetSafeNormal();
@@ -155,7 +165,7 @@ void ULxSkillDetectionComponent::HandleBeginOverlap(UPrimitiveComponent* Overlap
 		return;
 	}
 
-	if (bPublishWorldHit)
+	if (bPublishWorldHit || Ocean)
 	{
 		// 被目标规则过滤掉的角色默认不视为场景障碍，避免友方意外让投射物失效。
 		if (OtherActor && OtherActor->IsA<ALxBaseCharacter>())

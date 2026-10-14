@@ -78,8 +78,8 @@ protected:
 	/** 初始化职业定义缓存和已学习职业实例。 */
 	virtual void OnModuleInitialize() override;
 
-	/** 当前角色可学习的职业定义类列表。 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="职业|配置", DisplayName="可学习职业定义列表")
+	/** 旧职业类列表仅保留序列化兼容；运行时统一读取职业体系资产。 */
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="请在数据管理配置中设置职业体系资产"))
 	TArray<TSubclassOf<ULxProfessionDefinition>> ProfessionClasses;
 
 	/** 当前角色已学习的职业列表。 */

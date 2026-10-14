@@ -3,11 +3,13 @@
 #include "CoreMinimal.h"
 #include "LxInteractionActionComponentBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxItemSaveData.h"
 #include "LxWarehouseInteractionComponent.generated.h"
 
 class ULxCharacterBackpackModule;
 class ULxItemBase;
 class ULxItemSlotData;
+class ULxItemTransferTicket;
 
 /** 仓库交互状态变化事件，供仓库 Actor 播放打开、关闭、占用等表现。 */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxWarehouseStateChanged, ELxInteractionDataState);
@@ -50,6 +52,28 @@ public:
 	bool MoveWarehouseSlotToBackpack(ULxCharacterBackpackModule* BackpackComponent, int32 WarehouseSlotIndex, int32 BackpackSlotIndex);
 	bool MoveWarehouseSlot(int32 SourceWarehouseSlotIndex, int32 TargetWarehouseSlotIndex);
 
+	/** 创建安全提取凭证，接收提交前仓库来源保持完整。 */
+	UFUNCTION(BlueprintCallable, Category="交互|仓库|安全操作", DisplayName="安全提取仓库物品")
+	ULxItemTransferTicket* BeginSafeExtractItem(int32 SlotIndex, FText& OutReason);
+
+	/** 只读检查整堆接收容量和实例兼容性，可在客户端调用。 */
+	UFUNCTION(BlueprintCallable, Category="交互|仓库|安全操作", DisplayName="仓库能否安全接收物品")
+	bool CanAcceptSafeItem(ULxItemTransferTicket* Ticket, FText& OutReason) const;
+
+	/** 权威接收完整物品，失败时保持来源和仓库不变。 */
+	UFUNCTION(BlueprintCallable, Category="交互|仓库|安全操作", DisplayName="仓库安全接收物品")
+	bool AcceptSafeItem(ULxItemTransferTicket* Ticket, FText& OutReason);
+
+	/** 将仓库物品拆到独立空格，本次操作禁止自动合并。 */
+	UFUNCTION(BlueprintCallable, Category="交互|仓库|安全操作", DisplayName="拆分仓库物品堆叠")
+	bool SplitItemStack(int32 SlotIndex, int32 Count, FText& OutReason);
+
+	/** 开始批量提交，延后仓库缓存和复制快照刷新。 */
+	void BeginSafeItemBatch();
+
+	/** 结束批量提交，统一发布完整仓库结果。 */
+	void EndSafeItemBatch();
+
 	/** 刷新仓库物品缓存，并广播槽位列表变化事件。 */
 	UFUNCTION(BlueprintCallable, Category="交互|仓库", DisplayName="刷新仓库槽位")
 	void RefreshWarehouseSlots();
@@ -81,9 +105,11 @@ protected:
 	TArray<TObjectPtr<ULxItemSlotData>> WarehouseItemSlotList;
 
 	UPROPERTY(ReplicatedUsing=OnRep_WarehouseSlots)
-	TArray<FLxItemQuote> ReplicatedWarehouseSlots;
+	TArray<FLxItemSaveRecord> ReplicatedWarehouseSlots;
 
 private:
+	/** 当前安全提交的嵌套深度。 */
+	int32 SafeItemBatchDepth = 0;
 	/** 按配置数量创建仓库槽位。 */
 	void InitializeWarehouseSlots();
 	/** 从槽位中重建有效物品缓存。 */

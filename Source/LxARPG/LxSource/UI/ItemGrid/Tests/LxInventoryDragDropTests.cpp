@@ -28,7 +28,7 @@ bool FLxInventoryDragDropTest::RunTest(const FString& Parameters)
 	if (!TestNotNull(TEXT("创建隔离测试世界"), World)) return false;
 	ON_SCOPE_EXIT { World->DestroyWorld(false); };
 	UClass* BackpackClass = LoadClass<ULxBackpackWidget>(nullptr,
-		TEXT("/Game/项目内容/UI界面/UI界面/角色面板/角色背包界面.角色背包界面_C"));
+		TEXT("/Game/项目内容/UI/角色UI界面/角色面板/角色背包界面.角色背包界面_C"));
 	if (!TestNotNull(TEXT("加载实际背包蓝图"), BackpackClass)) return false;
 	TStrongObjectPtr<ULxBackpackWidget> Backpack(NewObject<ULxBackpackWidget>(World, BackpackClass));
 	if (!TestTrue(TEXT("初始化背包控件树"), Backpack->Initialize())) return false;

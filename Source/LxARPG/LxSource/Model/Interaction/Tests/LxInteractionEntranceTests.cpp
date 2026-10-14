@@ -25,7 +25,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxInteractionEntranceSelectionTest,
 bool FLxInteractionEntranceSelectionTest::RunTest(const FString& Parameters)
 {
 	UDataTable* InputTable = LoadObject<UDataTable>(nullptr,
-		TEXT("/Game/项目内容/数据资产/数据表格/输入控制/角色操控输入信息表.角色操控输入信息表"));
+		TEXT("/Game/项目内容/功能资产/系统配置/玩家操控输入配置.玩家操控输入配置"));
 	if (!TestNotNull(TEXT("加载实际角色输入配置"), InputTable)) return false;
 	TArray<FLxInputActionInfo*> InputRows;
 	InputTable->GetAllRows<FLxInputActionInfo>(TEXT("交互入口按键验证"), InputRows);

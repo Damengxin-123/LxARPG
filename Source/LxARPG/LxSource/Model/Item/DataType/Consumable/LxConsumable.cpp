@@ -1,4 +1,5 @@
 #include "LxConsumable.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxSafeItemOperations.h"
 
 ULxConsumable::ULxConsumable()
 {
@@ -11,6 +12,8 @@ ULxConsumable::~ULxConsumable()
 
 ELxItemUseState ULxConsumable::ItemUse()
 {
+	// 直接调用物品对象也不能在交易或存取最终通知中消耗仍处于事务锁内的实例。
+	if (LxSafeItemOperations::IsContainerBusy(GetOuter())) return ELxItemUseState::Failed;
 	if (ItemIsValid())
 	{
 		m_fConsumableInformation.ItemCount --;

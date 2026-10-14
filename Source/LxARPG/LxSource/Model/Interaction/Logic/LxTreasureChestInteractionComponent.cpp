@@ -6,6 +6,7 @@
 #include "LxInteractableComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxSafeItemOperations.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
@@ -227,7 +228,7 @@ int32 ULxTreasureChestInteractionComponent::GetAcquireCompletionTargetCount() co
 
 void ULxTreasureChestInteractionComponent::HandleTreasureChestSlotChanged(ULxItemBase* InItemData)
 {
-	if (bApplyingTreasureChestSnapshot) return;
+	if (bApplyingTreasureChestSnapshot || SafeItemBatchDepth > 0) return;
 	RefreshTreasureChestSlots();
 	CheckAcquireCompletion();
 }
@@ -239,6 +240,7 @@ ULxItemSlotData* ULxTreasureChestInteractionComponent::GetTreasureChestSlotAt(in
 
 bool ULxTreasureChestInteractionComponent::MoveTreasureChestSlotToBackpack(ULxCharacterBackpackModule* BackpackComponent, int32 TreasureChestSlotIndex, int32 BackpackSlotIndex)
 {
+	if (LxSafeItemOperations::IsContainerBusy(this) || LxSafeItemOperations::IsContainerBusy(BackpackComponent)) return false;
 	if (AActor* OwnerActor = GetOwner(); OwnerActor && !OwnerActor->HasAuthority())
 	{
 		const ALxBaseCharacter* OwnerCharacter = BackpackComponent ? Cast<ALxBaseCharacter>(BackpackComponent->GetOwner()) : nullptr;
@@ -281,6 +283,33 @@ bool ULxTreasureChestInteractionComponent::MoveTreasureChestSlotToBackpack(ULxCh
 	return true;
 }
 
+ULxItemTransferTicket* ULxTreasureChestInteractionComponent::BeginSafeExtractItem(int32 SlotIndex, FText& OutReason)
+{
+	ULxItemSlotData* SourceSlot = GetTreasureChestSlotAt(SlotIndex);
+	if (!SourceSlot || SourceSlot->GetOuter() != this || SourceSlot->GetSlotIndex() != SlotIndex
+		|| GetInteractionState() == ELxInteractionDataState::Finished)
+	{
+		OutReason = NSLOCTEXT("LxItemOperations", "TreasureSourceInvalid", "宝箱物品或交互状态已失效");
+		return nullptr;
+	}
+	return LxSafeItemOperations::BeginSafeExtract(SourceSlot, OutReason);
+}
+
+void ULxTreasureChestInteractionComponent::BeginSafeItemBatch()
+{
+	++SafeItemBatchDepth;
+}
+
+void ULxTreasureChestInteractionComponent::EndSafeItemBatch()
+{
+	if (SafeItemBatchDepth <= 0) return;
+	if (--SafeItemBatchDepth == 0)
+	{
+		RefreshTreasureChestSlots();
+		CheckAcquireCompletion();
+	}
+}
+
 void ULxTreasureChestInteractionComponent::SyncReplicatedTreasureChestSlots()
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
@@ -288,12 +317,16 @@ void ULxTreasureChestInteractionComponent::SyncReplicatedTreasureChestSlots()
 		return;
 	}
 
-	ReplicatedTreasureChestSlots.Reset();
-	ReplicatedTreasureChestSlots.Reserve(TreasureChestItemSlotList.Num());
+	// 完整采集成功后再替换网络快照，避免失败时向客户端发送部分容器。
+	TArray<FLxItemSaveRecord> Snapshot;
+	Snapshot.Reserve(TreasureChestItemSlotList.Num());
 	for (ULxItemSlotData* SlotData : TreasureChestItemSlotList)
 	{
-		ReplicatedTreasureChestSlots.Add(BuildItemQuoteFromSlot(SlotData));
+		FLxItemSaveRecord Record;
+        if (!LxItemSaveData::CaptureItem(SlotData ? SlotData->GetItem() : nullptr, Record)) return;
+        Snapshot.Add(MoveTemp(Record));
 	}
+    ReplicatedTreasureChestSlots = MoveTemp(Snapshot);
 }
 
 void ULxTreasureChestInteractionComponent::ApplyReplicatedTreasureChestSlots()
@@ -340,7 +373,7 @@ void ULxTreasureChestInteractionComponent::ApplyReplicatedTreasureChestSlots()
 			continue;
 		}
 
-		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, ReplicatedTreasureChestSlots[Index]);
+		ULxItemBase* NewItem = LxItemSaveData::CreateItem(this, ReplicatedTreasureChestSlots[Index]);
 		if (NewItem)
 		{
 			SlotData->SetItem(NewItem);

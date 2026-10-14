@@ -64,9 +64,10 @@ public:
 	 * 该方法尝试将传入的物品数据设置到当前槽位中。只有当传入的物品数据非空且有效时，才会被设置到槽位中，并广播物品数据已更改的事件。
 	 *
 	 * @param InItemData 要设置到槽位中的物品数据引用。
+	 * @param bBroadcast 是否立即通知，安全批量操作会在全部提交后统一通知。
 	 * @return 如果成功设置了有效的物品数据，则返回true；否则返回false。
 	 */
-	bool SetItem(ULxItemBase* InItemData);
+	bool SetItem(ULxItemBase* InItemData, bool bBroadcast = true);
 
 	ULxItemBase* GetItem() const { return m_pItemData; }
 
@@ -94,8 +95,12 @@ public:
 	 * @brief 清空当前槽位中的物品。
 	 *
 	 * 该方法用于移除当前槽位中的物品数据引用，并将其设置为 `nullptr`。当槽位中的物品被清空后，会广播一个事件通知相关的监听器槽位中的物品已发生变化。
+	 * @param bBroadcast 是否立即通知，默认通知；批量提交期间可以暂缓。
 	 */
-	void ClearItem();
+	void ClearItem(bool bBroadcast = true);
+
+	/** 批量操作全部提交后统一通知，监听者读取到的都是最终槽位状态。 */
+	void NotifyItemDataChanged();
 
 	/**
 	 * @brief 检查当前槽位是否允许物品进入。

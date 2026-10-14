@@ -109,18 +109,18 @@ void ULxMainMenuWidget::CreateWorld(const FString& Name)
 	if (CanInteract()) MenuFlow->CreateWorld(Name);
 }
 
-void ULxMainMenuWidget::CreateCharacter(const FString& Name, ELxCharacterRaceType Race)
+void ULxMainMenuWidget::CreateCharacter(const FString& Name, FGameplayTag CharacterConfigID)
 {
 	if (!CanInteract()) return;
 	const int32 PreviousCount = MenuFlow->GetCharacters().Num();
-	MenuFlow->CreateCharacter(Name, Race);
+	MenuFlow->CreateCharacter(Name, CharacterConfigID);
 	if (MenuFlow.IsValid() && MenuFlow->GetCharacters().Num() > PreviousCount) ClosePanel();
 }
 
 void ULxMainMenuWidget::CreateCharacterByRaceIndex(const FString& Name, int32 RaceIndex)
 {
 	const TArray<FLxCharacterRaceConfig> Races = GetAvailableCharacterRaces();
-	if (Races.IsValidIndex(RaceIndex)) CreateCharacter(Name, Races[RaceIndex].Race);
+	if (Races.IsValidIndex(RaceIndex)) CreateCharacter(Name, Races[RaceIndex].CharacterConfigID);
 }
 
 void ULxMainMenuWidget::EnterGame()

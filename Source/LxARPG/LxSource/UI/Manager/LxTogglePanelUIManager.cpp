@@ -45,6 +45,7 @@ bool ULxTogglePanelUIManager::SetPanelVisible(ULxUIBaseObject* InWidget, bool bI
 	}
 
 	SetWidgetVisibility(InWidget, bInVisible);
+	if (bInVisible && OwningUIManager) OwningUIManager->ActivateRoleWindow(InWidget);
 	return true;
 }
 
@@ -152,4 +153,10 @@ void ULxTogglePanelUIManager::UpdateInputRegistration(FLxTogglePanelWidgetData& 
 		InputActionToWidget.FindOrAdd(InNewInputActionID) = InPanelData.UIWidget;
 		OwningUIManager->RegisterInputActionReceive(InNewInputActionID);
 	}
+}
+
+bool ULxTogglePanelUIManager::ShowPanelForInput(ELxInputActionID InputID)
+{
+    if (const auto* Widget = InputActionToWidget.Find(InputID)) return SetPanelVisible(*Widget, true);
+    return false;
 }

@@ -1,4 +1,5 @@
 #include "LxWarehouseInteractionComponent.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxSafeItemOperations.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxInteractionSaveData.h"
 #include "LxARPG/LxSource/Systems/SaveSystem/LxInteractionSaveHelpers.h"
 
@@ -20,6 +21,7 @@ bool ULxWarehouseInteractionComponent::CapturePersistentData(FLxInteractionFeatu
 
 bool ULxWarehouseInteractionComponent::RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord)
 {
+	if (LxSafeItemOperations::IsContainerBusy(this)) return false;
 	if (!CanRestorePersistentData(InRecord)) return false;
 	TArray<FLxInteractionItemSaveRecord> Records;
 	if (!LxInteractionSaveHelpers::ReadItemSlots(InRecord, Records)) return false;
@@ -93,6 +95,7 @@ void ULxWarehouseInteractionComponent::GetWarehouseItemSlotList(TArray<ULxItemSl
 
 void ULxWarehouseInteractionComponent::RefreshWarehouseSlots()
 {
+	if (SafeItemBatchDepth > 0) return;
 	RebuildWarehouseItemList();
 	BroadcastWarehouseSlotsChanged();
 	NotifyFeatureDataChanged();
@@ -257,19 +260,55 @@ bool ULxWarehouseInteractionComponent::MoveWarehouseSlot(int32 SourceWarehouseSl
 	return true;
 }
 
+ULxItemTransferTicket* ULxWarehouseInteractionComponent::BeginSafeExtractItem(int32 SlotIndex, FText& OutReason)
+{
+	return LxSafeItemOperations::BeginSafeExtract(GetWarehouseSlotAt(SlotIndex), OutReason);
+}
+
+bool ULxWarehouseInteractionComponent::CanAcceptSafeItem(ULxItemTransferTicket* Ticket, FText& OutReason) const
+{
+	return LxSafeItemOperations::CanAccept(Ticket, WarehouseItemSlotList, OutReason);
+}
+
+bool ULxWarehouseInteractionComponent::AcceptSafeItem(ULxItemTransferTicket* Ticket, FText& OutReason)
+{
+	return LxSafeItemOperations::Accept(Ticket, WarehouseItemSlotList, OutReason);
+}
+
+bool ULxWarehouseInteractionComponent::SplitItemStack(int32 SlotIndex, int32 Count, FText& OutReason)
+{
+	return LxSafeItemOperations::Split(GetWarehouseSlotAt(SlotIndex), WarehouseItemSlotList, Count, OutReason);
+}
+
+void ULxWarehouseInteractionComponent::BeginSafeItemBatch()
+{
+	++SafeItemBatchDepth;
+}
+
+void ULxWarehouseInteractionComponent::EndSafeItemBatch()
+{
+	if (SafeItemBatchDepth <= 0) return;
+	if (--SafeItemBatchDepth > 0) return;
+	RefreshWarehouseSlots();
+}
+
 void ULxWarehouseInteractionComponent::SyncReplicatedWarehouseSlots()
 {
-	if (!GetOwner() || !GetOwner()->HasAuthority())
+	if (SafeItemBatchDepth > 0 || !GetOwner() || !GetOwner()->HasAuthority())
 	{
 		return;
 	}
 
-	ReplicatedWarehouseSlots.Reset();
-	ReplicatedWarehouseSlots.Reserve(WarehouseItemSlotList.Num());
+	// 完整采集成功后再替换网络快照，避免失败时向客户端发送部分容器。
+	TArray<FLxItemSaveRecord> Snapshot;
+	Snapshot.Reserve(WarehouseItemSlotList.Num());
 	for (ULxItemSlotData* SlotData : WarehouseItemSlotList)
 	{
-		ReplicatedWarehouseSlots.Add(BuildItemQuoteFromSlot(SlotData));
+		FLxItemSaveRecord Record;
+        if (!LxItemSaveData::CaptureItem(SlotData ? SlotData->GetItem() : nullptr, Record)) return;
+        Snapshot.Add(MoveTemp(Record));
 	}
+    ReplicatedWarehouseSlots = MoveTemp(Snapshot);
 }
 
 void ULxWarehouseInteractionComponent::ApplyReplicatedWarehouseSlots()
@@ -298,7 +337,7 @@ void ULxWarehouseInteractionComponent::ApplyReplicatedWarehouseSlots()
 			continue;
 		}
 
-		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, ReplicatedWarehouseSlots[Index]);
+		ULxItemBase* NewItem = LxItemSaveData::CreateItem(this, ReplicatedWarehouseSlots[Index]);
 		if (NewItem)
 		{
 			SlotData->SetItem(NewItem);

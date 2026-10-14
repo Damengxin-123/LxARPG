@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "Components/SlateWrapperTypes.h"
+#include "LxARPG/LxSource/Model/Item/DataType/LxItemOperationTypes.h"
 #include "LxPlayerController.generated.h"
 
 
@@ -17,6 +18,9 @@ class AActor;
 class ULxInputComponent;
 class ULxPlayerChatComponent;
 class ULxPlayerSystemOperateComponent;
+
+/** 通用物品操作最终结果事件，界面只匹配请求并展示结果，不在回调内修改容器数据。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxItemOperationCompleted, const FLxItemOperationResult&);
 
 /**
  * @class ALxPlayerController
@@ -53,6 +57,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="创建角色", DisplayName="创建玩家角色")
 	void CreatePlayerCharacter();
+
+	/** 发起通用快速存取或拆分请求；容器的数据修改由服务器数据模块执行。 */
+	UFUNCTION(BlueprintCallable, Category="物品|操作", meta=(DisplayName="请求物品操作"))
+	void RequestItemOperation(const FLxItemOperationRequest& Request);
+
+	/** 最终操作结果事件，供角色界面与拆分窗口绑定。 */
+	FOnLxItemOperationCompleted OnItemOperationCompleted;
 
 	/** 在服务器上的指定仓库功能模块与玩家背包之间移动物品。 */
 	UFUNCTION(Server, Reliable, Category="交互|网络", DisplayName="服务器移动背包与仓库物品")
@@ -125,6 +136,26 @@ protected:
 	virtual void SetupInputComponent() override;
 
 private:
+	/** 服务器重新验证来源完整记录和容器权限，再执行整次安全操作。 */
+	UFUNCTION(Server, Reliable, Category="物品|网络", meta=(DisplayName="服务器执行物品操作"))
+	void ServerExecuteItemOperation(const FLxItemOperationRequest& Request);
+
+	/** 把最终数据层结果回传拥有此控制器的客户端。 */
+	UFUNCTION(Client, Reliable, Category="物品|网络", meta=(DisplayName="客户端完成物品操作"))
+	void ClientCompleteItemOperation(const FLxItemOperationResult& Result);
+
+	/** 记录已完成请求并回传结果，避免同一请求因网络重发重复执行。 */
+	void CompleteItemOperation(const FLxItemOperationResult& Result);
+
+	/** 最近完成的操作结果，既包含成功也包含失败。 */
+	TMap<FGuid, FLxItemOperationResult> CompletedItemOperations;
+
+	/** 已完成请求的插入顺序，用于限制去重缓存大小。 */
+	TArray<FGuid> CompletedItemOperationOrder;
+
+	/** 正在同步提交的请求标识，防止最终数据通知中重发抢先缓存失败结果。 */
+	TSet<FGuid> ExecutingItemOperations;
+
 	/** 注册只处理当前游戏视口 Esc 的输入预处理器。 */
 	void InitializePauseMenuInput();
 	/** 暂停期间置于角色界面上方的蓝图实例。 */

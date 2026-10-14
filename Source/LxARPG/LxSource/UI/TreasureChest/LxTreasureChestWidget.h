@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 #include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionOption.h"
+#include "LxARPG/LxSource/UI/ItemOperations/LxItemQuickTransferInterface.h"
 #include "LxTreasureChestWidget.generated.h"
 
 class ULxItemSlotData;
@@ -11,13 +12,32 @@ class ULxTreasureChestInteractionComponent;
 
 /** 宝箱界面基类。监听玩家交互组件，在宝箱节点激活后显示宝箱槽位列表。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="宝箱界面")
-class LXARPG_API ULxTreasureChestWidget : public ULxUIBaseObject
+class LXARPG_API ULxTreasureChestWidget : public ULxUIBaseObject, public ILxItemQuickTransferInterface
 {
 	GENERATED_BODY()
 
 public:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+
+	/** 获取当前宝箱节点的安全取出上下文。 */
+	virtual bool GetQuickItemContainer_Implementation(FLxItemContainerAddress& OutContainer) const override;
+	/** 委托宝箱数据模块准备完整物品实例的取出凭证。 */
+	virtual ULxItemTransferTicket* PrepareQuickItemTransfer_Implementation(ULxItemSlotData* SourceSlot, FText& OutReason) override;
+	/** 宝箱仅可取出物品，不接受其他窗口存入。 */
+	virtual bool CanReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket, FText& OutReason) const override;
+	/** 拒绝存入请求，保证来源物品保持不变。 */
+	virtual bool ReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket, const FLxItemOperationRequest& Request,
+		ULxUIBaseObject* SourceWindow, FText& OutReason) override;
+	/** 缓存安全取出结果，并转发蓝图反馈事件。 */
+	virtual void NotifyQuickItemOperationResult_Implementation(const FLxItemOperationResult& Result) override;
+
+	/** 最近一次宝箱快捷操作的结果。 */
+	UPROPERTY(BlueprintReadOnly, Category="宝箱UI|物品操作", DisplayName="最近物品操作结果")
+	FLxItemOperationResult LastItemOperationResult;
+	/** 子类蓝图可根据结果提示失败原因或播放取出表现。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="宝箱UI|物品操作", DisplayName="物品快捷操作完成")
+	void OnItemOperationCompleted(const FLxItemOperationResult& Result);
 
 	/** 设置玩家交互组件，宝箱界面通过它接收宝箱交互节点激活事件。 */
 	UFUNCTION(BlueprintCallable, Category="宝箱UI", DisplayName="设置玩家交互组件")

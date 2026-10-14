@@ -1,6 +1,18 @@
 #include "LxInteractionSaveHelpers.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipment.h"
 
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
+
+bool LxInteractionSaveHelpers::CaptureEquipment(ULxItemBase* Item, FLxInteractionItemSaveRecord& Record)
+{
+    if (!Cast<ULxEquipment>(Item)) return true;
+    FLxItemSaveRecord State;
+    if (!LxItemSaveData::CaptureItem(Item, State)) return false;
+    Record.EquipmentInstanceID = State.EquipmentInstanceID;
+    Record.bHasEquipmentState = true;
+    Record.Equipment = MoveTemp(State.Equipment);
+    return true;
+}
 
 bool LxInteractionSaveHelpers::CaptureSlots(const TArray<TObjectPtr<ULxItemSlotData>>& Slots,
 	TArray<FLxInteractionItemSaveRecord>& OutRecords)
@@ -17,6 +29,7 @@ bool LxInteractionSaveHelpers::CaptureSlots(const TArray<TObjectPtr<ULxItemSlotD
 			if (!IsValid(Item) || !Item->ItemIsValid()) return false;
 			Record.ItemIDTag = Item->ItemIDTag();
 			Record.ItemCount = Item->ItemCount();
+            if (!CaptureEquipment(Item, Record)) return false;
 		}
 	}
 	OutRecords = MoveTemp(Records);
@@ -57,12 +70,19 @@ bool LxInteractionSaveHelpers::BuildRestoredSlots(UObject* Outer,
 		|| Records.Num() > MaximumSavedSlotCount) return false;
 	int32 DesiredSlotCount = MinimumSlotCount;
 	TSet<int32> SavedIndices;
+    TSet<FGuid> EquipmentIDs;
 	for (const FLxInteractionItemSaveRecord& Record : Records)
 	{
 		if (Record.SlotIndex < 0 || Record.SlotIndex >= MaximumSavedSlotCount
-			|| SavedIndices.Contains(Record.SlotIndex) || Record.ItemCount < 0
-			|| Record.ItemCount > TNumericLimits<FLxItemCount>::Max()
+			|| SavedIndices.Contains(Record.SlotIndex) || !LxItemQuantity::IsInRange(Record.ItemCount)
 			|| (Record.ItemIDTag.IsValid() != (Record.ItemCount > 0))) return false;
+        if (Record.bHasEquipmentState)
+        {
+            if (Record.ItemCount != 1 || Record.Equipment.EquipmentID != Record.ItemIDTag
+                || !Record.EquipmentInstanceID.IsValid() || EquipmentIDs.Contains(Record.EquipmentInstanceID)) return false;
+            EquipmentIDs.Add(Record.EquipmentInstanceID);
+        }
+        else if (Record.EquipmentInstanceID.IsValid()) return false;
 		SavedIndices.Add(Record.SlotIndex);
 		DesiredSlotCount = FMath::Max(DesiredSlotCount, Record.SlotIndex + 1);
 	}
@@ -74,13 +94,21 @@ bool LxInteractionSaveHelpers::BuildRestoredSlots(UObject* Outer,
 		Slot->InitItemSlot(SlotType, LxTag_Item, nullptr);
 		OutSlots.Add(Slot);
 	}
-	// 直接从预设重建，避免通用物品恢复接口用空实例词条覆盖预设词条。
+	// 装备使用实例记录恢复；其他物品从预设重建，兼容旧容器档。
 	// 新槽位尚未绑定模块事件，恢复过程中不会触发宝箱领取完成。
 	for (const FLxInteractionItemSaveRecord& Record : Records)
 	{
 		if (!Record.ItemIDTag.IsValid() && Record.ItemCount == 0) continue;
-		ULxItemBase* Item = Record.ItemIDTag.IsValid() && Record.ItemCount > 0
-			? ULxItemBase::CreateItemObject(Outer, FLxItemQuote(Record.ItemIDTag, Record.ItemCount)) : nullptr;
+        ULxItemBase* Item = nullptr;
+        if (Record.bHasEquipmentState)
+        {
+            FLxItemSaveRecord State;
+            State.ItemIDTag = Record.ItemIDTag; State.ItemCount = Record.ItemCount;
+            State.EquipmentInstanceID = Record.EquipmentInstanceID;
+            State.bHasEquipmentState = true; State.Equipment = Record.Equipment;
+            Item = LxItemSaveData::CreateItem(Outer, State);
+        }
+        else Item = ULxItemBase::CreateItemObject(Outer, FLxItemQuote(Record.ItemIDTag, Record.ItemCount));
 		if (!Item || !Item->ItemIsValid() || Item->ItemCount() != Record.ItemCount
 			|| !OutSlots[Record.SlotIndex]->SetItem(Item))
 		{

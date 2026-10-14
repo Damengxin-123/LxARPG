@@ -55,10 +55,10 @@ public:
 	/** 创建独立地图档；错误与最新目录通过菜单刷新事件通知。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|存档", DisplayName="新建地图存档")
 	void CreateWorld(const FString& Name);
-	/** 创建角色，成功后回到主界面；失败时保留当前页供用户修正输入。 */
+	/** 按配置标签创建角色，成功后回到主界面；失败时保留当前页供用户修正输入。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|角色", DisplayName="新建角色")
-	void CreateCharacter(const FString& Name, ELxCharacterRaceType Race);
-	/** 使用当前种族列表的索引创建角色，供下拉框使用。 */
+	void CreateCharacter(const FString& Name, FGameplayTag CharacterConfigID);
+	/** 将下拉框选项索引转换为配置标签，同名称选项仍按各自标签独立创建。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|角色", DisplayName="按种族索引新建角色")
 	void CreateCharacterByRaceIndex(const FString& Name, int32 RaceIndex);
 	/** 验证当前选择并进入正式游戏。 */

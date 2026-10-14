@@ -8,6 +8,10 @@
 /** 仅供管理器内部派发使用的非蓝图注册数据。 */
 struct FLxUIRegistrationData;
 
+class UCanvasPanel;
+class ULxItemOperationUIRouter;
+class ULxManufacturingUIManager;
+class ULxEquipmentCraftingWidget;
 class ALxBaseCharacter;
 class ALxPlayerController;
 class ULxItemBase;
@@ -35,9 +39,43 @@ class LXARPG_API ULxUIManager : public ULxUIBaseObject
 	GENERATED_BODY()
 
 public:
+	/** 在 Slate 根控件生成前建立兼容旧蓝图的统一窗口承载层。 */
+	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual void UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent) override;
+
+	/** 把角色业务窗口挂到公共父级，保留原画布槽位的布局设置；模态窗口阻挡其他窗口激活。 */
+	UFUNCTION(BlueprintCallable, Category="UI管理器|角色窗口", DisplayName="挂载角色窗口")
+	bool MountRoleWindow(ULxUIBaseObject* InWindow, bool bModal = false);
+
+	/** 从公共窗口层移除窗口并恢复上一个可见窗口。 */
+	UFUNCTION(BlueprintCallable, Category="UI管理器|角色窗口", DisplayName="卸载角色窗口")
+	void UnmountRoleWindow(ULxUIBaseObject* InWindow);
+
+	/** 激活并置顶角色窗口；存在其他模态窗口时拒绝激活。 */
+	UFUNCTION(BlueprintCallable, Category="UI管理器|角色窗口", DisplayName="激活角色窗口")
+	bool ActivateRoleWindow(ULxUIBaseObject* InWindow);
+
+	/** 获取最上层可见业务窗口，可排除来源窗口；不根据物品接收接口筛选。 */
+	UFUNCTION(BlueprintPure, Category="UI管理器|角色窗口", DisplayName="获取最上层角色窗口")
+	ULxUIBaseObject* GetTopRoleWindow(const ULxUIBaseObject* ExcludeWindow = nullptr) const;
+
+	/** 获取当前激活的可见窗口，隐藏或关闭后自动回到前一个可见窗口。 */
+	UFUNCTION(BlueprintPure, Category="UI管理器|角色窗口", DisplayName="获取激活角色窗口")
+	ULxUIBaseObject* GetActiveRoleWindow() const;
+
+	/** 判断是否存在阻挡业务操作的可见模态窗口。 */
+	UFUNCTION(BlueprintPure, Category="UI管理器|角色窗口", DisplayName="是否存在阻挡模态窗口")
+	bool HasBlockingModalWindow() const;
+
+	/** 判断控件本身是否是已挂载的角色业务窗口。 */
+	UFUNCTION(BlueprintPure, Category="UI管理器|角色窗口", DisplayName="是否已挂载角色窗口")
+	bool IsMountedRoleWindow(const ULxUIBaseObject* InWindow) const;
+
+	/** 获取负责通用快速存取与拆分窗口的操作路由器。 */
+	UFUNCTION(BlueprintPure, Category="UI管理器|物品操作", DisplayName="获取物品操作路由器")
+	ULxItemOperationUIRouter* GetItemOperationRouter();
 
 	/** 设置当前玩家控制器，用于控制鼠标显示和输入模式。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="设置玩家控制器")
@@ -50,6 +88,10 @@ public:
 	/** 刷新所有已注册 UI。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器", DisplayName="刷新UI")
 	void RefreshUI();
+
+    /** 将装备打造界面注册到制造层，服务由NPC交互打开。 */
+    UFUNCTION(BlueprintCallable, Category="UI管理器|注册", DisplayName="注册制造界面")
+    bool RegisterManufacturingWidget(ULxEquipmentCraftingWidget* InWidget);
 
 	/** 一次注册全部 HUD 子 UI；支持角色状态、快捷栏、Buff、瞄准、聊天、任务简要与自定义界面。返回成功项数。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器|注册", meta=(DisplayName="注册HUD子UI"))
@@ -179,11 +221,44 @@ public:
 
 	/** 获取弹窗 UI 管理器。 */
 	UFUNCTION(BlueprintCallable, Category="UI管理器|子管理器", DisplayName="获取弹窗管理器")
-	ULxPopupUIManager* GetPopupUIManager() const { return PopupUIManager; }
+    ULxPopupUIManager* GetPopupUIManager() const { return PopupUIManager; }
+
+    /** 获取负责装备打造界面的制造层管理器。 */
+    UFUNCTION(BlueprintPure, Category="UI管理|物品制造", DisplayName="获取物品制造UI管理器")
+    ULxManufacturingUIManager* GetManufacturingUIManager() const { return ManufacturingUIManager; }
 
 	virtual void HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue) override;
 
+protected:
+	/** 可由蓝图提供的公共窗口画布；旧蓝图缺少该控件时由 C++ 自动包裹原布局并创建。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="UI管理器|角色窗口", meta=(BindWidgetOptional, DisplayName="角色窗口承载区"))
+	TObjectPtr<UCanvasPanel> WindowHost = nullptr;
+
 private:
+	/** 由底到顶保存的业务窗口；隐藏窗口保留注册但不参与查询。 */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<ULxUIBaseObject>> RoleWindows;
+
+	/** 已注册为模态的窗口集合，显隐状态由查询时检查。 */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<ULxUIBaseObject>> ModalRoleWindows;
+
+	/** 当前主 UI 的物品操作路由器。 */
+	UPROPERTY(Transient)
+	TObjectPtr<ULxItemOperationUIRouter> ItemOperationRouter = nullptr;
+
+	/** 建立公共画布并保留旧蓝图根布局。 */
+	void EnsureRoleWindowHost();
+	/** 把物品提示挂到窗口上方的绘制层，不参与业务窗口查询。 */
+	bool MountFloatingWidget(ULxUIBaseObject* InWidget);
+	/** 按激活顺序和模态优先级同步画布绘制顺序。 */
+	void UpdateRoleWindowOrder();
+	/** 响应直接设置可见性，窗口重新显示时激活。 */
+	void HandleRoleWindowVisibilityChanged(ESlateVisibility InVisibility, ULxUIBaseObject* InWindow);
+
+    /** 装备打造所属的新制造层。 */
+    UPROPERTY(Transient)
+    TObjectPtr<ULxManufacturingUIManager> ManufacturingUIManager;
 	/** 批量注册的唯一派发入口，逐项校验并在批次结束后刷新鼠标。 */
 	int32 RegisterLayerWidgets(ELxUILayerType InLayer, const TArray<FLxUIRegistrationData>& InRegistrations);
 	/** 检查功能、层级和控件类型，合法时交给现有子管理器。 */

@@ -28,6 +28,7 @@ class ULxCharacterStateComponent;
 class ULxEquipmentSlotData;
 class ULxItemBase;
 class ULxItemSlotData;
+class ULxItemTransferTicket;
 class ULxProfessionDefinition;
 class ULxSkillBackpackModule;
 
@@ -97,6 +98,14 @@ public:
 	/** 获取所有背包槽位物品。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有背包物品")
 	void GetAllBackpackItems(TArray<ULxItemSlotData*>& OutItemSlots) const;
+
+	/** 对来源真实槽位创建安全提取凭据，目标确认前不改变背包。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|物品操作", meta=(DisplayName="安全提取背包物品"))
+	ULxItemTransferTicket* BeginSafeBackpackExtract(ULxItemSlotData* SourceSlot, FText& OutReason);
+
+	/** 委托背包模块预检查原实例能否整堆接收，不执行放置。 */
+	UFUNCTION(BlueprintCallable, Category="角色数据中转|物品操作", meta=(DisplayName="背包能否安全接收物品"))
+	bool CanAcceptSafeBackpackItem(ULxItemTransferTicket* Ticket, FText& OutReason) const;
 
 	/** 获取所有装备槽位。 */
 	UFUNCTION(BlueprintCallable, Category="Character Data Transfer", DisplayName="获取所有装备")

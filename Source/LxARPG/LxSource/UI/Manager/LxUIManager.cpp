@@ -1,4 +1,6 @@
 #include "LxUIManager.h"
+#include "LxManufacturingUIManager.h"
+#include "LxARPG/LxSource/UI/Crafting/LxEquipmentCraftingWidget.h"
 
 #include "LxARPG/LxSource/UI/Quest/LxQuestDetailWidget.h"
 #include "LxARPG/LxSource/UI/Quest/LxQuestSummaryWidget.h"
@@ -7,7 +9,10 @@
 #include "LxARPG/LxSource/UI/ShortcutBar/LxShortcutBarWidget.h"
 #include "LxARPG/LxSource/UI/Buff/LxBuffWidget.h"
 
+#include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "LxARPG/LxSource/UI/ItemOperations/LxItemOperationUIRouter.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
@@ -53,8 +58,16 @@ struct FLxUIRegistrationData
 	bool bHideOnRegister = true;
 };
 
+TSharedRef<SWidget> ULxUIManager::RebuildWidget()
+{
+	if (!WidgetTree) Initialize();
+	if (!IsDesignTime()) EnsureRoleWindowHost();
+	return Super::RebuildWidget();
+}
+
 void ULxUIManager::NativeConstruct()
 {
+	EnsureRoleWindowHost();
 	Super::NativeConstruct();
 	EnsureDefaultManagementObjects();
 	InitializeManagementObjects();
@@ -62,13 +75,207 @@ void ULxUIManager::NativeConstruct()
 
 void ULxUIManager::NativeDestruct()
 {
+	if (ItemOperationRouter) ItemOperationRouter->Shutdown();
+	ItemOperationRouter = nullptr;
 	if (InteractionUIManager) InteractionUIManager->SetPlayerInteractionComponent(nullptr);
+	if (ManufacturingUIManager) ManufacturingUIManager->ReleasePage();
+	ManufacturingUIManager = nullptr;
 	HUDUIManager = nullptr;
 	TogglePanelUIManager = nullptr;
 	TooltipUIManager = nullptr;
 	InteractionUIManager = nullptr;
 	PopupUIManager = nullptr;
+	for (ULxUIBaseObject* Window : RoleWindows)
+	{
+		if (IsValid(Window)) Window->OnNativeVisibilityChanged.RemoveAll(this);
+	}
+	RoleWindows.Reset();
+	ModalRoleWindows.Reset();
 	Super::NativeDestruct();
+}
+
+void ULxUIManager::EnsureRoleWindowHost()
+{
+	if (!WidgetTree || WindowHost) return;
+	UWidget* OriginalRoot = WidgetTree->RootWidget;
+	UCanvasPanel* Wrapper = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("角色界面根"));
+	Wrapper->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	WidgetTree->RootWidget = Wrapper;
+	if (OriginalRoot)
+	{
+		UCanvasPanelSlot* OriginalSlot = Wrapper->AddChildToCanvas(OriginalRoot);
+		OriginalSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+		OriginalSlot->SetOffsets(FMargin(0.f));
+		OriginalSlot->SetZOrder(0);
+	}
+	WindowHost = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("角色窗口承载区"));
+	WindowHost->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	UCanvasPanelSlot* HostSlot = Wrapper->AddChildToCanvas(WindowHost);
+	HostSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+	HostSlot->SetOffsets(FMargin(0.f));
+	HostSlot->SetZOrder(1);
+}
+
+bool ULxUIManager::MountFloatingWidget(ULxUIBaseObject* InWidget)
+{
+	if (!IsValid(InWidget)) return false;
+	EnsureRoleWindowHost();
+	if (!WindowHost) return false;
+	if (InWidget->GetParent() != WindowHost)
+	{
+		const UCanvasPanelSlot* PreviousSlot = Cast<UCanvasPanelSlot>(InWidget->Slot);
+		const bool bHadCanvasSlot = PreviousSlot != nullptr;
+		const FAnchorData PreviousLayout = PreviousSlot ? PreviousSlot->GetLayout() : FAnchorData();
+		const bool bPreviousAutoSize = PreviousSlot && PreviousSlot->GetAutoSize();
+		InWidget->RemoveFromParent();
+		UCanvasPanelSlot* NewSlot = WindowHost->AddChildToCanvas(InWidget);
+		if (bHadCanvasSlot)
+		{
+			NewSlot->SetLayout(PreviousLayout);
+			NewSlot->SetAutoSize(bPreviousAutoSize);
+		}
+		else NewSlot->SetAutoSize(true);
+	}
+	CastChecked<UCanvasPanelSlot>(InWidget->Slot)->SetZOrder(MAX_int32 / 2);
+	return true;
+}
+
+bool ULxUIManager::MountRoleWindow(ULxUIBaseObject* InWindow, bool bModal)
+{
+	if (!IsValid(InWindow) || InWindow == this) return false;
+	if (!WidgetTree) Initialize();
+	EnsureRoleWindowHost();
+	if (!WindowHost) return false;
+	if (ULxUIManager* PreviousManager = InWindow->GetOwningUIManager(); PreviousManager && PreviousManager != this)
+	{
+		PreviousManager->UnmountRoleWindow(InWindow);
+	}
+	if (InWindow->GetParent() != WindowHost)
+	{
+		// 原画布槽位的锚点、偏移和自动尺寸决定已有蓝图面板布局，重新挂载时完整保留。
+		const UCanvasPanelSlot* PreviousSlot = Cast<UCanvasPanelSlot>(InWindow->Slot);
+		const bool bHadCanvasSlot = PreviousSlot != nullptr;
+		const FAnchorData PreviousLayout = PreviousSlot ? PreviousSlot->GetLayout() : FAnchorData();
+		const bool bPreviousAutoSize = PreviousSlot && PreviousSlot->GetAutoSize();
+		InWindow->RemoveFromParent();
+		UCanvasPanelSlot* NewSlot = WindowHost->AddChildToCanvas(InWindow);
+		if (!NewSlot) return false;
+		if (bHadCanvasSlot)
+		{
+			NewSlot->SetLayout(PreviousLayout);
+			NewSlot->SetAutoSize(bPreviousAutoSize);
+		}
+		else
+		{
+			// 独立功能页已有自己的全屏布局，公共父级继续给予完整可用屏幕。
+			NewSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+			NewSlot->SetOffsets(FMargin(0.f));
+		}
+	}
+	InWindow->SetOwningUIManager(this);
+	RoleWindows.AddUnique(InWindow);
+	if (bModal) ModalRoleWindows.AddUnique(InWindow);
+	else ModalRoleWindows.Remove(InWindow);
+	InWindow->OnNativeVisibilityChanged.RemoveAll(this);
+	InWindow->OnNativeVisibilityChanged.AddUObject(this, &ULxUIManager::HandleRoleWindowVisibilityChanged, InWindow);
+	if (IsManagedUIVisible(InWindow)) ActivateRoleWindow(InWindow);
+	UpdateRoleWindowOrder();
+	return true;
+}
+
+void ULxUIManager::UnmountRoleWindow(ULxUIBaseObject* InWindow)
+{
+	if (!InWindow || RoleWindows.Remove(InWindow) == 0) return;
+	ModalRoleWindows.Remove(InWindow);
+	InWindow->OnNativeVisibilityChanged.RemoveAll(this);
+	if (InWindow->GetParent() == WindowHost) InWindow->RemoveFromParent();
+	UpdateRoleWindowOrder();
+	UpdateCursorState();
+}
+
+bool ULxUIManager::ActivateRoleWindow(ULxUIBaseObject* InWindow)
+{
+	if (!IsMountedRoleWindow(InWindow) || !IsManagedUIVisible(InWindow)) return false;
+	for (int32 Index = RoleWindows.Num() - 1; Index >= 0; --Index)
+	{
+		ULxUIBaseObject* Window = RoleWindows[Index];
+		if (IsMountedRoleWindow(Window) && IsManagedUIVisible(Window) && ModalRoleWindows.Contains(Window))
+		{
+			if (Window != InWindow) return false;
+			break;
+		}
+	}
+	RoleWindows.Remove(InWindow);
+	RoleWindows.Add(InWindow);
+	UpdateRoleWindowOrder();
+	return true;
+}
+
+ULxUIBaseObject* ULxUIManager::GetTopRoleWindow(const ULxUIBaseObject* ExcludeWindow) const
+{
+	// 模态窗口始终覆盖普通窗口；其来源被排除时也不允许穿过模态层取得下方目标。
+	for (int32 Index = RoleWindows.Num() - 1; Index >= 0; --Index)
+	{
+		ULxUIBaseObject* Window = RoleWindows[Index];
+		if (IsMountedRoleWindow(Window) && IsManagedUIVisible(Window) && ModalRoleWindows.Contains(Window))
+			return Window == ExcludeWindow ? nullptr : Window;
+	}
+	for (int32 Index = RoleWindows.Num() - 1; Index >= 0; --Index)
+	{
+		ULxUIBaseObject* Window = RoleWindows[Index];
+		if (Window != ExcludeWindow && IsMountedRoleWindow(Window) && IsManagedUIVisible(Window)) return Window;
+	}
+	return nullptr;
+}
+
+ULxUIBaseObject* ULxUIManager::GetActiveRoleWindow() const
+{
+	return GetTopRoleWindow();
+}
+
+bool ULxUIManager::HasBlockingModalWindow() const
+{
+	for (ULxUIBaseObject* Window : ModalRoleWindows)
+	{
+		if (IsMountedRoleWindow(Window) && IsManagedUIVisible(Window)) return true;
+	}
+	return false;
+}
+
+bool ULxUIManager::IsMountedRoleWindow(const ULxUIBaseObject* InWindow) const
+{
+	return IsValid(InWindow) && RoleWindows.Contains(InWindow) && WindowHost && InWindow->GetParent() == WindowHost;
+}
+
+void ULxUIManager::UpdateRoleWindowOrder()
+{
+	int32 NormalOrder = 0;
+	int32 ModalOrder = RoleWindows.Num();
+	for (ULxUIBaseObject* Window : RoleWindows)
+	{
+		if (IsMountedRoleWindow(Window))
+		{
+			if (UCanvasPanelSlot* WindowSlot = Cast<UCanvasPanelSlot>(Window->Slot))
+				WindowSlot->SetZOrder(ModalRoleWindows.Contains(Window) ? ModalOrder++ : NormalOrder++);
+		}
+	}
+}
+
+void ULxUIManager::HandleRoleWindowVisibilityChanged(ESlateVisibility InVisibility, ULxUIBaseObject* InWindow)
+{
+	if (InVisibility != ESlateVisibility::Hidden && InVisibility != ESlateVisibility::Collapsed)
+		ActivateRoleWindow(InWindow);
+	UpdateCursorState();
+}
+
+ULxItemOperationUIRouter* ULxUIManager::GetItemOperationRouter()
+{
+	if (!ItemOperationRouter)
+	{
+		ItemOperationRouter = NewObject<ULxItemOperationUIRouter>(this);
+		ItemOperationRouter->Initialize(this);
+	}
+	return ItemOperationRouter;
 }
 
 void ULxUIManager::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)
@@ -179,6 +386,12 @@ int32 ULxUIManager::RegisterPopupWidgets(const TArray<FLxPopupUIRegistration>& I
 	return RegisterLayerWidgets(ELxUILayerType::Popup, Registrations);
 }
 
+bool ULxUIManager::RegisterManufacturingWidget(ULxEquipmentCraftingWidget* InWidget)
+{
+    FLxUIRegistrationData Registration; Registration.UIWidget = InWidget;
+    return RegisterLayerWidgets(ELxUILayerType::Manufacturing, {Registration}) == 1;
+}
+
 int32 ULxUIManager::RegisterLayerWidgets(ELxUILayerType InLayer, const TArray<FLxUIRegistrationData>& InRegistrations)
 {
 	EnsureDefaultManagementObjects();
@@ -209,6 +422,9 @@ bool ULxUIManager::RegisterLayerWidget(ELxUILayerType InLayer, const FLxUIRegist
 	bool bKnownFunction = true;
 	switch (InLayer)
 	{
+    case ELxUILayerType::Manufacturing:
+        RequiredClass = ULxEquipmentCraftingWidget::StaticClass();
+        break;
 	case ELxUILayerType::HUD:
 		switch (InRegistration.HUDFunction)
 		{
@@ -317,15 +533,23 @@ bool ULxUIManager::RegisterLayerWidget(ELxUILayerType InLayer, const FLxUIRegist
 		|| (TogglePanelUIManager->ContainsWidget(Widget) && InLayer != ELxUILayerType::Panel)
 		|| (InteractionUIManager->ContainsWidget(Widget) && InLayer != ELxUILayerType::Interaction)
 		|| (PopupUIManager->ContainsWidget(Widget) && (InLayer != ELxUILayerType::Popup || bTooltip))
-		|| (TooltipUIManager->ContainsWidget(Widget) && !bTooltip))
+		|| (TooltipUIManager->ContainsWidget(Widget) && !bTooltip)
+        || (ManufacturingUIManager->ContainsWidget(Widget) && InLayer != ELxUILayerType::Manufacturing))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("UI注册失败：%s 已注册到其他管理器。"), *GetNameSafe(Widget));
 		return false;
 	}
 
 	InitializeRegisteredUIWidget(Widget);
+	if (bTooltip && !MountFloatingWidget(Widget)) return false;
+	const bool bRoleWindow = InLayer == ELxUILayerType::Panel
+		|| (InLayer == ELxUILayerType::Interaction && InRegistration.InteractionFunction != ELxInteractionUIFunction::InteractionEntrance)
+		|| (InLayer == ELxUILayerType::Popup && !bTooltip);
+	if (bRoleWindow && !MountRoleWindow(Widget)) return false;
 	switch (InLayer)
 	{
+    case ELxUILayerType::Manufacturing:
+        return ManufacturingUIManager->RegisterEquipmentPage(CastChecked<ULxEquipmentCraftingWidget>(Widget));
 	case ELxUILayerType::HUD:
 		if (InRegistration.HUDFunction == ELxHUDUIFunction::QuestSummary)
 		{
@@ -573,6 +797,12 @@ void ULxUIManager::SetChildUIVisible(ULxUIBaseObject* InChildUIWidget, bool bInV
 		return;
 	}
 
+    if (!bInVisible && ManufacturingUIManager && ManufacturingUIManager->ContainsWidget(InChildUIWidget))
+    {
+        ManufacturingUIManager->ReleasePage();
+        UpdateCursorState();
+        return;
+    }
 	if (TogglePanelUIManager && TogglePanelUIManager->SetPanelVisible(InChildUIWidget, bInVisible))
 	{
 		UpdateCursorState();
@@ -681,6 +911,7 @@ void ULxUIManager::HandleInputValue(ELxInputActionID InInputActionID, FLxInputVa
 
 void ULxUIManager::EnsureDefaultManagementObjects()
 {
+    if (!ManufacturingUIManager) ManufacturingUIManager = NewObject<ULxManufacturingUIManager>(this);
 	if (!HUDUIManager)
 	{
 		HUDUIManager = NewObject<ULxPersistentUIManager>(this);
@@ -723,7 +954,8 @@ void ULxUIManager::InitializeManagementObjects()
 		TogglePanelUIManager,
 		TooltipUIManager,
 		InteractionUIManager,
-		PopupUIManager
+		PopupUIManager,
+        ManufacturingUIManager
 	};
 
 	for (ULxUIManagementObject* ManagementObject : ManagementObjects)
@@ -757,7 +989,8 @@ void ULxUIManager::UpdateCursorState() const
 		return;
 	}
 
-	if ((TogglePanelUIManager && TogglePanelUIManager->HasVisibleCursorPanel())
+	if (HasBlockingModalWindow() || (ManufacturingUIManager && ManufacturingUIManager->HasVisiblePage())
+        || (TogglePanelUIManager && TogglePanelUIManager->HasVisibleCursorPanel())
 		|| (PopupUIManager && PopupUIManager->HasVisiblePopup())
 		|| (InteractionUIManager && InteractionUIManager->HasVisibleCursorInteraction())
 		|| (TooltipUIManager && TooltipUIManager->ShouldShowCursorForTooltip()))

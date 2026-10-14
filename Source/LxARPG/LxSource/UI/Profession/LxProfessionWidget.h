@@ -31,6 +31,17 @@ class LXARPG_API ULxProfessionWidget : public ULxUIBaseObject
 	GENERATED_BODY()
 
 public:
+	/** 绑定蓝图布局中的分类与学习按钮；布局仍由子类蓝图维护。 */
+	virtual void NativeConstruct() override;
+	/** 切换职业分类，传入无类型表示显示所有职业。 */
+	UFUNCTION(BlueprintCallable, Category="职业UI", meta=(DisplayName="筛选职业分类"))
+	void SetProfessionTypeFilter(ELxProfessionType Type);
+	/** 学习当前选中的职业，沿用角色模块前置检查。 */
+	UFUNCTION(BlueprintCallable, Category="职业UI", meta=(DisplayName="学习选中职业"))
+	void LearnSelectedProfession();
+	/** 将当前状态写入蓝图提供的标题、经验进度及学习按钮控件。 */
+	UFUNCTION(BlueprintCallable, Category="职业UI", meta=(DisplayName="刷新职业面板状态"))
+	void RefreshProfessionPresentation();
 	virtual void UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent) override;
 	virtual void NativeDestruct() override;
 
@@ -120,6 +131,18 @@ protected:
 	void OnProfessionLevelListUpdated(const TArray<UObject*>& LevelUIDataList);
 
 private:
+	/** 当前列表使用的职业分类，默认显示战斗职业。 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category="职业UI|筛选", meta=(DisplayName="当前职业分类", AllowPrivateAccess="true"))
+	ELxProfessionType ProfessionTypeFilter = ELxProfessionType::Combat;
+	/** 战斗分类按钮回调。 */
+	UFUNCTION(Category="职业UI|筛选", meta=(DisplayName="显示战斗职业"))
+	void ShowCombatProfessions();
+	/** 采集分类按钮回调。 */
+	UFUNCTION(Category="职业UI|筛选", meta=(DisplayName="显示采集职业"))
+	void ShowGatheringProfessions();
+	/** 生产分类按钮回调。 */
+	UFUNCTION(Category="职业UI|筛选", meta=(DisplayName="显示生产职业"))
+	void ShowCraftingProfessions();
 	/** 绑定角色数据中转组件。 */
 	void BindDataTransferComponent(ULxCharacterDataTransferComponent* InDataTransferComponent);
 
@@ -167,7 +190,7 @@ private:
 
 	/** 是否只显示角色已经学习的职业，关闭后用于显示全部可学习职业定义。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="职业UI|配置", DisplayName="只显示已学习职业", meta=(AllowPrivateAccess="true"))
-	bool bOnlyShowLearnedProfessions = true;
+	bool bOnlyShowLearnedProfessions = false;
 
 	/** 当前职业列表显示数据。 */
 	UPROPERTY()

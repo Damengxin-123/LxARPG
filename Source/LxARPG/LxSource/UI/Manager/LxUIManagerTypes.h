@@ -135,7 +135,8 @@ enum class ELxUILayerType : uint8
 	Interaction UMETA(DisplayName="交互层"),
 	Popup UMETA(DisplayName="弹窗层"),
 	Tooltip UMETA(DisplayName="提示层"),
-	Custom UMETA(DisplayName="自定义层")
+	Custom UMETA(DisplayName="自定义层"),
+    Manufacturing UMETA(DisplayName="物品制造层")
 };
 
 /** 蓝图注册子 UI 时使用的通用配置。 */

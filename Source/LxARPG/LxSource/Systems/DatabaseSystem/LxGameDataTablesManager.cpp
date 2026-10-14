@@ -121,15 +121,19 @@ bool ULxGameDataTablesManager::GetCharacterRaceConfigs(TArray<FLxCharacterRaceCo
 	{
 		OutError = TEXT("数据表管理器未配置有效的角色种族表。"); return false;
 	}
-	TSet<ELxCharacterRaceType> Races;
+	TSet<FGameplayTag> ConfigIDs;
 	TArray<FLxCharacterRaceConfig> Validated;
 	for (const TPair<FName, uint8*>& Pair : CharacterRaceTable->GetRowMap())
 	{
 		const FLxCharacterRaceConfig& Row = *reinterpret_cast<const FLxCharacterRaceConfig*>(Pair.Value);
-		if (Row.Race == ELxCharacterRaceType::None || !StaticEnum<ELxCharacterRaceType>()->IsValidEnumValue(static_cast<int64>(Row.Race))
-			|| Row.RaceName.IsEmpty() || Races.Contains(Row.Race))
+		if (!Row.CharacterConfigID.IsValid() || ConfigIDs.Contains(Row.CharacterConfigID))
 		{
-			OutError = FString::Printf(TEXT("角色种族表行 %s 的种族、名称无效或种族重复。"), *Pair.Key.ToString()); return false;
+			OutError = FString::Printf(TEXT("角色种族表行 %s 的角色配置ID为空或重复：%s。"), *Pair.Key.ToString(), *Row.CharacterConfigID.ToString()); return false;
+		}
+		if (Row.Race == ELxCharacterRaceType::None || !StaticEnum<ELxCharacterRaceType>()->IsValidEnumValue(static_cast<int64>(Row.Race))
+			|| Row.RaceName.IsEmpty())
+		{
+			OutError = FString::Printf(TEXT("角色种族表行 %s 的种族或名称无效。"), *Pair.Key.ToString()); return false;
 		}
 		UClass* PlayerClass = Row.PlayerCharacterClass.LoadSynchronous();
 		if (!PlayerClass || !PlayerClass->IsChildOf(ALxPlayerCharacter::StaticClass())
@@ -137,23 +141,27 @@ bool ULxGameDataTablesManager::GetCharacterRaceConfigs(TArray<FLxCharacterRaceCo
 		{
 			OutError = FString::Printf(TEXT("角色种族表行 %s 没有可生成的玩家角色子类。"), *Pair.Key.ToString()); return false;
 		}
-		Races.Add(Row.Race);
+		ConfigIDs.Add(Row.CharacterConfigID);
 		Validated.Add(Row);
 	}
 	if (Validated.IsEmpty()) { OutError = TEXT("角色种族表尚未配置可玩种族。"); return false; }
-	Validated.Sort([](const FLxCharacterRaceConfig& A, const FLxCharacterRaceConfig& B) { return A.Race < B.Race; });
+	// 标签顺序不依赖行插入顺序或本地化名称，供下拉框索引稳定映射配置。
+	Validated.Sort([](const FLxCharacterRaceConfig& A, const FLxCharacterRaceConfig& B)
+	{
+		return A.CharacterConfigID.ToString() < B.CharacterConfigID.ToString();
+	});
 	OutConfigs = MoveTemp(Validated);
 	OutError.Reset();
 	return true;
 }
 
-bool ULxGameDataTablesManager::GetCharacterRaceConfig(ELxCharacterRaceType Race, FLxCharacterRaceConfig& OutConfig, FString& OutError) const
+bool ULxGameDataTablesManager::GetCharacterRaceConfig(FGameplayTag CharacterConfigID, FLxCharacterRaceConfig& OutConfig, FString& OutError) const
 {
 	OutConfig = FLxCharacterRaceConfig();
 	TArray<FLxCharacterRaceConfig> Configs;
 	if (!GetCharacterRaceConfigs(Configs, OutError)) return false;
-	const FLxCharacterRaceConfig* Config = Configs.FindByPredicate([Race](const FLxCharacterRaceConfig& Item) { return Item.Race == Race; });
-	if (!Config) { OutError = TEXT("指定种族没有配置玩家角色类型。"); return false; }
+	const FLxCharacterRaceConfig* Config = Configs.FindByPredicate([CharacterConfigID](const FLxCharacterRaceConfig& Item) { return Item.CharacterConfigID == CharacterConfigID; });
+	if (!Config) { OutError = FString::Printf(TEXT("角色配置ID %s 未配置玩家角色类型。"), *CharacterConfigID.ToString()); return false; }
 	OutConfig = *Config;
 	return true;
 }
@@ -172,10 +180,7 @@ void ULxGameDataTablesManager::LoadDataTables()
 		TEXT("ULxGameDataTablesManager::LoadInputActionInfoDataTable"),
 		LxInputActionConfig::SetInputActionInfo);
 	EnsureDefaultInputActionInfos();
-	LoadConfigDataTable<FLxProfessionDefinitionTableRow>(
-		m_pProfessionDefinitionTable.Get(),
-		TEXT("ULxGameDataTablesManager::LoadProfessionDefinitionDataTable"),
-		LxProfessionConfig::SetProfessionDefinitionTableRow);
+	LxProfessionConfig::SetProfessionTree(ProfessionTreeAsset.Get());
 	LoadRichTextStyleMappingDataTable(m_pRichTextStyleTable.Get());
 
 	LoadConfigDataTable<FLxEntryAttributeGain>(

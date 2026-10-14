@@ -3,6 +3,7 @@
 #include "LxEntry.h"
 
 #include "LxEntryTableConfig.h"
+#include "LxARPG/LxSource/Model/Attribute/Logic/LxCharacterBaseAttributeSet.h"
 #include "LxARPG/LxSource/Model/Effect/DataType/LxEffectTypes.h"
 #include "LxARPG/LxSource/Model/Effect/Logic/LxEffectFunctionLibrary.h"
 
@@ -65,10 +66,39 @@ namespace
 		return InEntryQuote.EntryProportion * InEffectScale;
 	}
 
-	/** 计算词条显示用最终数值。 */
-	float MakeEntryDisplayValue(float InEntryValue, const FLxEntryQuote& InEntryQuote)
+	/** 使用原始词条比例和额外显示倍率计算最终文本数值，不改写缓存。 */
+	float MakeEntryDisplayValue(float InEntryValue, const FLxEntryQuote& InEntryQuote, float InDisplayScale)
 	{
-		return InEntryValue * InEntryQuote.EntryProportion;
+		return InEntryValue * MakeEntryEffectScale(InEntryQuote, InDisplayScale);
+	}
+
+	/** 按最多两位小数生成词条数值，避免小数增益与持续时间被截断为零。 */
+	FString FormatEntryNumber(const float InValue)
+	{
+		FNumberFormattingOptions Options;
+		Options.SetMinimumFractionalDigits(0);
+		Options.SetMaximumFractionalDigits(2);
+		Options.SetUseGrouping(false);
+		return FText::AsNumber(InValue, &Options).ToString();
+	}
+
+	/** 百分比属性的直接增加使用百分点显示，数值比例仍按属性原有规则参与计算。 */
+	FString FormatAttributeGainValue(const FLxEntryAttributeGain& InEntryData, const float InValue)
+	{
+		if (InEntryData.EffectiveType == ELxEntryEffectiveType::BasicImprove
+			|| InEntryData.EffectiveType == ELxEntryEffectiveType::AdditionalImprove)
+		{
+			return FormatEntryNumber(InValue) + TEXT("%");
+		}
+
+		FLxScalarAttributeData Attribute;
+		if (InEntryData.EffectiveType == ELxEntryEffectiveType::BasicValue
+			&& GetDefault<ULxCharacterBaseAttributeSet>()->GetScalarAttribute(InEntryData.AttributeIDTag, Attribute)
+			&& Attribute.ScalarRule.DisplayFormat == ELxScalarAttributeDisplayFormat::Percentage)
+		{
+			return FormatEntryNumber(InValue * 100.f) + TEXT("个百分点");
+		}
+		return FormatEntryNumber(InValue);
 	}
 
 	/** 将词条显示名称中的数值占位符替换后，再转换为 UI 可识别的富文本字符串。 */
@@ -166,22 +196,13 @@ ULxEntryObjectBase* ULxEntryObjectBase::CreateEnterObject(UObject* InParent, con
 
 FText ULxEntryObjectAttributeGain::GetDisplayName() const
 {
-	const float DisplayEntryValue = MakeEntryDisplayValue(AttributeGainData.EntryValue, GetEntryQuote());
-	FString DisplayValueString;
+	return GetDisplayNameWithScale(1.f);
+}
 
-	switch (AttributeGainData.EffectiveType)
-	{
-	case ELxEntryEffectiveType::BasicValue:
-		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue).ToFString();
-		break;
-	case ELxEntryEffectiveType::BasicImprove:
-	case ELxEntryEffectiveType::AdditionalImprove:
-		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue).ToFString() + TEXT("%");
-		break;
-	case ELxEntryEffectiveType::Mechanism:
-		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue).ToFString();
-		break;
-	}
+FText ULxEntryObjectAttributeGain::GetDisplayNameWithScale(float InDisplayScale) const
+{
+	const float DisplayEntryValue = MakeEntryDisplayValue(AttributeGainData.EntryValue, GetEntryQuote(), InDisplayScale);
+	const FString DisplayValueString = FormatAttributeGainValue(AttributeGainData, DisplayEntryValue);
 
 	return MakeStyledEntryDisplayName(AttributeGainData.EntryText.EntryDisplayName, DisplayValueString);
 }
@@ -215,9 +236,14 @@ void ULxEntryObjectAttributeGain::AppendEffectsToPackage(FLxEffectPackage& InOut
 
 FText ULxEntryObjectAttributeInfluence::GetDisplayName() const
 {
-	const float DisplayRatio = MakeEntryDisplayValue(AttributeInfluenceData.InfluenceRatio, GetEntryQuote());
+	return GetDisplayNameWithScale(1.f);
+}
+
+FText ULxEntryObjectAttributeInfluence::GetDisplayNameWithScale(float InDisplayScale) const
+{
+	const float DisplayRatio = MakeEntryDisplayValue(AttributeInfluenceData.InfluenceRatio, GetEntryQuote(), InDisplayScale);
 	return MakeStyledEntryDisplayName(AttributeInfluenceData.EntryText.EntryDisplayName,
-		FLxString::DoubleToIntStr(DisplayRatio).ToFString());
+		FormatEntryNumber(DisplayRatio));
 }
 
 void ULxEntryObjectAttributeInfluence::SetEntryData(const FLxEntryBase* InEntryData)
@@ -253,20 +279,25 @@ void ULxEntryObjectAttributeInfluence::AppendEffectsToPackage(FLxEffectPackage& 
 
 FText ULxEntryObjectAttributeRecovery::GetDisplayName() const
 {
-	const float DisplayEntryValue = MakeEntryDisplayValue(AttributeRecoveryData.EntryValue, GetEntryQuote());
+	return GetDisplayNameWithScale(1.f);
+}
+
+FText ULxEntryObjectAttributeRecovery::GetDisplayNameWithScale(float InDisplayScale) const
+{
+	const float DisplayEntryValue = MakeEntryDisplayValue(AttributeRecoveryData.EntryValue, GetEntryQuote(), InDisplayScale);
 	FString DisplayValueString;
 
 	switch (AttributeRecoveryData.EffectiveType)
 	{
 	case ELxEntryEffectiveType::BasicValue:
-		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue).ToFString();
+		DisplayValueString = FormatEntryNumber(DisplayEntryValue);
 		break;
 	case ELxEntryEffectiveType::BasicImprove:
 	case ELxEntryEffectiveType::AdditionalImprove:
-		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue * 100).ToFString() + TEXT("%");
+		DisplayValueString = FormatEntryNumber(DisplayEntryValue * 100.f) + TEXT("%");
 		break;
 	case ELxEntryEffectiveType::Mechanism:
-		DisplayValueString = FLxString::DoubleToIntStr(DisplayEntryValue).ToFString();
+		DisplayValueString = FormatEntryNumber(DisplayEntryValue);
 		break;
 	}
 
@@ -333,7 +364,8 @@ void ULxEntryObjectChangeState::AppendEffectsToPackage(FLxEffectPackage& InOutEf
 /////////////////////////////////////////////////////
 FText ULxEntryObjectCreateBuff::GetDisplayName() const
 {
-	return MakeStyledEntryDisplayName(CreateBuffData.EntryText.EntryDisplayName);
+	return MakeStyledEntryDisplayName(CreateBuffData.EntryText.EntryDisplayName,
+		FormatEntryNumber(CreateBuffData.BuffDuration));
 }
 
 void ULxEntryObjectCreateBuff::SetEntryData(const FLxEntryBase* InEntryData)
@@ -445,8 +477,13 @@ void ULxEntryObjectGrantProfession::AppendEffectsToPackage(FLxEffectPackage& InO
 
 FText ULxEntryObjectDamage::GetDisplayName() const
 {
-	const float DisplayRatio = MakeEntryDisplayValue(DamageData.SourceAttributeRatio, GetEntryQuote());
-	const FString DisplayValueString = FLxString::DoubleToIntStr(DisplayRatio * 100.f).ToFString() + TEXT("%");
+	return GetDisplayNameWithScale(1.f);
+}
+
+FText ULxEntryObjectDamage::GetDisplayNameWithScale(float InDisplayScale) const
+{
+	const float DisplayRatio = MakeEntryDisplayValue(DamageData.SourceAttributeRatio, GetEntryQuote(), InDisplayScale);
+	const FString DisplayValueString = FormatEntryNumber(DisplayRatio * 100.f) + TEXT("%");
 	return MakeStyledEntryDisplayName(DamageData.EntryText.EntryDisplayName, DisplayValueString);
 }
 

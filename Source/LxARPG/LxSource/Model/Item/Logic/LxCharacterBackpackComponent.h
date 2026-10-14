@@ -9,6 +9,7 @@
 
 class ULxItemBase;
 class ULxItemSlotData;
+class ULxItemTransferTicket;
 
 /** 背包物品使用事件。背包只广播被使用的物品对象，具体词条效果由数据中转组件和词条模块处理。 */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBackpackItemUsed, ULxItemBase*);
@@ -59,6 +60,28 @@ public:
 	/** 将槽位从源索引移动到目标索引。 */
 	bool MoveBackpackSlot(int32 SourceSlotIndex, int32 TargetSlotIndex);
 
+	/** 从真实槽位创建安全提取凭证；来源在接收提交前保持完整。 */
+	UFUNCTION(BlueprintCallable, Category="背包|安全操作", DisplayName="安全提取背包物品")
+	ULxItemTransferTicket* BeginSafeExtractItem(int32 SlotIndex, FText& OutReason);
+
+	/** 只读检查整堆物品能否进入背包，可用于客户端预检查。 */
+	UFUNCTION(BlueprintCallable, Category="背包|安全操作", DisplayName="背包能否安全接收物品")
+	bool CanAcceptSafeItem(ULxItemTransferTicket* Ticket, FText& OutReason) const;
+
+	/** 在权威数据层接收完整物品；失败不改变来源和目标。 */
+	UFUNCTION(BlueprintCallable, Category="背包|安全操作", DisplayName="背包安全接收物品")
+	bool AcceptSafeItem(ULxItemTransferTicket* Ticket, FText& OutReason);
+
+	/** 将指定数量拆到独立空格，本次拆分不会合并其他堆叠。 */
+	UFUNCTION(BlueprintCallable, Category="背包|安全操作", DisplayName="拆分背包物品堆叠")
+	bool SplitItemStack(int32 SlotIndex, int32 Count, FText& OutReason);
+
+	/** 开始安全操作批次，暂缓缓存重建和网络快照通知。 */
+	void BeginSafeItemBatch();
+
+	/** 结束安全操作批次，统一绑定、刷新和复制最终数据。 */
+	void EndSafeItemBatch();
+
 	/** 将本地背包槽位数据同步到复制数组，用于网络同步。 */
 	void SyncReplicatedBackpackSlots();
 
@@ -78,10 +101,10 @@ private:
 	bool AddItemByTagID(FGameplayTag InItemIDTag, int32 InItemCount);
 
 	/** 从背包移除一类物品，仅作为批量移除接口的内部步骤。 */
-	bool RemoveItemAt(FGameplayTag InItemIDTag, int32 InItemCount);
+	bool RemoveItemAt(FGameplayTag InItemIDTag, int64 InItemCount);
 
 	/** 检查背包中是否拥有指定数量的一类物品。 */
-	bool CheckHaveItem(FGameplayTag InItemIDTag, int32 InItemCount) const;
+	bool CheckHaveItem(FGameplayTag InItemIDTag, int64 InItemCount) const;
 
 	/** 背包槽位使用物品成功后统一广播使用事件。 */
 	void NotifyItemUsedFromSlot(ULxItemBase* UsedItem);
@@ -117,9 +140,16 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<ULxItemBase>> m_vItemList;
 
+	/** 已绑定数量与使用事件的实例，移出背包时必须解除旧监听。 */
+	UPROPERTY(Transient, DisplayName="已监听物品")
+	TArray<TObjectPtr<ULxItemBase>> TrackedItems;
+
+	/** 当前嵌套安全批次深度，批次结束前不发布中间容器快照。 */
+	int32 SafeItemBatchDepth = 0;
+
 	/** 用于网络复制的背包槽位引用数组。 */
 	UPROPERTY(ReplicatedUsing=OnRep_BackpackSlots)
-	TArray<FLxItemQuote> ReplicatedBackpackSlots;
+	TArray<FLxItemSaveRecord> ReplicatedBackpackSlots;
 
 	/** 复制回调，当服务器同步背包槽位数据到客户端时调用。 */
 	UFUNCTION()

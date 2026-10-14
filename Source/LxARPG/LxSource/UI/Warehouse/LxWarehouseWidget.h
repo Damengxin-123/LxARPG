@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 #include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionOption.h"
+#include "LxARPG/LxSource/UI/ItemOperations/LxItemQuickTransferInterface.h"
 #include "LxWarehouseWidget.generated.h"
 
 class ULxItemSlotData;
@@ -11,11 +12,24 @@ class ULxWarehouseInteractionComponent;
 
 /** 仓库界面基类。监听玩家交互组件，并在仓库节点被激活后显示当前仓库槽位。 */
 UCLASS(Blueprintable, BlueprintType, DisplayName="仓库界面")
-class LXARPG_API ULxWarehouseWidget : public ULxUIBaseObject
+class LXARPG_API ULxWarehouseWidget : public ULxUIBaseObject, public ILxItemQuickTransferInterface
 {
 	GENERATED_BODY()
 
 public:
+	/** 返回当前打开的仓库功能节点上下文。 */
+	virtual bool GetQuickItemContainer_Implementation(FLxItemContainerAddress& OutContainer) const override;
+	/** 对真实来源格子准备安全提取。 */
+	virtual ULxItemTransferTicket* PrepareQuickItemTransfer_Implementation(ULxItemSlotData* SourceSlot, FText& OutReason) override;
+	/** 由仓库模块检查整堆接收条件。 */
+	virtual bool CanReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket, FText& OutReason) const override;
+	/** 将通用接收请求转交权威数据操作入口。 */
+	virtual bool ReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket, const FLxItemOperationRequest& Request, ULxUIBaseObject* SourceWindow, FText& OutReason) override;
+	/** 通知仓库蓝图播放结果表现。 */
+	virtual void NotifyQuickItemOperationResult_Implementation(const FLxItemOperationResult& Result) override;
+	/** 失败提示由蓝图实现，数量仍从数据模块事件刷新。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="仓库UI|物品操作", meta=(DisplayName="仓库物品快捷操作完成"))
+	void OnItemOperationCompleted(const FLxItemOperationResult& Result);
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
@@ -86,4 +100,8 @@ private:
 	/** 当前 UI 显示用仓库槽位缓存。 */
 	UPROPERTY()
 	TArray<TObjectPtr<ULxItemSlotData>> WarehouseItemSlotList;
+
+	/** 最近操作结果，可供蓝图绑定提示。 */
+	UPROPERTY(BlueprintReadOnly, Category="仓库UI|物品操作", meta=(AllowPrivateAccess="true", DisplayName="最近物品操作结果"))
+	FLxItemOperationResult LastItemOperationResult;
 };

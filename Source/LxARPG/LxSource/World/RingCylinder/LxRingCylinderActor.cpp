@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LxRingCylinderActor.h"
+#include "LxARPG/LxSource/World/GeneratedMesh/LxCompactProceduralMeshComponent.h"
+#include "LxARPG/LxSource/World/GeneratedMesh/LxGeneratedMeshRenderComponent.h"
+#include "Misc/ScopeExit.h"
 
 #include "ProceduralMeshComponent.h"
 
@@ -8,7 +11,7 @@ ALxRingCylinderActor::ALxRingCylinderActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	RingCylinderMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("RingCylinderMesh"));
+	RingCylinderMesh = CreateDefaultSubobject<ULxCompactProceduralMeshComponent>(TEXT("RingCylinderMesh"));
 	SetRootComponent(RingCylinderMesh);
 	RingCylinderMesh->SetMobility(EComponentMobility::Movable);
 	RingCylinderMesh->SetCastShadow(true);
@@ -18,16 +21,20 @@ ALxRingCylinderActor::ALxRingCylinderActor()
 	RingCylinderMesh->bUseAsyncCooking = false;
 	RingCylinderMesh->bUseComplexAsSimpleCollision = true;
 	RingCylinderMesh->SetCollisionProfileName(TEXT("BlockAll"));
+ OptimizedMesh=CreateDefaultSubobject<ULxGeneratedMeshRenderComponent>(TEXT("OptimizedMesh"));
+ OptimizedMesh->SetupAttachment(RingCylinderMesh);
 }
 
 void ALxRingCylinderActor::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	RebuildRingCylinder();
+	if (!OptimizedMesh || !OptimizedMesh->IsSourceCurrent()) { RebuildRingCylinder(); }
 }
 
 void ALxRingCylinderActor::RebuildRingCylinder()
 {
+ // 包括无效参数和空几何在内的所有出口都同步渲染缓存。
+ ON_SCOPE_EXIT { if (OptimizedMesh) { OptimizedMesh->Synchronize(RingCylinderMesh); } };
 	ClearGeneratedRingCylinder();
 	if (!IsValid(RingCylinderMesh))
 	{
@@ -164,4 +171,5 @@ void ALxRingCylinderActor::ClearGeneratedRingCylinder()
 		RingCylinderMesh->ClearAllMeshSections();
 		RingCylinderMesh->ClearCollisionConvexMeshes();
 	}
+ if (OptimizedMesh) { OptimizedMesh->MarkSourceDirty(); OptimizedMesh->SetVisibility(false); }
 }

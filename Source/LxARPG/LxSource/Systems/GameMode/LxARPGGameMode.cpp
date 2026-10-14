@@ -176,7 +176,11 @@ APawn* ALxARPGGameMode::SpawnPlayerCharacter(AController* NewPlayer)
 	if (Session)
 	{
 		NewPawn->AutoPossessPlayer = EAutoReceiveInput::Disabled;
-		if (ALxPlayerCharacter* Player = Cast<ALxPlayerCharacter>(NewPawn)) Player->SetCharacterRaceForSession(Session->CharacterRace);
+		if (ALxPlayerCharacter* Player = Cast<ALxPlayerCharacter>(NewPawn))
+		{
+			Player->SetCharacterRaceForSession(Session->CharacterRace);
+			Player->SetCharacterConfigIDForSession(Session->CharacterConfigID);
+		}
 		if (ULxCharacterSaveComponent* Save = NewPawn->FindComponentByClass<ULxCharacterSaveComponent>()) Save->SetSessionIdentity(Session->SaveID);
 		UGameplayStatics::FinishSpawningActor(NewPawn, SpawnTransform);
 	}

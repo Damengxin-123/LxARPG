@@ -21,6 +21,14 @@ namespace
 
 namespace LxEntryConfig
 {
+    TArray<FGameplayTag> GetEquipmentForgeEntryIDs()
+    {
+        TArray<FGameplayTag> Result;
+        for (const auto& Pair : GEntryMap)
+            if (Pair.Value && (Pair.Value->EntryType == ELxEntryType::AttributeGain || Pair.Value->EntryType == ELxEntryType::AttributeInfluence)) Result.Add(Pair.Key);
+        return Result;
+    }
+
 	void ClearEntryConfig()
 	{
 		GEntryMap.Empty();

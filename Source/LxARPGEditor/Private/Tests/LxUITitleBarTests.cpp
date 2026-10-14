@@ -131,7 +131,7 @@ void FLxTitleBarBlueprintCloseTest::GetTests(TArray<FString>& OutBeautifiedNames
 /** 使用临时世界与真实 UI 管理器挂载资产，广播实际按钮事件并确认重开与邻接界面状态。 */
 bool FLxTitleBarBlueprintCloseTest::RunTest(const FString& Parameters)
 {
-	const FString AssetPath = FString::Printf(TEXT("/Game/项目内容/UI界面/UI界面/交互界面/%s.%s_C"), *Parameters, *Parameters);
+	const FString AssetPath = FString::Printf(TEXT("/Game/项目内容/UI/角色UI界面/交互界面/%s.%s_C"), *Parameters, *Parameters);
 	UClass* WindowClass = LoadClass<ULxUIBaseObject>(nullptr, *AssetPath);
 	if (!TestNotNull(TEXT("加载实际交互窗口蓝图"), WindowClass)) return false;
 	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);

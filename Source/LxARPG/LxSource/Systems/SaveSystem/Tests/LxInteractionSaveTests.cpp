@@ -165,7 +165,7 @@ bool FLxInteractionSaveContainersTest::RunTest(const FString& Parameters)
 	FLxMaterialInformation Gold;
 	Gold.ItemIDTag = LxTag_Item_Material_Currency_Gold;
 	Gold.ItemType = ELxItemType::Material;
-	Gold.ItemCountMax = 99;
+	Gold.ItemCountMax = 9999;
 	Gold.ItemEntryConfigs = {DefaultEntry};
 	LxItemConfig::SetMaterialItemData(Gold);
 	ULxInteractionTreeAsset* Asset = NewObject<ULxInteractionTreeAsset>();
@@ -265,7 +265,9 @@ bool FLxInteractionSaveContainersTest::RunTest(const FString& Parameters)
 	ULxTreasureChestInteractionComponent* ReplicatedChest = Cast<ULxTreasureChestInteractionComponent>(FindInteractionSaveTestFeature(ReplicatedProvider, ChestNode->NodeId));
 	FArrayProperty* SlotsProperty = FindFProperty<FArrayProperty>(ULxTreasureChestInteractionComponent::StaticClass(), TEXT("ReplicatedTreasureChestSlots"));
 	if (!TestNotNull(TEXT("网络宝箱"), ReplicatedChest) || !TestNotNull(TEXT("复制槽位属性"), SlotsProperty)) return false;
-	*SlotsProperty->ContainerPtrToValuePtr<TArray<FLxItemQuote>>(ReplicatedChest) = {FLxItemQuote(), FLxItemQuote(Gold.ItemIDTag, 7)};
+	FLxItemSaveRecord RemainingItem;
+    TestTrue(TEXT("采集完整网络物品快照"), LxItemSaveData::CaptureItem(Chest->GetTreasureChestSlotAt(1)->GetItem(), RemainingItem));
+    *SlotsProperty->ContainerPtrToValuePtr<TArray<FLxItemSaveRecord>>(ReplicatedChest) = {FLxItemSaveRecord(), RemainingItem};
 	ReplicatedChest->ProcessEvent(ReplicatedChest->FindFunctionChecked(TEXT("OnRep_TreasureChestSlots")), nullptr);
 	TestEqual(TEXT("网络整批恢复不误触完成"), ReplicatedChest->GetInteractionState(), ELxInteractionDataState::Interactable);
 	TestNotNull(TEXT("网络宝箱保留未拿取物品"), ReplicatedChest->GetTreasureChestSlotAt(1)->GetItem());
@@ -282,10 +284,10 @@ bool FLxInteractionSaveContainersTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("未知物品标识被拒绝"), Warehouse->RestorePersistentData(InvalidRecord));
 	TestTrue(TEXT("未知物品不会部分清空原仓库"), Warehouse->GetWarehouseSlotAt(3)->GetItem() == OriginalWarehouseItem);
 	InvalidRecord.ItemSlots.Last().ItemIDTag = Gold.ItemIDTag;
-	for (const int32 InvalidCount : {-1, 256})
+	for (const int32 InvalidCount : {-1, 10000, MAX_int32})
 	{
 		InvalidRecord.ItemSlots.Last().ItemCount = InvalidCount;
-		TestFalse(TEXT("仓库拒绝负数或超出物品数量类型上限"), Warehouse->RestorePersistentData(InvalidRecord));
+		TestFalse(TEXT("仓库拒绝超出0到9999的物品数量"), Warehouse->RestorePersistentData(InvalidRecord));
 		TestTrue(TEXT("非法数量不会替换仓库物品"), Warehouse->GetWarehouseSlotAt(3)->GetItem() == OriginalWarehouseItem);
 	}
 	InvalidRecord.ItemSlots.Last().ItemCount = 11;
@@ -296,9 +298,40 @@ bool FLxInteractionSaveContainersTest::RunTest(const FString& Parameters)
 	InvalidTrade.ItemSlots[1].ItemCount = -1;
 	TestFalse(TEXT("有限库存负数量被拒绝"), Trade->RestorePersistentData(InvalidTrade));
 	InvalidTrade.ItemSlots[1].ItemCount = 256;
-	TestFalse(TEXT("有限库存不能因数量截断而变成售罄"), Trade->RestorePersistentData(InvalidTrade));
-	TestNull(TEXT("错误商店记录不会补充售罄商品"), Trade->GetTradeSlotAt(0)->GetItem());
-	TestEqual(TEXT("错误商店记录保留其他库存"), static_cast<int32>(Trade->GetTradeSlotAt(1)->GetItem()->ItemCount()), 3);
+	TestTrue(TEXT("32位数量允许恢复256件有限库存"), Trade->RestorePersistentData(InvalidTrade));
+	TestNull(TEXT("恢复大数量不补充其他售罄商品"), Trade->GetTradeSlotAt(0)->GetItem());
+	TestEqual(TEXT("256件库存不会因8位截断变成售罄"), Trade->GetTradeSlotAt(1)->GetItem()->ItemCount(), 256);
+	InvalidTrade.ItemSlots[1].ItemCount = 9999;
+	TestTrue(TEXT("有限库存能够恢复9999件"), Trade->RestorePersistentData(InvalidTrade));
+	TestEqual(TEXT("9999件库存恢复完整"), Trade->GetTradeSlotAt(1)->GetItem()->ItemCount(), 9999);
+	ULxItemBase* OriginalTradeItem = Trade->GetTradeSlotAt(1)->GetItem();
+	for (const int32 InvalidCount : {10000, MAX_int32})
+	{
+		InvalidTrade.ItemSlots[1].ItemCount = InvalidCount;
+		TestFalse(TEXT("商店拒绝超过9999的库存"), Trade->RestorePersistentData(InvalidTrade));
+		TestTrue(TEXT("库存越界时保留原商品对象"), Trade->GetTradeSlotAt(1)->GetItem() == OriginalTradeItem);
+		TestEqual(TEXT("库存越界时数量仍为9999"), Trade->GetTradeSlotAt(1)->GetItem()->ItemCount(), 9999);
+	}
+
+	// 配置输入也要遵守数量范围，零数量形成空槽；既有有限库存仍可恢复到初始零库存的槽位。
+	ULxInteractableComponent* BoundaryProvider = NewObject<ULxInteractableComponent>();
+	BoundaryProvider->FeatureConfig = Original->FeatureConfig;
+	BoundaryProvider->FeatureConfig.TradeContainerConfig.TradeItems[0].ItemCount = 0;
+	BoundaryProvider->FeatureConfig.TradeContainerConfig.TradeItems[1].ItemCount = 10000;
+	BoundaryProvider->FeatureConfig.TradeContainerConfig.TradeItems[2].ItemCount = -1;
+	if (!TestTrue(TEXT("构建数量边界商城"), BoundaryProvider->SetInteractionTreeAsset(Asset))) return false;
+	ULxTradeContainerInteractionComponent* BoundaryTrade = Cast<ULxTradeContainerInteractionComponent>(
+		FindInteractionSaveTestFeature(BoundaryProvider, TradeNode->NodeId));
+	if (!TestNotNull(TEXT("数量边界商城模块存在"), BoundaryTrade)) return false;
+	TestNull(TEXT("零配置商品保持空槽"), BoundaryTrade->GetTradeSlotAt(0)->GetItem());
+	TestNull(TEXT("负配置数量归一化为零且保持空槽"), BoundaryTrade->GetTradeSlotAt(2)->GetItem());
+	if (!TestNotNull(TEXT("归一化后的有限商品存在"), BoundaryTrade->GetTradeSlotAt(1)->GetItem())) return false;
+	TestEqual(TEXT("过大配置数量归一化到9999"), BoundaryTrade->GetTradeSlotAt(1)->GetItem()->ItemCount(), 9999);
+	BoundaryProvider->FeatureConfig.TradeContainerConfig.TradeItems[1].ItemCount = 0;
+	BoundaryTrade->ApplyConfig(BoundaryProvider->FeatureConfig.TradeContainerConfig);
+	TestTrue(TEXT("初始零数量的商品可以恢复已存有限库存"), BoundaryTrade->RestorePersistentData(SavedTrade));
+	if (TestNotNull(TEXT("零预设槽位恢复后有限商品存在"), BoundaryTrade->GetTradeSlotAt(1)->GetItem()))
+		TestEqual(TEXT("零预设槽位恢复剩余库存三件"), BoundaryTrade->GetTradeSlotAt(1)->GetItem()->ItemCount(), 3);
 
 	const auto& LoadedFeatures = Save->Interactions.FindChecked(LxTag_Test_InteractionSave).Features;
 	FLxInteractionFeatureSaveRecord LegacyWarehouse = MakeLegacyInteractionRecord(LoadedFeatures.FindChecked(WarehouseNode->NodeId));

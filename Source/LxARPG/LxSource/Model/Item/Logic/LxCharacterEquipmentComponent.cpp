@@ -1,4 +1,5 @@
 #include "LxCharacterEquipmentComponent.h"
+#include "Net/UnrealNetwork.h"
 
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "GameFramework/Actor.h"
@@ -6,6 +7,7 @@
 void ULxCharacterEquipmentModule::OnModuleInitialize()
 {
 	InitializeEquipmentSlots();
+	SyncReplicatedEquipment();
 	OnDataChange.Broadcast();
 }
 
@@ -52,6 +54,7 @@ void ULxCharacterEquipmentModule::SetDefauitEquipmentSlotsConfig()
 
 void ULxCharacterEquipmentModule::HandleEquipmentSlotChanged(ULxItemBase*)
 {
+	SyncReplicatedEquipment();
 	OnDataChange.Broadcast();
 }
 
@@ -90,6 +93,24 @@ bool ULxCharacterEquipmentModule::RestoreEquipmentSaveData(const TArray<FLxItemS
 	{
 		Slot->OnItemDataChanged.AddUObject(this, &ULxCharacterEquipmentModule::HandleEquipmentSlotChanged);
 	}
+	SyncReplicatedEquipment();
 	OnDataChange.Broadcast();
 	return true;
+}
+
+void ULxCharacterEquipmentModule::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    DOREPLIFETIME(ULxCharacterEquipmentModule, ReplicatedEquipmentSlots);
+}
+
+void ULxCharacterEquipmentModule::SyncReplicatedEquipment()
+{
+    if (GetOwner() && GetOwner()->HasAuthority()) LxItemSaveData::CaptureSlots(m_vEquipmentSlots, ReplicatedEquipmentSlots);
+}
+
+void ULxCharacterEquipmentModule::OnRep_EquipmentSlots()
+{
+    InitializeEquipmentSlots();
+    if (LxItemSaveData::RestoreSlots(this, ReplicatedEquipmentSlots, m_vEquipmentSlots)) OnDataChange.Broadcast();
 }

@@ -58,6 +58,8 @@ protected:
 	TObjectPtr<ULxItemBase> m_pCurrentItem = nullptr;
 
 private:
+    /** 更新已有蓝图中的强化文本并隐藏停用的锻造潜能。 */
+    void RefreshCraftingInformation();
 	/** 构建兼容旧显示事件的完整词条文本列表。 */
 	TArray<ULxUITextData*> BuildItemEntryUITextDataList();
 

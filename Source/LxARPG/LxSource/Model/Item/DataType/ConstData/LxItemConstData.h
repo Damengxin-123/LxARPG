@@ -26,7 +26,8 @@ namespace LxItemConfig
 	void SetBuffItemData(const FLxBuffInformation& InItemData);
 	void SetSkillItemData(const FLxSkillItemInformation& InItemData);
 
-	const TMap<FGameplayTag, FLxEquipmentInformation>& GetEquipmentItemMap();
+	/** 读取装备静态配置，供运行时制造和编辑器真实装备预览使用。 */
+	LXARPG_API const TMap<FGameplayTag, FLxEquipmentInformation>& GetEquipmentItemMap();
 	const TMap<FGameplayTag, FLxConsumableInformation>& GetConsumableItemMap();
 	const TMap<FGameplayTag, FLxMaterialInformation>& GetMaterialItemMap();
 	const TMap<FGameplayTag, FLxBuffInformation>& GetBuffItemMap();

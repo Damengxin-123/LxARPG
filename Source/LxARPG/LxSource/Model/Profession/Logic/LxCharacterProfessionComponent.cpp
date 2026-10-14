@@ -2,6 +2,7 @@
 
 #include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTableConfig.h"
 #include "LxProfessionDefinition.h"
+#include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTreeAsset.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxTypedAttributeData.h"
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
@@ -34,7 +35,8 @@ bool ULxCharacterProfessionModule::RestoreProfessionSaveData(const TArray<FLxPro
 	for (const FLxProfessionSaveRecord& Record : InRecords)
 	{
 		ULxProfessionDefinition* Definition = FindProfessionDefinition(Record.ProfessionIDTag);
-		if (!Record.ProfessionIDTag.IsValid() || !Definition || ProfessionIds.Contains(Record.ProfessionIDTag)
+		if (!Record.ProfessionIDTag.IsValid() || !Record.ProfessionIDTag.MatchesTag(FGameplayTag::RequestGameplayTag(TEXT("职业")))
+			|| Record.ProfessionIDTag == FGameplayTag::RequestGameplayTag(TEXT("职业")) || ProfessionIds.Contains(Record.ProfessionIDTag)
 			|| Record.Level < 0 || !FMath::IsFinite(Record.Experience) || Record.Experience < 0.f)
 		{
 			return false;
@@ -42,9 +44,10 @@ bool ULxCharacterProfessionModule::RestoreProfessionSaveData(const TArray<FLxPro
 		ProfessionIds.Add(Record.ProfessionIDTag);
 		FLxProfessionRuntimeData& Runtime = RestoredProfessions.AddDefaulted_GetRef();
 		Runtime.ProfessionIDTag = Record.ProfessionIDTag;
-		Runtime.ProfessionClass = Definition->GetClass();
-		Runtime.Level = Definition->GetMaxLevel() > 0 ? FMath::Clamp(Record.Level, 1, Definition->GetMaxLevel()) : 0;
-		Runtime.Experience = Record.Experience;
+		// 已从体系移除的职业进度继续随存档保存，但没有定义就不会提供效果或显示。
+		Runtime.ProfessionClass = Definition ? Definition->GetClass() : nullptr;
+		Runtime.Level = Definition ? (Definition->GetMaxLevel() > 0 ? FMath::Clamp(Record.Level, 1, Definition->GetMaxLevel()) : 0) : Record.Level;
+		Runtime.Experience = Definition && Runtime.Level >= Definition->GetMaxLevel() ? 0.f : Record.Experience;
 		Runtime.bCanUpgrade = Record.bCanUpgrade;
 	}
 	if (!bApply)
@@ -133,6 +136,7 @@ bool ULxCharacterProfessionModule::LearnProfession(FGameplayTag InProfessionIDTa
 	LearnedProfessions.Add(NewProfessionData);
 
 	OnProfessionChanged.Broadcast();
+	OnDataChange.Broadcast();
 	return true;
 }
 
@@ -165,6 +169,7 @@ bool ULxCharacterProfessionModule::GrantProfession(FGameplayTag InProfessionIDTa
 		if (bChanged)
 		{
 			OnProfessionChanged.Broadcast();
+			OnDataChange.Broadcast();
 		}
 		return true;
 	}
@@ -174,7 +179,7 @@ bool ULxCharacterProfessionModule::GrantProfession(FGameplayTag InProfessionIDTa
 
 void ULxCharacterProfessionModule::AddProfessionExperienceByType(ELxProfessionType InProfessionType, float InExperience)
 {
-	if (InProfessionType == ELxProfessionType::None || InExperience <= 0.f)
+	if (InProfessionType == ELxProfessionType::None || !FMath::IsFinite(InExperience) || InExperience <= 0.f)
 	{
 		return;
 	}
@@ -184,7 +189,8 @@ void ULxCharacterProfessionModule::AddProfessionExperienceByType(ELxProfessionTy
 	{
 		ULxProfessionDefinition* ProfessionDefinition = FindProfessionDefinition(ProfessionData.ProfessionIDTag);
 		if (ProfessionData.bCanUpgrade && ProfessionDefinition != nullptr
-			&& ProfessionDefinition->GetProfessionType() == InProfessionType)
+			&& ProfessionDefinition->GetProfessionType() == InProfessionType
+			&& ProfessionData.Level < ProfessionDefinition->GetMaxLevel())
 		{
 			TargetProfessionList.Add(&ProfessionData);
 		}
@@ -211,6 +217,7 @@ void ULxCharacterProfessionModule::AddProfessionExperienceByType(ELxProfessionTy
 	if (bChanged)
 	{
 		OnProfessionChanged.Broadcast();
+		OnDataChange.Broadcast();
 	}
 }
 
@@ -253,12 +260,11 @@ void ULxCharacterProfessionModule::GetAllProfessionDefinitions(TArray<ULxProfess
 {
 	OutProfessionDefinitions.Reset();
 	OutProfessionDefinitions.Reserve(ProfessionDefinitionMap.Num());
-	for (const TPair<FGameplayTag, TObjectPtr<ULxProfessionDefinition>>& ProfessionDefinitionPair : ProfessionDefinitionMap)
+	const ULxProfessionTreeAsset* Tree = LxProfessionConfig::GetProfessionTree();
+	if (!Tree) return;
+	for (const ULxProfessionTreeDefinition* Definition : Tree->Professions)
 	{
-		if (ProfessionDefinitionPair.Value != nullptr)
-		{
-			OutProfessionDefinitions.Add(ProfessionDefinitionPair.Value.Get());
-		}
+		if (Definition) if (auto* View = FindProfessionDefinition(Definition->ProfessionID)) OutProfessionDefinitions.Add(View);
 	}
 }
 
@@ -284,39 +290,15 @@ void ULxCharacterProfessionModule::CacheProfessionDefinitions()
 {
 	ProfessionDefinitionMap.Reset();
 
-	const auto CacheProfessionClass = [this](FGameplayTag InProfessionIDTag, TSubclassOf<ULxProfessionDefinition> InProfessionClass)
+	// 仅从职业体系生成接口视图，不再实例化旧职业蓝图或混入角色上的旧配置。
+	const ULxProfessionTreeAsset* Tree = LxProfessionConfig::GetProfessionTree();
+	if (!Tree) return;
+	for (ULxProfessionTreeDefinition* Definition : Tree->Professions)
 	{
-		if (!InProfessionClass)
-		{
-			return;
-		}
-
-		ULxProfessionDefinition* ProfessionDefinition = NewObject<ULxProfessionDefinition>(this, InProfessionClass);
-		if (ProfessionDefinition == nullptr)
-		{
-			return;
-		}
-
-		const FGameplayTag EffectiveProfessionIDTag = InProfessionIDTag.IsValid()
-			? InProfessionIDTag
-			: ProfessionDefinition->GetProfessionIDTag();
-		if (!EffectiveProfessionIDTag.IsValid())
-		{
-			return;
-		}
-
-		ProfessionDefinition->InitializeProfessionDefinition(EffectiveProfessionIDTag);
-		ProfessionDefinitionMap.Add(EffectiveProfessionIDTag, ProfessionDefinition);
-	};
-
-	for (const TPair<FGameplayTag, TSubclassOf<ULxProfessionDefinition>>& ProfessionClassPair : LxProfessionConfig::GetProfessionDefinitionClassMap())
-	{
-		CacheProfessionClass(ProfessionClassPair.Key, ProfessionClassPair.Value);
-	}
-
-	for (TSubclassOf<ULxProfessionDefinition> ProfessionClass : ProfessionClasses)
-	{
-		CacheProfessionClass(FGameplayTag(), ProfessionClass);
+		if (!Definition || !Definition->ProfessionID.IsValid()) continue;
+		auto* View = NewObject<ULxProfessionDefinition>(this);
+		View->InitializeFromTree(Definition);
+		ProfessionDefinitionMap.Add(Definition->ProfessionID, View);
 	}
 }
 
@@ -381,10 +363,7 @@ void ULxCharacterProfessionModule::ResolveLearnedProfessionClasses()
 			continue;
 		}
 
-		if (!ProfessionData.ProfessionClass)
-		{
-			ProfessionData.ProfessionClass = ProfessionDefinition->GetClass();
-		}
+		ProfessionData.ProfessionClass = ProfessionDefinition->GetClass();
 
 		if (ProfessionData.Level <= 0 && ProfessionDefinition->GetMaxLevel() > 0)
 		{
@@ -418,7 +397,8 @@ bool ULxCharacterProfessionModule::AddExperienceToProfession(FLxProfessionRuntim
 		return bChanged;
 	}
 
-	InOutProfessionData.Experience += InExperience;
+	InOutProfessionData.Experience = static_cast<float>(FMath::Min(static_cast<double>(MAX_flt),
+		static_cast<double>(InOutProfessionData.Experience) + InExperience));
 	bChanged = true;
 
 	while (InOutProfessionData.Level < MaxLevel)
@@ -559,9 +539,10 @@ float ULxCharacterProfessionModule::CalculateTotalEffectScale(const TArray<FLxPr
 	float TotalEffectScale = 1.f;
 	for (const FLxProfessionInfluenceResult& InfluenceResult : InfluenceResults)
 	{
-		if (InfluenceResult.Rule.EffectScale > 0.f)
+		if (FMath::IsFinite(InfluenceResult.Rule.EffectScale) && InfluenceResult.Rule.EffectScale >= 0.f)
 		{
-			TotalEffectScale *= InfluenceResult.Rule.EffectScale;
+			TotalEffectScale = static_cast<float>(FMath::Min(static_cast<double>(MAX_flt),
+				static_cast<double>(TotalEffectScale) * InfluenceResult.Rule.EffectScale));
 		}
 	}
 

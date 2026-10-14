@@ -15,6 +15,7 @@
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterEquipmentComponent.h"
 #include "LxARPG/LxSource/Model/Skill/Logic/Skill/LxSkillBackpackComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxItemSaveData.h"
 
 /** 验证真实装备槽变化能回收授予技能，同时保留其他装备及永久学习来源。 */
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxEquipmentSkillGrantTest,
@@ -48,6 +49,18 @@ bool FLxEquipmentSkillGrantTest::RunTest(const FString& Parameters)
 	}
 	if (!TestTrue(TEXT("存在有效的授予技能词条及技能物品配置"), SkillTag.IsValid())) return false;
 
+	// 通过正式静态配置及物品工厂建立完整词条缓存，使装卸时的复制存档使用合法装备实例。
+	if (!TestTrue(TEXT("存在真实装备配置"), !LxItemConfig::GetEquipmentItemMap().IsEmpty())) return false;
+	const FLxEquipmentInformation OriginalEquipment = LxItemConfig::GetEquipmentItemMap().CreateConstIterator()->Value;
+	ON_SCOPE_EXIT { LxItemConfig::SetEquipmentItemData(OriginalEquipment); };
+	FLxEquipmentInformation EquipmentConfig = OriginalEquipment;
+	EquipmentConfig.bFixedNormalEntries = false;
+	EquipmentConfig.EnhancementValueOverride = 0;
+	FLxEntryQuote EntryQuote;
+	EntryQuote.EntryID = EntryTag;
+	EquipmentConfig.ItemEntryConfigs = {FLxItemEntryConfig(EntryQuote, ELxEntryLogicType::Base)};
+	LxItemConfig::SetEquipmentItemData(EquipmentConfig);
+
 	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
 	World->InitializeActorsForPlay(FURL());
 	ON_SCOPE_EXIT { World->EndPlay(EEndPlayReason::Quit); World->DestroyWorld(false); };
@@ -59,12 +72,22 @@ bool FLxEquipmentSkillGrantTest::RunTest(const FString& Parameters)
 	TArray<TObjectPtr<ULxItemSlotData>>& EquipmentSlots = Character->GetCharacterEquipmentComponent()->GetEquipmentSlots();
 	if (!TestTrue(TEXT("至少存在两个装备槽"), EquipmentSlots.Num() >= 2)) return false;
 
-	ULxEquipment* FirstEquipment = NewObject<ULxEquipment>(Character);
-	ULxEquipment* SecondEquipment = NewObject<ULxEquipment>(Character);
-	FLxEntryQuote EntryQuote;
-	EntryQuote.EntryID = EntryTag;
-	FirstEquipment->GetItemEntryList().Add(ULxEntryObjectBase::CreateEnterObject(FirstEquipment, EntryQuote));
-	SecondEquipment->GetItemEntryList().Add(ULxEntryObjectBase::CreateEnterObject(SecondEquipment, EntryQuote));
+	ULxEquipment* FirstEquipment = Cast<ULxEquipment>(ULxItemBase::CreateItemObject(Character, FLxItemQuote(EquipmentConfig.ItemIDTag, 1)));
+	ULxEquipment* SecondEquipment = Cast<ULxEquipment>(ULxItemBase::CreateItemObject(Character, FLxItemQuote(EquipmentConfig.ItemIDTag, 1)));
+	if (!TestNotNull(TEXT("正式工厂创建第一件授技装备"), FirstEquipment)
+		|| !TestNotNull(TEXT("正式工厂创建第二件授技装备"), SecondEquipment)) return false;
+	if (!TestEqual(TEXT("第一件装备拥有完整的授技词条缓存"), FirstEquipment->GetItemEntryList().Num(), 1)
+		|| !TestEqual(TEXT("第二件装备拥有完整的授技词条缓存"), SecondEquipment->GetItemEntryList().Num(), 1)) return false;
+	TestEqual(TEXT("第一件装备的词条运行信息同步建立"), FirstEquipment->GetItemEntryRuntimeInfoList().Num(), 1);
+	TestEqual(TEXT("第二件装备的词条运行信息同步建立"), SecondEquipment->GetItemEntryRuntimeInfoList().Num(), 1);
+	TestTrue(TEXT("第一件授技装备可以强化到125%"), FirstEquipment->ApplyCraftingState(1.25f, {}));
+	TestEqual(TEXT("强化装备的数值效果倍率为2.25"), FirstEquipment->GetItemEntryEffectMultiplier(), 2.25f);
+	TestEqual(TEXT("强化不污染授技词条原始比例"), FirstEquipment->GetItemEntryList()[0]->GetEntryQuote().EntryProportion, 1.f);
+	TestEqual(TEXT("强化不缩放授予技能的显示文本"), FirstEquipment->GetItemEntryList()[0]->GetDisplayNameWithScale(2.25f).ToString(),
+		SecondEquipment->GetItemEntryList()[0]->GetDisplayName().ToString());
+	FLxItemSaveRecord FixtureRecord;
+	TestTrue(TEXT("第一件装备支持装卸时的复制存档采集"), LxItemSaveData::CaptureItem(FirstEquipment, FixtureRecord));
+	TestTrue(TEXT("第二件装备支持装卸时的复制存档采集"), LxItemSaveData::CaptureItem(SecondEquipment, FixtureRecord));
 	TestTrue(TEXT("穿戴第一件装备"), EquipmentSlots[0]->SetItem(FirstEquipment));
 	ULxSkillItem* GrantedSkill = Backpack->FindSkillItemByTagID(SkillTag);
 	if (!TestNotNull(TEXT("装备词条授予技能"), GrantedSkill)) return false;

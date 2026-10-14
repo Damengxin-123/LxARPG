@@ -26,7 +26,7 @@
 namespace LxItemTooltipRepair
 {
 /** 本工具唯一允许修改的物品弹窗蓝图。 */
-const TCHAR* AssetPath = TEXT("/Game/项目内容/UI界面/UI界面/弹窗界面/物品信息显示界面");
+const TCHAR* AssetPath = TEXT("/Game/项目内容/UI/角色UI界面/弹窗界面/物品信息显示界面");
 
 /** 根据检查得到的图名称定位蓝图函数，避免误改其他界面。 */
 UEdGraph* FindGraph(UWidgetBlueprint* Blueprint, const TCHAR* Name)

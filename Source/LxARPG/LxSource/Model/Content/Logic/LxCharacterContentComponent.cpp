@@ -66,6 +66,7 @@ void ULxCharacterContentComponent::RegisterReplicatedModules()
 	}
 
 	AddReplicatedSubObject(BackpackModule);
+	AddReplicatedSubObject(EquipmentModule);
 	AddReplicatedSubObject(SkillBackpackModule);
 	AddReplicatedSubObject(BuffModule);
 	AddReplicatedSubObject(QuestModule);

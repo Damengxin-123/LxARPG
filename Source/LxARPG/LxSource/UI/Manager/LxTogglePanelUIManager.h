@@ -55,7 +55,11 @@ public:
 	bool TogglePanelWidget(ULxUIBaseObject* InWidget);
 
 	bool HandleInputValue(ELxInputActionID InInputActionID, const FLxInputValue& InValue);
-	bool HasVisibleCursorPanel() const;
+    bool HasVisibleCursorPanel() const;
+
+    /** 功能交互按输入标识显式打开已有面板，用于打造时同时展示背包。 */
+    UFUNCTION(BlueprintCallable, Category="按键面板", DisplayName="按功能打开面板")
+    bool ShowPanelForInput(ELxInputActionID InputID);
 
 	virtual void RefreshManagedUI() override;
 	virtual bool ContainsWidget(const ULxUIBaseObject* InWidget) const override;

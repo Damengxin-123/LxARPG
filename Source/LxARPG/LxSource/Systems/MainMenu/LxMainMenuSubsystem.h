@@ -38,9 +38,9 @@ public:
 	/** 选择地图档，不改变角色档案内容。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|存档", DisplayName="选择地图存档")
 	void SelectWorld(const FGuid& WorldID);
-	/** 按种族配置建立新档，首次进入时使用对应角色蓝图的初始内容；旧调用默认选择人类。 */
+	/** 按唯一配置标签建立新档，种族和名称相同的配置也能独立创建。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|角色", DisplayName="新建角色")
-	void CreateCharacter(const FString& Name, ELxCharacterRaceType Race = ELxCharacterRaceType::Human);
+	void CreateCharacter(const FString& Name, FGameplayTag CharacterConfigID);
 	/** 获取数据表配置的可玩种族，用于新建角色界面。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|角色", DisplayName="获取可选角色种族")
 	TArray<FLxCharacterRaceConfig> GetAvailableCharacterRaces() const;

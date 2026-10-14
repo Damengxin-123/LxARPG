@@ -95,6 +95,7 @@ bool ULxSaveManager::InitializeSession(const ULxGameSaveData* InData, FLxPersist
 	SaveData = DuplicateObject(InData, this);
 	SessionWriter = MoveTemp(InWriter);
 	bLoaded = true;
+	OnSaveDataReady.Broadcast();
 	return true;
 }
 
@@ -151,6 +152,7 @@ bool ULxSaveManager::ReplaceSession(const ULxGameSaveData* InData, bool bRestore
 		}
 		SaveData = PreviousData.Get();
 	}
+	if (!bRestoreFailed) OnSaveDataReady.Broadcast();
 	return !bRestoreFailed;
 }
 
@@ -180,6 +182,7 @@ bool ULxSaveManager::LoadSave()
 		SaveData = NewObject<ULxGameSaveData>(this);
 	}
 	bLoaded = true;
+	OnSaveDataReady.Broadcast();
 	return true;
 }
 
@@ -216,6 +219,7 @@ bool ULxSaveManager::SaveCachedData()
 		UE_LOG(LogTemp, Error, TEXT("存档保存失败：仍有 %d 个对象未成功采集，保留磁盘原文件。"), FailedCaptureComponents.Num());
 		return false;
 	}
+	OnCollectWorldInfo.Broadcast();
 	if (!bDirty)
 	{
 		return true;
@@ -342,4 +346,15 @@ bool ULxSaveManager::CacheWorldBeforeCleanup(UWorld* World, ULevel* Level)
 		}
 	}
 	return bCapturedAll;
+}
+
+bool ULxSaveManager::CacheWorldTime(const FLxWorldTimeSaveData& InTime)
+{
+	if (bReadOnly || bRestoreFailed || !bLoaded || !SaveData || !InTime.IsValid()) return false;
+	if (SaveData->WorldTime.TotalGameSeconds != InTime.TotalGameSeconds || SaveData->WorldTime.TimeScale != InTime.TimeScale)
+	{
+		SaveData->WorldTime = InTime;
+		bDirty = true;
+	}
+	return true;
 }

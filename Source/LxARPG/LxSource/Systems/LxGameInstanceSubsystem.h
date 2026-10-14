@@ -10,6 +10,7 @@ class ULxGameDataTablesManager;
 class ULxGlobalStaticDataManager;
 class ULxAINavigationRegistry;
 class ULxSaveManager;
+class ULxWorldInfoManager;
 class ULevel;
 
 /** 游戏生命周期发出的存档操作请求。 */
@@ -25,6 +26,9 @@ class LXARPG_API ULxGameInstanceSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
+	/** 获取跨地图世界信息管理器，提供统一游戏时间与变化事件。 */
+	UFUNCTION(BlueprintPure, Category="世界信息", DisplayName="获取游戏世界信息管理器")
+	ULxWorldInfoManager* GetWorldInfoManager() const { return WorldInfoManager; }
 
 	/**
 	 * @brief 通过世界对象获取游戏实例子系统。
@@ -86,6 +90,9 @@ public:
 	/** 存档保存完成及其结果。 */
 	FLxSaveOperationFinished OnSaveGameFinished;
 private:
+	/** 游戏实例生命周期内唯一的世界信息管理器，随存档会话恢复时间。 */
+	UPROPERTY(Transient, VisibleAnywhere, Category="世界信息", DisplayName="游戏世界信息管理器")
+	TObjectPtr<ULxWorldInfoManager> WorldInfoManager;
 	/** 过滤当前游戏实例，在世界对象开始销毁前采集并保存。 */
 	void HandleWorldBeginTearDown(UWorld* World);
 

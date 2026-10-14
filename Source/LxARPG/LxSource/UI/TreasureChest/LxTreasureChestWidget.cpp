@@ -15,6 +15,49 @@ void ULxTreasureChestWidget::NativeConstruct()
 	HideTreasureChestInteraction();
 }
 
+bool ULxTreasureChestWidget::GetQuickItemContainer_Implementation(FLxItemContainerAddress& OutContainer) const
+{
+	if (!IsVisible() || !GetIsEnabled() || !TreasureChestComponent || !TreasureChestComponent->GetOwner()
+		|| TreasureChestComponent->GetInteractionState() == ELxInteractionDataState::Finished) return false;
+	OutContainer = FLxItemContainerAddress();
+	OutContainer.Kind = ELxItemContainerKind::TreasureChest;
+	OutContainer.Owner = TreasureChestComponent->GetOwner();
+	OutContainer.RuntimeNodeIndex = TreasureChestComponent->GetRuntimeNodeIndex();
+	OutContainer.InteractionTreeRevision = TreasureChestComponent->GetInteractionTreeRevision();
+	return true;
+}
+
+ULxItemTransferTicket* ULxTreasureChestWidget::PrepareQuickItemTransfer_Implementation(ULxItemSlotData* SourceSlot, FText& OutReason)
+{
+	FLxItemContainerAddress Address;
+	if (!GetQuickItemContainer_Implementation(Address) || !SourceSlot
+		|| TreasureChestComponent->GetTreasureChestSlotAt(SourceSlot->GetSlotIndex()) != SourceSlot)
+	{
+		OutReason = NSLOCTEXT("LxItemOperations", "TreasureWindowSourceInvalid", "宝箱来源槽位已失效");
+		return nullptr;
+	}
+	return TreasureChestComponent->BeginSafeExtractItem(SourceSlot->GetSlotIndex(), OutReason);
+}
+
+bool ULxTreasureChestWidget::CanReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket, FText& OutReason) const
+{
+	OutReason = NSLOCTEXT("LxItemOperations", "TreasureReceiveDenied", "宝箱只支持快速取出物品");
+	return false;
+}
+
+bool ULxTreasureChestWidget::ReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket,
+	const FLxItemOperationRequest& Request, ULxUIBaseObject* SourceWindow, FText& OutReason)
+{
+	OutReason = NSLOCTEXT("LxItemOperations", "TreasureReceiveDenied", "宝箱只支持快速取出物品");
+	return false;
+}
+
+void ULxTreasureChestWidget::NotifyQuickItemOperationResult_Implementation(const FLxItemOperationResult& Result)
+{
+	LastItemOperationResult = Result;
+	OnItemOperationCompleted(Result);
+}
+
 void ULxTreasureChestWidget::NativeDestruct()
 {
 	HideTreasureChestInteraction();
@@ -96,6 +139,7 @@ TArray<UObject*> ULxTreasureChestWidget::GetTreasureChestItemUIDataList()
 	{
 		ULxItemUIData* ItemUIData = NewObject<ULxItemUIData>(this);
 		ItemUIData->m_pSlotData = ItemSlot;
+		ItemUIData->ItemOwnerWindow = this;
 		ItemUIDataList.Add(ItemUIData);
 	}
 	return ItemUIDataList;

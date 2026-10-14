@@ -1,4 +1,6 @@
 #include "LxItemTooltipWidget.h"
+#include "Components/TextBlock.h"
+#include "Components/RichTextBlock.h"
 
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
@@ -27,6 +29,7 @@ bool ULxItemTooltipWidget::SetDisplayItemLogicWithValue(ULxItemBase* InItem, int
 	if (ULxEquipment* Equipment = Cast<ULxEquipment>(m_pCurrentItem))
 	{
 		OnEquipmentInformationUpdated(Equipment->EquipmentInformation());
+        RefreshCraftingInformation();
 	}
 
 	TArray<ULxUITextData*> EntryUIDataList = BuildItemEntryUITextDataList();
@@ -47,6 +50,17 @@ bool ULxItemTooltipWidget::SetDisplayItemLogicWithValue(ULxItemBase* InItem, int
 	return true;
 }
 
+void ULxItemTooltipWidget::RefreshCraftingInformation()
+{
+    const auto* Equipment = Cast<ULxEquipment>(m_pCurrentItem);
+    if (!Equipment) return;
+    const FText Value = FText::FromString(FString::Printf(TEXT("强化度 %.0f%%"), Equipment->GetEnhancement() * 100.f));
+    UWidget* Strength = GetWidgetFromName(TEXT("强化强度"));
+    if (auto* Text = Cast<UTextBlock>(Strength)) Text->SetText(Value);
+    else if (auto* RichText = Cast<URichTextBlock>(Strength)) RichText->SetText(Value);
+    if (UWidget* Potential = GetWidgetFromName(TEXT("锻造潜能"))) Potential->SetVisibility(ESlateVisibility::Collapsed);
+}
+
 void ULxItemTooltipWidget::SetTooltipScreenPosition(FVector2D InScreenPosition)
 {
 	SetPositionInViewport(InScreenPosition, false);
@@ -60,6 +74,8 @@ TArray<ULxUITextData*> ULxItemTooltipWidget::BuildItemEntryUITextDataList()
 		return Result;
 	}
 
+	// 装备强化只参与本次文本计算；其他物品的倍率为1，不改变后端词条对象。
+	const float DisplayScale = m_pCurrentItem->GetItemEntryEffectMultiplier();
 	bool bIsDarkColor = true;
 	for (ULxEntryObjectBase* EntryObject : m_pCurrentItem->GetItemEntryList())
 	{
@@ -74,7 +90,7 @@ TArray<ULxUITextData*> ULxItemTooltipWidget::BuildItemEntryUITextDataList()
 			continue;
 		}
 
-		TextData->DisplayText = EntryObject->GetDisplayName();
+		TextData->DisplayText = EntryObject->GetDisplayNameWithScale(DisplayScale);
 		TextData->IsDarkColor = bIsDarkColor;
 		Result.Add(TextData);
 		bIsDarkColor = !bIsDarkColor;
@@ -91,6 +107,8 @@ FLxItemEntryDisplayDataByLogicType ULxItemTooltipWidget::BuildItemEntryUITextDat
 		return Result;
 	}
 
+	// 分类显示与旧版完整列表使用同一倍率，避免两种蓝图事件显示不同数值。
+	const float DisplayScale = m_pCurrentItem->GetItemEntryEffectMultiplier();
 	bool bIsDarkColor = true;
 	for (const FLxItemEntryRuntimeInfo& EntryRuntimeInfo : m_pCurrentItem->GetItemEntryRuntimeInfoList())
 	{
@@ -105,7 +123,7 @@ FLxItemEntryDisplayDataByLogicType ULxItemTooltipWidget::BuildItemEntryUITextDat
 			continue;
 		}
 
-		TextData->DisplayText = EntryRuntimeInfo.EntryObject->GetDisplayName();
+		TextData->DisplayText = EntryRuntimeInfo.EntryObject->GetDisplayNameWithScale(DisplayScale);
 		TextData->IsDarkColor = bIsDarkColor;
 
 		switch (EntryRuntimeInfo.EntryLogicType)

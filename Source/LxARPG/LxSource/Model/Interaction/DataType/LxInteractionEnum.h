@@ -70,6 +70,6 @@ enum class ELxMechanismState : uint8
 UENUM(BlueprintType)
 enum class ELxFunctionPageID : uint8
 {
-	EquipmentEnhancement UMETA(DisplayName="装备强化"),
+	EquipmentEnhancement UMETA(DisplayName="装备打造（强化与锻造）"),
 	ItemCrafting UMETA(DisplayName="物品制作"),
 };

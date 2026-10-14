@@ -5,6 +5,8 @@
 #include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionEnum.h"
 #include "LxARPG/LxSource/Model/Quest/DataType/LxQuestRuntimeData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemInformationBase.h"
+#include "LxARPG/LxSource/Model/Item/DataType/ShowInfoConfig/LxItemShowInfoConfigID.h"
+#include "LxARPG/LxSource/Model/Item/Crafting/LxEquipmentCraftingTypes.h"
 #include "LxInteractionData.generated.h"
 
 class ULxUIBaseObject;
@@ -181,16 +183,16 @@ struct FLxTradeItemConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "物品ID", meta = (Categories = "物品"))
 	FGameplayTag ItemIDTag;
 
-	/** 当前一次购买会取得的物品数量，也是有限库存的初始数量。 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "物品数量", meta = (ClampMin = "1", UIMin = "1"))
+	/** 当前一次购买会取得的单堆物品数量，也是有限库存的初始数量；零表示空商品槽。 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "物品数量", meta = (ClampMin = "0", ClampMax = "9999", UIMin = "0", UIMax = "9999"))
 	int32 ItemCount = 1;
 
 	/** 启用后购买成功会扣除商城槽位库存；关闭后商品可以无限次购买。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|商城", DisplayName = "有限库存")
 	bool bLimitedStock = true;
 
-	/** 转换为物品系统使用的物品引用。 */
-	FLxItemQuote ToItemQuote() const { return FLxItemQuote(ItemIDTag, FMath::Max(1, ItemCount)); }
+	/** 转换为物品系统使用的单堆物品引用，并限制数量在零到九千九百九十九之间。 */
+	FLxItemQuote ToItemQuote() const { return FLxItemQuote(ItemIDTag, LxItemQuantity::Clamp(ItemCount)); }
 };
 
 /** 商城功能模块的初始配置。 */
@@ -259,6 +261,10 @@ struct FLxFunctionPageInteractionConfig
 	/** 功能节点被选择后需要打开的功能页面。 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "交互|功能界面", DisplayName = "功能页面ID")
 	ELxFunctionPageID FunctionPageID = ELxFunctionPageID::EquipmentEnhancement;
+
+    /** 此NPC提供的强化、新增成功率倍率及所有打造操作的金币倍率。 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="交互|装备打造", DisplayName="装备打造加成")
+    FLxEquipmentCraftService CraftService;
 };
 
 /** 每个NPC独立配置的功能开关与初始内容，运行时状态由功能模块持有。 */

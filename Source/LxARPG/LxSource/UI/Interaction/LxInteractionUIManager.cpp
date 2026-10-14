@@ -1,4 +1,8 @@
 #include "LxInteractionUIManager.h"
+#include "LxARPG/LxSource/UI/Manager/LxTogglePanelUIManager.h"
+#include "LxARPG/LxSource/UI/Crafting/LxEquipmentCraftingWidget.h"
+#include "LxARPG/LxSource/UI/Manager/LxManufacturingUIManager.h"
+#include "LxARPG/LxSource/Model/Item/Crafting/LxItemManufacturingComponent.h"
 
 #include "LxDialogueInteractionWidget.h"
 #include "LxInteractionEntranceWidget.h"
@@ -146,10 +150,29 @@ bool ULxInteractionUIManager::OpenFunctionPage(ULxFunctionPageInteractionCompone
 	if (!NewPage) return false;
 	FunctionPageFeature = InFeature;
 	FunctionPageWidget = NewPage;
-	NewPage->SetOwningUIManager(OwningUIManager);
+    if (InFeature->IsEquipmentCraftingPage())
+    {
+        ALxPlayerCharacter* Player = InPlayerInteractionComponent->GetPlayerCharacter();
+        ULxItemManufacturingComponent* Component = Player ? Player->GetItemManufacturingComponent() : nullptr;
+        ULxManufacturingUIManager* Layer = OwningUIManager->GetManufacturingUIManager();
+        auto* CraftPage = Cast<ULxEquipmentCraftingWidget>(NewPage);
+        if (!Component || !Layer || !CraftPage || !Component->BeginEquipmentService(InFeature)
+            || !Layer->ShowEquipmentPage(CraftPage, Component))
+        {
+            if (Component) Component->EndEquipmentService();
+            HandleFunctionPageInteractionCancelled();
+            return false;
+        }
+        if (OwningUIManager->GetTogglePanelUIManager()) OwningUIManager->GetTogglePanelUIManager()->ShowPanelForInput(ELxInputActionID::Backpack);
+        // 背包显示会激活角色面板，最后恢复服务页置顶，保留原来打造界面覆盖背包的顺序。
+        OwningUIManager->ActivateRoleWindow(CraftPage);
+        OwningUIManager->RefreshCursorState();
+        return FunctionPageWidget == NewPage;
+    }
+    NewPage->SetOwningUIManager(OwningUIManager);
 	RefreshWidgetData(NewPage);
 	NewPage->SetVisibility(ESlateVisibility::Visible);
-	if (!NewPage->AddToPlayerScreen(100))
+	if (!OwningUIManager->MountRoleWindow(NewPage))
 	{
 		HandleFunctionPageInteractionCancelled();
 		return false;
@@ -181,9 +204,12 @@ void ULxInteractionUIManager::HandleFunctionPageInteractionCancelled()
 	ULxFunctionPageInteractionComponent* PreviousFeature = FunctionPageFeature;
 	FunctionPageWidget = nullptr;
 	FunctionPageFeature = nullptr;
-	if (PreviousWidget)
-	{
+    if (OwningUIManager && OwningUIManager->GetManufacturingUIManager())
+        OwningUIManager->GetManufacturingUIManager()->ReleasePage();
+    if (PreviousWidget)
+    {
 		PreviousWidget->SetVisibility(ESlateVisibility::Collapsed);
+		if (OwningUIManager) OwningUIManager->UnmountRoleWindow(PreviousWidget);
 		PreviousWidget->RemoveFromParent();
 	}
 	if (PreviousFeature && PreviousFeature->GetInteractionState() == ELxInteractionDataState::Interacting)

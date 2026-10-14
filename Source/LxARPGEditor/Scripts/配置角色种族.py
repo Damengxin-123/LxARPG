@@ -1,66 +1,65 @@
-"""创建人类种族配置，并将角色种族表配置到项目的数据表管理蓝图。"""
+"""为现有角色种族表补齐稳定标签，保留种族、显示名称与玩家角色引用。"""
+import configparser
 import json
+import shutil
 from pathlib import Path
 
 import unreal
 
 
 def configure_character_races():
-    """仅补齐人类配置，保留表中后续添加的其他种族，并验证管理器查询结果。"""
-    table_path = '/Game/项目内容/数据表格/角色种族表'
-    manager_path = '/Game/项目内容/数据资产/类型_数据表格管理对象'
-    character_path = '/Game/项目内容/实体资产/角色/测试角色-人类法师/测试角色-玩家控制角色'
-    character_class = unreal.EditorAssetLibrary.load_blueprint_class(character_path)
-    manager_class = unreal.EditorAssetLibrary.load_blueprint_class(manager_path)
-    if not character_class or not manager_class:
-        raise RuntimeError('无法加载现有玩家角色或数据表管理蓝图。')
-    character_defaults = unreal.get_default_object(character_class)
-    race = character_defaults.get_editor_property('character_race')
-    if race not in (unreal.LxCharacterRaceType.NONE, unreal.LxCharacterRaceType.HUMAN):
-        raise RuntimeError('当前玩家角色已配置为其他种族，请检查人类角色映射。')
-    if race == unreal.LxCharacterRaceType.NONE:
-        character_defaults.set_editor_property('character_race', unreal.LxCharacterRaceType.HUMAN)
-        if not unreal.EditorAssetLibrary.save_asset(character_path, only_if_is_dirty=False):
-            raise RuntimeError('人类角色种族保存失败。')
-
-    row_struct = unreal.load_object(None, '/Script/LxARPG.LxCharacterRaceConfig')
-    table = unreal.EditorAssetLibrary.load_asset(table_path) if unreal.EditorAssetLibrary.does_asset_exist(table_path) else None
-    if not table:
-        factory = unreal.DataTableFactory()
-        factory.set_editor_property('struct', row_struct)
-        table = unreal.AssetToolsHelpers.get_asset_tools().create_asset('角色种族表', '/Game/项目内容/数据表格', unreal.DataTable, factory)
-    if not table or table.get_editor_property('row_struct') != row_struct:
-        raise RuntimeError('角色种族表创建失败或已有资产行结构不匹配。')
-    rows = json.loads(unreal.DataTableFunctionLibrary.export_data_table_to_json_string(table) or '[]')
-    human_rows = [row for row in rows if row.get('Race') in ('Human', 'ELxCharacterRaceType::Human')]
-    if len(human_rows) > 1:
-        raise RuntimeError('表中存在重复人类配置，禁止自动覆盖。')
-    row = human_rows[0] if human_rows else {'Name': '人类'}
-    if not human_rows:
-        if any(item.get('Name') == '人类' for item in rows):
-            raise RuntimeError('人类行名已被其他种族占用。')
-        rows.append(row)
-    row.update(Race='Human', RaceName='人类', PlayerCharacterClass=character_class.get_path_name())
-    if not unreal.DataTableFunctionLibrary.fill_data_table_from_json_string(table, json.dumps(rows, ensure_ascii=False)):
-        raise RuntimeError('角色种族表导入失败。')
-    if not unreal.EditorAssetLibrary.save_loaded_asset(table, only_if_is_dirty=False):
-        raise RuntimeError('角色种族表保存失败。')
-
+    """从项目设置找到实际管理器，仅迁移已知旧行，不覆盖已有配置标签。"""
+    project = Path(unreal.Paths.project_dir())
+    settings = configparser.ConfigParser(interpolation=None, strict=False)
+    settings.read(project / 'Config/DefaultGame.ini', encoding='utf-8-sig')
+    manager_reference = settings['/Script/LxARPG.LxGameSettings']['GameDataTablesManagerClass']
+    manager_path = manager_reference.split("'")[1] if "'" in manager_reference else manager_reference
+    manager_class = unreal.load_class(None, manager_path)
+    if not manager_class:
+        raise RuntimeError('项目设置中的数据表管理器无法加载。')
     manager = unreal.get_default_object(manager_class)
-    manager.set_editor_property('character_race_table', table)
-    manager_asset = unreal.EditorAssetLibrary.load_asset(manager_path)
-    unreal.BlueprintEditorLibrary.compile_blueprint(manager_asset)
-    if not unreal.EditorAssetLibrary.save_loaded_asset(manager_asset, only_if_is_dirty=False):
-        raise RuntimeError('数据表管理蓝图保存失败。')
-    saved_manager = unreal.get_default_object(unreal.EditorAssetLibrary.load_blueprint_class(manager_path))
-    if saved_manager.get_editor_property('character_race_table') != table:
-        raise RuntimeError('数据表管理器的种族表引用校验失败。')
-    result = {'table': table.get_path_name(), 'manager': manager_class.get_path_name(),
-              'rows': json.loads(unreal.DataTableFunctionLibrary.export_data_table_to_json_string(table))}
-    output = Path(unreal.Paths.project_dir()) / 'Output/种族配置_20261003/资产配置.json'
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
-    unreal.log('CHARACTER_RACE_SETUP_OK: ' + json.dumps(result, ensure_ascii=False))
+    table = manager.get_editor_property('character_race_table')
+    row_struct = unreal.load_object(None, '/Script/LxARPG.LxCharacterRaceConfig')
+    if not table or table.get_editor_property('row_struct') != row_struct:
+        raise RuntimeError('当前管理器没有绑定有效的角色种族表。')
+    before = unreal.DataTableFunctionLibrary.export_data_table_to_json_string(table)
+    rows = json.loads(before)
+    # 只为升级前已确认的两行分配标签，不根据可重复的种族或显示名推断身份。
+    legacy_ids = {'人类': '角色配置.人类女性', '人类测试': '角色配置.人类女性测试'}
+    changed = False
+    for row in rows:
+        current = row.get('CharacterConfigID', '')
+        if isinstance(current, dict):
+            current = current.get('TagName', '')
+        if current and current not in ('None', '(TagName="")', '(TagName="None")'):
+            continue
+        tag = legacy_ids.get(row['Name'])
+        if not tag:
+            raise RuntimeError('请先为该行配置唯一角色配置ID：' + row['Name'])
+        row['CharacterConfigID'] = {'TagName': tag}
+        changed = True
+    output = project / 'Output/种族标签迁移_20261007'
+    output.mkdir(parents=True, exist_ok=True)
+    if changed:
+        asset_file = project / 'Content' / (table.get_path_name().split('.')[0].removeprefix('/Game/') + '.uasset')
+        backup = output / '角色种族表_迁移前.uasset'
+        if not backup.exists():
+            shutil.copy2(asset_file, backup)
+            (output / '迁移前.json').write_text(before, encoding='utf-8')
+        if not unreal.DataTableFunctionLibrary.fill_data_table_from_json_string(table, json.dumps(rows, ensure_ascii=False)):
+            raise RuntimeError('角色配置标签导入失败，未保存。')
+    validation = manager.get_character_race_configs()
+    if validation is None:
+        raise RuntimeError('角色配置校验失败，未保存：' + unreal.DataTableFunctionLibrary.export_data_table_to_json_string(table))
+    if changed and not unreal.EditorAssetLibrary.save_loaded_asset(table, only_if_is_dirty=False):
+        raise RuntimeError('角色配置表保存失败。')
+    result = {'table': table.get_path_name(), 'changed': changed,
+              'rows': json.loads(unreal.DataTableFunctionLibrary.export_data_table_to_json_string(table)),
+              'validation': str(validation)}
+    (output / '迁移结果.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+    unreal.log('CHARACTER_CONFIG_TAG_MIGRATION_OK: ' + json.dumps(result, ensure_ascii=False))
+    return result
 
 
-configure_character_races()
+if __name__ == '__main__':
+    configure_character_races()

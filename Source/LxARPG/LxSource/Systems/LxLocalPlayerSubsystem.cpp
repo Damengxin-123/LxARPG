@@ -70,9 +70,13 @@ void ULxLocalPlayerSubsystem::SetPlayerControllerQuote(ALxPlayerController* InPl
 		m_pUIManager = nullptr;
 	}
 
-	if (!m_pUIManager && GameSettings && GameSettings->UIManagerClass)
+	if (!m_pUIManager && GameSettings && !GameSettings->UIManagerClass.IsNull())
 	{
-		m_pUIManager = CreateWidget<ULxUIManager>(m_pPlayerController, GameSettings->UIManagerClass);
+		// 玩家控制器就绪后再加载界面蓝图，避免配置读取触发过早的资产加载。
+		if (UClass* ManagerClass = GameSettings->UIManagerClass.LoadSynchronous())
+		{
+			m_pUIManager = CreateWidget<ULxUIManager>(m_pPlayerController, ManagerClass);
+		}
 		if (m_pUIManager)
 		{
 			m_pUIManager->RefreshUI();

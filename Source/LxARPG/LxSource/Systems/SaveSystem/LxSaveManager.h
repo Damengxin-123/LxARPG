@@ -5,6 +5,10 @@
 #include "UObject/Object.h"
 #include "LxSaveManager.generated.h"
 
+struct FLxWorldTimeSaveData;
+/** 存档数据可用或采集世界信息时触发的原生通知。 */
+DECLARE_MULTICAST_DELEGATE(FLxWorldSaveLifecycle);
+
 class ULevel;
 class ULxGameSaveData;
 class ULxSaveComponentBase;
@@ -20,6 +24,12 @@ class LXARPG_API ULxSaveManager : public UObject
 	GENERATED_BODY()
 
 public:
+	/** 首次读档或成功切档后通知世界系统恢复，失败回滚不会触发。 */
+	FLxWorldSaveLifecycle OnSaveDataReady;
+	/** 正式保存前采集全局世界信息，确保直接保存也包含时间。 */
+	FLxWorldSaveLifecycle OnCollectWorldInfo;
+	/** 缓存有效时间并标记脏数据，使只有时间变化的世界也能落盘。 */
+	bool CacheWorldTime(const FLxWorldTimeSaveData& InTime);
 	/** 为全新的管理器安装正式会话缓存；拒绝替换已经开始使用的缓存。 */
 	bool InitializeSession(const ULxGameSaveData* InData, FLxPersistSaveSession InWriter);
 

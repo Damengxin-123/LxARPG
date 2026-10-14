@@ -254,7 +254,7 @@ namespace LxUIThemeStylePrivate
 	{
 		FSlateBrush Brush = Image->GetBrush();
 		const UObject* Resource = Brush.GetResourceObject();
-		if (!Resource || !Resource->GetPathName().Contains(TEXT("/资源/背景图像/"))) return false;
+		if (!Resource || !Resource->GetPathName().Contains(TEXT("/美术资产/图像/背景/"))) return false;
 		FLinearColor Tint = Brush.TintColor.GetSpecifiedColor();
 		if (Tint.A <= 0.12f) return false;
 		Tint.A = 0.12f;

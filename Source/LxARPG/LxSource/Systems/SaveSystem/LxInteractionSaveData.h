@@ -6,7 +6,7 @@
 #include "LxARPG/LxSource/Model/Interaction/DataType/LxInteractionEnum.h"
 #include "LxInteractionSaveData.generated.h"
 
-/** 地图容器中的预设物品，只保存所在槽位、物品标识和数量。 */
+/** 地图容器的物品记录；装备实例状态随所属容器保存，普通物品仍按预设重建。 */
 USTRUCT(BlueprintType, meta=(DisplayName="交互物品存档"))
 struct LXARPG_API FLxInteractionItemSaveRecord
 {
@@ -23,6 +23,18 @@ struct LXARPG_API FLxInteractionItemSaveRecord
 	/** 当前数量；空槽和售罄商品均使用零。 */
 	UPROPERTY(SaveGame, BlueprintReadOnly, Category="存档|交互物品", DisplayName="物品数量")
 	int32 ItemCount = 0;
+
+    /** 装备的稳定实例身份，转入角色背包时继续沿用。 */
+    UPROPERTY(SaveGame, BlueprintReadOnly, Category="存档|交互物品", DisplayName="装备实例ID")
+    FGuid EquipmentInstanceID;
+
+    /** 区分旧版预设物品与已经强化或锻造过的装备记录。 */
+    UPROPERTY(SaveGame, BlueprintReadOnly, Category="存档|交互物品", DisplayName="包含装备状态")
+    bool bHasEquipmentState = false;
+
+    /** 装备ID、强化度和动态普通词条，固定词条从静态配置恢复。 */
+    UPROPERTY(SaveGame, BlueprintReadOnly, Category="存档|交互物品", DisplayName="装备状态")
+    FLxEquipmentSaveRecord Equipment;
 };
 
 /** 单个交互功能节点的持久状态，不保存资产配置、界面或运行时对象引用。 */
@@ -31,7 +43,7 @@ struct LXARPG_API FLxInteractionFeatureSaveRecord
 {
 	GENERATED_BODY()
 
-	/** 零为旧完整槽位格式，一为仅保存预设物品标识和数量的格式。 */
+	/** 零为旧完整槽位格式，一为容器物品记录，装备额外保存独立实例状态。 */
 	UPROPERTY(SaveGame, BlueprintReadOnly, Category="存档|交互", DisplayName="交互数据版本")
 	int32 DataVersion = 0;
 

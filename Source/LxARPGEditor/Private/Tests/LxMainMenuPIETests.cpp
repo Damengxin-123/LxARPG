@@ -20,6 +20,9 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/CommandLine.h"
 #include "Tests/AutomationEditorCommon.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "InputKeyEventArgs.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "LxARPG/LxSource/Systems/GameMode/LxARPGGameMode.h"
 #include "LxARPG/LxSource/Systems/LxGameInstanceSubsystem.h"
@@ -107,6 +110,61 @@ private:
 	bool bEnteringGameplay = false;
 	/** 进入游戏前的 PIE 世界，验证过程中禁止更换。 */
 	TWeakObjectPtr<UWorld> MenuWorld;
+};
+
+/** 在独立测试存档中通过真实按键输入验证整理后的角色模型、动画和移动链路。 */
+class FLxPlayerMovementPIECommand : public IAutomationLatentCommand
+{
+public:
+	/** 保存自动化测试上下文。 */
+	explicit FLxPlayerMovementPIECommand(FAutomationTestBase* InTest) : Test(InTest) {}
+	/** 等待落地后按住 W，并检查水平位移，避免把掉落误判为移动成功。 */
+	virtual bool Update() override
+	{
+		if (!FParse::Param(FCommandLine::Get(), TEXT("LxMovementSmoke"))) return true;
+		UWorld* World = GEditor ? GEditor->PlayWorld.Get() : nullptr;
+		APlayerController* Controller = World ? World->GetFirstPlayerController() : nullptr;
+		ALxPlayerCharacter* Player = Controller ? Cast<ALxPlayerCharacter>(Controller->GetPawn()) : nullptr;
+		if (!Player) { Test->AddError(TEXT("移动验证没有受控玩家。")); return true; }
+		if (StartedAt == 0) StartedAt = FPlatformTime::Seconds();
+		if (!bPressed)
+		{
+			if (!Player->GetCharacterMovement()->IsMovingOnGround())
+			{
+				if (FPlatformTime::Seconds() - StartedAt < 15) return false;
+				Test->AddError(TEXT("角色未能落到测试地面。")); return true;
+			}
+			Test->TestNotNull(TEXT("角色骨骼网格体可加载"), Player->GetMesh()->GetSkeletalMeshAsset());
+			Test->TestNotNull(TEXT("角色动画实例已创建"), Player->GetMesh()->GetAnimInstance());
+			StartLocation = Player->GetActorLocation();
+			StartedAt = FPlatformTime::Seconds();
+			FInputKeyEventArgs Key;
+			Key.Key = EKeys::W;
+			Key.Event = IE_Pressed;
+			Key.AmountDepressed = 1.f;
+			Controller->InputKey(Key);
+			bPressed = true;
+			return false;
+		}
+		if (FPlatformTime::Seconds() - StartedAt < 2) return false;
+		FInputKeyEventArgs Key;
+		Key.Key = EKeys::W;
+		Key.Event = IE_Released;
+		Controller->InputKey(Key);
+		const double Distance = FVector::Dist2D(StartLocation, Player->GetActorLocation());
+		Test->TestTrue(TEXT("W 键经过输入绑定驱动角色移动超过 50 厘米"), Distance > 50.0);
+		Test->AddInfo(FString::Printf(TEXT("角色移动验证：水平位移 %.1f 厘米。"), Distance));
+		return true;
+	}
+private:
+	/** 自动化结果接收者。 */
+	FAutomationTestBase* Test;
+	/** 当前阶段起始时间，用于落地超时和按键持续时间。 */
+	double StartedAt = 0;
+	/** 开始移动时的位置。 */
+	FVector StartLocation = FVector::ZeroVector;
+	/** 是否已经按下移动键。 */
+	bool bPressed = false;
 };
 
 /** 在真实游戏世界验证 Esc、冻结、角色界面屏蔽及保存失败保护。 */
@@ -303,13 +361,10 @@ bool FLxMainMenuPIETest::RunTest(const FString& Parameters)
 		AddError(TEXT("PIE 流程测试需要编辑器且当前不能已有运行会话。"));
 		return false;
 	}
-	// 仅匹配总关卡已有的这一对水体笔刷与地形跨层引用，不属于主菜单流程回归；本测试不修改地图资产。
-	// 次数为零允许该已知错误重复出现，使用纯文本避免对象路径被解释为正则表达式。
-	AddExpectedError(TEXT("Actor /Game/项目内容/关卡/总关卡.城镇-地形_WaterBrushManager 引用另一组运行时数据层中的一个Actor /Game/项目内容/关卡/总关卡.城镇-地形"),
-		EAutomationExpectedErrorFlags::Contains, 0, false);
 	FAutomationEditorCommonUtils::LoadMap(GetDefault<ULxMainMenuSettings>()->DefaultLevel.ToSoftObjectPath().GetLongPackageName());
 	ADD_LATENT_AUTOMATION_COMMAND(FStartPIECommand(false));
 	ADD_LATENT_AUTOMATION_COMMAND(FLxMainMenuPIEFlowCommand(this));
+	ADD_LATENT_AUTOMATION_COMMAND(FLxPlayerMovementPIECommand(this));
 	ADD_LATENT_AUTOMATION_COMMAND(FLxPauseMenuPIECommand(this));
 	if (FParse::Param(FCommandLine::Get(), TEXT("LxMenuQuitTest")))
 	{

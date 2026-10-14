@@ -69,5 +69,6 @@ void ULxUIManagementObject::SetWidgetVisibility(ULxUIBaseObject* InWidget, bool 
 	if (InWidget)
 	{
 		InWidget->SetVisibility(bInVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		if (bInVisible && OwningUIManager) OwningUIManager->ActivateRoleWindow(InWidget);
 	}
 }

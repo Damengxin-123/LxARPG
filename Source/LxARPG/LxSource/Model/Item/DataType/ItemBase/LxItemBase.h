@@ -19,6 +19,9 @@ class UTexture2D;
  */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnItemCountChanged, ULxItemBase*);
 
+/** 物品实际使用成功并要求激活词条时触发，与普通数量变化分开。 */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxItemUseSucceeded, ULxItemBase*);
+
 /**
  * 运行时物品词条信息。
  *
@@ -53,9 +56,13 @@ public:
 	/** 物品数量改变时触发。 */
 	FOnItemCountChanged OnItemCountChanged;
 
+	/** 实际使用成功事件；移动、拆分和堆叠不会触发。 */
+	FOnLxItemUseSucceeded OnItemUseSucceeded;
+
+	/** 创建单堆物品；数量超出0～9999或本物品堆叠上限时返回空对象。 */
 	static ULxItemBase* CreateItemObject(UObject* InParent, FLxItemQuote InItemQuote);
 
-	/** 使用物品引用初始化运行时物品对象。 */
+	/** 使用单堆物品引用初始化；非法数量保留当前实例的数量与词条。 */
 	void InitItemObject(const FLxItemQuote& InItemQuote);
 
 	/** 当前物品是否还可以和同ID物品堆叠。 */
@@ -85,6 +92,12 @@ public:
 	/** 获取当前物品数量。 */
 	FLxItemCount ItemCount();
 
+	/** 检查数量是否在0～9999及本物品堆叠上限内；允许零以表示实例已经耗尽。 */
+	bool CanSetItemCountSafely(int32 InCount);
+
+	/** 只改变实例数量并保留词条和装备状态，可在批量操作中暂缓通知。 */
+	bool SetItemCountSafely(int32 InCount, bool bBroadcast = true);
+
 	/** 尝试把传入物品堆叠到当前物品上。 */
 	bool ItemStack(ULxItemBase* InItem);
 
@@ -104,13 +117,17 @@ public:
 	void InitItemEntry();
 
 	/** 从存档替换实例词条，先校验全部引用再更新，不执行词条效果。 */
-	bool RestoreItemEntries(const TArray<FLxItemEntryConfig>& InEntries);
+	virtual bool RestoreItemEntries(const TArray<FLxItemEntryConfig>& InEntries);
 
 	/** 获取物品词条对象列表。 */
 	TArray<TObjectPtr<ULxEntryObjectBase>>& GetItemEntryList();
 
 	/** 获取带有逻辑类型的运行时物品词条信息列表。 */
 	const TArray<FLxItemEntryRuntimeInfo>& GetItemEntryRuntimeInfoList() const;
+
+	/** 获取生成词条显示文本及实际效果包时使用的倍率；原始词条缓存保持不变。 */
+	UFUNCTION(BlueprintPure, Category="物品|词条", DisplayName="获取物品词条效果倍率")
+	float GetItemEntryEffectMultiplier() const { return GetEntryEffectMultiplier(); }
 
 	void BroadcastItemCountChanged();
 
@@ -127,6 +144,9 @@ public:
 	virtual ELxItemUseState ItemUseEnd();
 
 protected:
+    /** 物品的统一词条效果倍率，装备使用强化增益，其他物品保持1。 */
+    virtual float GetEntryEffectMultiplier() const { return 1.f; }
+
 	/** 广播物品数量改变事件，只有新旧数量不一致时才会真正通知。 */
 	/** 设置物品静态数据和运行时数量。 */
 	virtual void SetItemData(const FLxItemInformationBase* InItemData, FLxItemCount InItemCount);

@@ -8,6 +8,7 @@
 #include "StaticDataSystem/LxGlobalStaticDataManager.h"
 #include "NavigationSystem/LxAINavigationRegistry.h"
 #include "SaveSystem/LxSaveManager.h"
+#include "WorldInfo/LxWorldInfoManager.h"
 #include "Engine/World.h"
 
 ULxGameInstanceSubsystem* ULxGameInstanceSubsystem::GetInstance(const UWorld* InWorldPtr)
@@ -33,6 +34,8 @@ void ULxGameInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	SaveManager = NewObject<ULxSaveManager>(this, TEXT("存档管理模块"));
 	const ULxGameSettings* Settings = GetDefault<ULxGameSettings>();
 	SaveManager->Initialize(Settings->SaveSlotName, Settings->SaveUserIndex);
+	WorldInfoManager = NewObject<ULxWorldInfoManager>(this, TEXT("游戏世界信息管理器"));
+	WorldInfoManager->Initialize(SaveManager);
 	WorldTearDownHandle = FWorldDelegates::OnWorldBeginTearDown.AddUObject(this, &ThisClass::HandleWorldBeginTearDown);
 	LevelRemovedHandle = FWorldDelegates::PreLevelRemovedFromWorld.AddUObject(this, &ThisClass::HandleLevelRemovedFromWorld);
 	RequestLoadSave();
@@ -43,6 +46,11 @@ void ULxGameInstanceSubsystem::Deinitialize()
 	FWorldDelegates::OnWorldBeginTearDown.Remove(WorldTearDownHandle);
 	FWorldDelegates::PreLevelRemovedFromWorld.Remove(LevelRemovedHandle);
 	PerformSave(true);
+	if (WorldInfoManager)
+	{
+		WorldInfoManager->Deinitialize();
+		WorldInfoManager = nullptr;
+	}
 	SaveManager = nullptr;
 	if (AINavigationRegistry)
 	{
@@ -122,6 +130,7 @@ void ULxGameInstanceSubsystem::SetSessionSaveManager(ULxSaveManager* InManager)
 	if (InManager && !bSaveOperationInProgress)
 	{
 		SaveManager = InManager;
+		if (WorldInfoManager) WorldInfoManager->Initialize(InManager);
 	}
 }
 
@@ -141,9 +150,10 @@ void ULxGameInstanceSubsystem::LoadDataTables()
 	// 创建表格管理器 GameDataTablesManagerObject
 	if (const ULxGameSettings* Settings = GetDefault<ULxGameSettings>())
 	{
-		if (Settings->GameDataTablesManagerClass)
+		// 游戏实例创建时引擎模块已就绪，此时再加载表格蓝图及其玩法资产。
+		if (UClass* ManagerClass = Settings->GameDataTablesManagerClass.LoadSynchronous())
 		{
-			m_vGameDataManager = NewObject<ULxGameDataTablesManager>(this, Settings->GameDataTablesManagerClass);
+			m_vGameDataManager = NewObject<ULxGameDataTablesManager>(this, ManagerClass);
 		}
 		else
 		{

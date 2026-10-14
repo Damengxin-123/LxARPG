@@ -30,7 +30,17 @@ public:
 	/** 在本地交互UI管理器成功创建页面后才进入交互中状态。 */
 	virtual bool ExecuteInteraction_Implementation(ULxPlayerInteractionModule* PlayerInteractionComponent) override;
 
+    /** 查询本功能是否提供装备强化与锻造。 */
+    UFUNCTION(BlueprintPure, Category="交互|装备打造", DisplayName="是否装备打造页面")
+    bool IsEquipmentCraftingPage() const { return FunctionPageID == ELxFunctionPageID::EquipmentEnhancement; }
+    /** 获取NPC当前配置的打造倍率。 */
+    UFUNCTION(BlueprintPure, Category="交互|装备打造", DisplayName="获取装备打造加成")
+    FLxEquipmentCraftService GetCraftService() const { return CraftService; }
+
 private:
+    /** 每个NPC功能节点拥有自己的倍率，1表示无加成。 */
+    UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category="交互|装备打造", DisplayName="装备打造加成", meta=(AllowPrivateAccess="true"))
+    FLxEquipmentCraftService CraftService;
 	/** 由资产指定的功能页面类，每次交互创建独立界面实例。 */
 	UPROPERTY(Transient, VisibleInstanceOnly, BlueprintReadOnly, Category="交互|功能界面", DisplayName="功能页面类", meta=(AllowPrivateAccess="true"))
 	TSubclassOf<ULxUIBaseObject> PageWidgetClass;

@@ -1,4 +1,5 @@
 #include "LxItemSaveData.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipment.h"
 
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
@@ -19,7 +20,19 @@ bool LxItemSaveData::CaptureItem(ULxItemBase* InItem, FLxItemSaveRecord& OutReco
 	}
 	Record.ItemIDTag = InItem->ItemIDTag();
 	Record.ItemCount = InItem->ItemCount();
-	TSet<ULxEntryObjectBase*> CapturedEntries;
+    if (ULxEquipment* Equipment = Cast<ULxEquipment>(InItem))
+    {
+        Record.EquipmentInstanceID = Equipment->GetInstanceID();
+        Record.bHasEquipmentState = true;
+        Record.Equipment = Equipment->CaptureEquipmentState();
+        if (!Record.EquipmentInstanceID.IsValid() || Record.ItemCount != 1
+            || !FMath::IsFinite(Record.Equipment.Enhancement) || Record.Equipment.Enhancement < 0.f
+            || Record.Equipment.NormalEntries.Num() > ULxEquipment::MaxNormalEntries) return false;
+        for (ULxEntryObjectBase* Entry : InItem->GetItemEntryList()) if (!IsValid(Entry)) return false;
+        OutRecord = MoveTemp(Record);
+        return true;
+    }
+    TSet<ULxEntryObjectBase*> CapturedEntries;
 	for (ULxEntryObjectBase* Entry : InItem->GetItemEntryList())
 	{
 		if (!IsValid(Entry) || CapturedEntries.Contains(Entry))
@@ -43,13 +56,22 @@ bool LxItemSaveData::CaptureItem(ULxItemBase* InItem, FLxItemSaveRecord& OutReco
 
 ULxItemBase* LxItemSaveData::CreateItem(UObject* InOuter, const FLxItemSaveRecord& InRecord)
 {
-	if (!InOuter || !InRecord.ItemIDTag.IsValid() || InRecord.ItemCount <= 0)
+	if (!InOuter || !InRecord.ItemIDTag.IsValid() || InRecord.ItemCount <= 0
+		|| !LxItemQuantity::IsInRange(InRecord.ItemCount))
 	{
 		return nullptr;
 	}
 	ULxItemBase* Item = ULxItemBase::CreateItemObject(InOuter, FLxItemQuote(InRecord.ItemIDTag, InRecord.ItemCount));
-	if (!Item || !Item->ItemIsValid() || Item->ItemCount() != InRecord.ItemCount
-		|| !Item->RestoreItemEntries(InRecord.Entries))
+	if (!Item || !Item->ItemIsValid() || Item->ItemCount() != InRecord.ItemCount) return nullptr;
+    if (ULxEquipment* Equipment = Cast<ULxEquipment>(Item))
+    {
+        const bool bRestored = InRecord.bHasEquipmentState
+            ? (InRecord.Entries.IsEmpty() && Equipment->RestoreEquipmentState(InRecord.Equipment, InRecord.EquipmentInstanceID))
+            : Equipment->RestoreItemEntries(InRecord.Entries);
+        return bRestored ? Item : nullptr;
+    }
+    if (InRecord.bHasEquipmentState || InRecord.EquipmentInstanceID.IsValid()
+        || !Item->RestoreItemEntries(InRecord.Entries))
 	{
 		return nullptr;
 	}
@@ -106,7 +128,8 @@ bool LxItemSaveData::RestoreSlots(UObject* InOuter, const TArray<FLxItemSlotSave
 				return false;
 			}
 		}
-		else if (Record.Item.ItemCount != 0 || !Record.Item.Entries.IsEmpty())
+		else if (Record.Item.ItemCount != 0 || !Record.Item.Entries.IsEmpty()
+            || Record.Item.bHasEquipmentState || Record.Item.EquipmentInstanceID.IsValid())
 		{
 			return false;
 		}

@@ -42,7 +42,11 @@ namespace LxItemConfig
 	{
 		if (IsValidItemConfig(InItemData))
 		{
-			GConsumableItemMap.Add(InItemData.ItemIDTag, InItemData);
+			// 编辑器元数据不会修复旧表格，配置缓存还需约束实际堆叠上限和数量。
+			FLxConsumableInformation NormalizedItemData = InItemData;
+			NormalizedItemData.ItemCountMax = LxItemQuantity::Clamp(InItemData.ItemCountMax);
+			NormalizedItemData.ItemCount = FMath::Clamp(InItemData.ItemCount, 0, NormalizedItemData.ItemCountMax);
+			GConsumableItemMap.Add(InItemData.ItemIDTag, MoveTemp(NormalizedItemData));
 		}
 	}
 
@@ -50,7 +54,11 @@ namespace LxItemConfig
 	{
 		if (IsValidItemConfig(InItemData))
 		{
-			GMaterialItemMap.Add(InItemData.ItemIDTag, InItemData);
+			// 材料与货币的旧配置同样遵守单堆0～9999范围，数量不能超过本物品上限。
+			FLxMaterialInformation NormalizedItemData = InItemData;
+			NormalizedItemData.ItemCountMax = LxItemQuantity::Clamp(InItemData.ItemCountMax);
+			NormalizedItemData.ItemCount = FMath::Clamp(InItemData.ItemCount, 0, NormalizedItemData.ItemCountMax);
+			GMaterialItemMap.Add(InItemData.ItemIDTag, MoveTemp(NormalizedItemData));
 		}
 	}
 

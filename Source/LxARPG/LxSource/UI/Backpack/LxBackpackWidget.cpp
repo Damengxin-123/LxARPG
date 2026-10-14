@@ -1,8 +1,14 @@
 #include "LxBackpackWidget.h"
+#include "LxARPG/LxSource/UI/ItemOperations/LxItemOperationUIRouter.h"
+#include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
+#include "GameFramework/PlayerController.h"
 
 #include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxSafeItemOperations.h"
+#include "LxARPG/LxSource/Model/Interaction/Logic/LxTradeContainerInteractionComponent.h"
+#include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemGridWidget.h"
 #include "LxARPG/LxSource/UI/ItemGrid/LxItemUIData.h"
 
@@ -11,6 +17,64 @@ void ULxBackpackWidget::UpdateUIComponents(ULxCharacterDataTransferComponent* Ch
 	BindDataTransferComponent(CharacterDataTransferComponent);
 	Super::UpdateUIComponents(CharacterDataTransferComponent);
 	UpdatedBackpack();
+}
+
+bool ULxBackpackWidget::GetQuickItemContainer_Implementation(FLxItemContainerAddress& OutContainer) const
+{
+	if (!IsVisible() || !GetIsEnabled() || !m_pCharacterDataTransferComponent || !GetOwningPlayer()
+		|| m_pCharacterDataTransferComponent->GetOwner() != GetOwningPlayer()->GetPawn()) return false;
+	OutContainer = FLxItemContainerAddress();
+	OutContainer.Kind = ELxItemContainerKind::Backpack;
+	OutContainer.Owner = m_pCharacterDataTransferComponent->GetOwner();
+	return true;
+}
+
+ULxItemTransferTicket* ULxBackpackWidget::PrepareQuickItemTransfer_Implementation(ULxItemSlotData* SourceSlot, FText& OutReason)
+{
+	FLxItemContainerAddress Address;
+	if (!GetQuickItemContainer_Implementation(Address))
+	{
+		OutReason = NSLOCTEXT("LxItemOperations", "BackpackWindowInvalid", "背包窗口已失效");
+		return nullptr;
+	}
+	return m_pCharacterDataTransferComponent->BeginSafeBackpackExtract(SourceSlot, OutReason);
+}
+
+bool ULxBackpackWidget::CanReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket, FText& OutReason) const
+{
+	FLxItemContainerAddress Address;
+	if (!GetQuickItemContainer_Implementation(Address))
+	{
+		OutReason = NSLOCTEXT("LxItemOperations", "BackpackWindowInvalid", "背包窗口已失效");
+		return false;
+	}
+    if (Ticket && Ticket->SourceSlot && Ticket->SourceSlot->GetSlotType() == ELxItemSlotType::Transaction)
+    {
+        // 商品进入背包必须经过交易模块的价格与容量规划，界面不直接搬运商品或扣除金币。
+        ULxTradeContainerInteractionComponent* Trade = Ticket->SourceSlot->GetTypedOuter<ULxTradeContainerInteractionComponent>();
+        ALxBaseCharacter* Character = Cast<ALxBaseCharacter>(Address.Owner);
+        if (!Ticket->IsCompleted() && Trade && Character
+            && LxSafeItemOperations::MatchesExpectedRecord(Ticket->SourceSlot, Ticket->ExpectedItem))
+            return Trade->CanBuyTradeItem(Character->GetCharacterBackpackComponent(), Ticket->SourceSlot->GetSlotIndex(), OutReason);
+        OutReason = NSLOCTEXT("LxItemOperations", "TradeSourceChanged", "商品已变化，请刷新交易界面后重试");
+        return false;
+    }
+    return m_pCharacterDataTransferComponent->CanAcceptSafeBackpackItem(Ticket, OutReason);
+}
+
+bool ULxBackpackWidget::ReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket,
+	const FLxItemOperationRequest& Request, ULxUIBaseObject* SourceWindow, FText& OutReason)
+{
+	FLxItemOperationRequest Received = Request;
+	if (!GetQuickItemContainer_Implementation(Received.Target)) return false;
+	ULxUIManager* Layout = GetOwningUIManager();
+	return Layout && Layout->GetItemOperationRouter()->SubmitOperation(Received, Ticket, SourceWindow, OutReason);
+}
+
+void ULxBackpackWidget::NotifyQuickItemOperationResult_Implementation(const FLxItemOperationResult& Result)
+{
+	LastItemOperationResult = Result;
+	OnItemOperationCompleted(Result);
 }
 
 void ULxBackpackWidget::NativeDestruct()
@@ -57,6 +121,7 @@ TArray<UObject*> ULxBackpackWidget::GetItemUIDataList()
 	{
 		ULxItemUIData* ItemUIData = NewObject<ULxItemUIData>(this);
 		ItemUIData->m_pSlotData = ItemSlot;
+		ItemUIData->ItemOwnerWindow = this;
 		ItemUIDataList.Add(ItemUIData);
 	}
 	return ItemUIDataList;
@@ -71,6 +136,7 @@ TArray<UObject*> ULxBackpackWidget::GetEquipmentUIDataList()
 	{
 		ULxItemUIData* EquipmentUIData = NewObject<ULxItemUIData>(this);
 		EquipmentUIData->m_pSlotData = EquipmentSlot;
+		EquipmentUIData->ItemOwnerWindow = this;
 		EquipmentUIDataList.Add(EquipmentUIData);
 	}
 	return EquipmentUIDataList;
@@ -92,6 +158,7 @@ bool ULxBackpackWidget::BindEquipmentSlotToItemGrid(ULxItemGridWidget* ItemGridW
 		}
 
 		ItemGridWidget->SetItemSlotData(SlotData);
+		ItemGridWidget->SetItemOwnerWindow(this);
 		ItemGridWidget->SetVisibility(ESlateVisibility::Visible);
 		PendingEquipmentSlotBindingList.RemoveAt(SlotIndex);
 		return true;

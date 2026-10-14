@@ -10,6 +10,10 @@
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Controllers/LxPlayerController.h"
 #include "Net/UnrealNetwork.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Equipment/LxEquipment.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxSafeItemOperations.h"
+#include "UObject/StrongObjectPtr.h"
 
 namespace
 {
@@ -24,6 +28,282 @@ namespace
 	{
 		const ALxBaseCharacter* OwnerCharacter = DataTransferComponent ? Cast<ALxBaseCharacter>(DataTransferComponent->GetOwner()) : nullptr;
 		return OwnerCharacter ? Cast<ALxPlayerController>(OwnerCharacter->GetController()) : nullptr;
+	}
+
+	/** 单个真实槽位的交易前后状态；所有创建和容量验证先于数据写入。 */
+	struct FTradeSlotState
+	{
+		/** 保持槽位及其原实例存活，通知回调触发回收也不影响提交。 */
+		TStrongObjectPtr<ULxItemSlotData> Slot;
+		/** 保留交易前完整对象，失败时从未移除该引用。 */
+		TStrongObjectPtr<ULxItemBase> OriginalItem;
+		/** 交易完成后该槽位持有的原实例或预先创建的完整实例。 */
+		TStrongObjectPtr<ULxItemBase> FinalItem;
+		/** 来源的完整属性快照，用于最终检查。 */
+		FLxItemSaveRecord OriginalRecord;
+		/** 提交时写入的最终堆叠数量。 */
+		int32 FinalCount = 0;
+	};
+
+	/** 商品、金币和背包槽位共同组成的全量交易计划。 */
+	struct FAtomicTradePlan
+	{
+		/** 真实背包模块；负责最终的一次批量刷新。 */
+		ULxCharacterBackpackModule* Backpack = nullptr;
+		/** 商城所属的事务锁对象。 */
+		ULxTradeContainerInteractionComponent* Trade = nullptr;
+		/** 所有背包槽位和本次商品槽位的完整最终状态。 */
+		TArray<FTradeSlotState> States;
+		/** 需要从商城迁移到背包的有限库存原实例。 */
+		ULxItemBase* MigratingItem = nullptr;
+
+		/** 采集真实槽位，拒绝忙碌容器、错误格子和重复对象引用。 */
+		bool Initialize(ULxTradeContainerInteractionComponent* InTrade, ULxCharacterBackpackModule* InBackpack, bool bReadOnly = false)
+		{
+			Trade = InTrade;
+			Backpack = InBackpack;
+			if (!Trade || !Backpack || (!bReadOnly && (LxSafeItemOperations::IsContainerBusy(Trade)
+				|| LxSafeItemOperations::IsContainerBusy(Backpack)))) return false;
+			TSet<ULxItemSlotData*> Slots;
+			TSet<ULxItemBase*> Items;
+			for (ULxItemSlotData* Slot : Backpack->GetAllItems())
+			{
+				if (!Slot || Slot->GetSlotType() != ELxItemSlotType::Backpack
+					|| Slot->GetTypedOuter<ULxCharacterBackpackModule>() != Backpack || Slots.Contains(Slot)
+					|| (!bReadOnly && LxSafeItemOperations::IsSlotBusy(Slot))) return false;
+				Slots.Add(Slot);
+				ULxItemBase* Item = Slot->GetItem();
+				if (Item && (!Item->ItemIsValid() || Items.Contains(Item))) return false;
+				if (Item) Items.Add(Item);
+				FTradeSlotState& State = States.AddDefaulted_GetRef();
+				State.Slot.Reset(Slot);
+				State.OriginalItem.Reset(Item);
+				State.FinalItem.Reset(Item);
+				State.FinalCount = Item ? Item->ItemCount() : 0;
+				if (!LxItemSaveData::CaptureItem(Item, State.OriginalRecord)) return false;
+			}
+			return !States.IsEmpty();
+		}
+
+		/** 从虚拟金币余额中扣款，不修改真实金币对象。 */
+		bool RemoveCurrency(FGameplayTag CurrencyID, int32 Count)
+		{
+			if (Count <= 0) return true;
+			if (!CurrencyID.IsValid()) return false;
+			int64 Available = 0;
+			for (const FTradeSlotState& State : States)
+				if (State.FinalItem && State.FinalItem->ItemIDTag() == CurrencyID) Available += State.FinalCount;
+			if (Available < Count) return false;
+			int32 Remaining = Count;
+			for (FTradeSlotState& State : States)
+			{
+				if (!State.FinalItem || State.FinalItem->ItemIDTag() != CurrencyID) continue;
+				const int32 Removed = FMath::Min(Remaining, State.FinalCount);
+				if (Removed > 0 && !State.Slot->ItemIsLeave()) return false;
+				State.FinalCount -= Removed;
+				Remaining -= Removed;
+				if (State.FinalCount == 0) State.FinalItem.Reset();
+				if (Remaining == 0) break;
+			}
+			return Remaining == 0;
+		}
+
+		/** 仅允许完整属性相同的普通物品合并，装备始终保持独立身份。 */
+		bool CanMerge(const FLxItemSaveRecord& Record, const FTradeSlotState& State) const
+		{
+			if (!State.FinalItem || State.FinalItem->ItemType() == ELxItemType::Equipment) return false;
+			FLxItemSaveRecord Existing;
+			if (!LxItemSaveData::CaptureItem(State.FinalItem.Get(), Existing)) return false;
+			FLxItemSaveRecord Comparable = Record;
+			Comparable.ItemCount = Existing.ItemCount;
+			return FLxItemSaveRecord::StaticStruct()->CompareScriptStruct(&Existing, &Comparable, 0);
+		}
+
+		/** 先合并同属性堆叠，再预先构建所有新增实例，容量不足时丢弃计划。 */
+		bool AddRecord(const FLxItemSaveRecord& Record, ULxItemBase* Original = nullptr, ULxItemSlotData* OnlySlot = nullptr)
+		{
+			ULxItemBase* Prototype = Original;
+			TStrongObjectPtr<ULxItemBase> CreatedPrototype;
+			if (!Prototype)
+			{
+				FLxItemSaveRecord Single = Record;
+				Single.ItemCount = 1;
+				CreatedPrototype.Reset(LxItemSaveData::CreateItem(Backpack, Single));
+				Prototype = CreatedPrototype.Get();
+			}
+			if (!LxSafeItemOperations::IsSupportedItem(Prototype) || Record.ItemCount <= 0) return false;
+			const int32 Maximum = Prototype->ItemType() == ELxItemType::Equipment ? 1 : Prototype->ItemInformation().ItemCountMax;
+			if (Maximum <= 0 || (Prototype->ItemType() == ELxItemType::Equipment && Record.ItemCount != 1)) return false;
+			int32 Remaining = Record.ItemCount;
+			for (FTradeSlotState& State : States)
+			{
+				if (OnlySlot && State.Slot.Get() != OnlySlot) continue;
+				if (State.Slot->GetSlotType() != ELxItemSlotType::Backpack || !State.Slot->ItemIsEnter()
+					|| !Record.ItemIDTag.MatchesTag(State.Slot->GetItemTypeTag()) || !CanMerge(Record, State)) continue;
+				const int32 Added = FMath::Min(Remaining, FMath::Max(0, Maximum - State.FinalCount));
+				State.FinalCount += Added;
+				Remaining -= Added;
+				if (Remaining == 0) return true;
+			}
+			for (FTradeSlotState& State : States)
+			{
+				if (OnlySlot && State.Slot.Get() != OnlySlot) continue;
+				if (State.Slot->GetSlotType() != ELxItemSlotType::Backpack || State.FinalItem
+					|| !State.Slot->ItemIsEnter() || !Record.ItemIDTag.MatchesTag(State.Slot->GetItemTypeTag())) continue;
+				const int32 Added = FMath::Min(Remaining, Maximum);
+				if (Original)
+				{
+					State.FinalItem.Reset(Original);
+					Original = nullptr;
+				}
+				else
+				{
+					FLxItemSaveRecord NewRecord = Record;
+					NewRecord.ItemCount = Added;
+					State.FinalItem.Reset(LxItemSaveData::CreateItem(Backpack, NewRecord));
+					if (!State.FinalItem || !State.FinalItem->CanSetItemCountSafely(Added)) return false;
+				}
+				State.FinalCount = Added;
+				Remaining -= Added;
+				if (Remaining == 0) return true;
+			}
+			return false;
+		}
+
+		/** 校验原槽位仍为规划时的完整状态，随后统一写入并发布最终状态。 */
+		bool Commit()
+		{
+			TArray<UObject*> Containers = {Trade, Backpack};
+			/** 通知回调可以触发回收，因此锁住的容器也持有强引用直到通知结束。 */
+			TArray<TStrongObjectPtr<UObject>> ProtectedContainers;
+			/** 保留最终容器中的实例，移除的金币和售出物品才需要归零。 */
+			TSet<ULxItemBase*> RetainedItems;
+			for (const FTradeSlotState& State : States) if (State.FinalItem) RetainedItems.Add(State.FinalItem.Get());
+			for (const FTradeSlotState& State : States)
+			{
+				FLxItemSaveRecord CurrentRecord;
+				if (State.Slot->GetItem() != State.OriginalItem.Get()
+					|| !LxItemSaveData::CaptureItem(State.Slot->GetItem(), CurrentRecord)
+					|| !FLxItemSaveRecord::StaticStruct()->CompareScriptStruct(&CurrentRecord, &State.OriginalRecord, 0)
+					|| (State.FinalItem && !State.FinalItem->CanSetItemCountSafely(State.FinalCount))
+					|| (State.OriginalItem && !RetainedItems.Contains(State.OriginalItem.Get())
+						&& !State.OriginalItem->CanSetItemCountSafely(0))) return false;
+				Containers.AddUnique(State.Slot->GetOuter());
+				if (State.OriginalItem) Containers.AddUnique(State.OriginalItem->GetOuter());
+			}
+			for (UObject* Container : Containers) ProtectedContainers.Emplace(Container);
+			if (!LxSafeItemOperations::AcquireContainerOperationLocks(Containers)) return false;
+			/** 无论提前失败还是通知结束，都释放金币与物品共用的容器锁。 */
+			struct FUnlock
+			{
+				/** 当前交易持有的全部容器。 */
+				TArray<UObject*>& Containers;
+				/** 释放本作用域持有的锁。 */
+				~FUnlock() { LxSafeItemOperations::ReleaseContainerOperationLocks(Containers); }
+			} Unlock{Containers};
+			if (MigratingItem)
+			{
+				bool bPlacedOriginal = false;
+				for (const FTradeSlotState& State : States)
+					bPlacedOriginal |= State.Slot->GetSlotType() == ELxItemSlotType::Backpack && State.FinalItem.Get() == MigratingItem;
+				if (bPlacedOriginal && MigratingItem->GetOuter() != Backpack)
+				{
+					constexpr ERenameFlags Flags = REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty;
+					if (!MigratingItem->Rename(nullptr, Backpack, Flags | REN_Test)
+						|| !MigratingItem->Rename(nullptr, Backpack, Flags)) return false;
+				}
+			}
+			Backpack->BeginSafeItemBatch();
+			/** 数量事件在全部槽位写入后去重发布，快捷引用也能失效已售出物品。 */
+			TSet<ULxItemBase*> CountChangedItems;
+			for (FTradeSlotState& State : States)
+			{
+				if (State.FinalItem && State.FinalItem->ItemCount() != State.FinalCount)
+				{
+					State.FinalItem->SetItemCountSafely(State.FinalCount, false);
+					CountChangedItems.Add(State.FinalItem.Get());
+				}
+				if (State.OriginalItem && !RetainedItems.Contains(State.OriginalItem.Get()))
+				{
+					State.OriginalItem->SetItemCountSafely(0, false);
+					CountChangedItems.Add(State.OriginalItem.Get());
+				}
+				if (State.FinalItem.Get() == State.OriginalItem.Get()) continue;
+				if (State.FinalItem) State.Slot->SetItem(State.FinalItem.Get(), false);
+				else State.Slot->ClearItem(false);
+			}
+			for (ULxItemBase* Item : CountChangedItems) Item->BroadcastItemCountChanged();
+			for (FTradeSlotState& State : States)
+				if (State.FinalItem.Get() != State.OriginalItem.Get()
+					&& (!State.FinalItem || !CountChangedItems.Contains(State.FinalItem.Get()))) State.Slot->NotifyItemDataChanged();
+			Backpack->EndSafeItemBatch();
+			Trade->RefreshTradeSlots();
+			return true;
+		}
+	};
+
+	/** 从中转组件查询其真实背包，拒绝把其他角色的槽位带入买卖。 */
+	ULxCharacterBackpackModule* GetTradeBackpack(ULxCharacterDataTransferComponent* DataTransfer)
+	{
+		TArray<ULxItemSlotData*> Slots;
+		if (DataTransfer) DataTransfer->GetAllBackpackItems(Slots);
+		return Slots.IsEmpty() || !Slots[0] ? nullptr : Slots[0]->GetTypedOuter<ULxCharacterBackpackModule>();
+	}
+
+	/** 根据价格和有限库存属性构建整次购买计划。 */
+	bool BuildPurchasePlan(ULxTradeContainerInteractionComponent* Trade, ULxCharacterBackpackModule* Backpack,
+		ULxItemSlotData* TradeSlot, ULxItemSlotData* TargetSlot, FGameplayTag GoldID, FAtomicTradePlan& Plan, bool bReadOnly = false)
+	{
+		if (!Trade || !TradeSlot || Trade->GetTradeSlotAt(TradeSlot->GetSlotIndex()) != TradeSlot
+			|| TradeSlot->GetSlotType() != ELxItemSlotType::Transaction || !TradeSlot->ItemIsLeave()
+			|| !LxSafeItemOperations::IsSupportedItem(TradeSlot->GetItem()) || !Plan.Initialize(Trade, Backpack, bReadOnly)) return false;
+		if (TargetSlot && !Backpack->GetAllItems().Contains(TargetSlot)) return false;
+		for (const FTradeSlotState& State : Plan.States)
+			if (State.OriginalItem.Get() == TradeSlot->GetItem()) return false;
+		FLxItemSaveRecord Purchased;
+		const int32 Price = ULxTradeContainerInteractionComponent::CalculateStackTotalPrice(
+			TradeSlot->GetItem()->ItemInformation().ItemSellPrice, TradeSlot->GetItem()->ItemCount(), Trade->GetTradeItemValueRate());
+		if (!LxItemSaveData::CaptureItem(TradeSlot->GetItem(), Purchased)
+			|| !Plan.RemoveCurrency(GoldID, Price)) return false;
+		const bool bLimited = Trade->IsTradeSlotLimitedStock(TradeSlot);
+		if (!bLimited && Purchased.bHasEquipmentState) Purchased.EquipmentInstanceID = FGuid::NewGuid();
+		if (!Plan.AddRecord(Purchased, bLimited ? TradeSlot->GetItem() : nullptr, TargetSlot)) return false;
+		FTradeSlotState& Stock = Plan.States.AddDefaulted_GetRef();
+		Stock.Slot.Reset(TradeSlot);
+		Stock.OriginalItem.Reset(TradeSlot->GetItem());
+		if (!LxItemSaveData::CaptureItem(TradeSlot->GetItem(), Stock.OriginalRecord)) return false;
+		if (!bLimited)
+		{
+			Stock.FinalItem.Reset(TradeSlot->GetItem());
+			Stock.FinalCount = TradeSlot->GetItem()->ItemCount();
+		}
+		else Plan.MigratingItem = TradeSlot->GetItem();
+		return true;
+	}
+
+	/** 将待出售格子在虚拟计划中释放，再完整规划金币收入的堆叠与空格。 */
+	bool BuildSalePlan(ULxTradeContainerInteractionComponent* Trade, ULxCharacterBackpackModule* Backpack,
+		ULxItemSlotData* Source, FGameplayTag GoldID, FAtomicTradePlan& Plan)
+	{
+		if (!Source || Source->GetSlotType() != ELxItemSlotType::Backpack || !Source->ItemIsLeave()
+			|| !LxSafeItemOperations::IsSupportedItem(Source->GetItem()) || !Plan.Initialize(Trade, Backpack)) return false;
+		const int32 Price = Trade->GetBackpackSlotSellPrice(Source);
+		if (Price <= 0 || !GoldID.IsValid()) return false;
+		bool bFound = false;
+		for (FTradeSlotState& State : Plan.States)
+			if (State.Slot.Get() == Source)
+			{
+				State.FinalItem.Reset();
+				State.FinalCount = 0;
+				bFound = true;
+				break;
+			}
+		if (!bFound) return false;
+		TStrongObjectPtr<ULxItemBase> Gold(ULxItemBase::CreateItemObject(Backpack, FLxItemQuote(GoldID, 1)));
+		FLxItemSaveRecord GoldRecord;
+		if (!LxItemSaveData::CaptureItem(Gold.Get(), GoldRecord) || !LxSafeItemOperations::IsSupportedItem(Gold.Get())) return false;
+		GoldRecord.ItemCount = Price;
+		return Plan.AddRecord(GoldRecord);
 	}
 }
 
@@ -48,12 +328,14 @@ bool ULxTradeContainerInteractionComponent::CapturePersistentData(FLxInteraction
 		// 售罄槽位仍保存配置中的物品ID和零数量，避免读档时重新补货或误用于替换商品。
 		SavedItem.ItemIDTag = Config.ItemIDTag;
 		SavedItem.ItemCount = Item ? static_cast<int32>(Item->ItemCount()) : 0;
+        if (!LxInteractionSaveHelpers::CaptureEquipment(Item, SavedItem)) return false;
 	}
 	return true;
 }
 
 bool ULxTradeContainerInteractionComponent::RestorePersistentData(const FLxInteractionFeatureSaveRecord& InRecord)
 {
+	if (LxSafeItemOperations::IsContainerBusy(this)) return false;
 	if (!CanRestorePersistentData(InRecord)) return false;
 	// 完整商品列表始终以当前配置为准；无限商品、新增商品和已替换商品不继承旧库存。
 	TArray<FLxInteractionItemSaveRecord> CurrentItems;
@@ -63,7 +345,9 @@ bool ULxTradeContainerInteractionComponent::RestorePersistentData(const FLxInter
 		FLxInteractionItemSaveRecord& Item = CurrentItems.AddDefaulted_GetRef();
 		Item.SlotIndex = Index;
 		Item.ItemIDTag = TradeItemConfigs[Index].ItemIDTag;
-		Item.ItemCount = Item.ItemIDTag.IsValid() ? FMath::Max(1, TradeItemConfigs[Index].ItemCount) : 0;
+		Item.ItemCount = Item.ItemIDTag.IsValid() ? LxItemQuantity::Clamp(TradeItemConfigs[Index].ItemCount) : 0;
+		// 零数量的初始配置保留空商品槽，无限商品也不会因此创建一个装备实例。
+		if (Item.ItemCount == 0) Item.ItemIDTag = FGameplayTag();
 	}
 
 	TArray<FLxInteractionItemSaveRecord> SavedItems;
@@ -73,7 +357,7 @@ bool ULxTradeContainerInteractionComponent::RestorePersistentData(const FLxInter
 	for (const FLxInteractionItemSaveRecord& SavedItem : SavedItems)
 	{
 		if (SavedItem.SlotIndex < 0 || SavedIndices.Contains(SavedItem.SlotIndex)
-			|| SavedItem.ItemCount < 0
+			|| !LxItemQuantity::IsInRange(SavedItem.ItemCount)
 			|| (!SavedItem.ItemIDTag.IsValid() && (SavedItem.ItemCount > 0 || InRecord.DataVersion != 0))) return false;
 		SavedIndices.Add(SavedItem.SlotIndex);
 		if (!TradeItemConfigs.IsValidIndex(SavedItem.SlotIndex)) continue;
@@ -83,8 +367,11 @@ bool ULxTradeContainerInteractionComponent::RestorePersistentData(const FLxInter
 			|| (SavedItem.ItemIDTag.IsValid() && SavedItem.ItemIDTag != Config.ItemIDTag)) continue;
 		FLxInteractionItemSaveRecord& Item = CurrentItems[SavedItem.SlotIndex];
 		Item.ItemCount = SavedItem.ItemCount;
+        Item.EquipmentInstanceID = SavedItem.EquipmentInstanceID;
+        Item.bHasEquipmentState = SavedItem.bHasEquipmentState;
+        Item.Equipment = SavedItem.Equipment;
 		// 通用槽位重建工具使用空ID表示空槽，保存的商品身份仅用于上面的匹配校验。
-		if (Item.ItemCount == 0) Item.ItemIDTag = FGameplayTag();
+		Item.ItemIDTag = Item.ItemCount > 0 ? Config.ItemIDTag : FGameplayTag();
 	}
 
 	TArray<TObjectPtr<ULxItemSlotData>> RestoredSlots;
@@ -101,7 +388,13 @@ bool ULxTradeContainerInteractionComponent::RestorePersistentData(const FLxInter
 
 void ULxTradeContainerInteractionComponent::ApplyConfig(const FLxTradeContainerInteractionConfig& InConfig)
 {
+	if (LxSafeItemOperations::IsContainerBusy(this)) return;
 	TradeItemConfigs = InConfig.TradeItems;
+	// 商城每项配置代表一个真实物品堆叠；批量交易金币仍由交易计划按堆叠拆分。
+	for (FLxTradeItemConfig& TradeItemConfig : TradeItemConfigs)
+	{
+		TradeItemConfig.ItemCount = LxItemQuantity::Clamp(TradeItemConfig.ItemCount);
+	}
 	GoldItemIDTag = InConfig.GoldItemIDTag;
 	// 客户端价格由服务器同步，延迟到达的资产配置不可覆盖当前运行时倍率。
 	if (!GetOwner() || GetOwner()->HasAuthority())
@@ -201,30 +494,61 @@ void ULxTradeContainerInteractionComponent::SetTradeContainerState(ELxInteractio
 
 bool ULxTradeContainerInteractionComponent::CanBuyTradeSlot(ULxItemSlotData* TradeSlot, ULxCharacterDataTransferComponent* DataTransferComponent) const
 {
-	if (DataTransferComponent == nullptr || TradeSlot == nullptr || TradeSlot->GetSlotType() != ELxItemSlotType::Transaction)
+	FAtomicTradePlan Plan;
+	return BuildPurchasePlan(const_cast<ULxTradeContainerInteractionComponent*>(this),
+		GetTradeBackpack(DataTransferComponent), TradeSlot, nullptr, GoldItemIDTag, Plan, true);
+}
+
+ULxItemTransferTicket* ULxTradeContainerInteractionComponent::BeginSafeExtractTradeItem(int32 SlotIndex, FText& OutReason)
+{
+	ULxItemSlotData* Slot = GetTradeSlotAt(SlotIndex);
+	if (LxSafeItemOperations::IsContainerBusy(this) || !Slot || !Slot->ItemIsLeave()
+		|| !LxSafeItemOperations::IsSupportedItem(Slot->GetItem()))
 	{
+		OutReason = NSLOCTEXT("LxTradeOperations", "TradeSourceInvalid", "商品槽位已失效或不支持快速购买");
+		return nullptr;
+	}
+	ULxItemTransferTicket* Ticket = NewObject<ULxItemTransferTicket>(this);
+	Ticket->SourceSlot = Slot;
+	Ticket->Item = Slot->GetItem();
+	Ticket->Count = Ticket->Item->ItemCount();
+	if (!LxItemSaveData::CaptureItem(Ticket->Item, Ticket->ExpectedItem))
+	{
+		OutReason = NSLOCTEXT("LxTradeOperations", "TradeRecordInvalid", "商品实例数据不完整");
+		return nullptr;
+	}
+	return Ticket;
+}
+
+bool ULxTradeContainerInteractionComponent::CanBuyTradeItem(ULxCharacterBackpackModule* Backpack,
+	int32 TradeSlotIndex, FText& OutReason) const
+{
+	FAtomicTradePlan Plan;
+	if (!BuildPurchasePlan(const_cast<ULxTradeContainerInteractionComponent*>(this), Backpack,
+		GetTradeSlotAt(TradeSlotIndex), nullptr, GoldItemIDTag, Plan, true))
+	{
+		OutReason = NSLOCTEXT("LxTradeOperations", "CannotBuyWholeStack", "金币不足、背包空间不足或商品已经变化，无法购买整组商品");
 		return false;
 	}
+	return true;
+}
 
-	FLxItemQuote ItemQuote;
-	if (!BuildTradeItemQuote(TradeSlot, ItemQuote))
-	{
-		return false;
-	}
+bool ULxTradeContainerInteractionComponent::CanSellBackpackSlot(ULxItemSlotData* BackpackSlot,
+	ULxCharacterDataTransferComponent* DataTransferComponent) const
+{
+	FAtomicTradePlan Plan;
+	return BuildSalePlan(const_cast<ULxTradeContainerInteractionComponent*>(this),
+		GetTradeBackpack(DataTransferComponent), BackpackSlot, GoldItemIDTag, Plan);
+}
 
-	if (!DataTransferComponent->CanAddItemListToBackpack({ItemQuote}))
-	{
-		return false;
-	}
-
-	TArray<FLxItemQuote> CostItemList;
-	const int32 Price = CalculateSlotPrice(TradeSlot);
-	if (!BuildGoldCost(Price, CostItemList))
-	{
-		return Price == 0;
-	}
-
-	return DataTransferComponent->CheckHaveBackpackItemList(CostItemList);
+bool ULxTradeContainerInteractionComponent::ExecuteAtomicPurchase(ULxItemSlotData* TradeSlot,
+	ULxItemSlotData* TargetSlot, ULxCharacterDataTransferComponent* DataTransferComponent)
+{
+	ULxCharacterBackpackModule* Backpack = GetTradeBackpack(DataTransferComponent);
+	if (!Backpack || (GetOwner() && !GetOwner()->HasAuthority())
+		|| (Backpack->GetOwner() && !Backpack->GetOwner()->HasAuthority())) return false;
+	FAtomicTradePlan Plan;
+	return BuildPurchasePlan(this, Backpack, TradeSlot, TargetSlot, GoldItemIDTag, Plan) && Plan.Commit();
 }
 
 bool ULxTradeContainerInteractionComponent::BuyTradeSlot(ULxItemSlotData* TradeSlot, ULxCharacterDataTransferComponent* DataTransferComponent)
@@ -241,36 +565,7 @@ bool ULxTradeContainerInteractionComponent::BuyTradeSlot(ULxItemSlotData* TradeS
 		return true;
 	}
 
-	if (!CanBuyTradeSlot(TradeSlot, DataTransferComponent))
-	{
-		RefreshTradeSlots();
-		return false;
-	}
-
-	FLxItemQuote ItemQuote;
-	BuildTradeItemQuote(TradeSlot, ItemQuote);
-
-	TArray<FLxItemQuote> CostItemList;
-	const bool bHasCost = BuildGoldCost(CalculateSlotPrice(TradeSlot), CostItemList);
-	if (bHasCost && !DataTransferComponent->RemoveItemListFromBackpack(CostItemList))
-	{
-		RefreshTradeSlots();
-		return false;
-	}
-
-	if (!DataTransferComponent->AddItemListToBackpack({ItemQuote}))
-	{
-		if (bHasCost)
-		{
-			DataTransferComponent->AddItemListToBackpack(CostItemList);
-		}
-		RefreshTradeSlots();
-		return false;
-	}
-
-	ConsumePurchasedStock(TradeSlot, ItemQuote.ItemCount);
-	RefreshTradeSlots();
-	return true;
+	return ExecuteAtomicPurchase(TradeSlot, nullptr, DataTransferComponent);
 }
 
 bool ULxTradeContainerInteractionComponent::BuyTradeSlotToBackpackSlot(ULxItemSlotData* TradeSlot, ULxItemSlotData* TargetBackpackSlot, ULxCharacterDataTransferComponent* DataTransferComponent)
@@ -292,45 +587,7 @@ bool ULxTradeContainerInteractionComponent::BuyTradeSlotToBackpackSlot(ULxItemSl
 		return true;
 	}
 
-	if (DataTransferComponent == nullptr || TradeSlot == nullptr || TradeSlot->GetSlotType() != ELxItemSlotType::Transaction)
-	{
-		return false;
-	}
-
-	FLxItemQuote ItemQuote;
-	if (!BuildTradeItemQuote(TradeSlot, ItemQuote) || !CanPutItemQuoteInBackpackSlot(TargetBackpackSlot, ItemQuote))
-	{
-		RefreshTradeSlots();
-		return false;
-	}
-
-	TArray<FLxItemQuote> CostItemList;
-	const bool bHasCost = BuildGoldCost(CalculateSlotPrice(TradeSlot), CostItemList);
-	if (bHasCost && !DataTransferComponent->CheckHaveBackpackItemList(CostItemList))
-	{
-		RefreshTradeSlots();
-		return false;
-	}
-
-	if (bHasCost && !DataTransferComponent->RemoveItemListFromBackpack(CostItemList))
-	{
-		RefreshTradeSlots();
-		return false;
-	}
-
-	if (!PutItemQuoteInBackpackSlot(TargetBackpackSlot, ItemQuote))
-	{
-		if (bHasCost)
-		{
-			DataTransferComponent->AddItemListToBackpack(CostItemList);
-		}
-		RefreshTradeSlots();
-		return false;
-	}
-
-	ConsumePurchasedStock(TradeSlot, ItemQuote.ItemCount);
-	RefreshTradeSlots();
-	return true;
+	return TargetBackpackSlot && ExecuteAtomicPurchase(TradeSlot, TargetBackpackSlot, DataTransferComponent);
 }
 
 bool ULxTradeContainerInteractionComponent::SellBackpackSlot(ULxItemSlotData* BackpackSlot, ULxCharacterDataTransferComponent* DataTransferComponent)
@@ -348,32 +605,10 @@ bool ULxTradeContainerInteractionComponent::SellBackpackSlot(ULxItemSlotData* Ba
 		return true;
 	}
 
-	if (BackpackSlot == nullptr
-		|| BackpackSlot->GetSlotType() != ELxItemSlotType::Backpack
-		|| !BackpackSlot->IsValid()
-		|| DataTransferComponent == nullptr)
-	{
-		return false;
-	}
-
-	const int32 Price = GetBackpackSlotSellPrice(BackpackSlot);
-	TArray<FLxItemQuote> GoldItemList;
-	if (!BuildGoldCost(Price, GoldItemList))
-	{
-		return false;
-	}
-
-	ULxItemBase* SoldItem = BackpackSlot->GetItem();
-	BackpackSlot->ClearItem();
-	if (!DataTransferComponent->AddItemListToBackpack(GoldItemList))
-	{
-		BackpackSlot->SetItem(SoldItem);
-		RefreshTradeSlots();
-		return false;
-	}
-
-	RefreshTradeSlots();
-	return true;
+	ULxCharacterBackpackModule* Backpack = GetTradeBackpack(DataTransferComponent);
+	if (!Backpack || (Backpack->GetOwner() && !Backpack->GetOwner()->HasAuthority())) return false;
+	FAtomicTradePlan Plan;
+	return BuildSalePlan(this, Backpack, BackpackSlot, GoldItemIDTag, Plan) && Plan.Commit();
 }
 
 int32 ULxTradeContainerInteractionComponent::GetBackpackSlotSellPrice(ULxItemSlotData* BackpackSlot) const
@@ -388,6 +623,8 @@ int32 ULxTradeContainerInteractionComponent::CalculateStackTotalPrice(int32 Unit
 	const int64 BaseValue = static_cast<int64>(FMath::Max(0, UnitPrice))
 		* static_cast<int64>(FMath::Max(0, ItemCount));
 	const double AdjustedValue = static_cast<double>(BaseValue) * static_cast<double>(FMath::Max(0.0f, ValueRate));
+	// 在转换为整数前处理非有限值和超大价格，避免浮点转整数溢出影响金币计划。
+	if (!FMath::IsFinite(AdjustedValue) || AdjustedValue >= static_cast<double>(MAX_int32)) return MAX_int32;
 	if (AdjustedValue <= 0.0)
 	{
 		return 0;
@@ -405,6 +642,7 @@ bool ULxTradeContainerInteractionComponent::IsTradeSlotLimitedStock(ULxItemSlotD
 
 void ULxTradeContainerInteractionComponent::SetTradeItemValueRate(float InTradeItemValueRate)
 {
+	if (LxSafeItemOperations::IsContainerBusy(this)) return;
 	const float NewTradeItemValueRate = FMath::Max(0.0f, InTradeItemValueRate);
 	if (FMath::IsNearlyEqual(TradeItemValueRate, NewTradeItemValueRate))
 	{
@@ -418,6 +656,7 @@ void ULxTradeContainerInteractionComponent::SetTradeItemValueRate(float InTradeI
 
 void ULxTradeContainerInteractionComponent::SetPurchaseValueRate(float InPurchaseValueRate)
 {
+	if (LxSafeItemOperations::IsContainerBusy(this)) return;
 	const float NewPurchaseValueRate = FMath::Max(0.0f, InPurchaseValueRate);
 	if (FMath::IsNearlyEqual(PurchaseValueRate, NewPurchaseValueRate))
 	{
@@ -430,6 +669,7 @@ void ULxTradeContainerInteractionComponent::SetPurchaseValueRate(float InPurchas
 
 void ULxTradeContainerInteractionComponent::InitializeTradeSlots()
 {
+	if (LxSafeItemOperations::IsContainerBusy(this)) return;
 	const int32 DisplaySlotCount = GetTradeDisplaySlotCount(TradeItemConfigs.Num());
 	if (bTradeContainerInitialized && TradeItemSlotList.Num() == DisplaySlotCount)
 	{
@@ -442,7 +682,8 @@ void ULxTradeContainerInteractionComponent::InitializeTradeSlots()
 
 	for (int32 Index = 0; Index < DisplaySlotCount; ++Index)
 	{
-		ULxItemBase* NewItem = TradeItemConfigs.IsValidIndex(Index)
+		// 零数量配置直接创建空槽，避免不可堆叠物品把零数量强制归一化为一个。
+		ULxItemBase* NewItem = TradeItemConfigs.IsValidIndex(Index) && TradeItemConfigs[Index].ItemCount > 0
 			? ULxItemBase::CreateItemObject(this, TradeItemConfigs[Index].ToItemQuote())
 			: nullptr;
 		ULxItemSlotData* NewSlot = NewObject<ULxItemSlotData>(this);
@@ -503,15 +744,19 @@ void ULxTradeContainerInteractionComponent::SyncReplicatedTradeSlots()
 		return;
 	}
 
-	ReplicatedTradeSlots.Reset();
-	ReplicatedTradeSlots.Reserve(TradeItemSlotList.Num());
+	// 完整采集成功后再替换网络快照，避免失败时向客户端发送部分容器。
+	TArray<FLxItemSaveRecord> Snapshot;
+	Snapshot.Reserve(TradeItemSlotList.Num());
 	for (ULxItemSlotData* SlotData : TradeItemSlotList)
 	{
-		ReplicatedTradeSlots.Add(BuildItemQuoteFromSlot(SlotData));
+		FLxItemSaveRecord Record;
+        if (!LxItemSaveData::CaptureItem(SlotData ? SlotData->GetItem() : nullptr, Record)) return;
+        Snapshot.Add(MoveTemp(Record));
 	}
 
 	// 库存变化后立即推动所属可交互对象复制，及时刷新客户端商城数量。
 	GetOwner()->ForceNetUpdate();
+    ReplicatedTradeSlots = MoveTemp(Snapshot);
 }
 
 void ULxTradeContainerInteractionComponent::ApplyReplicatedTradeSlots()
@@ -550,7 +795,7 @@ void ULxTradeContainerInteractionComponent::ApplyReplicatedTradeSlots()
 			continue;
 		}
 
-		ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, ReplicatedTradeSlots[Index]);
+		ULxItemBase* NewItem = LxItemSaveData::CreateItem(this, ReplicatedTradeSlots[Index]);
 		if (NewItem)
 		{
 			SlotData->SetItem(NewItem);
@@ -621,87 +866,6 @@ bool ULxTradeContainerInteractionComponent::BuildGoldCost(int32 Price, TArray<FL
 	return true;
 }
 
-bool ULxTradeContainerInteractionComponent::CanPutItemQuoteInBackpackSlot(ULxItemSlotData* TargetBackpackSlot, const FLxItemQuote& ItemQuote) const
-{
-	if (TargetBackpackSlot == nullptr
-		|| TargetBackpackSlot->GetSlotType() != ELxItemSlotType::Backpack
-		|| !TargetBackpackSlot->ItemIsEnter()
-		|| !ItemQuote.ItemIDTag.IsValid()
-		|| ItemQuote.ItemCount <= 0)
-	{
-		return false;
-	}
-
-	if (!TargetBackpackSlot->IsValid())
-	{
-		return true;
-	}
-
-	ULxItemBase* ExistingItem = TargetBackpackSlot->GetItem();
-	if (ExistingItem == nullptr
-		|| ExistingItem->ItemIDTag() != ItemQuote.ItemIDTag
-		|| !ExistingItem->ItemIsStackable())
-	{
-		return false;
-	}
-
-	const FLxItemInformationBase ItemInformation = ExistingItem->ItemInformation();
-	return ExistingItem->ItemCount() + ItemQuote.ItemCount <= FMath::Max(1, ItemInformation.ItemCountMax);
-}
-
-bool ULxTradeContainerInteractionComponent::PutItemQuoteInBackpackSlot(ULxItemSlotData* TargetBackpackSlot, const FLxItemQuote& ItemQuote)
-{
-	if (!CanPutItemQuoteInBackpackSlot(TargetBackpackSlot, ItemQuote))
-	{
-		return false;
-	}
-
-	ULxItemBase* NewItem = ULxItemBase::CreateItemObject(TargetBackpackSlot->GetOuter(), ItemQuote);
-	if (NewItem == nullptr || !NewItem->ItemIsValid())
-	{
-		return false;
-	}
-
-	if (!TargetBackpackSlot->IsValid())
-	{
-		return TargetBackpackSlot->SetItem(NewItem);
-	}
-
-	ULxItemBase* ExistingItem = TargetBackpackSlot->GetItem();
-	if (ExistingItem == nullptr || !ExistingItem->ItemStack(NewItem) || NewItem->ItemIsValid())
-	{
-		return false;
-	}
-
-	TargetBackpackSlot->OnItemDataChanged.Broadcast(ExistingItem);
-	return true;
-}
-
-void ULxTradeContainerInteractionComponent::ConsumePurchasedStock(ULxItemSlotData* TradeSlot, int32 PurchasedCount)
-{
-	if (!TradeSlot || PurchasedCount <= 0 || !IsTradeSlotLimitedStock(TradeSlot))
-	{
-		return;
-	}
-
-	ULxItemBase* CurrentItem = TradeSlot->GetItem();
-	if (!CurrentItem || CurrentItem->ItemCount() <= PurchasedCount)
-	{
-		TradeSlot->ClearItem();
-		return;
-	}
-
-	const FLxItemQuote RemainingItem(CurrentItem->ItemIDTag(), CurrentItem->ItemCount() - PurchasedCount);
-	if (ULxItemBase* NewItem = ULxItemBase::CreateItemObject(this, RemainingItem))
-	{
-		TradeSlot->SetItem(NewItem);
-	}
-	else
-	{
-		TradeSlot->ClearItem();
-	}
-}
-
 int32 ULxTradeContainerInteractionComponent::CalculateItemPrice(ULxItemBase* Item, float ValueRate) const
 {
 	if (Item == nullptr || !Item->ItemIsValid())
@@ -720,7 +884,8 @@ int32 ULxTradeContainerInteractionComponent::CalculateSlotPrice(ULxItemSlotData*
 
 void ULxTradeContainerInteractionComponent::HandlePlayerBackpackItemChanged(const TArray<ULxItemSlotData*>& BackpackItems)
 {
-	RefreshTradeSlots();
+	// 原子交易结束后主动刷新一次，背包批次通知中的回调不重复发布商城状态。
+	if (!LxSafeItemOperations::IsContainerBusy(this)) RefreshTradeSlots();
 }
 
 void ULxTradeContainerInteractionComponent::OnRep_TradeSlots()

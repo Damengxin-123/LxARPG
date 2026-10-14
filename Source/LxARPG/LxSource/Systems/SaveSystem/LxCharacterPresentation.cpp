@@ -6,6 +6,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "LxCharacterSaveData.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
+#include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstance.h"
 #include "Misc/PackageName.h"
@@ -15,6 +16,7 @@ void LxCharacterPresentation::Capture(const ACharacter* Character, FLxCharacterS
 	if (!Character) return;
 	Record.CharacterClass = Character->GetClass();
 	if (const ALxBaseCharacter* Base = Cast<ALxBaseCharacter>(Character)) Record.CharacterRace = Base->GetCharacterRace();
+	if (const ALxPlayerCharacter* Player = Cast<ALxPlayerCharacter>(Character)) Record.CharacterConfigID = Player->GetCharacterConfigID();
 	Record.SavedTransform = Character->GetActorTransform();
 	Record.bHasSavedTransform = !Record.SavedTransform.ContainsNaN();
 	if (const UWorld* World = Character->GetWorld())

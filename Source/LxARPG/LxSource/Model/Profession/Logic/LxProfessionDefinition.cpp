@@ -1,6 +1,7 @@
 #include "LxProfessionDefinition.h"
 
 #include "LxARPG/LxSource/Model/Entry/DataType/LxEntry.h"
+#include "LxARPG/LxSource/Model/Profession/DataType/LxProfessionTreeAsset.h"
 
 void ULxProfessionLevelBuilder::ResetLevelConfigs()
 {
@@ -39,6 +40,7 @@ int32 ULxProfessionDefinition::GetMaxLevel()
 
 float ULxProfessionDefinition::GetRequiredExperienceForNextLevel(int32 InCurrentLevel)
 {
+	if (TreeDefinition) return TreeDefinition->GetRequiredExperienceForNextLevel(InCurrentLevel);
 	EnsureLevelConfigsBuilt();
 	const int32 LevelIndex = FMath::Max(0, InCurrentLevel - 1);
 	return CachedLevelConfigs.IsValidIndex(LevelIndex) ? CachedLevelConfigs[LevelIndex].RequiredExperience : 0.f;
@@ -67,6 +69,13 @@ void ULxProfessionDefinition::GetAllLevelEffectConfigs(TArray<FLxProfessionLevel
 
 void ULxProfessionDefinition::EnsureLevelConfigsBuilt()
 {
+	if (TreeDefinition)
+	{
+		CachedLevelConfigs = TreeDefinition->Levels;
+		for (int32 Index = 0; Index < CachedLevelConfigs.Num(); ++Index)
+			CachedLevelConfigs[Index].RequiredExperience = TreeDefinition->GetRequiredExperienceForNextLevel(Index + 1);
+		return;
+	}
 	if (bLevelConfigsBuilt)
 	{
 		return;
@@ -108,4 +117,34 @@ void ULxProfessionDefinition::BuildProfessionEffectPackage_Implementation(const 
 			}
 		}
 	}
+}
+
+void ULxProfessionDefinition::InitializeFromTree(ULxProfessionTreeDefinition* Definition)
+{
+	TreeDefinition = Definition;
+	DependencyRules.Reset(); InfluenceRules.Reset(); AttributeRequirements.Reset(); StateRequirements.Reset();
+	if (!Definition) return;
+	InitializeProfessionDefinition(Definition->ProfessionID);
+	ProfessionBaseInfo.ProfessionName.Text = Definition->DisplayName;
+	ProfessionBaseInfo.ProfessionDescription = Definition->Description;
+	ProfessionBaseInfo.ProfessionIcon = Definition->Icon;
+	ProfessionType = Definition->ProfessionCategory == ELxProfessionTreeCategory::Combat ? ELxProfessionType::Combat
+		: Definition->ProfessionCategory == ELxProfessionTreeCategory::Gathering ? ELxProfessionType::Gathering : ELxProfessionType::Crafting;
+	if (const ULxProfessionTreeAsset* Asset = Definition->GetTypedOuter<ULxProfessionTreeAsset>())
+		for (const ULxProfessionTreeInfluence* Relation : Asset->GetIncomingInfluences(Definition))
+		{
+			const auto* Source = Relation->Target == Definition ? Relation->Source.Get() : Relation->Target.Get();
+			if (Relation->Kind == ELxProfessionTreeRelation::Prerequisite)
+			{
+				auto& Rule = DependencyRules.AddDefaulted_GetRef();
+				Rule.ProfessionIDTag = Source->ProfessionID; Rule.RequiredLevel = Relation->RequiredLevel;
+			}
+			else
+			{
+				auto& Rule = InfluenceRules.AddDefaulted_GetRef();
+				Rule.SourceProfessionIDTag = Source->ProfessionID; Rule.RequiredSourceLevel = 1;
+				Rule.InfluenceType = ELxProfessionInfluenceType::Benefit; Rule.EffectScale = Relation->Multiplier;
+			}
+		}
+	EnsureLevelConfigsBuilt();
 }

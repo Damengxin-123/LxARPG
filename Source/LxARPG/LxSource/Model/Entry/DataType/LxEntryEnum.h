@@ -49,12 +49,12 @@ enum class ELxEntryLogicType : uint8
 {
 	// 普通词条：可在后续交互功能中被修改或删除。
 	Normal	UMETA(DisplayName="普通词条"),
-	// 基础词条：物品自带基础词条，玩家只能进行有限编辑，例如调整数值。
+	// 基础词条：静态配置始终不变，只在装备生效时接受强化倍率。
 	Base	UMETA(DisplayName="基础词条"),
 	// 锁定词条：无论位于何种物品上，都不可被编辑。
-	Locked	UMETA(DisplayName="锁定词条"),
+	Locked	UMETA(Hidden, DisplayName="旧锁定词条"),
 	// 特殊词条：具有特殊逻辑效果，例如不可强化、不可出售。
-	Special	UMETA(DisplayName="特殊词条"),
+	Special	UMETA(Hidden, DisplayName="旧特殊词条"),
 };
 
 /** 词条类型。用于区分运行时词条对象类型，不再作为词条数据主键。 */

@@ -42,7 +42,7 @@ public:
 
 	/**
 	 * 获取包含样式的文本。
-	 * 直接使用文本样式标签 ID 的最后一段作为 RichTextBlock 样式标签。
+	 * 优先使用映射表中的实际样式行名，未配置映射时兼容直接引用的样式标签末段。
 	 */
 	FText GetStyledText() const;
 
@@ -61,7 +61,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="富文本样式", DisplayName="生成带样式富文本字符串")
 	static FString MakeRichTextString(const FLxRichStyledText& InStyledText);
 
-	/** 直接使用样式标签 ID 的最后一段包装文本。 */
+	/** 优先使用实际映射的样式行名包装文本，兼容直接引用原生样式的标签。 */
 	UFUNCTION(BlueprintPure, Category="富文本样式", DisplayName="获取包含样式的文本")
 	static FText GetStyledText(const FLxRichStyledText& InStyledText);
 

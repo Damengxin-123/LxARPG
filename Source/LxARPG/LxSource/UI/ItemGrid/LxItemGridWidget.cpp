@@ -1,4 +1,6 @@
 #include "LxItemGridWidget.h"
+#include "LxARPG/LxSource/UI/ItemOperations/LxItemOperationUIRouter.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxSafeItemOperations.h"
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Input/Reply.h"
@@ -60,6 +62,23 @@ void ULxItemGridWidget::NativeConstruct()
 void ULxItemGridWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
 	InitItemData(ListItemObject);
+}
+
+void ULxItemGridWidget::NativeOnEntryReleased()
+{
+	FinishRightMouseUse(false);
+	ItemOwnerWindow.Reset();
+	SetCurrentSlotDataInternal(nullptr);
+	IUserObjectListEntry::NativeOnEntryReleased();
+}
+
+void ULxItemGridWidget::NativeDestruct()
+{
+	FinishRightMouseUse(false);
+	if (CurrentSlotData) CurrentSlotData->OnItemDataChanged.RemoveAll(this);
+	CurrentSlotData = nullptr;
+	ItemOwnerWindow.Reset();
+	Super::NativeDestruct();
 }
 
 void ULxItemGridWidget::HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue)
@@ -271,9 +290,35 @@ ELxItemRarityType ULxItemGridWidget::GetItemRarity() const
 
 FReply ULxItemGridWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
+	if (InMouseEvent.IsAltDown())
+	{
+		if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+		{
+			FinishRightMouseUse(false);
+			bSuppressRightMouseRelease = true;
+			RequestQuickItemAction(true);
+			return FReply::Handled().CaptureMouse(TakeWidget());
+		}
+		if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+		{
+			RequestQuickItemAction(false);
+			return FReply::Handled();
+		}
+	}
 	if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
-		return StartUseItem() ? FReply::Handled().CaptureMouse(TakeWidget()) : FReply::Unhandled();
+		FinishRightMouseUse(false);
+		RightMouseUseSlot = CurrentSlotData;
+		RightMouseUseItem = GetCurrentItem();
+		RightMouseSkillCastComponent = Cast<ULxSkillItem>(RightMouseUseItem) ? GetSkillCastComponent() : nullptr;
+		bStartedRightMouseUse = StartUseItem();
+		if (ULxSkillItem* SkillItem = Cast<ULxSkillItem>(RightMouseUseItem)) RightMouseUseSkill = SkillItem->GetSkillObject();
+		if (!bStartedRightMouseUse || CurrentSlotData != RightMouseUseSlot || GetCurrentItem() != RightMouseUseItem)
+		{
+			FinishRightMouseUse(false);
+			return FReply::Unhandled();
+		}
+		return FReply::Handled().CaptureMouse(TakeWidget());
 	}
 
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && ItemIsVaild() && CurrentSlotData->ItemIsLeave())
@@ -289,10 +334,54 @@ FReply ULxItemGridWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, con
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
-		return EndUseItem() ? FReply::Handled().ReleaseMouseCapture() : FReply::Unhandled();
+		const bool bHandled = bSuppressRightMouseRelease || bStartedRightMouseUse;
+		FinishRightMouseUse(true);
+		return bHandled ? FReply::Handled().ReleaseMouseCapture() : FReply::Unhandled();
 	}
 
 	return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
+}
+
+void ULxItemGridWidget::NativeOnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
+{
+	FinishRightMouseUse(false);
+	Super::NativeOnMouseCaptureLost(CaptureLostEvent);
+}
+
+void ULxItemGridWidget::FinishRightMouseUse(bool bReleased)
+{
+	const bool bHadStartedUse = bStartedRightMouseUse;
+	ULxItemSlotData* OriginalSlot = RightMouseUseSlot;
+	ULxItemBase* OriginalItem = RightMouseUseItem;
+	ULxSkill* OriginalSkill = RightMouseUseSkill;
+	ULxSkillCastModule* OriginalComponent = RightMouseSkillCastComponent.Get();
+	const bool bCanComplete = bReleased && !bSuppressRightMouseRelease && bHadStartedUse
+		&& IsValid(OriginalItem) && OriginalSlot && OriginalSlot == CurrentSlotData
+		&& OriginalSlot->GetItem() == OriginalItem && OriginalItem->ItemIsValid();
+	// 先清理输入状态，避免结束技能或物品回调再次进入格子时重复执行。
+	bSuppressRightMouseRelease = false;
+	bStartedRightMouseUse = false;
+	RightMouseUseSlot = nullptr;
+	RightMouseUseItem = nullptr;
+	RightMouseUseSkill = nullptr;
+	RightMouseSkillCastComponent.Reset();
+	if (!bHadStartedUse) return;
+	if (Cast<ULxSkillItem>(OriginalItem))
+	{
+		if (IsValid(OriginalSkill) && IsValid(OriginalComponent))
+		{
+			const FLxSkillCastContext Context = GetOwningPlayerPawn() == OriginalComponent->GetOwner()
+				? MakeSkillCastContextForWidget(this, OriginalComponent, OriginalItem)
+				: OriginalComponent->MakeSkillCastContext(OriginalItem);
+			OriginalComponent->HandleSkillReleaseInput(OriginalSkill,
+				bCanComplete ? ELxSkillReleaseInputState::End : ELxSkillReleaseInputState::Cancel, Context);
+		}
+	}
+	else if (bCanComplete)
+	{
+		// 普通物品只在来源实例仍一致的真正抬起事件中使用；取消路径不能调用 ItemUseEnd。
+		OriginalSlot->EndUseItem();
+	}
 }
 
 void ULxItemGridWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,
@@ -469,9 +558,33 @@ void ULxItemGridWidget::InitItemData(UObject* ListItemObject)
 	if (ULxItemUIData* BackpackData = Cast<ULxItemUIData>(ListItemObject))
 	{
 		NewSlotData = BackpackData->m_pSlotData;
+		ItemOwnerWindow = BackpackData->ItemOwnerWindow;
 	}
+	else ItemOwnerWindow.Reset();
 
 	SetCurrentSlotDataInternal(NewSlotData);
+}
+
+void ULxItemGridWidget::SetItemOwnerWindow(ULxUIBaseObject* InWindow)
+{
+	ItemOwnerWindow = InWindow;
+}
+
+bool ULxItemGridWidget::RequestQuickItemAction(bool bSplitStack)
+{
+    // 宝箱和商品格可以发起快捷交接，拆分仍只允许背包与仓库的实际存储格。
+    const bool bSupportedSource = bSplitStack ? LxSafeItemOperations::IsSupportedSlot(CurrentSlotData)
+        : LxSafeItemOperations::IsQuickTransferSourceSlot(CurrentSlotData);
+    if (!bSupportedSource
+		|| !LxSafeItemOperations::IsSupportedItem(GetCurrentItem())) return false;
+	ULxUIBaseObject* SourceWindow = ItemOwnerWindow.Get();
+	if (!SourceWindow) SourceWindow = GetOwningRoleWindow();
+	OnQuickItemActionRequested.Broadcast(CurrentSlotData, bSplitStack);
+	OnQuickItemAction(CurrentSlotData, bSplitStack);
+	ULxUIManager* Layout = SourceWindow ? SourceWindow->GetOwningUIManager() : GetUIManager();
+	ULxItemOperationUIRouter* Router = Layout ? Layout->GetItemOperationRouter() : nullptr;
+	return Router && (bSplitStack ? Router->OpenSplitWindow(SourceWindow, CurrentSlotData)
+		: Router->RequestQuickTransfer(SourceWindow, CurrentSlotData));
 }
 
 bool ULxItemGridWidget::TryHandleTradeDrop(ULxItemSlotData* SourceSlot)
@@ -699,6 +812,8 @@ bool ULxItemGridWidget::TryEndUseSkillItem() const
 
 void ULxItemGridWidget::SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData)
 {
+	if (bStartedRightMouseUse && (InSlotData != RightMouseUseSlot
+		|| !InSlotData || InSlotData->GetItem() != RightMouseUseItem)) FinishRightMouseUse(false);
 
 	if (CurrentSlotData)
 	{
@@ -719,6 +834,8 @@ void ULxItemGridWidget::SetCurrentSlotDataInternal(ULxItemSlotData* InSlotData)
 
 void ULxItemGridWidget::HandleCurrentSlotChanged(ULxItemBase* InItemData) 
 {
+	if (bStartedRightMouseUse && (InItemData != RightMouseUseItem
+		|| !InItemData || !InItemData->ItemIsValid())) FinishRightMouseUse(false);
 
 	BroadcastGridDataChanged();
 }

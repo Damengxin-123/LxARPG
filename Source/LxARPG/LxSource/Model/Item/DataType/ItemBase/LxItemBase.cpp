@@ -1,4 +1,5 @@
 #include "LxItemBase.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxSafeItemOperations.h"
 #include "LxARPG/LxSource/Model/Buff/DataType/LxBuff.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ConstData/LxItemConstData.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Consumable/LxConsumable.h"
@@ -10,7 +11,8 @@ ULxItemBase* ULxItemBase::CreateItemObject(UObject* InParent, FLxItemQuote InIte
 {
 	ULxItemBase* OutItemObject = nullptr;
 	const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(InItemQuote.ItemIDTag);
-	if (ItemConfig == nullptr)
+	if (!ItemConfig || !LxItemQuantity::IsInRange(InItemQuote.ItemCount)
+		|| !LxItemQuantity::IsInRange(ItemConfig->ItemCountMax) || InItemQuote.ItemCount > ItemConfig->ItemCountMax)
 	{
 		return nullptr;
 	}
@@ -46,14 +48,19 @@ ULxItemBase* ULxItemBase::CreateItemObject(UObject* InParent, FLxItemQuote InIte
 
 void ULxItemBase::InitItemObject(const FLxItemQuote& InItemQuote)
 {
-	SetItemData(LxItemConfig::GetItemData(InItemQuote.ItemIDTag), InItemQuote.ItemCount);
+	const FLxItemInformationBase* ItemConfig = LxItemConfig::GetItemData(InItemQuote.ItemIDTag);
+	// 拒绝非法单堆请求并保留已有实例，避免重新初始化时静默截断或覆盖数量。
+	if (!ItemConfig || !LxItemQuantity::IsInRange(InItemQuote.ItemCount)
+		|| !LxItemQuantity::IsInRange(ItemConfig->ItemCountMax) || InItemQuote.ItemCount > ItemConfig->ItemCountMax) return;
+	SetItemData(ItemConfig, InItemQuote.ItemCount);
 	InitItemEntry();
 }
 
 bool ULxItemBase::ItemIsStackable()
 {
 	const FLxItemInformationBase* ItemInfo = ItemBase();
-	return ItemInfo && ItemInfo->ItemCountMax > 1 && ItemInfo->ItemCount < ItemInfo->ItemCountMax;
+	return ItemInfo && CanSetItemCountSafely(ItemInfo->ItemCount)
+		&& ItemInfo->ItemCountMax > 1 && ItemInfo->ItemCount < ItemInfo->ItemCountMax;
 }
 
 FGameplayTag ULxItemBase::ItemIDTag()
@@ -128,14 +135,46 @@ FLxItemCount ULxItemBase::ItemCount()
 	return 0;
 }
 
+bool ULxItemBase::CanSetItemCountSafely(int32 InCount)
+{
+	const FLxItemInformationBase* Information = ItemBase();
+	return Information && LxItemQuantity::IsInRange(Information->ItemCountMax) && LxItemQuantity::IsInRange(InCount)
+		&& InCount <= (ItemType() == ELxItemType::Equipment ? 1 : Information->ItemCountMax);
+}
+
+bool ULxItemBase::SetItemCountSafely(int32 InCount, bool bBroadcast)
+{
+	if (bBroadcast && LxSafeItemOperations::IsContainerBusy(GetOuter())) return false;
+	if (!CanSetItemCountSafely(InCount))
+	{
+		return false;
+	}
+	FLxItemInformationBase* Information = ItemBase();
+	if (Information->ItemCount == InCount)
+	{
+		return true;
+	}
+	Information->ItemCount = InCount;
+	if (bBroadcast)
+	{
+		BroadcastItemCountChanged();
+	}
+	return true;
+}
+
 bool ULxItemBase::ItemStack(ULxItemBase* InItem)
 {
+	if (LxSafeItemOperations::IsContainerBusy(GetOuter())
+		|| (InItem && LxSafeItemOperations::IsContainerBusy(InItem->GetOuter()))) return false;
 	if (InItem && InItem->ItemIsValid())
 	{
 		FLxItemInformationBase* ThisItemInfo = ItemBase();
 		FLxItemInformationBase* InItemInfo = InItem->ItemBase();
 		if (ThisItemInfo && InItemInfo)
 		{
+			// 合并前校验两堆，确保旧实例或外部写入不能绕过数量范围。
+			if (!CanSetItemCountSafely(ThisItemInfo->ItemCount)
+				|| !InItem->CanSetItemCountSafely(InItemInfo->ItemCount)) return false;
 			if (ThisItemInfo->ItemCountMax > 1
 				&& ThisItemInfo->ItemCount < ThisItemInfo->ItemCountMax
 				&& ThisItemInfo->ItemIDTag == InItemInfo->ItemIDTag)
@@ -162,7 +201,7 @@ bool ULxItemBase::ItemStack(ULxItemBase* InItem)
 bool ULxItemBase::ItemIsValid()
 {
 	const FLxItemInformationBase* ItemInfo = ItemBase();
-	return ItemInfo && ItemInfo->ItemCount > 0;
+	return ItemInfo && ItemInfo->ItemCount > 0 && CanSetItemCountSafely(ItemInfo->ItemCount);
 }
 
 bool ULxItemBase::operator<(ULxItemBase& InItem)
@@ -197,6 +236,7 @@ void ULxItemBase::InitItemEntry()
 	{
 		for (const FLxItemEntryConfig& EntryConfig : Item->ItemEntryConfigs)
 		{
+			// 缓存保留词条原始比例，装备强化只在显示和生成实际效果包时参与计算。
 			if (ULxEntryObjectBase* EntryBase = ULxEntryObjectBase::CreateEnterObject(this, EntryConfig.EntryQuote))
 			{
 				ItemEntryArray.Add(EntryBase);
@@ -230,6 +270,7 @@ bool ULxItemBase::RestoreItemEntries(const TArray<FLxItemEntryConfig>& InEntries
 		{
 			return false;
 		}
+		// 恢复原始词条引用，避免装备强化污染缓存比例或在重建时被重复应用。
 		ULxEntryObjectBase* Entry = ULxEntryObjectBase::CreateEnterObject(this, Config.EntryQuote);
 		if (!Entry)
 		{

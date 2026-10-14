@@ -15,6 +15,8 @@
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxTreasureChestInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Interaction/Logic/LxWarehouseInteractionComponent.h"
 #include "LxARPG/LxSource/Model/Item/Logic/LxCharacterBackpackComponent.h"
+#include "LxARPG/LxSource/Model/Item/Logic/LxSafeItemOperations.h"
+#include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotData.h"
 #include "LxARPG/LxSource/Model/Chat/Logic/LxPlayerChatComponent.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
@@ -22,6 +24,7 @@
 #include "LxARPG/LxSource/Systems/GameMode/LxARPGGameMode.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
 
 namespace
 {
@@ -55,6 +58,138 @@ namespace
 		}
 
 		return Cast<TFeature>(InteractionNode->GetInteractionFeature());
+	}
+
+	/** 服务器已解析并验证权限的容器，界面地址不能直接访问其他角色的数据模块。 */
+	struct FLxResolvedItemContainer
+	{
+		/** 当前控制角色自己的背包模块。 */
+		ULxCharacterBackpackModule* Backpack = nullptr;
+		/** 通过交互权限检查的仓库模块。 */
+		ULxWarehouseInteractionComponent* Warehouse = nullptr;
+		/** 只作为快速取出来源的宝箱模块。 */
+		ULxTreasureChestInteractionComponent* TreasureChest = nullptr;
+		/** 只能通过原有购买与出售流程提交的交易模块。 */
+		ULxTradeContainerInteractionComponent* Trade = nullptr;
+
+		/** 获取实际来源槽位，界面筛选顺序不会影响数据位置。 */
+		ULxItemSlotData* GetSlot(int32 SlotIndex) const
+		{
+			if (Backpack) return Backpack->GetBackpackSlotAt(SlotIndex);
+			if (Warehouse) return Warehouse->GetWarehouseSlotAt(SlotIndex);
+			if (TreasureChest) return TreasureChest->GetTreasureChestSlotAt(SlotIndex);
+			return Trade ? Trade->GetTradeSlotAt(SlotIndex) : nullptr;
+		}
+
+		/** 标识同一数据容器，防止快速存取退化为容器内的重复放置。 */
+		const UObject* GetModule() const
+		{
+			if (Backpack) return Backpack;
+			if (Warehouse) return Warehouse;
+			if (TreasureChest) return TreasureChest;
+			return Trade;
+		}
+
+		/** 数据模块托管原实例，提取阶段不减少来源数量。 */
+		ULxItemTransferTicket* BeginSafeExtract(int32 SlotIndex, FText& OutFailure) const
+		{
+			if (Backpack) return Backpack->BeginSafeExtractItem(SlotIndex, OutFailure);
+			if (Warehouse) return Warehouse->BeginSafeExtractItem(SlotIndex, OutFailure);
+			if (TreasureChest) return TreasureChest->BeginSafeExtractItem(SlotIndex, OutFailure);
+			OutFailure = NSLOCTEXT("LxItemOperation", "TradeRequiresPurchase", "交易商品必须通过购买流程获取。");
+			return nullptr;
+		}
+
+		/** 目标模块验证能否整堆接收，禁止部分转移后把余量交给界面保管。 */
+		bool CanAccept(ULxItemTransferTicket* Ticket, FText& OutFailure) const
+		{
+			if (Backpack) return Backpack->CanAcceptSafeItem(Ticket, OutFailure);
+			if (Warehouse) return Warehouse->CanAcceptSafeItem(Ticket, OutFailure);
+			OutFailure = NSLOCTEXT("LxItemOperation", "UnsupportedReceiver", "该容器不能直接接收快速存取物品。");
+			return false;
+		}
+
+		/** 由目标模块安全提交来源提取与目标放置，并负责两边的数据通知。 */
+		bool Accept(ULxItemTransferTicket* Ticket, FText& OutFailure) const
+		{
+			if (Backpack) return Backpack->AcceptSafeItem(Ticket, OutFailure);
+			if (Warehouse) return Warehouse->AcceptSafeItem(Ticket, OutFailure);
+			OutFailure = NSLOCTEXT("LxItemOperation", "UnsupportedReceiver", "该容器不能直接接收快速存取物品。");
+			return false;
+		}
+
+		/** 在来源模块内寻找独立空格执行拆分，本次操作不会合并其他堆叠。 */
+		bool Split(int32 SlotIndex, int32 Count, FText& OutFailure) const
+		{
+			if (Backpack) return Backpack->SplitItemStack(SlotIndex, Count, OutFailure);
+			if (Warehouse) return Warehouse->SplitItemStack(SlotIndex, Count, OutFailure);
+			OutFailure = NSLOCTEXT("LxItemOperation", "UnsupportedSplitContainer", "宝箱和交易商品不能执行拆分。");
+			return false;
+		}
+	};
+
+	/** 从通用容器地址解析服务器模块，同时验证所属角色、交互距离、节点及树版本。 */
+	bool ResolveItemContainer(const ALxPlayerController& PlayerController, const FLxItemContainerAddress& Address,
+		FLxResolvedItemContainer& OutContainer, FText& OutFailure)
+	{
+		const ALxBaseCharacter* Character = Cast<ALxBaseCharacter>(PlayerController.GetPawn());
+		if (!Character || Character->GetController() != &PlayerController || !Character->HasAuthority())
+		{
+			OutFailure = NSLOCTEXT("LxItemOperation", "InvalidCharacter", "当前角色不可操作物品。");
+			return false;
+		}
+		if (Address.Kind == ELxItemContainerKind::Backpack)
+		{
+			if ((Address.Owner && Address.Owner != Character) || !Character->GetCharacterBackpackComponent())
+			{
+				OutFailure = NSLOCTEXT("LxItemOperation", "InvalidBackpack", "无法访问该背包。");
+				return false;
+			}
+			OutContainer.Backpack = Character->GetCharacterBackpackComponent();
+			return true;
+		}
+		if (Address.Kind == ELxItemContainerKind::Warehouse)
+		{
+			if (!IsValid(Address.Owner) || Address.Owner->GetWorld() != PlayerController.GetWorld()
+				|| !Address.Owner->HasAuthority())
+			{
+				OutFailure = NSLOCTEXT("LxItemOperation", "InvalidWarehouse", "仓库已失效，无法操作物品。");
+				return false;
+			}
+			OutContainer.Warehouse = FindInteractionFeature<ULxWarehouseInteractionComponent>(PlayerController,
+				Address.Owner, Address.RuntimeNodeIndex, Address.InteractionTreeRevision, ELxInteractionActionType::Warehouse);
+			if (!OutContainer.Warehouse)
+			{
+				OutFailure = NSLOCTEXT("LxItemOperation", "WarehousePermission", "仓库交互已变化、超出距离或不允许访问。");
+				return false;
+			}
+			return true;
+		}
+		if (Address.Kind == ELxItemContainerKind::TreasureChest || Address.Kind == ELxItemContainerKind::Trade)
+		{
+			if (!IsValid(Address.Owner) || Address.Owner->GetWorld() != PlayerController.GetWorld()
+				|| !Address.Owner->HasAuthority())
+			{
+				OutFailure = NSLOCTEXT("LxItemOperation", "InvalidInteractionContainer", "物品交互对象已失效。");
+				return false;
+			}
+			if (Address.Kind == ELxItemContainerKind::TreasureChest)
+			{
+				OutContainer.TreasureChest = FindInteractionFeature<ULxTreasureChestInteractionComponent>(PlayerController,
+					Address.Owner, Address.RuntimeNodeIndex, Address.InteractionTreeRevision, ELxInteractionActionType::TreasureChest);
+				if (OutContainer.TreasureChest) return true;
+			}
+			else
+			{
+				OutContainer.Trade = FindInteractionFeature<ULxTradeContainerInteractionComponent>(PlayerController,
+					Address.Owner, Address.RuntimeNodeIndex, Address.InteractionTreeRevision, ELxInteractionActionType::TradeContainer);
+				if (OutContainer.Trade) return true;
+			}
+			OutFailure = NSLOCTEXT("LxItemOperation", "InteractionContainerPermission", "物品交互已变化、超出距离或不允许访问。");
+			return false;
+		}
+		OutFailure = NSLOCTEXT("LxItemOperation", "UnsupportedContainer", "该容器不支持物品存取或拆分。");
+		return false;
 	}
 }
 
@@ -106,6 +241,186 @@ void ALxPlayerController::CreatePlayerCharacter()
 	}
 
 	CreateServerPlayerCharacter();
+}
+
+void ALxPlayerController::RequestItemOperation(const FLxItemOperationRequest& Request)
+{
+	if (!IsLocalController() || IsPauseMenuOpen() || UGameplayStatics::IsGamePaused(this) || !Request.RequestId.IsValid())
+	{
+		FLxItemOperationResult Result;
+		Result.RequestId = Request.RequestId;
+		Result.Kind = Request.Kind;
+		if (!Request.RequestId.IsValid())
+		{
+			Result.Message = NSLOCTEXT("LxItemOperation", "InvalidRequestId", "物品操作缺少有效的请求标识。");
+		}
+		else if (!IsLocalController())
+		{
+			Result.Message = NSLOCTEXT("LxItemOperation", "LocalControllerRequired", "只能从本地玩家界面发起物品操作。");
+		}
+		else
+		{
+			Result.Message = NSLOCTEXT("LxItemOperation", "LocalUnavailable", "游戏暂停期间无法执行物品操作。");
+		}
+		ClientCompleteItemOperation_Implementation(Result);
+		return;
+	}
+	ServerExecuteItemOperation(Request);
+}
+
+void ALxPlayerController::ServerExecuteItemOperation_Implementation(const FLxItemOperationRequest& Request)
+{
+	if (const FLxItemOperationResult* ExistingResult = CompletedItemOperations.Find(Request.RequestId))
+	{
+		// 同一请求返回已完成结果；即使物品后来回到原槽位，也不再次执行。
+		ClientCompleteItemOperation(*ExistingResult);
+		return;
+	}
+	if (ExecutingItemOperations.Contains(Request.RequestId))
+	{
+		// 同步数据通知也可能重发当前标识；等待原请求完成，不能用忙碌失败覆盖其最终结果。
+		return;
+	}
+
+	FLxItemOperationResult Result;
+	Result.RequestId = Request.RequestId;
+	Result.Kind = Request.Kind;
+	if (!HasAuthority() || !GetWorld() || !Request.RequestId.IsValid()
+		|| UGameplayStatics::IsGamePaused(this) || IsPauseMenuOpen())
+	{
+		Result.Message = NSLOCTEXT("LxItemOperation", "ServerUnavailable", "物品操作请求无效或游戏已暂停。");
+		CompleteItemOperation(Result);
+		return;
+	}
+	if (Request.Kind != ELxItemOperationKind::QuickTransfer && Request.Kind != ELxItemOperationKind::SplitStack)
+	{
+		Result.Message = NSLOCTEXT("LxItemOperation", "UnsupportedOperation", "不支持该物品操作。");
+		CompleteItemOperation(Result);
+		return;
+	}
+	ExecutingItemOperations.Add(Request.RequestId);
+
+	FLxResolvedItemContainer SourceContainer;
+	if (!ResolveItemContainer(*this, Request.Source, SourceContainer, Result.Message))
+	{
+		CompleteItemOperation(Result);
+		return;
+	}
+	ULxItemSlotData* SourceSlot = SourceContainer.GetSlot(Request.SourceSlotIndex);
+	if (!LxSafeItemOperations::MatchesExpectedRecord(SourceSlot, Request.ExpectedItem))
+	{
+		Result.Message = NSLOCTEXT("LxItemOperation", "SourceChanged", "来源物品已变化，请等待界面刷新后重试。");
+		CompleteItemOperation(Result);
+		return;
+	}
+
+	if (Request.Kind == ELxItemOperationKind::SplitStack)
+	{
+		Result.bSucceeded = SourceContainer.Split(Request.SourceSlotIndex, Request.Count, Result.Message);
+		if (Result.bSucceeded)
+		{
+			Result.Message = NSLOCTEXT("LxItemOperation", "SplitSucceeded", "物品拆分成功。");
+		}
+		CompleteItemOperation(Result);
+		return;
+	}
+
+	if (Request.Count != 0 && Request.Count != Request.ExpectedItem.ItemCount)
+	{
+		Result.Message = NSLOCTEXT("LxItemOperation", "WholeStackRequired", "快速存取必须移动这一格中的完整物品。");
+		CompleteItemOperation(Result);
+		return;
+	}
+	FLxResolvedItemContainer TargetContainer;
+	if (!ResolveItemContainer(*this, Request.Target, TargetContainer, Result.Message))
+	{
+		CompleteItemOperation(Result);
+		return;
+	}
+	if (SourceContainer.GetModule() == TargetContainer.GetModule())
+	{
+		Result.Message = NSLOCTEXT("LxItemOperation", "SameContainer", "快速存取的目标不能是来源容器。");
+		CompleteItemOperation(Result);
+		return;
+	}
+	if (TargetContainer.TreasureChest || (SourceContainer.TreasureChest && !TargetContainer.Backpack))
+	{
+		Result.Message = NSLOCTEXT("LxItemOperation", "ChestWithdrawOnly", "宝箱物品只能快速取出到背包。");
+		CompleteItemOperation(Result);
+		return;
+	}
+	if (SourceContainer.Trade || TargetContainer.Trade)
+	{
+		const ALxBaseCharacter* CurrentCharacter = Cast<ALxBaseCharacter>(GetPawn());
+		ULxCharacterDataTransferComponent* DataTransfer = CurrentCharacter ? CurrentCharacter->GetCharacterDataTransferComponent() : nullptr;
+		if (DataTransfer && SourceContainer.Trade && TargetContainer.Backpack)
+		{
+			// 商品不走普通物品转移，沿用交易模块原有整堆购买规则与金币事务。
+			Result.bSucceeded = SourceContainer.Trade->BuyTradeSlot(SourceSlot, DataTransfer);
+			Result.Message = Result.bSucceeded
+				? NSLOCTEXT("LxItemOperation", "QuickPurchaseSucceeded", "物品购买成功。")
+				: NSLOCTEXT("LxItemOperation", "QuickPurchaseFailed", "购买失败，请检查金币、背包空间或商品状态；物品与金币已保留。");
+		}
+		else if (DataTransfer && SourceContainer.Backpack && TargetContainer.Trade)
+		{
+			// 出售仍由交易模块按当前收购比例执行，界面不直接清槽或增加金币。
+			Result.bSucceeded = TargetContainer.Trade->SellBackpackSlot(SourceSlot, DataTransfer);
+			Result.Message = Result.bSucceeded
+				? NSLOCTEXT("LxItemOperation", "QuickSaleSucceeded", "物品出售成功。")
+				: NSLOCTEXT("LxItemOperation", "QuickSaleFailed", "出售失败，请检查物品状态或金币容量；物品与金币已保留。");
+		}
+		else
+		{
+			Result.Message = NSLOCTEXT("LxItemOperation", "UnsupportedTradeRoute", "交易快捷操作只支持商品买入背包和背包物品出售。");
+		}
+		CompleteItemOperation(Result);
+		return;
+	}
+
+	ULxItemTransferTicket* Ticket = SourceContainer.BeginSafeExtract(Request.SourceSlotIndex, Result.Message);
+	if (!Ticket)
+	{
+		CompleteItemOperation(Result);
+		return;
+	}
+	if (!TargetContainer.CanAccept(Ticket, Result.Message) || !TargetContainer.Accept(Ticket, Result.Message))
+	{
+		// 提取凭据尚未提交时来源始终保留原实例，取消只释放临时托管状态。
+		LxSafeItemOperations::Cancel(Ticket);
+		CompleteItemOperation(Result);
+		return;
+	}
+	Result.bSucceeded = true;
+	Result.Message = NSLOCTEXT("LxItemOperation", "TransferSucceeded", "物品快速存取成功。");
+	CompleteItemOperation(Result);
+}
+
+void ALxPlayerController::CompleteItemOperation(const FLxItemOperationResult& InResult)
+{
+	FLxItemOperationResult Result = InResult;
+	ExecutingItemOperations.Remove(Result.RequestId);
+	if (!Result.bSucceeded && Result.Message.IsEmpty())
+	{
+		Result.Message = NSLOCTEXT("LxItemOperation", "OperationFailed", "物品操作失败，原物品已保留。");
+	}
+	if (Result.RequestId.IsValid() && !CompletedItemOperations.Contains(Result.RequestId))
+	{
+		/** 每个控制器仅缓存近期请求，避免长期游戏产生无界增长。 */
+		constexpr int32 MaximumRememberedRequests = 256;
+		if (CompletedItemOperationOrder.Num() >= MaximumRememberedRequests)
+		{
+			CompletedItemOperations.Remove(CompletedItemOperationOrder[0]);
+			CompletedItemOperationOrder.RemoveAt(0);
+		}
+		CompletedItemOperationOrder.Add(Result.RequestId);
+		CompletedItemOperations.Add(Result.RequestId, Result);
+	}
+	ClientCompleteItemOperation(Result);
+}
+
+void ALxPlayerController::ClientCompleteItemOperation_Implementation(const FLxItemOperationResult& Result)
+{
+	OnItemOperationCompleted.Broadcast(Result);
 }
 
 void ALxPlayerController::ServerMoveItemBetweenBackpackAndWarehouse_Implementation(AActor* WarehouseOwner,

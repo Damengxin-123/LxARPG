@@ -2,11 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "LxInteractionActionComponentBase.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxItemSaveData.h"
 #include "LxTradeContainerInteractionComponent.generated.h"
 
 class ULxCharacterDataTransferComponent;
 class ULxItemBase;
 class ULxItemSlotData;
+class ULxItemTransferTicket;
+class ULxCharacterBackpackModule;
 
 /** 交易容器状态改变，仅供 C++ 监听。 */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLxTradeContainerStateChanged, ELxInteractionDataState);
@@ -25,7 +28,7 @@ public:
 	/** 应用功能节点提供的商城初始配置。 */
 	void ApplyConfig(const FLxTradeContainerInteractionConfig& InConfig);
 
-	/** 仅保存有限库存商品的槽位、物品ID及剩余数量，售罄商品保留零数量。 */
+	/** 保存有限库存商品及装备实例状态，售罄商品保留ID和零数量。 */
 	virtual bool CapturePersistentData(FLxInteractionFeatureSaveRecord& OutRecord) const override;
 
 	/** 按当前商品配置恢复匹配的有限库存，兼容旧档并保留无限商品与当前价格设置。 */
@@ -38,6 +41,17 @@ public:
 	void GetTradeItemSlotList(TArray<ULxItemSlotData*>& OutTradeSlots) const;
 
 	ULxItemSlotData* GetTradeSlotAt(int32 SlotIndex) const;
+
+	/** 创建完整商品实例的只读购买凭证，不提前扣除库存或金币。 */
+	UFUNCTION(BlueprintCallable, Category="交互|商城|安全操作", DisplayName="准备快速购买商品")
+	ULxItemTransferTicket* BeginSafeExtractTradeItem(int32 SlotIndex, FText& OutReason);
+
+	/** 背包界面按商品凭证预检完整购买，允许支付金币释放出的合法空格参与放置。 */
+	bool CanBuyTradeItem(ULxCharacterBackpackModule* Backpack, int32 TradeSlotIndex, FText& OutReason) const;
+
+	/** 完整预检出售及金币放置计划；失败不会清除来源物品。 */
+	UFUNCTION(BlueprintCallable, Category="交互|商城|安全操作", DisplayName="能否安全出售背包物品")
+	bool CanSellBackpackSlot(ULxItemSlotData* BackpackSlot, ULxCharacterDataTransferComponent* DataTransferComponent) const;
 
 	UFUNCTION(BlueprintCallable, Category="交互|商城", DisplayName="刷新交易槽位")
 	void RefreshTradeSlots();
@@ -116,7 +130,7 @@ protected:
 	TArray<TObjectPtr<ULxItemSlotData>> TradeItemSlotList;
 
 	UPROPERTY(ReplicatedUsing=OnRep_TradeSlots)
-	TArray<FLxItemQuote> ReplicatedTradeSlots;
+	TArray<FLxItemSaveRecord> ReplicatedTradeSlots;
 
 private:
 	/** 服务端恢复或修改价格后，客户端统一刷新各槽位报价。 */
@@ -134,10 +148,9 @@ private:
 	void UnbindPlayerDataTransfer();
 	bool BuildTradeItemQuote(ULxItemSlotData* TradeSlot, FLxItemQuote& OutItemQuote) const;
 	bool BuildGoldCost(int32 Price, TArray<FLxItemQuote>& OutCostItemList) const;
-	bool CanPutItemQuoteInBackpackSlot(ULxItemSlotData* TargetBackpackSlot, const FLxItemQuote& ItemQuote) const;
-	bool PutItemQuoteInBackpackSlot(ULxItemSlotData* TargetBackpackSlot, const FLxItemQuote& ItemQuote);
-	/** 购买成功后按商品配置扣除有限库存，无限库存保持原数量。 */
-	void ConsumePurchasedStock(ULxItemSlotData* TradeSlot, int32 PurchasedCount);
+	/** 完整规划商品、金币与库存后一次提交，指定槽位仅用于原有拖放购买。 */
+	bool ExecuteAtomicPurchase(ULxItemSlotData* TradeSlot, ULxItemSlotData* TargetSlot,
+		ULxCharacterDataTransferComponent* DataTransferComponent);
 	int32 CalculateItemPrice(ULxItemBase* Item, float ValueRate = 1.0f) const;
 	int32 CalculateSlotPrice(ULxItemSlotData* Slot) const;
 

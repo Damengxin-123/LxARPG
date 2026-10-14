@@ -5,11 +5,15 @@
 #include "LxARPG/LxSource/Model/Item/DataType/Slot/LxItemSlotEnum.h"
 
 class ULxItemSlotData;
+class ULxItemBase;
 
 /** 交互模块恢复存档时使用的槽位构建工具，不负责读写存档文件。 */
 namespace LxInteractionSaveHelpers
 {
-	/** 仅采集预设物品的标识和数量，并保留空槽和排列；失败时不修改输出。 */
+    /** 为容器记录补充装备实例状态；非装备不增加动态字段。 */
+    LXARPG_API bool CaptureEquipment(ULxItemBase* Item, FLxInteractionItemSaveRecord& Record);
+
+	/** 采集物品及装备状态并保留空槽和排列；失败时不修改输出。 */
 	LXARPG_API bool CaptureSlots(const TArray<TObjectPtr<ULxItemSlotData>>& Slots,
 		TArray<FLxInteractionItemSaveRecord>& OutRecords);
 

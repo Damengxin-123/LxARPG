@@ -4,6 +4,7 @@
 #include "GameplayTagContainer.h"
 #include "LxARPG/LxSource/Core/Database/LxUIBaseObject.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemEnmuType.h"
+#include "LxARPG/LxSource/UI/ItemOperations/LxItemQuickTransferInterface.h"
 #include "LxBackpackWidget.generated.h"
 
 class ULxCharacterDataTransferComponent;
@@ -16,11 +17,24 @@ class ULxItemSlotData;
  * UI 不直接订阅背包组件或装备组件，数据获取、筛选和事件刷新都统一经过角色数据中转组件。
  */
 UCLASS(Blueprintable, DisplayName="背包界面")
-class LXARPG_API ULxBackpackWidget : public ULxUIBaseObject
+class LXARPG_API ULxBackpackWidget : public ULxUIBaseObject, public ILxItemQuickTransferInterface
 {
 	GENERATED_BODY()
 
 public:
+	/** 返回当前角色的真实背包上下文。 */
+	virtual bool GetQuickItemContainer_Implementation(FLxItemContainerAddress& OutContainer) const override;
+	/** 通过角色数据中转组件创建来源提取凭据。 */
+	virtual ULxItemTransferTicket* PrepareQuickItemTransfer_Implementation(ULxItemSlotData* SourceSlot, FText& OutReason) override;
+	/** 委托背包模块检查容量，不在 UI 遍历或修改容器。 */
+	virtual bool CanReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket, FText& OutReason) const override;
+	/** 将接收请求提交给通用权威入口。 */
+	virtual bool ReceiveQuickItemTransfer_Implementation(ULxItemTransferTicket* Ticket, const FLxItemOperationRequest& Request, ULxUIBaseObject* SourceWindow, FText& OutReason) override;
+	/** 把完成与失败结果交给蓝图表现。 */
+	virtual void NotifyQuickItemOperationResult_Implementation(const FLxItemOperationResult& Result) override;
+	/** 蓝图展示失败原因或播放音效，不负责修改数量。 */
+	UFUNCTION(BlueprintImplementableEvent, Category="背包UI|物品操作", meta=(DisplayName="背包物品快捷操作完成"))
+	void OnItemOperationCompleted(const FLxItemOperationResult& Result);
 	virtual void UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent) override;
 	virtual void NativeDestruct() override;
 
@@ -82,4 +96,8 @@ private:
 	/** 当前装备栏手动布局刷新周期内还没有被蓝图绑定走的槽位。 */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<ULxItemSlotData>> PendingEquipmentSlotBindingList;
+
+	/** 最近快捷操作结果，可供蓝图绑定提示。 */
+	UPROPERTY(BlueprintReadOnly, Category="背包UI|物品操作", meta=(AllowPrivateAccess="true", DisplayName="最近物品操作结果"))
+	FLxItemOperationResult LastItemOperationResult;
 };

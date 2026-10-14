@@ -27,7 +27,12 @@ namespace
 		case ELxScalarAttributeDisplayFormat::Percentage:
 			return BuildPercentText(InAttributeData.Value);
 		case ELxScalarAttributeDisplayFormat::Decimal:
-			return FText::AsNumber(InAttributeData.Value);
+		{
+			FNumberFormattingOptions Options;
+			Options.MinimumFractionalDigits = 0;
+			Options.MaximumFractionalDigits = 2;
+			return FText::AsNumber(InAttributeData.Value, &Options);
+		}
 		case ELxScalarAttributeDisplayFormat::Integer:
 		default:
 			return BuildIntegerText(InAttributeData.Value);
