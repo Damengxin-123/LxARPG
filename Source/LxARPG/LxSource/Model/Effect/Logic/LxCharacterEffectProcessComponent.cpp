@@ -232,9 +232,10 @@ bool ULxCharacterEffectProcessModule::ReceiveIncomingEffectPackage(const FLxEffe
 				OutDamageReceiveResult.GetTotalDamageValue(), DamageContext.SourceActor->GetActorLocation(),
 				GetOwner()->GetActorLocation());
 		}
+		// 仅实际应用伤害后通知受击监听者，预览计算不能生成受击记录或AI敌对记忆。
+		OnCharacterDamageReceived.Broadcast(OutDamageReceiveResult, DamageContext.SourceActor);
 	}
 
-	OnCharacterDamageReceived.Broadcast(OutDamageReceiveResult, DamageContext.SourceActor);
 	return true;
 }
 

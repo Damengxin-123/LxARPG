@@ -273,7 +273,7 @@ bool FLxElementAbnormalDamageTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("第一秒经过目标承伤流程"), IncomingCount, 1);
 	TestEqual(TEXT("护甲1使基础伤害1降到0.5，护盾吸收0.25后生命承伤0.25"), LastHealthDamage, 0.25f);
 	TestEqual(TEXT("护盾结算收到0.25点伤害"), LastShieldDamage, 0.25f);
-	TestEqual(TEXT("生命资源沿用现有整数取整规则"), Resource(HealthTag), InitialHealth);
+	TestEqual(TEXT("生命资源保留两位小数并扣除0.25点伤害"), Resource(HealthTag), InitialHealth - 0.25f);
 	TestEqual(TEXT("伤害优先消耗护盾"), Resource(ShieldTag), 0.f);
 	TargetAttributes->FindMutableScalarAttribute(ArmorTag)->Value = 3.f;
 	AdvanceWorld(TestWorld.World, 10);
@@ -293,7 +293,7 @@ bool FLxElementAbnormalDamageTest::RunTest(const FString& Parameters)
 	AdvanceWorld(TestWorld.World, 11);
 	TestEqual(TEXT("输出流程的暴击倍率保留到最终承伤"), Resource(HealthTag), AfterCancel - 2.f);
 	CurrentUnit->CancelSkillUnit();
-	// 使用不会被整数资源规则抹去的伤害，验证实际护盾和生命最终变化。
+	// 同时验证较大伤害经过护甲和护盾后的最终资源变化。
 	SourceAttributes->FindMutableScalarAttribute(CriticalTag)->Value = 0.f;
 	TargetAttributes->FindMutableScalarAttribute(ArmorTag)->Value = 10.f;
 	TargetAttributes->FindMutableResourceAttribute(ShieldTag)->Value = 2.f;
@@ -323,7 +323,7 @@ bool FLxElementAbnormalDamageTest::RunTest(const FString& Parameters)
 	AdvanceWorld(TestWorld.World, 11);
 	TestEqual(TEXT("零概率失败不启动周期伤害"), IncomingCount, BeforeIncoming);
 	TestEqual(TEXT("零概率失败生命不变"), Resource(HealthTag), BeforeReentrantCancel);
-	AddInfo(TEXT("周期伤害通过输出与承伤流程：1基础伤害→护甲1减至0.5→护盾吸收0.25→计算生命承伤0.25（资源沿用整数取整）；10基础伤害、护甲10、护盾2时实际扣3点生命；输出暴击生效。"));
+	AddInfo(TEXT("周期伤害通过输出与承伤流程：1基础伤害→护甲1减至0.5→护盾吸收0.25→实际扣除0.25点生命；10基础伤害、护甲10、护盾2时实际扣3点生命；输出暴击生效。"));
 	return true;
 }
 

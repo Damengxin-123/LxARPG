@@ -191,6 +191,8 @@ bool ULxSaveProfileStore::SaveSession(const FGuid& CharacterID, const FGuid& Wor
 	CharacterEntry->Slot = NewSlot(TEXT("Character")); WorldEntry->Slot = NewSlot(TEXT("World"));
 	CharacterEntry->SavedAt = WorldEntry->SavedAt = FDateTime::UtcNow();
 	CharacterEntry->LastWorldID = WorldID;
+	// 最近组合与完整快照原子提交，继续游戏始终指向最后一次成功保存的会话。
+	Next->LastCharacterID = CharacterID; Next->LastWorldID = WorldID;
 	if (!LxSaveFile::Write(Character.Get(), CharacterEntry->Slot, UserIndex)
 		|| !LxSaveFile::Write(World.Get(), WorldEntry->Slot, UserIndex)) { LastError = TEXT("存档快照写入失败，目录仍指向上次完整进度。"); return false; }
 	return CommitCatalog(Next.Get());

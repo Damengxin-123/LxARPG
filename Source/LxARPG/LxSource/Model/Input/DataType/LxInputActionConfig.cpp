@@ -75,6 +75,21 @@ namespace
 
 namespace LxInputActionConfig
 {
+	bool IsSupportedUserKey(const FKey& Key)
+	{
+		const FName Category = Key.GetMenuCategory();
+		return Key.IsValid() && Key.IsDigital() && !Key.IsGamepadKey() && !Key.IsTouch()
+			&& !Key.IsGesture() && !Key.IsDeprecated() && Key != EKeys::AnyKey && Key != EKeys::Escape
+			&& (Category == EKeys::NAME_KeyboardCategory || Category == EKeys::NAME_MouseCategory);
+	}
+
+	bool IsUserRemappableAction(ELxInputActionID InputActionID)
+	{
+		const FLxInputActionInfo* Info = GetInputActionInfo(InputActionID);
+		return Info && Info->bCanUserRemap && InputActionID != ELxInputActionID::LookX
+			&& InputActionID != ELxInputActionID::LookY && IsSupportedUserKey(Info->DefaultKey);
+	}
+
 	void EnsureDefaultSprintInputActionInfo()
 	{
 		if (GetInputActionInfo(ELxInputActionID::Sprint)) return;
@@ -192,7 +207,10 @@ namespace LxInputActionConfig
 	void SendInputEvent(ELxInputActionID InInputActionID, FLxInputValue& InInputValue, const APlayerController* SourcePlayerController)
 	{
 		const ALxPlayerController* Controller = Cast<ALxPlayerController>(SourcePlayerController);
-		if (Controller && Controller->IsPauseMenuOpen()) return;
+		const FLxInputActionInfo* Info = GetInputActionInfo(InInputActionID);
+		// 暂停中只允许清理成对输入的释放，禁止新的按下和持续操作。
+		const bool bIsRelease = Info && Info->InteractionType == ELxInputInteractionType::PressAndRelease && !InInputValue.m_blValue;
+		if (Controller && Controller->IsPauseMenuOpen() && !bIsRelease) return;
 		if (TArray<TWeakObjectPtr<UObject>>* ReceivedObjects = GInputReceivedObjectMap.Find(InInputActionID))
 		{
 			ReceivedObjects->RemoveAll([](const TWeakObjectPtr<UObject>& ReceivedObject)

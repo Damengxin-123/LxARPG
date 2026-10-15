@@ -10,7 +10,7 @@
 
 
 USTRUCT(BlueprintType, DisplayName="输入行为信息")
-struct FLxInputActionInfo : public FTableRowBase
+struct LXARPG_API FLxInputActionInfo : public FTableRowBase
 {
 	GENERATED_BODY()
 
@@ -33,6 +33,10 @@ struct FLxInputActionInfo : public FTableRowBase
 	// 输入行为的默认按键 仅包含单方向按键，例如鼠标滚轮只支持上或者下滚动
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="输入行为信息|默认按键",DisplayName="默认按键")
 	FKey DefaultKey;
+
+	/** 是否允许玩家修改此操作的按键；视角和连续轴输入始终保持预设。 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="输入行为信息|默认按键", DisplayName="允许玩家改键")
+	bool bCanUserRemap = true;
 
 	// 输入的值的方向，当传递的值用于向量时，需要指名此值所作用的方向，如果无需方向，则使用默认值即可
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="输入行为信息|值轴向",DisplayName="输入的值轴向")
@@ -164,8 +168,8 @@ struct FLxInputValue
  * 在初始化输入行为之前，会使用本地配置覆盖默认配置
  * @note 
  */
-USTRUCT()
-struct FLxInputKeySetting
+USTRUCT(BlueprintType, meta=(DisplayName="玩家按键配置", Category="输入|玩家设置"))
+struct LXARPG_API FLxInputKeySetting
 {
 	GENERATED_BODY()
 
@@ -173,14 +177,14 @@ struct FLxInputKeySetting
 	 * @var FName ActionID
 	 * @brief 输入行为的ID
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="输入|玩家设置", DisplayName="输入行为ID")
 	ELxInputActionID InputActionID = ELxInputActionID::None;
 
 	/**
 	 * @var FKey LocalSettingKey
 	 * @brief 本地存档配置的键值
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category="输入|玩家设置", DisplayName="玩家按键")
 	FKey LocalSettingKey;
 };
 

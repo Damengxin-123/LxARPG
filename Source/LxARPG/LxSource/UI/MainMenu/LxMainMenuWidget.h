@@ -64,6 +64,9 @@ public:
 	/** 验证当前选择并进入正式游戏。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|流程", DisplayName="进入选中存档")
 	void EnterGame();
+	/** 从最后游玩组合的最新快照继续，当前浏览角色与地图不会影响目标。 */
+	UFUNCTION(BlueprintCallable, Category="主菜单|流程", DisplayName="继续游戏")
+	void ContinueGame();
 	/** 执行退出流程，加载中不会重复提交。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|流程", DisplayName="退出游戏")
 	void QuitGame();
@@ -118,6 +121,9 @@ public:
 	/** 当前角色与地图组合是否可进入正式游戏。 */
 	UFUNCTION(BlueprintPure, Category="主菜单|状态", DisplayName="是否可进入游戏")
 	bool CanEnterGame() const;
+	/** 首次游玩、加载或弹窗打开时禁用主页的继续按钮。 */
+	UFUNCTION(BlueprintPure, Category="主菜单|状态", DisplayName="是否可继续游戏")
+	bool CanContinueGame() const;
 	/** 数据、选择、加载状态或错误变化时通知蓝图，蓝图负责刷新自己的控件。 */
 	UFUNCTION(BlueprintImplementableEvent, Category="主菜单|通知", DisplayName="主菜单数据更新")
 	void ReceiveMenuChanged();

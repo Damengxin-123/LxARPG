@@ -124,7 +124,11 @@ bool FLxProfessionCharacterUITest::RunTest(const FString& Parameters)
 		[this, Transfer, Novice](UUserWidget* Widget)
 		{
 			auto* UI = CastChecked<ULxProfessionWidget>(Widget); UI->UpdateUIComponents(Transfer);
-			TestEqual(TEXT("战斗分类显示五个职业"), UI->GetProfessionListUIData().Num(), 5);
+			// 按实际体系统计职业，允许独立测试职业和后续新增职业进入同一分类。
+			int32 CombatCount = 0;
+			for (const ULxProfessionTreeDefinition* Profession : LxProfessionConfig::GetProfessionTree()->Professions)
+				if (Profession && Profession->ProfessionCategory == ELxProfessionTreeCategory::Combat) ++CombatCount;
+			TestEqual(TEXT("战斗分类显示全部配置职业"), UI->GetProfessionListUIData().Num(), CombatCount);
 			UI->SelectProfession(Novice);
 			TestEqual(TEXT("实习职业显示五级成长配置"), UI->GetProfessionLevelListUIData().Num(), 5);
 			UI->SetProfessionTypeFilter(ELxProfessionType::Gathering); TestEqual(TEXT("采集筛选生效"), UI->GetProfessionListUIData().Num(), 2);

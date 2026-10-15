@@ -49,19 +49,38 @@ struct LXARPG_API FLxScalarAttributeData : public FLxCharacterAttributeCommonDat
 
 };
 
-/** 资源属性数据，分别保存运行时当前值和上限值。 */
+/** 资源属性数据，当前值和上限值统一保留两位小数，界面文本仍按整数显示。 */
 USTRUCT(BlueprintType, DisplayName="资源属性数据")
 struct LXARPG_API FLxResourceAttributeData : public FLxCharacterAttributeCommonData
 {
 	GENERATED_BODY()
 
-	/** 当前资源能够达到的上限值。 */
+	/** 当前资源能够达到的上限值，运行时保留两位小数。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性|资源", DisplayName="属性上限值")
 	float ValueLimit = 0.f;
 
-	/** 当前资源在运行时的有效值。 */
+	/** 当前资源在运行时的有效值，保留两位小数以累积小额恢复和消耗。 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性|资源", DisplayName="属性有效值")
 	float Value = 0.f;
+
+	/** 当前资源每秒自然恢复的点数，默认为零，运行时限制为非负数并保留两位小数。 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="角色|属性|资源", DisplayName="每秒恢复值（点/秒）", meta=(ClampMin="0.00", UIMin="0.00"))
+	float RecoveryPerSecond = 0.f;
+
+	/** 将当前值、上限值和每秒恢复值四舍五入到两位小数，并修正有效范围。 */
+	void NormalizeValues()
+	{
+		// 使用双精度中间值，避免资源数值乘以精度倍率时增加单精度舍入误差。
+		constexpr double PrecisionScale = 100.0;
+		ValueLimit = FMath::Max(0.f, static_cast<float>(
+			FMath::RoundToDouble(static_cast<double>(ValueLimit) * PrecisionScale) / PrecisionScale));
+		Value = FMath::Clamp(static_cast<float>(
+			FMath::RoundToDouble(static_cast<double>(Value) * PrecisionScale) / PrecisionScale), 0.f, ValueLimit);
+		RecoveryPerSecond = FMath::IsFinite(RecoveryPerSecond)
+			? FMath::Max(0.f, static_cast<float>(
+				FMath::RoundToDouble(static_cast<double>(RecoveryPerSecond) * PrecisionScale) / PrecisionScale))
+			: 0.f;
+	}
 };
 
 /** 区间属性数据，用基准值及两个方向的浮动比例定义数值区间。 */

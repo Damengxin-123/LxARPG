@@ -12,6 +12,7 @@
 #include "LxARPG/LxSource/Systems/MainMenu/LxMainMenuSettings.h"
 #include "LxARPG/LxSource/UI/MainMenu/LxPauseMenuWidget.h"
 #include "LxARPG/LxSource/UI/Manager/LxUIManager.h"
+#include "LxARPG/LxSource/Model/Input/Logic/LxInputComponent.h"
 
 namespace
 {
@@ -41,6 +42,8 @@ namespace
 				|| (Local && Local->GetUIManager() && HasFocus(Local->GetUIManager()->GetCachedWidget()));
 			if (!bInGame) return false;
 			if (Event.IsRepeat()) return true;
+			// Esc 优先取消输入设置中的按键捕获，随后才允许恢复暂停游戏。
+			if (Player->GetPauseMenuWidget() && Player->GetPauseMenuWidget()->CancelInputKeyCaptureIfActive()) return true;
 			return Player->TogglePauseMenu();
 		}
 	private:
@@ -70,6 +73,7 @@ bool ALxPlayerController::TogglePauseMenu()
 	ULxPauseMenuWidget* NewMenu = WidgetClass ? CreateWidget<ULxPauseMenuWidget>(this, WidgetClass) : nullptr;
 	if (!NewMenu) return false;
 	// 暂停前先派发按键释放，避免疾跑、蓄力或鼠标显示键在恢复后卡住。
+	if (m_pInputComponent) m_pInputComponent->ReleaseHeldInputActions();
 	if (PlayerInput) PlayerInput->FlushPressedKeys();
 	if (!SetPause(true)) return false;
 	PauseMenuWidget = NewMenu;

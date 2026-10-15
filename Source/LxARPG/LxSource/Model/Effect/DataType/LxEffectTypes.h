@@ -40,7 +40,9 @@ enum class ELxAttributeModifierTarget : uint8
 	ToValue UMETA(DisplayName = "当前有效值"),
 	ToValueLimit UMETA(DisplayName = "数值上限"),
 	ToUpwardFloatingRatio UMETA(DisplayName = "向上浮动比例"),
-	ToDownwardFloatingRatio UMETA(DisplayName = "向下浮动比例")
+	ToDownwardFloatingRatio UMETA(DisplayName = "向下浮动比例"),
+	/** 修改资源属性每秒自然恢复的点数；追加在末尾以保留已有目标序号。 */
+	ToRecoveryPerSecond UMETA(DisplayName = "每秒恢复值")
 };
 
 /** 属性修改方式，用于表达加值、提高和总增等属性增益减益语义。 */

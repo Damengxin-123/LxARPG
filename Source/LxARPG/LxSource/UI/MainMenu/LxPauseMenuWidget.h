@@ -18,6 +18,9 @@ public:
 	/** 在暂停状态下打开设置草稿。 */
 	UFUNCTION(BlueprintCallable, Category="界面|暂停菜单", meta=(DisplayName="打开游戏设置"))
 	void OpenSettings();
+	/** 暂停快捷键优先取消设置中的改键捕获，成功取消时返回真且保持暂停。 */
+	UFUNCTION(BlueprintCallable, Category="界面|暂停菜单", meta=(DisplayName="取消暂停设置按键捕获"))
+	bool CancelInputKeyCaptureIfActive();
 	/** 关闭全部暂停面板并恢复游戏。 */
 	UFUNCTION(BlueprintCallable, Category="界面|暂停菜单", meta=(DisplayName="继续游戏"))
 	void ResumeGame();

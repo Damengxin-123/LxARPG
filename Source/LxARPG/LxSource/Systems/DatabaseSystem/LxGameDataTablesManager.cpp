@@ -81,6 +81,7 @@ namespace
 	{
 		EnsureDefaultAimInputActionInfo();
 		EnsureDefaultProfessionInputActionInfo();
+		LxInputActionConfig::EnsureDefaultSprintInputActionInfo();
 	}
 
 	/** 加载富文本样式映射，并保留样式表类型检查。 */

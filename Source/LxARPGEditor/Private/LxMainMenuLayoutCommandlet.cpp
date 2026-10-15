@@ -8,6 +8,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/ButtonSlot.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/CheckBox.h"
@@ -16,6 +17,9 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/SizeBox.h"
+#include "Components/ScaleBox.h"
+#include "Components/ScaleBoxSlot.h"
+#include "Components/ScrollBox.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -24,6 +28,7 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2.h"
 #include "Engine/Font.h"
+#include "Engine/DataTable.h"
 #include "HAL/FileManager.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_ComponentBoundEvent.h"
@@ -45,13 +50,27 @@
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "LxARPG/LxSource/UI/MainMenu/LxMainMenuWidget.h"
 #include "LxARPG/LxSource/UI/MainMenu/LxSettingsWidget.h"
+#include "LxARPG/LxSource/UI/MainMenu/LxInputSettingRowWidget.h"
 #include "LxARPG/LxSource/UI/MainMenu/LxPauseMenuWidget.h"
+#include "LxARPG/LxSource/Systems/MainMenu/LxMainMenuSettings.h"
+#include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
+#include "LxARPG/LxSource/Systems/SettingSystem/LxGameSettings.h"
 
 namespace LxMenuLayout
 {
-/** 本次迁移限定的两个中文界面资产。 */
-const TCHAR* MenuPath = TEXT("/Game/项目内容/UI界面/主菜单/主菜单");
-const TCHAR* SettingsPath = TEXT("/Game/项目内容/UI界面/主菜单/设置");
+/** 读取项目实际配置的菜单包名，避免迁移工具在旧路径创建重复蓝图。 */
+FString GetMenuPath()
+{
+	const TSoftClassPtr<ULxMainMenuWidget>& Configured = GetDefault<ULxMainMenuSettings>()->MenuWidgetClass;
+	if (UClass* Loaded = Configured.LoadSynchronous()) return Loaded->GetOutermost()->GetName();
+	return Configured.ToSoftObjectPath().GetLongPackageName();
+}
+
+/** 设置蓝图与已配置的主菜单位于同一中文目录。 */
+FString GetSettingsPath()
+{
+	return FPackageName::GetLongPackagePath(GetMenuPath()) + TEXT("/设置");
+}
 
 /** 使用蓝图模式检查每条连线，使生成资产保持可编译和可手动编辑。 */
 void Connect(UEdGraphPin* Output, UEdGraphPin* Input)
@@ -372,13 +391,13 @@ bool BuildMenu(UWidgetBlueprint* Blueprint, UClass* SettingsClass)
 	Pages->AddChild(Home);
 	UBorder* Sidebar = Frame(Blueprint, TEXT("侧栏边框"), Make<UVerticalBox>(Blueprint, TEXT("侧栏装饰")));
 	Place(Home, Sidebar, FAnchors(0.008f, 0.014f, 0.278f, 0.986f));
-	const TCHAR* HomeNames[] = {TEXT("打开存档"), TEXT("打开设置"), TEXT("退出游戏")};
-	const TCHAR* HomeTexts[] = {TEXT("打开存档"), TEXT("设置"), TEXT("退出游戏")};
-	for (int32 Index = 0; Index < 3; ++Index)
+	const TCHAR* HomeNames[] = {TEXT("继续游戏"), TEXT("打开存档"), TEXT("打开设置"), TEXT("退出游戏")};
+	const TCHAR* HomeTexts[] = {TEXT("继续游戏"), TEXT("打开存档"), TEXT("设置"), TEXT("退出游戏")};
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(HomeNames); ++Index)
 	{
 		UButton* Action = Button(Blueprint, HomeNames[Index], HomeTexts[Index], 38);
-		Bind(Blueprint, Action, TEXT("bIsEnabled"), TEXT("CanInteract"));
-		Place(Home, Action, FAnchors(0.032f, 0.219f + Index * 0.178f, 0.264f, 0.329f + Index * 0.178f));
+		Bind(Blueprint, Action, TEXT("bIsEnabled"), Index == 0 ? TEXT("CanContinueGame") : TEXT("CanInteract"));
+		Place(Home, Action, FAnchors(0.032f, 0.135f + Index * 0.15f, 0.264f, 0.245f + Index * 0.15f));
 	}
 	UButton* Previous = Button(Blueprint, TEXT("上个角色"), TEXT("‹"), 42);
 	UButton* Next = Button(Blueprint, TEXT("下个角色"), TEXT("›"), 42);
@@ -454,6 +473,7 @@ bool BuildMenu(UWidgetBlueprint* Blueprint, UClass* SettingsClass)
 	const TCHAR* Names[] = {TEXT("打开存档"), TEXT("打开设置"), TEXT("退出游戏"), TEXT("新建角色"), TEXT("存档返回"), TEXT("角色取消"), TEXT("进入游戏")};
 	const TCHAR* Calls[] = {TEXT("OpenWorldPanel"), TEXT("OpenSettingsPanel"), TEXT("QuitGame"), TEXT("OpenCharacterPanel"), TEXT("ClosePanel"), TEXT("ClosePanel"), TEXT("EnterGame")};
 	for (int32 Index = 0; Index < 7; ++Index) Click(Blueprint, Graph, Names[Index], Calls[Index], Index * 280);
+	Click(Blueprint, Graph, TEXT("继续游戏"), TEXT("ContinueGame"), -360);
 	ValueInput(Click(Blueprint, Graph, TEXT("上个角色"), TEXT("SwitchCharacter"), 1960))->DefaultValue = TEXT("-1");
 	ValueInput(Click(Blueprint, Graph, TEXT("下个角色"), TEXT("SwitchCharacter"), 2240))->DefaultValue = TEXT("1");
 	UK2Node_CallFunction* CreateWorld = Click(Blueprint, Graph, TEXT("创建地图"), TEXT("CreateWorld"), 2520);
@@ -585,6 +605,248 @@ bool HasTemplateSignature(UWidgetBlueprint* Blueprint, bool bSettings)
 	});
 }
 
+/** 查询指定设计器控件已保存的委托事件，重复迁移不增加重复节点。 */
+UK2Node_ComponentBoundEvent* FindBoundEvent(UEdGraph* Graph, const TCHAR* Name, const TCHAR* Delegate)
+{
+	for (UEdGraphNode* Entry : Graph->Nodes)
+	{
+		UK2Node_ComponentBoundEvent* Result = Cast<UK2Node_ComponentBoundEvent>(Entry);
+		if (Result && Result->ComponentPropertyName == Name && Result->DelegatePropertyName == Delegate) return Result;
+	}
+	return nullptr;
+}
+
+/** 扩充已有主按钮悬停逻辑，沿用蓝图中保存的普通与选中主题样式。 */
+void ExtendContinueHoverEvents(UWidgetBlueprint* Blueprint, UEdGraph* Graph)
+{
+	const TCHAR* NormalStyle = TEXT("主按钮普通样式");
+	const TCHAR* SelectedStyle = TEXT("主按钮选中样式");
+	if (FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, NormalStyle) == INDEX_NONE
+		|| FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, SelectedStyle) == INDEX_NONE) return;
+	const TCHAR* Names[] = { TEXT("继续游戏"), TEXT("打开存档"), TEXT("打开设置"), TEXT("退出游戏") };
+	for (int32 Index = 1; Index < UE_ARRAY_COUNT(Names); ++Index)
+	{
+		UK2Node_ComponentBoundEvent* Hovered = FindBoundEvent(Graph, Names[Index], TEXT("OnHovered"));
+		if (!Hovered) continue;
+		const FString Marker = FString(TEXT("同步继续按钮普通样式：")) + Names[Index];
+		if (Graph->Nodes.ContainsByPredicate([&Marker](UEdGraphNode* Entry) { return Entry->NodeComment == Marker; })) continue;
+		UEdGraphPin* Exec = Hovered->FindPinChecked(TEXT("then"));
+		const TArray<UEdGraphPin*> Existing = Exec->LinkedTo;
+		Exec->BreakAllPinLinks();
+		UK2Node_CallFunction* Reset = WidgetCall(Graph, Names[0], UButton::StaticClass(), TEXT("SetStyle"), 400, 13000 + Index * 400);
+		Reset->NodeComment = Marker;
+		Connect(Widget(Graph, NormalStyle, 400, 13220 + Index * 400)->GetValuePin(), ValueInput(Reset));
+		Connect(Exec, Reset->GetExecPin());
+		for (UEdGraphPin* Pin : Existing) Connect(Reset->GetThenPin(), Pin);
+	}
+	if (FindBoundEvent(Graph, Names[0], TEXT("OnHovered"))) return;
+	UEdGraphPin* Then = BoundEvent(Blueprint, Graph, Names[0], TEXT("OnHovered"), 15000)->FindPinChecked(TEXT("then"));
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Names); ++Index)
+	{
+		UK2Node_CallFunction* Set = WidgetCall(Graph, Names[Index], UButton::StaticClass(), TEXT("SetStyle"), 400 + Index * 500, 15000);
+		Connect(Widget(Graph, Index == 0 ? SelectedStyle : NormalStyle, Set->NodePosX, 15220)->GetValuePin(), ValueInput(Set));
+		Connect(Then, Set->GetExecPin()); Then = Set->GetThenPin();
+	}
+}
+
+/** 验证继续按钮在已有主页顶部且点击确实连接到 C++ 继续流程。 */
+bool VerifyContinueButton(UWidgetBlueprint* Blueprint)
+{
+	if (!Blueprint || !Blueprint->ParentClass || !Blueprint->ParentClass->IsChildOf(ULxMainMenuWidget::StaticClass())
+		|| !Blueprint->WidgetTree || !Blueprint->WidgetTree->RootWidget) return false;
+	UButton* Continue = Cast<UButton>(Blueprint->WidgetTree->FindWidget(TEXT("继续游戏")));
+	UButton* Open = Cast<UButton>(Blueprint->WidgetTree->FindWidget(TEXT("打开存档")));
+	const UCanvasPanelSlot* ContinueSlot = Continue ? Cast<UCanvasPanelSlot>(Continue->Slot) : nullptr;
+	const UCanvasPanelSlot* OpenSlot = Open ? Cast<UCanvasPanelSlot>(Open->Slot) : nullptr;
+	const UVerticalBox* VerticalHome = Continue ? Cast<UVerticalBox>(Continue->GetParent()) : nullptr;
+	if (VerticalHome)
+	{
+		const TCHAR* Names[] = { TEXT("继续游戏"), TEXT("打开存档"), TEXT("打开设置"), TEXT("退出游戏") };
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Names); ++Index)
+			if (VerticalHome->GetChildIndex(Blueprint->WidgetTree->FindWidget(Names[Index])) != Index) return false;
+	}
+	else if (!ContinueSlot || !OpenSlot || ContinueSlot->GetAnchors().Maximum.Y >= OpenSlot->GetAnchors().Minimum.Y) return false;
+	if (!Blueprint->Bindings.ContainsByPredicate([](const FDelegateEditorBinding& Binding)
+	{
+		return Binding.ObjectName == TEXT("继续游戏") && Binding.PropertyName == TEXT("bIsEnabled") && Binding.FunctionName == TEXT("CanContinueGame");
+	})) return false;
+	for (UEdGraph* Graph : Blueprint->UbergraphPages)
+	{
+		UK2Node_ComponentBoundEvent* Clicked = FindBoundEvent(Graph, TEXT("继续游戏"), TEXT("OnClicked"));
+		if (!Clicked) continue;
+		for (UEdGraphPin* Linked : Clicked->FindPinChecked(TEXT("then"))->LinkedTo)
+		{
+			const UK2Node_CallFunction* Function = Cast<UK2Node_CallFunction>(Linked->GetOwningNode());
+			if (Function && Function->FunctionReference.GetMemberName() == TEXT("ContinueGame")) return true;
+		}
+	}
+	return false;
+}
+
+/** 原位迁移只要求项目配置的业务父类和真实控件树，不依赖早期模板的根控件名或昵称绑定。 */
+bool IsConfiguredMenuBlueprint(UWidgetBlueprint* Blueprint)
+{
+	return Blueprint && Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf(ULxMainMenuWidget::StaticClass())
+		&& Blueprint->WidgetTree && Blueprint->WidgetTree->RootWidget;
+}
+
+/** 输出继续按钮迁移的具体失败位置，便于 MCP 与命令行任务诊断。 */
+bool ContinueMigrationError(UWidgetBlueprint* Blueprint, const FString& Reason)
+{
+	UE_LOG(LogTemp, Error, TEXT("MenuContinue: 资产=%s 配置路径=%s 失败=%s"),
+		*GetPathNameSafe(Blueprint), *GetMenuPath(), *Reason);
+	return false;
+}
+
+/** 读取已有按钮内部的真实文字控件，允许主题工具改变其文字容器和控件名称。 */
+UTextBlock* FindButtonText(UWidgetBlueprint* Blueprint, UButton* ButtonWidget)
+{
+	if (!Blueprint || !Blueprint->WidgetTree || !ButtonWidget) return nullptr;
+	TArray<UWidget*> Widgets;
+	Blueprint->WidgetTree->GetAllWidgets(Widgets);
+	for (UWidget* Entry : Widgets)
+	{
+		UTextBlock* Text = Cast<UTextBlock>(Entry);
+		if (!Text) continue;
+		for (UWidget* Parent = Text->GetParent(); Parent; Parent = Parent->GetParent())
+			if (Parent == ButtonWidget) return Text;
+	}
+	return nullptr;
+}
+
+/** 只读导出实际菜单结构，返回内容可通过官方 MCP 直接查看。 */
+FString InspectConfiguredMenu()
+{
+	UWidgetBlueprint* Blueprint = LoadObject<UWidgetBlueprint>(nullptr, *GetMenuPath());
+	FString Report = FString::Printf(TEXT("配置=%s\n资产=%s\n父类=%s\n根控件=%s\n旧模板签名=%s\n"),
+		*GetMenuPath(), *GetPathNameSafe(Blueprint), Blueprint ? *GetPathNameSafe(Blueprint->ParentClass) : TEXT("无"),
+		Blueprint && Blueprint->WidgetTree ? *GetNameSafe(Blueprint->WidgetTree->RootWidget) : TEXT("无"),
+		HasTemplateSignature(Blueprint, false) ? TEXT("匹配") : TEXT("不匹配"));
+	if (!Blueprint || !Blueprint->WidgetTree) return Report;
+	TArray<UWidget*> Widgets;
+	Blueprint->WidgetTree->GetAllWidgets(Widgets);
+	for (UWidget* Entry : Widgets)
+	{
+		Report += FString::Printf(TEXT("控件=%s 类型=%s 父级=%s 槽类型=%s 子项索引=%d\n"),
+			*Entry->GetName(), *Entry->GetClass()->GetName(), *GetNameSafe(Entry->GetParent()), *GetNameSafe(Entry->Slot),
+			Entry->GetParent() ? Entry->GetParent()->GetChildIndex(Entry) : INDEX_NONE);
+		if (const UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Entry->Slot))
+		{
+			const FAnchors Anchors = Slot->GetAnchors();
+			Report += FString::Printf(TEXT("  锚点=(%.3f,%.3f)-(%.3f,%.3f)\n"),
+				Anchors.Minimum.X, Anchors.Minimum.Y, Anchors.Maximum.X, Anchors.Maximum.Y);
+		}
+	}
+	for (const FDelegateEditorBinding& Binding : Blueprint->Bindings)
+		Report += FString::Printf(TEXT("绑定=%s.%s -> %s\n"), *Binding.ObjectName, *Binding.PropertyName.ToString(), *Binding.FunctionName.ToString());
+	for (UEdGraph* Graph : Blueprint->UbergraphPages)
+	{
+		Report += FString::Printf(TEXT("事件图=%s 节点数量=%d\n"), *Graph->GetName(), Graph->Nodes.Num());
+		for (UEdGraphNode* Entry : Graph->Nodes)
+		{
+			if (const UK2Node_ComponentBoundEvent* Bound = Cast<UK2Node_ComponentBoundEvent>(Entry))
+				Report += FString::Printf(TEXT("  控件事件=%s.%s\n"), *Bound->ComponentPropertyName.ToString(), *Bound->DelegatePropertyName.ToString());
+		}
+	}
+	return Report;
+}
+
+/** 原位增加一个中文继续按钮，只调整主页四个按钮的排列，不重建任何其他布局或事件。 */
+bool RunContinueGame(bool bApply)
+{
+	UWidgetBlueprint* Blueprint = LoadObject<UWidgetBlueprint>(nullptr, *GetMenuPath());
+	UE_LOG(LogTemp, Display, TEXT("MenuContinue: 配置=%s 资产=%s 父类=%s 根控件=%s 绑定数量=%d 旧模板签名=%s"),
+		*GetMenuPath(), *GetPathNameSafe(Blueprint), Blueprint ? *GetPathNameSafe(Blueprint->ParentClass) : TEXT("无"),
+		Blueprint && Blueprint->WidgetTree ? *GetNameSafe(Blueprint->WidgetTree->RootWidget) : TEXT("无"),
+		Blueprint ? Blueprint->Bindings.Num() : 0, HasTemplateSignature(Blueprint, false) ? TEXT("匹配") : TEXT("不匹配"));
+	if (!IsConfiguredMenuBlueprint(Blueprint)) return ContinueMigrationError(Blueprint, TEXT("配置资产未加载，或父类不是主菜单逻辑基类，或缺少有效控件树"));
+	if (!bApply) return VerifyContinueButton(Blueprint) || ContinueMigrationError(Blueprint, TEXT("继续按钮、位置、启用绑定或点击连线检查失败"));
+	UButton* Open = Cast<UButton>(Blueprint->WidgetTree->FindWidget(TEXT("打开存档")));
+	UButton* Theme = Cast<UButton>(Blueprint->WidgetTree->FindWidget(TEXT("打开设置")));
+	UButton* Quit = Cast<UButton>(Blueprint->WidgetTree->FindWidget(TEXT("退出游戏")));
+	if (!Open || !Theme || !Quit) return ContinueMigrationError(Blueprint, TEXT("找不到打开存档、打开设置或退出游戏按钮；请运行检查主菜单蓝图结构查看实际名称"));
+	UPanelWidget* Home = Open->GetParent();
+	UCanvasPanel* CanvasHome = Cast<UCanvasPanel>(Home);
+	UVerticalBox* VerticalHome = Cast<UVerticalBox>(Home);
+	if ((!CanvasHome && !VerticalHome) || Theme->GetParent() != Home || Quit->GetParent() != Home)
+		return ContinueMigrationError(Blueprint, TEXT("现有三个主页按钮没有共同的画布或纵向盒父控件，不能安全调整排列"));
+	for (UButton* Existing : {Open, Theme, Quit})
+		if ((CanvasHome && !Cast<UCanvasPanelSlot>(Existing->Slot)) || (VerticalHome && !Cast<UVerticalBoxSlot>(Existing->Slot)))
+			return ContinueMigrationError(Blueprint, TEXT("已有按钮的布局槽不匹配父控件类型：") + Existing->GetName());
+	UTextBlock* ThemeText = FindButtonText(Blueprint, Open);
+	if (!ThemeText) return ContinueMigrationError(Blueprint, TEXT("存档按钮内部找不到可复制字体和颜色的文字控件"));
+	if (!Backup(Blueprint, TEXT("BeforeContinueGame"))) return ContinueMigrationError(Blueprint, TEXT("无法创建原菜单资产备份"));
+	UEdGraph* Graph = Blueprint->UbergraphPages.IsEmpty() ? nullptr : Blueprint->UbergraphPages[0];
+	if (!Graph)
+	{
+		Graph = FBlueprintEditorUtils::CreateNewGraph(Blueprint, TEXT("继续游戏事件"), UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
+		FBlueprintEditorUtils::AddUbergraphPage(Blueprint, Graph);
+	}
+	for (UEdGraph* Existing : Blueprint->UbergraphPages)
+		if (FindBoundEvent(Existing, TEXT("打开存档"), TEXT("OnClicked"))) { Graph = Existing; break; }
+	UButton* Continue = Cast<UButton>(Blueprint->WidgetTree->FindWidget(TEXT("继续游戏")));
+	if (!Continue && Blueprint->WidgetTree->FindWidget(TEXT("继续游戏")))
+		return ContinueMigrationError(Blueprint, TEXT("继续游戏名称已被其他类型控件占用，未覆盖现有控件"));
+	if (!Continue)
+	{
+		Continue = Button(Blueprint, TEXT("继续游戏"), TEXT("继续游戏"), ThemeText->GetFont().Size);
+		Continue->SetStyle(Theme->GetStyle()); Continue->SetBackgroundColor(Theme->GetBackgroundColor());
+		if (CanvasHome) Place(CanvasHome, Continue, FAnchors(0.032f, 0.135f, 0.264f, 0.245f));
+		else
+		{
+			// 新按钮只复制现有存档行的布局，三个旧按钮的槽对象和全部布局参数保持不变。
+			const UVerticalBoxSlot* TemplateSlot = CastChecked<UVerticalBoxSlot>(Open->Slot);
+			UVerticalBoxSlot* Slot = VerticalHome->AddChildToVerticalBox(Continue);
+			Slot->SetPadding(TemplateSlot->GetPadding()); Slot->SetSize(TemplateSlot->GetSize());
+			Slot->SetHorizontalAlignment(TemplateSlot->GetHorizontalAlignment());
+			Slot->SetVerticalAlignment(TemplateSlot->GetVerticalAlignment());
+		}
+		UTextBlock* Text = CastChecked<UTextBlock>(Continue->GetContent());
+		Text->SetFont(ThemeText->GetFont()); Text->SetColorAndOpacity(ThemeText->GetColorAndOpacity());
+		Continue->ClearChildren();
+		UScaleBox* Scale = Make<UScaleBox>(Blueprint, TEXT("继续游戏文字缩放"));
+		Scale->SetStretch(EStretch::ScaleToFit); Scale->SetStretchDirection(EStretchDirection::DownOnly);
+		Scale->AddChild(Text); Continue->AddChild(Scale);
+		UScaleBoxSlot* TextSlot = CastChecked<UScaleBoxSlot>(Text->Slot);
+		TextSlot->SetHorizontalAlignment(HAlign_Center); TextSlot->SetVerticalAlignment(VAlign_Center);
+		UButtonSlot* ButtonSlot = CastChecked<UButtonSlot>(Scale->Slot);
+		ButtonSlot->SetPadding(FMargin(12, 10)); ButtonSlot->SetHorizontalAlignment(HAlign_Fill); ButtonSlot->SetVerticalAlignment(VAlign_Fill);
+	}
+	Continue->SetToolTipText(FText::FromString(TEXT("从上一次退出时保存的进度继续游戏。首次游玩请先打开存档。")));
+	Blueprint->Bindings.RemoveAll([](const FDelegateEditorBinding& Binding)
+	{
+		return Binding.ObjectName == TEXT("继续游戏") && Binding.PropertyName == TEXT("bIsEnabled");
+	});
+	Bind(Blueprint, Continue, TEXT("bIsEnabled"), TEXT("CanContinueGame"));
+	const TCHAR* Names[] = { TEXT("继续游戏"), TEXT("打开存档"), TEXT("打开设置"), TEXT("退出游戏") };
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Names); ++Index)
+	{
+		UWidget* Action = Blueprint->WidgetTree->FindWidget(Names[Index]);
+		if (!Action || Action->GetParent() != Home) return ContinueMigrationError(Blueprint, FString(TEXT("按钮不在同一主页容器：")) + Names[Index]);
+		if (VerticalHome)
+		{
+			// ShiftChild 只移动既有槽位的顺序，主页提示等其余内容自然保留在四个按钮之后。
+			VerticalHome->ShiftChild(Index, Action);
+		}
+		else
+		{
+			UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Action->Slot);
+			if (!Slot) return ContinueMigrationError(Blueprint, FString(TEXT("按钮缺少画布槽：")) + Names[Index]);
+			Slot->SetAnchors(FAnchors(0.032f, 0.135f + Index * 0.15f, 0.264f, 0.245f + Index * 0.15f));
+			Slot->SetAlignment(FVector2D::ZeroVector); Slot->SetOffsets(FMargin(0)); Slot->SetAutoSize(false);
+		}
+	}
+	if (!Compile(Blueprint)) return ContinueMigrationError(Blueprint, TEXT("新增设计器控件之后的蓝图编译失败"));
+	if (!FindBoundEvent(Graph, TEXT("继续游戏"), TEXT("OnClicked"))) Click(Blueprint, Graph, TEXT("继续游戏"), TEXT("ContinueGame"), 12600);
+	ExtendContinueHoverEvents(Blueprint, Graph);
+	if (!Compile(Blueprint)) return ContinueMigrationError(Blueprint, TEXT("继续按钮点击或悬停事件图编译失败"));
+	if (!VerifyContinueButton(Blueprint)) return ContinueMigrationError(Blueprint, TEXT("新增继续按钮的顶部位置、启用绑定或点击连线校验失败"));
+	if (!Save(Blueprint)) return ContinueMigrationError(Blueprint, TEXT("编译后的菜单包保存失败"));
+	if (!Verify(Blueprint, ULxMainMenuWidget::StaticClass())) return ContinueMigrationError(Blueprint, TEXT("最终菜单结构报告生成或检查失败"));
+	UE_LOG(LogTemp, Display, TEXT("MenuContinue: 已保存配置菜单的顶部继续按钮，资产=%s"), *Blueprint->GetPathName());
+	return true;
+}
+
 /** 恢复缺失的可序列化字体资产，保留字号、字距、描边等已有文字样式。 */
 FSlateFontInfo RestoreFontAsset(const FSlateFontInfo& Original, UFont* FontAsset)
 {
@@ -643,17 +905,19 @@ bool RepairTemplateFonts(UWidgetBlueprint* Blueprint, bool bSettings)
 	return Verify(Blueprint, bSettings ? ULxSettingsWidget::StaticClass() : ULxMainMenuWidget::StaticClass());
 }
 
+#include "LxMainMenuInputSettings.inl"
+
 /** 顺序生成设置和主菜单，主菜单只引用已经编译成功的设置蓝图类型。 */
 bool Run(bool bApply)
 {
-	UWidgetBlueprint* Settings = LoadOrCreate(SettingsPath, ULxSettingsWidget::StaticClass(), bApply);
+	UWidgetBlueprint* Settings = LoadOrCreate(*GetSettingsPath(), ULxSettingsWidget::StaticClass(), bApply);
 	if (!Settings || !Settings->ParentClass->IsChildOf(ULxSettingsWidget::StaticClass())) return false;
 	if (bApply && IsEmpty(Settings))
 	{
 		if (!Backup(Settings) || !BuildSettings(Settings) || !Save(Settings)) return false;
 	}
 	if (!Verify(Settings, ULxSettingsWidget::StaticClass())) return false;
-	UWidgetBlueprint* Menu = LoadOrCreate(MenuPath, ULxMainMenuWidget::StaticClass(), bApply);
+	UWidgetBlueprint* Menu = LoadOrCreate(*GetMenuPath(), ULxMainMenuWidget::StaticClass(), bApply);
 	if (!Menu || !Menu->ParentClass->IsChildOf(ULxMainMenuWidget::StaticClass())) return false;
 	if (bApply && IsEmpty(Menu))
 	{
@@ -665,9 +929,9 @@ bool Run(bool bApply)
 /** 生成屏幕居中的暂停菜单；所有布局和按钮事件均保存到中文控件蓝图。 */
 bool RunPauseMenu(bool bApply)
 {
-	UWidgetBlueprint* Settings = LoadObject<UWidgetBlueprint>(nullptr, SettingsPath);
+	UWidgetBlueprint* Settings = LoadObject<UWidgetBlueprint>(nullptr, *GetSettingsPath());
 	if (!Settings || !Settings->GeneratedClass) return false;
-	UWidgetBlueprint* Pause = LoadOrCreate(TEXT("/Game/项目内容/UI界面/主菜单/暂停菜单"), ULxPauseMenuWidget::StaticClass(), bApply);
+	UWidgetBlueprint* Pause = LoadOrCreate(*GetDefault<ULxMainMenuSettings>()->PauseMenuWidgetClass.ToSoftObjectPath().GetLongPackageName(), ULxPauseMenuWidget::StaticClass(), bApply);
 	if (!Pause || !Pause->ParentClass->IsChildOf(ULxPauseMenuWidget::StaticClass())) return false;
 	if (bApply && IsEmpty(Pause))
 	{
@@ -723,12 +987,16 @@ bool RunPauseMenu(bool bApply)
 
 int32 ULxMainMenuLayoutCommandlet::Main(const FString& Params)
 {
+	if (FParse::Param(*Params, TEXT("InputSettings")))
+		return LxMenuLayout::RunInputSettings(FParse::Param(*Params, TEXT("Apply"))) ? 0 : 1;
+	if (FParse::Param(*Params, TEXT("ContinueGame")))
+		return LxMenuLayout::RunContinueGame(FParse::Param(*Params, TEXT("Apply"))) ? 0 : 1;
 	if (FParse::Param(*Params, TEXT("PauseMenu")))
 		return LxMenuLayout::RunPauseMenu(FParse::Param(*Params, TEXT("Apply"))) ? 0 : 1;
 	if (FParse::Param(*Params, TEXT("RestoreAppearance")))
 	{
-		UWidgetBlueprint* Settings = LoadObject<UWidgetBlueprint>(nullptr, LxMenuLayout::SettingsPath);
-		UWidgetBlueprint* Menu = LoadObject<UWidgetBlueprint>(nullptr, LxMenuLayout::MenuPath);
+		UWidgetBlueprint* Settings = LoadObject<UWidgetBlueprint>(nullptr, *LxMenuLayout::GetSettingsPath());
+		UWidgetBlueprint* Menu = LoadObject<UWidgetBlueprint>(nullptr, *LxMenuLayout::GetMenuPath());
 		if (!LxMenuLayout::HasTemplateSignature(Settings, true) || !LxMenuLayout::HasTemplateSignature(Menu, false)) return 1;
 		if (!LxMenuLayout::Backup(Settings, TEXT("BeforeAppearance")) || !LxMenuLayout::Backup(Menu, TEXT("BeforeAppearance"))) return 1;
 		if (!LxMenuArt::BakeTextures()) return 2;
@@ -741,13 +1009,28 @@ int32 ULxMainMenuLayoutCommandlet::Main(const FString& Params)
 	}
 	if (FParse::Param(*Params, TEXT("RepairFonts")))
 	{
-		return LxMenuLayout::RepairTemplateFonts(LoadObject<UWidgetBlueprint>(nullptr, LxMenuLayout::SettingsPath), true)
-			&& LxMenuLayout::RepairTemplateFonts(LoadObject<UWidgetBlueprint>(nullptr, LxMenuLayout::MenuPath), false) ? 0 : 1;
+		return LxMenuLayout::RepairTemplateFonts(LoadObject<UWidgetBlueprint>(nullptr, *LxMenuLayout::GetSettingsPath()), true)
+			&& LxMenuLayout::RepairTemplateFonts(LoadObject<UWidgetBlueprint>(nullptr, *LxMenuLayout::GetMenuPath()), false) ? 0 : 1;
 	}
 	return LxMenuLayout::Run(FParse::Param(*Params, TEXT("Apply"))) ? 0 : 1;
 }
 
 bool ULxMainMenuLayoutCommandlet::BuildMenuBlueprints()
 {
-	return LxMenuLayout::Run(true);
+	return LxMenuLayout::Run(true) && LxMenuLayout::RunContinueGame(true) && LxMenuLayout::RunInputSettings(true);
+}
+
+bool ULxMainMenuLayoutCommandlet::EnsureContinueGameButton()
+{
+	return LxMenuLayout::RunContinueGame(true);
+}
+
+bool ULxMainMenuLayoutCommandlet::EnsureInputSettingsPage()
+{
+	return LxMenuLayout::RunInputSettings(true);
+}
+
+FString ULxMainMenuLayoutCommandlet::InspectMainMenuBlueprint()
+{
+	return LxMenuLayout::InspectConfiguredMenu();
 }

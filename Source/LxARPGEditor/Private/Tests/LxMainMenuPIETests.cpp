@@ -61,8 +61,10 @@ public:
 		if (!bEnteringGameplay)
 		{
 			if (!Menu->CanEnterGame()) return false;
-			bool bPassed = Test->TestEqual(TEXT("PIE 加载配置的总关卡"), UGameplayStatics::GetCurrentLevelName(World, true),
-				GetDefault<ULxMainMenuSettings>()->DefaultLevel.ToSoftObjectPath().GetAssetName());
+			// 配置可能仍保留重命名前的软路径，PIE 应使用实际加载资产的规范名称。
+			UWorld* ConfiguredMap = GetDefault<ULxMainMenuSettings>()->DefaultLevel.LoadSynchronous();
+			if (!Test->TestNotNull(TEXT("PIE 总关卡配置可加载并解析重定向"), ConfiguredMap)) return true;
+			bool bPassed = Test->TestEqual(TEXT("PIE 加载配置的规范总关卡"), UGameplayStatics::GetCurrentLevelName(World, true), ConfiguredMap->GetName());
 			bPassed &= Test->TestTrue(TEXT("PIE 启动处于主菜单"), Mode->IsShowingMainMenu());
 			bPassed &= Test->TestTrue(TEXT("PIE 菜单环境已经开始正常运行"), World->HasBegunPlay());
 			bPassed &= Test->TestNull(TEXT("PIE 登录未提前生成受控玩家"), Controller->GetPawn());
@@ -361,7 +363,9 @@ bool FLxMainMenuPIETest::RunTest(const FString& Parameters)
 		AddError(TEXT("PIE 流程测试需要编辑器且当前不能已有运行会话。"));
 		return false;
 	}
-	FAutomationEditorCommonUtils::LoadMap(GetDefault<ULxMainMenuSettings>()->DefaultLevel.ToSoftObjectPath().GetLongPackageName());
+	UWorld* ConfiguredMap = GetDefault<ULxMainMenuSettings>()->DefaultLevel.LoadSynchronous();
+	if (!TestNotNull(TEXT("PIE 测试入口解析配置总关卡"), ConfiguredMap)) return false;
+	FAutomationEditorCommonUtils::LoadMap(ConfiguredMap->GetOutermost()->GetName());
 	ADD_LATENT_AUTOMATION_COMMAND(FStartPIECommand(false));
 	ADD_LATENT_AUTOMATION_COMMAND(FLxMainMenuPIEFlowCommand(this));
 	ADD_LATENT_AUTOMATION_COMMAND(FLxPlayerMovementPIECommand(this));

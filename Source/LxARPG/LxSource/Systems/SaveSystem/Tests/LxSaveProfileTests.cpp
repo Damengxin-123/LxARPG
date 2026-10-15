@@ -69,6 +69,44 @@ bool FLxProfileIsolationTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+/** 验证继续目标随完整保存原子提交，重新启动及浏览其他组合均保留退出时的最新进度。 */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxProfileContinueGameTest, "LxARPG.Menu.Profiles.ContinueGame",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FLxProfileContinueGameTest::RunTest(const FString& Parameters)
+{
+	FProfileTestFiles Files;
+	TStrongObjectPtr<ULxSaveProfileStore> Store(NewObject<ULxSaveProfileStore>());
+	if (!TestTrue(TEXT("初始化继续游戏的隔离目录"), Store->Initialize(Files.Prefix, 0, TEXT("")))) return false;
+	const FGuid CharacterA = Store->CreateCharacter(TEXT("退出角色"), MakeRecord());
+	const FGuid CharacterB = Store->CreateCharacter(TEXT("浏览角色"), MakeRecord());
+	const FGuid WorldA = Store->CreateWorld(TEXT("退出地图"));
+	const FGuid WorldB = Store->CreateWorld(TEXT("浏览地图"));
+	TestFalse(TEXT("首次新建角色与地图不会生成继续目标"), Store->GetCatalog()->LastCharacterID.IsValid());
+	TestFalse(TEXT("首次新建地图没有退出会话"), Store->GetCatalog()->LastWorldID.IsValid());
+	TStrongObjectPtr<ULxGameSaveData> ExitSession(Store->ReadSession(CharacterA, WorldA));
+	if (!TestNotNull(TEXT("读取准备退出的正式会话"), ExitSession.Get())) return false;
+	FLxCharacterSaveRecord& Record = ExitSession->Players.FindChecked(MakeRecord().SaveID);
+	Record.BackpackSlotCount = 61;
+	Record.SavedTransform.SetLocation(FVector(250, 400, 120));
+	if (!TestTrue(TEXT("成功保存退出前的完整进度"), Store->SaveSession(CharacterA, WorldA, ExitSession.Get()))) return false;
+	TStrongObjectPtr<ULxSaveProfileStore> Restarted(NewObject<ULxSaveProfileStore>());
+	if (!TestTrue(TEXT("重新启动读取磁盘目录"), Restarted->Initialize(Files.Prefix, 0, TEXT("")))) return false;
+	TestEqual(TEXT("重新启动继续使用退出角色"), Restarted->GetCatalog()->LastCharacterID, CharacterA);
+	TestEqual(TEXT("重新启动继续使用退出地图"), Restarted->GetCatalog()->LastWorldID, WorldA);
+	TStrongObjectPtr<ULxGameSaveData> Browsed(Restarted->ReadSession(CharacterB, WorldB));
+	TestNotNull(TEXT("其他角色与地图仍可只读浏览"), Browsed.Get());
+	TestEqual(TEXT("浏览其他组合不抢占继续角色"), Restarted->GetCatalog()->LastCharacterID, CharacterA);
+	TestEqual(TEXT("浏览其他组合不抢占继续地图"), Restarted->GetCatalog()->LastWorldID, WorldA);
+	TStrongObjectPtr<ULxGameSaveData> Continued(Restarted->ReadSession(Restarted->GetCatalog()->LastCharacterID, Restarted->GetCatalog()->LastWorldID));
+	if (!TestNotNull(TEXT("继续游戏可以组合最后退出档案"), Continued.Get())) return false;
+	TestEqual(TEXT("继续读取退出前最新进度"), Continued->Players.FindChecked(MakeRecord().SaveID).BackpackSlotCount, 61);
+	TestTrue(TEXT("继续读取退出前的位置和朝向"), Continued->Players.FindChecked(MakeRecord().SaveID).SavedTransform.Equals(Record.SavedTransform));
+	TestFalse(TEXT("无效提交被拒绝"), Restarted->SaveSession(CharacterB, FGuid(), Browsed.Get()));
+	TestEqual(TEXT("保存失败保留上次继续角色"), Restarted->GetCatalog()->LastCharacterID, CharacterA);
+	TestEqual(TEXT("保存失败保留上次继续地图"), Restarted->GetCatalog()->LastWorldID, WorldA);
+	return true;
+}
+
 /** 验证同标签交互对象按地图档案隔离，切换角色后继续地图中的容器与机关进度。 */
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxProfileInteractionWorldIsolationTest,
 	"LxARPG.Menu.Profiles.InteractionWorldIsolation", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

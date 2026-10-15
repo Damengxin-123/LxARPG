@@ -45,10 +45,10 @@ public:
 	/** 独立地图档案列表。 */
 	UPROPERTY(SaveGame, BlueprintReadOnly, Category="存档|目录", DisplayName="地图存档")
 	TArray<FLxSaveProfile> Worlds;
-	/** 最后正式进入游戏的角色。 */
+	/** 最后成功保存的正式会话角色；仅浏览、新建或进入游戏不会修改继续目标。 */
 	UPROPERTY(SaveGame, BlueprintReadOnly, Category="存档|目录", DisplayName="最后游玩角色")
 	FGuid LastCharacterID;
-	/** 最后正式进入游戏的地图档。 */
+	/** 最后成功保存的正式会话地图档，与角色身份在同一次目录提交中更新。 */
 	UPROPERTY(SaveGame, BlueprintReadOnly, Category="存档|目录", DisplayName="最后游玩地图")
 	FGuid LastWorldID;
 };

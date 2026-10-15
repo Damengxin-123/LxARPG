@@ -35,6 +35,8 @@ enum class ELxEntryTarget : uint8
 	ToUpwardFloatingRatio	UMETA(DisplayName="向上浮动比例"),
 	// 向下浮动比例
 	ToDownwardFloatingRatio	UMETA(DisplayName="向下浮动比例"),
+	// 资源每秒自然恢复的点数；追加在末尾以保留已有词条目标序号。
+	ToRecoveryPerSecond		UMETA(DisplayName="每秒恢复值"),
 };
 
 using ELxItemEntryType = ELxEntryEffectiveType;

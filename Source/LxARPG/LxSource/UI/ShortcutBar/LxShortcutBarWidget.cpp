@@ -2,6 +2,12 @@
 
 #include "Input/Reply.h"
 #include "InputCoreTypes.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "LxARPG/LxSource/Model/Input/DataType/LxInputActionConfig.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxPlayerSettingsSubsystem.h"
+#include "LxARPG/LxSource/Model/DataTransfer/LxCharacterDataTransferComponent.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxCharacterSaveComponent.h"
 #include "LxARPG/LxSource/Model/BehaviorControl/LxCharacterBehaviorControlComponent.h"
 #include "LxARPG/LxSource/Model/Item/DataType/ItemBase/LxItemBase.h"
 #include "LxARPG/LxSource/Model/Item/DataType/Skill/LxSkillItem.h"
@@ -15,9 +21,24 @@
 
 namespace
 {
+	/** 将快捷键零至九映射到角色快捷栏索引。 */
 	int32 ShortcutInputActionToIndex(ELxInputActionID InInputActionID)
 	{
 		return static_cast<int32>(InInputActionID) - static_cast<int32>(ELxInputActionID::Shortcut0);
+	}
+}
+
+void ULxShortcutBarWidget::UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent)
+{
+	Super::UpdateUIComponents(CharacterDataTransferComponent);
+	ClearShortcutSelection();
+	for (const auto& Pair : ShortcutGridMap)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->UpdateUIComponents(CharacterDataTransferComponent);
+			SetupShortcutItemGrid(Pair.Value, Pair.Key);
+		}
 	}
 }
 
@@ -194,8 +215,15 @@ bool ULxShortcutBarWidget::SetupShortcutItemGrid(ULxItemGridWidget* InItemGridWi
 		return false;
 	}
 
-	ULxItemSlotData* ShortcutSlot = NewObject<ULxItemSlotData>(InItemGridWidget);
-	ShortcutSlot->InitItemSlot(ELxItemSlotType::Shortcut);
+	AActor* Character = InItemGridWidget->m_pCharacterDataTransferComponent
+		? InItemGridWidget->m_pCharacterDataTransferComponent->GetOwner() : InItemGridWidget->GetOwningPlayerPawn();
+	ULxCharacterSaveComponent* Save = Character ? Character->FindComponentByClass<ULxCharacterSaveComponent>() : nullptr;
+	ULxItemSlotData* ShortcutSlot = Save ? Save->GetShortcutSlot(ShortcutInputActionToIndex(InInputActionID)) : nullptr;
+	if (!ShortcutSlot)
+	{
+		ShortcutSlot = NewObject<ULxItemSlotData>(InItemGridWidget);
+		ShortcutSlot->InitItemSlot(ELxItemSlotType::Shortcut);
+	}
 
 	ULxItemUIData* ItemUIData = NewObject<ULxItemUIData>(InItemGridWidget);
 	ItemUIData->m_pSlotData = ShortcutSlot;
@@ -204,9 +232,20 @@ bool ULxShortcutBarWidget::SetupShortcutItemGrid(ULxItemGridWidget* InItemGridWi
 	return true;
 }
 
+FKey ULxShortcutBarWidget::GetShortcutUseKey() const
+{
+	if (UGameInstance* Instance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
+	{
+		if (const ULxPlayerSettingsSubsystem* Settings = Instance->GetSubsystem<ULxPlayerSettingsSubsystem>())
+			return Settings->GetEffectiveKey(ELxInputActionID::ShortcutUse);
+	}
+	const FLxInputActionInfo* Info = LxInputActionConfig::GetInputActionInfo(ELxInputActionID::ShortcutUse);
+	return Info ? Info->DefaultKey : FKey();
+}
+
 FReply ULxShortcutBarWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	if (InMouseEvent.GetEffectingButton() == GetShortcutUseKey())
 	{
 		return BeginUseSelectedShortcut() ? FReply::Handled().CaptureMouse(TakeWidget()) : FReply::Unhandled();
 	}
@@ -216,7 +255,7 @@ FReply ULxShortcutBarWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry
 
 FReply ULxShortcutBarWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	if (InMouseEvent.GetEffectingButton() == GetShortcutUseKey())
 	{
 		return EndUseSelectedShortcut() ? FReply::Handled().ReleaseMouseCapture() : FReply::Unhandled();
 	}

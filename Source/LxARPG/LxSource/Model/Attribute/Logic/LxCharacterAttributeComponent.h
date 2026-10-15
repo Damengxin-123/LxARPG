@@ -12,6 +12,7 @@ class ULxCharacterFactionAttributeObject;
 class ULxCharacterLifecycleAttributeObject;
 class ULxCharacterSpecialAttributeObject;
 class ULxCharacterStateAttributeObject;
+class ULxCharacterResourceRecoveryModule;
 class ALxBaseCharacter;
 
 /** 六类角色属性快照刷新事件。 */
@@ -48,6 +49,13 @@ public:
 
 	/** 接收一组资源属性恢复效果。 */
 	void ReceiveAttributeRecoveryEffects(const TArray<FLxAttributeRecoveryEffect>& InEffectList);
+
+	/** 由恢复模块在服务端批量写入资源增量，只刷新实际变化的资源并统一发布快照。 */
+	void ApplyResourceRecoveryDeltas(const TMap<FGameplayTag, float>& InResourceDeltas);
+
+	/** 获取专门执行持续资源恢复的模块。 */
+	UFUNCTION(BlueprintPure, Category="角色|属性|资源恢复", DisplayName="获取资源恢复模块")
+	ULxCharacterResourceRecoveryModule* GetResourceRecoveryModule() const { return ResourceRecoveryModule; }
 
 	/** 获取当前六类角色属性快照。 */
 	UFUNCTION(BlueprintCallable, Category="角色|基础属性", DisplayName="获取角色分类属性快照")
@@ -153,6 +161,13 @@ public:
 	FOnLxSpecialAttributeLifecycleChanged OnLifecycleStateChanged;
 
 protected:
+	/** 游戏开始后启动已完成属性初始化的资源恢复模块。 */
+	virtual void BeginPlay() override;
+
+	/** 持续资源恢复模块，统一执行所有已注册资源的每秒恢复值。 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Instanced, Category="角色|属性|资源恢复", DisplayName="资源恢复模块")
+	TObjectPtr<ULxCharacterResourceRecoveryModule> ResourceRecoveryModule;
+
 	/** 配置数据的分类属性模板，运行时重算会从该对象重新复制。 */
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category="角色|基础属性", DisplayName="基础属性配置模板")
 	TObjectPtr<ULxCharacterBaseAttributeSet> AttributeConfigurationTemplate;
@@ -228,6 +243,9 @@ private:
 
 	/** 广播分类属性变化并生成网络快照。 */
 	void BroadcastAttributeTableChanged();
+
+	/** 只更新本次变化的资源快照并广播，避免周期恢复重复刷新移动和重算其他属性。 */
+	void BroadcastResourceValuesChanged(const TArray<FLxResourceAttributeData>& InChangedResources);
 
 	/** 分类属性网络快照复制回调。 */
 	UFUNCTION(Category="角色|基础属性|网络", DisplayName="分类属性同步")

@@ -29,6 +29,7 @@ bool ULxCharacterSaveComponent::CaptureSaveData(ULxGameSaveData* InSaveData) con
 	FLxCharacterSaveRecord Record;
 	LxCharacterPresentation::Capture(Character, Record);
 	Record.SaveID = GetSaveID();
+	CaptureShortcutSaveData(Record.ShortcutSlots);
 	Record.BackpackSlotCount = Content->GetBackpackModule()->GetAllItems().Num();
 	if (!LxItemSaveData::CaptureSlots(Content->GetBackpackModule()->GetAllItems(), Record.BackpackSlots)
 		|| !LxItemSaveData::CaptureSlots(Content->GetEquipmentModule()->GetEquipmentSlots(), Record.EquipmentSlots))
@@ -67,8 +68,9 @@ bool ULxCharacterSaveComponent::RestoreSaveData(const ULxGameSaveData* InSaveDat
 	}
     TArray<FLxItemSlotSaveRecord> BackpackSlots, EquipmentSlots;
     if (!Record->ResolveEquipmentInstances(BackpackSlots, EquipmentSlots)) return false;
-    // 先检查四类数据，避免坏存档导致背包已替换但任务或职业恢复失败。
-	if (!Content->GetBackpackModule()->RestoreBackpackSaveData(Record->BackpackSlotCount, BackpackSlots, false)
+	// 先检查全部数据，避免坏存档导致背包已替换但其他记录恢复失败。
+	if (!ValidateShortcutSaveData(Record->ShortcutSlots)
+		|| !Content->GetBackpackModule()->RestoreBackpackSaveData(Record->BackpackSlotCount, BackpackSlots, false)
 		|| !Content->GetEquipmentModule()->RestoreEquipmentSaveData(EquipmentSlots, false)
 		|| !Content->GetQuestModule()->RestoreQuestSaveData(Record->QuestRecords, false)
 		|| !Content->GetProfessionModule()->RestoreProfessionSaveData(Record->Professions, false))
@@ -76,8 +78,10 @@ bool ULxCharacterSaveComponent::RestoreSaveData(const ULxGameSaveData* InSaveDat
 		return false;
 	}
 	// 职业先恢复，再由装备刷新来源效果，避免装备授予的职业进度被随后覆盖。
-	return Content->GetBackpackModule()->RestoreBackpackSaveData(Record->BackpackSlotCount, BackpackSlots)
-		&& Content->GetQuestModule()->RestoreQuestSaveData(Record->QuestRecords)
-		&& Content->GetProfessionModule()->RestoreProfessionSaveData(Record->Professions)
-		&& Content->GetEquipmentModule()->RestoreEquipmentSaveData(EquipmentSlots);
+	if (!Content->GetBackpackModule()->RestoreBackpackSaveData(Record->BackpackSlotCount, BackpackSlots)
+		|| !Content->GetQuestModule()->RestoreQuestSaveData(Record->QuestRecords)
+		|| !Content->GetProfessionModule()->RestoreProfessionSaveData(Record->Professions)
+		|| !Content->GetEquipmentModule()->RestoreEquipmentSaveData(EquipmentSlots)) return false;
+	RestoreShortcutSaveData(Record->ShortcutSlots);
+	return true;
 }

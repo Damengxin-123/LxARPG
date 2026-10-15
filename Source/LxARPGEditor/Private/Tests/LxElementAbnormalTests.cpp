@@ -118,11 +118,11 @@ bool FLxElementAbnormalFlowTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxFireballBurnTest, "LxARPG.SkillFlow.ElementAbnormal.FireballBurn", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FLxFireballBurnTest::RunTest(const FString& Parameters)
 {
-	UClass* ManagerClass = LoadClass<ULxGameDataTablesManager>(nullptr, TEXT("/Game/项目内容/数据资产/类型_数据表格管理对象.类型_数据表格管理对象_C"));
+	UClass* ManagerClass = LoadClass<ULxGameDataTablesManager>(nullptr, TEXT("/Game/项目内容/功能资产/数据表格/BP_数据表格配置.BP_数据表格配置_C"));
 	if (!TestNotNull(TEXT("正式数据表管理器存在"), ManagerClass)) return false;
 	auto* Manager = ManagerClass->GetDefaultObject<ULxGameDataTablesManager>();
 	Manager->LoadDataTables();
-	auto* Asset = LoadObject<ULxSkillFlowAsset>(nullptr, TEXT("/Game/项目内容/数据资产/技能流程/火球术.火球术"));
+	auto* Asset = LoadObject<ULxSkillFlowAsset>(nullptr, TEXT("/Game/项目内容/功能资产/技能资产/技能资产/火球术.火球术"));
 	if (!TestNotNull(TEXT("正式火球流程存在"), Asset)) return false;
 	FText Error;
 	TestTrue(TEXT("正式流程通过连线和参数校验"), Asset->Validate(Error));

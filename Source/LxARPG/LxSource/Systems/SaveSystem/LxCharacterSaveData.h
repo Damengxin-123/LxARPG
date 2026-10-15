@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "LxItemSaveData.h"
+#include "LxShortcutSaveData.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
 #include "LxARPG/LxSource/Model/Quest/DataType/LxQuestRuntimeData.h"
 #include "LxCharacterSaveData.generated.h"
@@ -90,6 +91,10 @@ struct LXARPG_API FLxCharacterSaveRecord
 	/** 背包中的槽位布局与物品实例属性。 */
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="背包记录")
 	TArray<FLxItemSlotSaveRecord> BackpackSlots;
+
+	/** 按快捷键顺序保存十个快捷格的物品索引；旧档缺少此字段时为空。 */
+	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|快捷栏", DisplayName="快捷栏物品索引")
+	TArray<FLxShortcutSaveRecord> ShortcutSlots;
 
 	/** 装备槽位布局与已装备物品实例属性。 */
 	UPROPERTY(SaveGame, EditAnywhere, BlueprintReadWrite, Category="存档|玩家", DisplayName="装备记录")

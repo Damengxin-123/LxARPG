@@ -14,6 +14,7 @@
 #include "LxMainMenuSettings.h"
 #include "LxARPG/LxSource/Systems/DatabaseSystem/LxGameDataTablesManager.h"
 #include "LxMenuPreviewActor.h"
+#include "LxARPG/LxSource/Systems/SaveSystem/LxCharacterPresentation.h"
 #include "LxMenuPreferences.h"
 #include "LxARPG/LxSource/Model/Attribute/DataType/LxAttributeEnumType.h"
 #include "LxARPG/LxSource/Player/Characters/LxPlayerCharacter.h"
@@ -111,10 +112,12 @@ bool ULxMainMenuSubsystem::EnsureStore()
 bool ULxMainMenuSubsystem::ResolvePresentation(FLxCharacterSaveRecord& Record)
 {
 	if (!LxCharacterRace::ResolveCharacterRecord(Record, Status)) return false;
-	const FSoftObjectPath MainLevel = GetDefault<ULxMainMenuSettings>()->DefaultLevel.ToSoftObjectPath();
-	// 角色与地图档案共用总关卡，旧档若来自其他测试地图则回退出生点。
-	if (!Record.LevelPath.IsNull() && Record.LevelPath != MainLevel) Record.bHasSavedTransform = false;
-	Record.LevelPath = MainLevel;
+	const UWorld* World = MenuWorld.IsValid() ? MenuWorld.Get() : GetWorld();
+	if (!World) World = GetDefault<ULxMainMenuSettings>()->DefaultLevel.LoadSynchronous();
+	if (!World) { Status = TEXT("当前关卡无法解析，无法展示角色。"); return false; }
+	// 以当前实际运行关卡为准；资产重命名后的旧软路径解析到同一关卡时保留位置。
+	if (!Record.LevelPath.IsNull() && !LxCharacterPresentation::IsInLevel(Record.LevelPath, World)) Record.bHasSavedTransform = false;
+	Record.LevelPath = LxCharacterPresentation::GetLevelPath(World);
 	return true;
 }
 
@@ -246,9 +249,6 @@ void ULxMainMenuSubsystem::RefreshPreview()
 	UWorld* World = MenuWorld.Get();
 	if (!World) return;
 	bBusy = true; Status = TEXT("正在前往角色所在位置…"); LoadStartedAt = FPlatformTime::Seconds();
-	const FString Package = Character->Record.LevelPath.GetLongPackageName();
-	const FString Current = FPackageName::GetLongPackagePath(World->GetOutermost()->GetName()) + TEXT("/") + UGameplayStatics::GetCurrentLevelName(World, true);
-	if (Package != Current) { Status = TEXT("请从配置的总关卡启动游戏，主菜单不会切换关卡。"); bBusy = false; return; }
 	if (!Preview.IsValid()) Preview = World->SpawnActor<ALxMenuPreviewActor>();
 	if (!Preview.IsValid() || !Preview->Configure(Character->Record, FindFallbackTransform(World)))
 	{
@@ -322,6 +322,30 @@ bool ULxMainMenuSubsystem::CanEnterGame() const
 		&& GetWorlds().ContainsByPredicate([this](const FLxSaveProfile& E) { return E.ID == SelectedWorldID; });
 }
 
+bool ULxMainMenuSubsystem::CanContinueGame() const
+{
+	const ULxSaveCatalog* Catalog = Store ? Store->GetCatalog() : nullptr;
+	return !bBusy && !HasSession() && Catalog && Catalog->LastCharacterID.IsValid() && Catalog->LastWorldID.IsValid()
+		&& GetCharacters().ContainsByPredicate([Catalog](const FLxSaveProfile& Entry) { return Entry.ID == Catalog->LastCharacterID; })
+		&& GetWorlds().ContainsByPredicate([Catalog](const FLxSaveProfile& Entry) { return Entry.ID == Catalog->LastWorldID; });
+}
+
+void ULxMainMenuSubsystem::ContinueGame()
+{
+	if (bBusy || HasSession()) return;
+	ON_SCOPE_EXIT { NotifyMenuStateChanged(); };
+	if (!EnsureStore()) return;
+	if (!CanContinueGame()) { Status = TEXT("暂无可继续的游戏，请先从存档开始新的旅程。"); return; }
+	const ULxSaveCatalog* Catalog = Store->GetCatalog();
+	TStrongObjectPtr<ULxCharacterProfileSave> Saved(Store->ReadCharacter(Catalog->LastCharacterID));
+	if (!Saved) { Status = Store->GetLastError(); return; }
+	if (!ResolvePresentation(Saved->Record)) return;
+	SelectedCharacterID = Catalog->LastCharacterID;
+	SelectedWorldID = Catalog->LastWorldID;
+	Character = Saved.Get();
+	EnterGame();
+}
+
 const FLxCharacterSaveRecord* ULxMainMenuSubsystem::GetSessionRecord() const
 {
 	return HasSession() && Character ? &Character->Record : nullptr;
@@ -345,6 +369,14 @@ void ULxMainMenuSubsystem::EnterGame()
 	FLxCharacterSaveRecord* SessionRecord = Session->Players.Find(Character->Record.SaveID);
 	if (!SessionRecord || !ResolvePresentation(*SessionRecord)) return;
 	Character->Record = *SessionRecord;
+	// 继续游戏可以从另一浏览角色直接启动，流送源必须先定位到本次读档的位置。
+	if (!Preview.IsValid()) Preview = World->SpawnActor<ALxMenuPreviewActor>();
+	if (!Preview.IsValid() || !Preview->Configure(Character->Record, FindFallbackTransform(World)))
+	{
+		Status = TEXT("角色外观资源无法加载，无法继续恢复游戏。"); return;
+	}
+	Preview->SetActorHiddenInGame(false);
+	if (APlayerController* Controller = World->GetFirstPlayerController()) Controller->SetViewTarget(Preview.Get());
 	ULxSaveManager* Manager = Global->GetSaveManager();
 	bBusy = true;
 	if (!Manager || !Manager->ReplaceSession(Session.Get(), LoadedWorldID != SelectedWorldID || Manager->HasRestoreFailures()))
@@ -394,7 +426,7 @@ FTransform ULxMainMenuSubsystem::GetSafeSpawnTransform(UWorld* World, UClass* Pa
 {
 	const FTransform Fallback = FindFallbackTransform(World);
 	if (!Character || !Character->Record.bHasSavedTransform || Character->Record.SavedTransform.ContainsNaN()) return Fallback;
-	if (UGameplayStatics::GetCurrentLevelName(World, true) != Character->Record.LevelPath.GetAssetName()) return Fallback;
+	if (!LxCharacterPresentation::IsInLevel(Character->Record.LevelPath, World)) return Fallback;
 	const ACharacter* Default = PawnClass ? Cast<ACharacter>(PawnClass->GetDefaultObject()) : nullptr;
 	if (!Default || !Default->GetCapsuleComponent()) return Fallback;
 	const float Radius = Default->GetCapsuleComponent()->GetScaledCapsuleRadius();
@@ -434,7 +466,7 @@ void ULxMainMenuSubsystem::CompleteGameplayStart(APlayerController* Controller)
 			if (Local->GetUIManager()) Local->GetUIManager()->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		}
 	}
-	if (!Store->MarkPlayed(ActiveCharacterID, ActiveWorldID)) Status = Store->GetLastError();
+	// 最近游玩组合由成功保存时提交；仅进入另一角色不会抢占继续游戏的已保存目标。
 }
 
 void ULxMainMenuSubsystem::FailGameplayStart(const FString& Reason)

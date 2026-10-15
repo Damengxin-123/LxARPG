@@ -128,6 +128,11 @@ void ULxMainMenuWidget::EnterGame()
 	if (CanEnterGame()) MenuFlow->EnterGame();
 }
 
+void ULxMainMenuWidget::ContinueGame()
+{
+	if (CanContinueGame()) MenuFlow->ContinueGame();
+}
+
 void ULxMainMenuWidget::QuitGame()
 {
 	if (CanInteract()) MenuFlow->QuitGame();
@@ -223,4 +228,9 @@ bool ULxMainMenuWidget::CanSwitchCharacter() const
 bool ULxMainMenuWidget::CanEnterGame() const
 {
 	return CanInteract() && MenuFlow->CanEnterGame();
+}
+
+bool ULxMainMenuWidget::CanContinueGame() const
+{
+	return CanInteract() && ActivePanel == ELxMainMenuPanel::MainMenu && MenuFlow->CanContinueGame();
 }

@@ -15,6 +15,8 @@ class LXARPG_API ULxShortcutBarWidget : public ULxUIBaseObject
 	GENERATED_BODY()
 
 public:
+	/** 控制角色改变时，把已布局的格子重新绑定到新角色快捷槽。 */
+	virtual void UpdateUIComponents(ULxCharacterDataTransferComponent* CharacterDataTransferComponent) override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual void HandleInputValue(ELxInputActionID InInputActionID, FLxInputValue InValue) override;
@@ -47,16 +49,19 @@ public:
 	static bool SetupShortcutItemGrid(ULxItemGridWidget* InItemGridWidget, ELxInputActionID InInputActionID);
 
 protected:
-	/** 鼠标左键按下时使用当前选中的快捷栏格子。 */
+	/** 配置的使用鼠标键按下时使用当前选中的快捷栏格子。 */
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
-	/** 鼠标左键抬起时结束当前选中快捷栏格子的使用。 */
+	/** 配置的使用鼠标键抬起时结束当前选中快捷栏格子的使用。 */
 	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 	/** 鼠标滚轮滚动时切换当前选中的快捷栏格子。 */
 	virtual FReply NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 private:
+	/** 获取当前玩家的快捷栏使用按键，没有玩家设置时读取默认配置表。 */
+	FKey GetShortcutUseKey() const;
+
 	void RegisterShortcutInputActions();
 	bool HandleShortcutPressed(ELxInputActionID InInputActionID);
 	bool SelectShortcutByOffset(int32 InOffset);

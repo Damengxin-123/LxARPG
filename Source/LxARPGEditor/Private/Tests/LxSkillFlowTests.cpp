@@ -507,7 +507,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLxSkillFlowMigratedAssetsTest, "LxARPG.SkillFl
 /** 加载磁盘中的正式物品与流程，检查延迟创建、缓存和真实蓝图生成。 */
 bool FLxSkillFlowMigratedAssetsTest::RunTest(const FString& Parameters)
 {
-	UDataTable* Table = LoadObject<UDataTable>(nullptr,TEXT("/Game/项目内容/数据资产/数据表格/物品信息/技能/技能数据表.技能数据表"));
+	UDataTable* Table = LoadObject<UDataTable>(nullptr,TEXT("/Game/项目内容/功能资产/数据表格/物品表格/技能/技能数据表.技能数据表"));
 	if (!TestNotNull(TEXT("正式技能表存在"),Table)) return false;
 	TSet<ULxSkillFlowAsset*> Checked;
 	int32 Bound = 0, Empty = 0;
@@ -539,8 +539,15 @@ bool FLxSkillFlowMigratedAssetsTest::RunTest(const FString& Parameters)
 		FLxSkillCastContext Context; Context.CasterActor=Caster; Context.WorldContextObject=Caster; Context.SourceObject=Item.Get();
 		Skill->PrepareSkillForCast(Context);
 		const bool bSustained = Skill->IsSustainedReleaseSkill();
-		if (!TestTrue(TEXT("正式流程可开始释放"),bSustained ? Skill->TryBeginSustainedSkillReleaseTiming() : Skill->TryBeginDirectSkillReleaseTiming())) return false;
-		if (bSustained) Skill->ExecuteSustainedSkillRelease(); else Skill->ExecuteDirectSkillRelease();
+		const bool bCharge = Skill->CanSkillCharge();
+		// 测试职业将蓄力流程加入技能表，必须先开始蓄力，再模拟松手后的动画释放点。
+		if (bCharge && !TestTrue(TEXT("蓄力流程可开始蓄力"),Skill->BeginSkillCharge())) return false;
+		const bool bBegin = bCharge ? Skill->TryBeginChargeSkillReleaseTiming()
+			: bSustained ? Skill->TryBeginSustainedSkillReleaseTiming() : Skill->TryBeginDirectSkillReleaseTiming();
+		if (!TestTrue(Row->SkillFlow->GetName()+TEXT("流程可开始释放"),bBegin)) return false;
+		const bool bExecuted = bCharge ? Skill->ExecuteChargeSkillRelease()
+			: bSustained ? Skill->ExecuteSustainedSkillRelease() : Skill->ExecuteDirectSkillRelease();
+		if (!TestTrue(Row->SkillFlow->GetName()+TEXT("流程按配置方式执行"),bExecuted)) return false;
 		const auto Running = Flows(TestWorld.World);
 		if (!TestEqual(TEXT("只创建本次执行实例"),Running.Num(),1)) return false;
 		auto* Flow = Running[0]; Flow->Tick(0.f);
@@ -585,8 +592,8 @@ bool FLxSkillFlowMigratedAssetsTest::RunTest(const FString& Parameters)
 			for (auto* Unit : Units(Flow)) TestFalse(TEXT("松手后没有持续射线保持激活"),Unit->IsA<ALxContinuousRaySkillUnitActor>() && Unit->IsSkillUnitActive());
 		}
 	}
-	TestEqual(TEXT("正式表已绑定十五行"),Bound,15);
-	TestEqual(TEXT("十二种技能都经过真实蓝图创建检查"),Checked.Num(),12);
+	TestEqual(TEXT("技能表含原有十五行和三个测试技能"),Bound,18);
+	TestEqual(TEXT("十五种技能流程都经过真实蓝图创建检查"),Checked.Num(),15);
 	TestEqual(TEXT("九个未实现占位不被凭空补成其他技能"),Empty,9);
 	return true;
 }

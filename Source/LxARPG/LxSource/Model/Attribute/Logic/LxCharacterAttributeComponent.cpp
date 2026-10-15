@@ -9,6 +9,7 @@
 #include "LxCharacterLifecycleAttributeObject.h"
 #include "LxCharacterSpecialAttributeObject.h"
 #include "LxCharacterStateAttributeObject.h"
+#include "LxCharacterResourceRecoveryModule.h"
 #include "LxARPG/LxSource/Model/Tags/LxGameplayTags.h"
 #include "LxARPG/LxSource/Player/Characters/LxBaseCharacter.h"
 #include "Net/UnrealNetwork.h"
@@ -50,6 +51,7 @@ ULxCharacterAttributeComponent::ULxCharacterAttributeComponent()
 	StateAttributeObject = CreateDefaultSubobject<ULxCharacterStateAttributeObject>(TEXT("角色状态属性"));
 	FactionAttributeObject = CreateDefaultSubobject<ULxCharacterFactionAttributeObject>(TEXT("角色阵营属性"));
 	LifecycleAttributeObject = CreateDefaultSubobject<ULxCharacterLifecycleAttributeObject>(TEXT("角色生命周期属性"));
+	ResourceRecoveryModule = CreateDefaultSubobject<ULxCharacterResourceRecoveryModule>(TEXT("资源恢复模块"));
 }
 
 void ULxCharacterAttributeComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -71,10 +73,22 @@ void ULxCharacterAttributeComponent::BaseComponentInitialize()
 	BroadcastAttributeTableChanged();
 	InitializeSpecialAttributeObjects();
 	RegisterReplicatedAttributeObjects();
+	if (ResourceRecoveryModule)
+	{
+		ResourceRecoveryModule->InitializeModule(this);
+		if (HasBegunPlay()) ResourceRecoveryModule->StartRecovery();
+	}
+}
+
+void ULxCharacterAttributeComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	if (bAttributeComponentInitialized && ResourceRecoveryModule) ResourceRecoveryModule->StartRecovery();
 }
 
 void ULxCharacterAttributeComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (ResourceRecoveryModule) ResourceRecoveryModule->ShutdownModule();
 	if (LifecycleAttributeObject) LifecycleAttributeObject->DeinitializeSpecialAttributeObject();
 	if (FactionAttributeObject) FactionAttributeObject->DeinitializeSpecialAttributeObject();
 	if (StateAttributeObject) StateAttributeObject->DeinitializeSpecialAttributeObject();
@@ -143,6 +157,7 @@ void ULxCharacterAttributeComponent::ResetRuntimeAttributeSetFromConfiguration()
 
 void ULxCharacterAttributeComponent::ReceiveAttributeModifierEffects(const FLxEffectSourceContext& InSourceContext, const ELxEffectPackageApplyPolicy InApplyPolicy, const TArray<FLxAttributeModifierEffect>& InEffectList)
 {
+	if (ResourceRecoveryModule) ResourceRecoveryModule->SettleRecoveryToCurrentTime();
 	if (RuntimeAttributeSet == nullptr) InitializeRuntimeAttributeSet();
 	if (InApplyPolicy == ELxEffectPackageApplyPolicy::Instant)
 	{
@@ -170,11 +185,33 @@ void ULxCharacterAttributeComponent::ReceiveAttributeModifierEffects(const FLxEf
 
 void ULxCharacterAttributeComponent::ReceiveAttributeRecoveryEffects(const TArray<FLxAttributeRecoveryEffect>& InEffectList)
 {
+	if (ResourceRecoveryModule) ResourceRecoveryModule->SettleRecoveryToCurrentTime();
 	if (RuntimeAttributeSet == nullptr) InitializeRuntimeAttributeSet();
 	for (const FLxAttributeRecoveryEffect& Effect : InEffectList) ApplyRecoveryEffect(Effect);
 	NormalizeTypedAttributeValues();
 	CacheRuntimeResourceValues();
 	BroadcastAttributeTableChanged();
+}
+
+void ULxCharacterAttributeComponent::ApplyResourceRecoveryDeltas(const TMap<FGameplayTag, float>& InResourceDeltas)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !RuntimeAttributeSet || !IsCharacterAlive()) return;
+	TArray<FLxResourceAttributeData> ChangedResources;
+	for (const TPair<FGameplayTag, float>& ResourceDelta : InResourceDeltas)
+	{
+		if (!FMath::IsFinite(ResourceDelta.Value) || ResourceDelta.Value <= 0.f) continue;
+		FLxResourceAttributeData* Resource = RuntimeAttributeSet->FindMutableResourceAttribute(ResourceDelta.Key);
+		if (!Resource || Resource->Value >= Resource->ValueLimit) continue;
+		const float PreviousValue = Resource->Value;
+		Resource->Value += ResourceDelta.Value;
+		Resource->NormalizeValues();
+		if (Resource->Value != PreviousValue)
+		{
+			RuntimeResourceValues.Add(ResourceDelta.Key, Resource->Value);
+			ChangedResources.Add(*Resource);
+		}
+	}
+	if (!ChangedResources.IsEmpty()) BroadcastResourceValuesChanged(ChangedResources);
 }
 
 void ULxCharacterAttributeComponent::RefreshCharacterAttributesByCachedEntries()
@@ -230,7 +267,13 @@ void ULxCharacterAttributeComponent::ApplyModifierEffect(const FLxAttributeModif
 	for (const FGameplayTag AttributeIDTag : TargetAttributeIDs)
 	{
 		if (FLxScalarAttributeData* A = RuntimeAttributeSet->FindMutableScalarAttribute(AttributeIDTag)) { if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, EffectiveModifierValue); continue; }
-		if (FLxResourceAttributeData* A = RuntimeAttributeSet->FindMutableResourceAttribute(AttributeIDTag)) { if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, EffectiveModifierValue); else if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValueLimit) ApplyOperation(A->ValueLimit, InEffect.ModifierOperation, EffectiveModifierValue); continue; }
+		if (FLxResourceAttributeData* A = RuntimeAttributeSet->FindMutableResourceAttribute(AttributeIDTag))
+		{
+			if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, EffectiveModifierValue);
+			else if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValueLimit) ApplyOperation(A->ValueLimit, InEffect.ModifierOperation, EffectiveModifierValue);
+			else if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToRecoveryPerSecond) ApplyOperation(A->RecoveryPerSecond, InEffect.ModifierOperation, EffectiveModifierValue);
+			continue;
+		}
 		if (FLxRangeAttributeData* A = RuntimeAttributeSet->FindMutableRangeAttribute(AttributeIDTag))
 		{
 			if (InEffect.ModifierTarget == ELxAttributeModifierTarget::ToValue) ApplyOperation(A->Value, InEffect.ModifierOperation, EffectiveModifierValue);
@@ -275,6 +318,7 @@ bool ULxCharacterAttributeComponent::TryGetAttributeFieldValue(const FGameplayTa
 	{
 		if (InAttributeTarget == ELxAttributeModifierTarget::ToValue) OutAttributeValue = ResourceAttribute.Value;
 		else if (InAttributeTarget == ELxAttributeModifierTarget::ToValueLimit) OutAttributeValue = ResourceAttribute.ValueLimit;
+		else if (InAttributeTarget == ELxAttributeModifierTarget::ToRecoveryPerSecond) OutAttributeValue = ResourceAttribute.RecoveryPerSecond;
 		else return false;
 		return true;
 	}
@@ -327,8 +371,15 @@ void ULxCharacterAttributeComponent::FillRuntimeResourceValuesToLimit()
 void ULxCharacterAttributeComponent::NormalizeTypedAttributeValues()
 {
 	if (RuntimeAttributeSet == nullptr) return;
-	TArray<FLxResourceAttributeData> Resources; RuntimeAttributeSet->GetAllResourceAttributes(Resources);
-	for (const FLxResourceAttributeData& Data : Resources) if (FLxResourceAttributeData* A = RuntimeAttributeSet->FindMutableResourceAttribute(Data.AttributeIDTag)) { A->ValueLimit = FMath::Max(0.f, FMath::RoundToFloat(A->ValueLimit)); A->Value = FMath::Clamp(FMath::RoundToFloat(A->Value), 0.f, A->ValueLimit); }
+	TArray<FLxResourceAttributeData> Resources;
+	RuntimeAttributeSet->GetAllResourceAttributes(Resources);
+	for (const FLxResourceAttributeData& Data : Resources)
+	{
+		if (FLxResourceAttributeData* Resource = RuntimeAttributeSet->FindMutableResourceAttribute(Data.AttributeIDTag))
+		{
+			Resource->NormalizeValues();
+		}
+	}
 	TArray<FLxScalarAttributeData> Scalar; RuntimeAttributeSet->GetAllScalarAttributes(Scalar); for (const auto& Data : Scalar) if (auto* A = RuntimeAttributeSet->FindMutableScalarAttribute(Data.AttributeIDTag)) A->Value = A->ScalarRule.NormalizeValue(A->Value);
 }
 
@@ -409,6 +460,7 @@ int32 ULxCharacterAttributeComponent::CalculateTotalStrength() const
 
 void ULxCharacterAttributeComponent::BroadcastAttributeTableChanged()
 {
+	if (ResourceRecoveryModule) ResourceRecoveryModule->RefreshRecoveryRates();
 	RefreshCharacterMovementSpeed();
 	FLxTypedAttributeSnapshot CurrentSnapshot;
 	GetTypedAttributeSnapshot(CurrentSnapshot);
@@ -416,6 +468,21 @@ void ULxCharacterAttributeComponent::BroadcastAttributeTableChanged()
 	{
 		ReplicatedTypedAttributeSnapshot = CurrentSnapshot;
 	}
+	OnTypedAttributeSnapshotChanged.Broadcast(CurrentSnapshot);
+	OnDataChange.Broadcast();
+}
+
+void ULxCharacterAttributeComponent::BroadcastResourceValuesChanged(const TArray<FLxResourceAttributeData>& InChangedResources)
+{
+	FLxTypedAttributeSnapshot CurrentSnapshot = ReplicatedTypedAttributeSnapshot;
+	for (const FLxResourceAttributeData& Resource : InChangedResources)
+	{
+		FLxResourceAttributeData* SnapshotResource = CurrentSnapshot.ResourceAttributes.FindByPredicate(
+			[&Resource](const FLxResourceAttributeData& Candidate) { return Candidate.AttributeIDTag == Resource.AttributeIDTag; });
+		if (SnapshotResource) *SnapshotResource = Resource;
+		else CurrentSnapshot.ResourceAttributes.Add(Resource);
+	}
+	ReplicatedTypedAttributeSnapshot = CurrentSnapshot;
 	OnTypedAttributeSnapshotChanged.Broadcast(CurrentSnapshot);
 	OnDataChange.Broadcast();
 }

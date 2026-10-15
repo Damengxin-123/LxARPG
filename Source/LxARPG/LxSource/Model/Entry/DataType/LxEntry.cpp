@@ -22,6 +22,8 @@ namespace
 			return ELxAttributeModifierTarget::ToUpwardFloatingRatio;
 		case ELxEntryTarget::ToDownwardFloatingRatio:
 			return ELxAttributeModifierTarget::ToDownwardFloatingRatio;
+		case ELxEntryTarget::ToRecoveryPerSecond:
+			return ELxAttributeModifierTarget::ToRecoveryPerSecond;
 		default:
 			return ELxAttributeModifierTarget::ToValue;
 		}

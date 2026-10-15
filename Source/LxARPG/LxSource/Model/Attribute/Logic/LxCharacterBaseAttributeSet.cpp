@@ -154,8 +154,7 @@ bool ULxCharacterBaseAttributeSet::ModifyResourceAttribute(const FLxResourceAttr
 	if (Attribute == nullptr) return false;
 	ApplyAttributeOperation(Attribute->ValueLimit, InModifier.Operation, InModifier.ValueLimit);
 	ApplyAttributeOperation(Attribute->Value, InModifier.Operation, InModifier.Value);
-	Attribute->ValueLimit = FMath::Max(0.f, Attribute->ValueLimit);
-	Attribute->Value = FMath::Clamp(Attribute->Value, 0.f, Attribute->ValueLimit);
+	Attribute->NormalizeValues();
 	return true;
 }
 
@@ -183,6 +182,11 @@ void ULxCharacterBaseAttributeSet::ApplyTypedSnapshots(const TArray<FLxScalarAtt
 	ApplyArrayToIndex(InScalarAttributes, ScalarAttributeIndex);
 	ApplyArrayToIndex(InResourceAttributes, ResourceAttributeIndex);
 	ApplyArrayToIndex(InRangeAttributes, RangeAttributeIndex);
+	// 配置导入和网络快照使用相同精度，避免首次恢复之前保留多余小数。
+	for (const TPair<FGameplayTag, FLxResourceAttributeData*>& ResourcePair : ResourceAttributeIndex)
+	{
+		if (ResourcePair.Value) ResourcePair.Value->NormalizeValues();
+	}
 }
 
 void ULxCharacterBaseAttributeSet::RegisterScalarAttribute(const FGameplayTag InAttributeIDTag, FLxScalarAttributeData& InAttributeData, const ELxCharacterAttributeBusinessCategory InBusinessCategory)

@@ -50,6 +50,9 @@ public:
 	/** 验证选中的两个档案，在当前关卡中恢复单位并进入游玩状态。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|流程", DisplayName="进入选中存档")
 	void EnterGame();
+	/** 忽略当前浏览选择，直接恢复最后成功游玩并保存的角色与地图组合。 */
+	UFUNCTION(BlueprintCallable, Category="主菜单|流程", DisplayName="继续游戏")
+	void ContinueGame();
 	/** 保存正式游戏后返回菜单，失败时保留当前游戏。 */
 	UFUNCTION(BlueprintCallable, Category="主菜单|流程", DisplayName="保存并返回主菜单")
 	bool ReturnToMenu();
@@ -75,6 +78,9 @@ public:
 	bool IsBusy() const { return bBusy; }
 	/** 当前是否能进入正式游戏。 */
 	bool CanEnterGame() const;
+	/** 仅存在有效的最近游玩组合且菜单可操作时允许继续游戏。 */
+	UFUNCTION(BlueprintPure, Category="主菜单|流程", DisplayName="是否可继续游戏")
+	bool CanContinueGame() const;
 	/** 当前是否存在菜单发起的正式会话。 */
 	bool HasSession() const { return bEnteringGame || bPlaying; }
 	/** 正式关卡是否还在等待目标区域加载。 */
@@ -85,7 +91,7 @@ public:
 	void PrepareGameplayWorld(UWorld* World);
 	/** 检查正式关卡目标区域已就绪，超时则返回菜单。 */
 	bool IsGameplayWorldReady();
-	/** 角色成功恢复并被控制后提交最近游玩记录，移除加载遮罩。 */
+	/** 角色成功恢复并被控制后移除加载遮罩，最近继续目标待正式保存时提交。 */
 	void CompleteGameplayStart(APlayerController* Controller);
 	/** 读档失败时回到菜单并保留错误原因。 */
 	void FailGameplayStart(const FString& Reason);

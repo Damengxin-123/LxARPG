@@ -11,6 +11,22 @@
 #include "Materials/MaterialInstance.h"
 #include "Misc/PackageName.h"
 
+FSoftObjectPath LxCharacterPresentation::GetLevelPath(const UWorld* World)
+{
+	if (!World) return FSoftObjectPath();
+	const FString Package = UWorld::RemovePIEPrefix(World->GetOutermost()->GetName());
+	return FSoftObjectPath(Package + TEXT(".") + FPackageName::GetShortName(Package));
+}
+
+bool LxCharacterPresentation::IsInLevel(const FSoftObjectPath& LevelPath, const UWorld* World)
+{
+	if (LevelPath.IsNull() || !World) return false;
+	const FSoftObjectPath Current = GetLevelPath(World);
+	if (LevelPath == Current) return true;
+	const UWorld* SavedWorld = Cast<UWorld>(LevelPath.TryLoad());
+	return SavedWorld && GetLevelPath(SavedWorld) == Current;
+}
+
 void LxCharacterPresentation::Capture(const ACharacter* Character, FLxCharacterSaveRecord& Record)
 {
 	if (!Character) return;
@@ -21,9 +37,7 @@ void LxCharacterPresentation::Capture(const ACharacter* Character, FLxCharacterS
 	Record.bHasSavedTransform = !Record.SavedTransform.ContainsNaN();
 	if (const UWorld* World = Character->GetWorld())
 	{
-		const FString Name = UGameplayStatics::GetCurrentLevelName(World, true);
-		const FString Package = FPackageName::GetLongPackagePath(World->GetOutermost()->GetName()) + TEXT("/") + Name;
-		Record.LevelPath = FSoftObjectPath(Package + TEXT(".") + Name);
+		Record.LevelPath = GetLevelPath(World);
 	}
 	if (const USkeletalMeshComponent* Mesh = Character->GetMesh())
 	{

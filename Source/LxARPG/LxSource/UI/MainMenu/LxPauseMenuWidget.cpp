@@ -51,6 +51,13 @@ void ULxPauseMenuWidget::HandleSettingsClosed(bool bApplied)
 	SetKeyboardFocus();
 }
 
+bool ULxPauseMenuWidget::CancelInputKeyCaptureIfActive()
+{
+	if (!bSettingsOpen || !SettingsWidget || !SettingsWidget->IsCapturingInputKey()) return false;
+	SettingsWidget->CancelInputKeyCapture();
+	return true;
+}
+
 void ULxPauseMenuWidget::ResumeGame()
 {
 	if (ALxPlayerController* Controller = Cast<ALxPlayerController>(GetOwningPlayer())) Controller->ResumeFromPauseMenu();
@@ -82,6 +89,7 @@ FReply ULxPauseMenuWidget::NativeOnPreviewKeyDown(const FGeometry& Geometry, con
 {
 	if (KeyEvent.GetKey() == EKeys::Escape)
 	{
+		if (CancelInputKeyCaptureIfActive()) return FReply::Handled();
 		if (!KeyEvent.IsRepeat()) ResumeGame();
 		return FReply::Handled();
 	}

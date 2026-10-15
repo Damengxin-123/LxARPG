@@ -4,6 +4,8 @@
 #include "LxARPG/LxSource/UI/MainMenu/LxPauseMenuWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/VerticalBox.h"
 #include "Components/ScrollBox.h"
 #include "Components/Slider.h"
 #include "Components/TextBlock.h"
@@ -280,6 +282,7 @@ bool FLxMainMenuBlueprintInteractionTest::RunTest(const FString& Parameters)
 	UButton* OpenWorlds = Cast<UButton>(Menu->GetWidgetFromName(TEXT("打开存档")));
 	UButton* ReturnFromWorlds = Cast<UButton>(Menu->GetWidgetFromName(TEXT("存档返回")));
 	UButton* OpenSettings = Cast<UButton>(Menu->GetWidgetFromName(TEXT("打开设置")));
+	UButton* Continue = Cast<UButton>(Menu->GetWidgetFromName(TEXT("继续游戏")));
 	UScrollBox* WorldList = Cast<UScrollBox>(Menu->GetWidgetFromName(TEXT("存档滚动列表")));
 	UWidget* Home = Menu->GetWidgetFromName(TEXT("主界面"));
 	if (!TestNotNull(TEXT("主菜单布局包含设置蓝图实例"), Settings)
@@ -287,6 +290,7 @@ bool FLxMainMenuBlueprintInteractionTest::RunTest(const FString& Parameters)
 		|| !TestNotNull(TEXT("主菜单布局包含打开存档按钮"), OpenWorlds)
 		|| !TestNotNull(TEXT("主菜单布局包含存档返回按钮"), ReturnFromWorlds)
 		|| !TestNotNull(TEXT("主菜单布局包含打开设置按钮"), OpenSettings)
+		|| !TestNotNull(TEXT("主菜单布局包含继续游戏按钮"), Continue)
 		|| !TestNotNull(TEXT("存档页恢复滚动列表"), WorldList)
 		|| !TestNotNull(TEXT("主菜单保留独立背景层"), Home)) return false;
 	TestEqual(TEXT("嵌入的设置实例使用实际设置蓝图"), Settings->GetClass(), SettingsClass);
@@ -294,21 +298,54 @@ bool FLxMainMenuBlueprintInteractionTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("首次状态通知显示主界面"), Panels->GetActiveWidgetIndex(), 0);
 	TestTrue(TEXT("主界面与弹窗切换器同属根画布"), Home->GetParent() == Panels->GetParent());
 	TestTrue(TEXT("主页初始可以操作"), Home->GetIsEnabled());
+	TestTrue(TEXT("继续游戏已连接实际蓝图点击事件"), Continue->OnClicked.IsBound());
+	TestFalse(TEXT("没有已保存会话时禁用继续游戏"), Menu->CanContinueGame());
+	Continue->OnClicked.Broadcast();
+	TestFalse(TEXT("首次点击继续不会建立正式会话"), GameInstance->GetSubsystem<ULxMainMenuSubsystem>()->HasSession());
+	const UCanvasPanelSlot* ContinueSlot = Cast<UCanvasPanelSlot>(Continue->Slot);
+	const UCanvasPanelSlot* OpenSlot = Cast<UCanvasPanelSlot>(OpenWorlds->Slot);
+	if (const UVerticalBox* Sidebar = Cast<UVerticalBox>(Continue->GetParent()))
+	{
+		TestEqual(TEXT("继续游戏位于纵向侧栏最上方"), Sidebar->GetChildIndex(Continue), 0);
+		TestEqual(TEXT("打开存档紧跟继续游戏"), Sidebar->GetChildIndex(OpenWorlds), 1);
+		TestEqual(TEXT("设置保留在第三项"), Sidebar->GetChildIndex(OpenSettings), 2);
+		TestEqual(TEXT("退出游戏保留在第四项"), Sidebar->GetChildIndex(Menu->GetWidgetFromName(TEXT("退出游戏"))), 3);
+		TestTrue(TEXT("主页提示保留在四个按钮后方"), Sidebar->GetChildIndex(Menu->GetWidgetFromName(TEXT("主页提示"))) >= 4);
+	}
+	else
+	{
+		if (!TestNotNull(TEXT("继续游戏保存为蓝图画布布局"), ContinueSlot)
+			|| !TestNotNull(TEXT("打开存档保存为蓝图画布布局"), OpenSlot)) return false;
+		TestTrue(TEXT("继续游戏按钮位于打开存档按钮上方且无重叠"), ContinueSlot->GetAnchors().Maximum.Y < OpenSlot->GetAnchors().Minimum.Y);
+	}
 	TestEqual(TEXT("空目录显示空存档列表"), WorldList->GetChildrenCount(), 0);
 	Menu->RefreshMenu(); Menu->RefreshMenu();
 	TestEqual(TEXT("重复刷新空目录不生成残留条目"), WorldList->GetChildrenCount(), 0);
-	const TCHAR* ImageNames[] = {TEXT("侧栏"), TEXT("按钮"), TEXT("按钮高亮"), TEXT("小按钮"),
-		TEXT("小按钮高亮"), TEXT("切换框"), TEXT("切换框高亮"), TEXT("铭牌"), TEXT("弹窗")};
-	for (const TCHAR* Name : ImageNames)
+	int32 ActualBrushTextureCount = 0;
+	/** 检查当前蓝图按钮实际引用的画刷资源，主题迁移后的纯色画刷允许不使用纹理。 */
+	const auto CheckCurrentBrush = [this, &ActualBrushTextureCount](const FSlateBrush& Brush, const FString& Name)
 	{
-		const FString Path = FString(TEXT("/Game/项目内容/UI/主菜单界面/图像/")) + Name + TEXT(".") + Name;
-		UTexture2D* Texture = LoadObject<UTexture2D>(nullptr, *Path);
-		if (TestNotNull(FString(TEXT("原界面图像资产可加载：")) + Name, Texture))
+		UObject* Resource = Brush.GetResourceObject();
+		TestTrue(FString(TEXT("实际画刷对象引用有效：")) + Name, Resource ? IsValid(Resource) : !Brush.HasUObject());
+		if (const UTexture2D* Texture = Cast<UTexture2D>(Resource))
 		{
-			TestTrue(FString(TEXT("原界面图像具有有效平台尺寸：")) + Name, Texture->GetSizeX() > 0 && Texture->GetSizeY() > 0);
-			TestTrue(FString(TEXT("原界面图像具有可渲染像素层级：")) + Name, Texture->GetNumMips() > 0);
+			++ActualBrushTextureCount;
+			TestTrue(FString(TEXT("实际画刷纹理具有有效平台尺寸：")) + Name, Texture->GetSizeX() > 0 && Texture->GetSizeY() > 0);
+			TestTrue(FString(TEXT("实际画刷纹理具有可渲染像素层级：")) + Name, Texture->GetNumMips() > 0);
 		}
-	}
+	};
+	Menu->WidgetTree->ForEachWidgetAndDescendants([&CheckCurrentBrush](UWidget* Widget)
+	{
+		if (const UButton* Button = Cast<UButton>(Widget))
+		{
+			const FButtonStyle& Style = Button->GetStyle();
+			CheckCurrentBrush(Style.Normal, Button->GetName() + TEXT("普通"));
+			CheckCurrentBrush(Style.Hovered, Button->GetName() + TEXT("悬停"));
+			CheckCurrentBrush(Style.Pressed, Button->GetName() + TEXT("按下"));
+			CheckCurrentBrush(Style.Disabled, Button->GetName() + TEXT("禁用"));
+		}
+	});
+	TestTrue(TEXT("当前菜单确实引用并验证了按钮主题纹理"), ActualBrushTextureCount > 0);
 	UTexture2D* NormalArt = LoadObject<UTexture2D>(nullptr, TEXT("/Game/项目内容/美术资产/界面主题/象牙按钮.象牙按钮"));
 	UTexture2D* HighlightArt = LoadObject<UTexture2D>(nullptr, TEXT("/Game/项目内容/美术资产/界面主题/浅蓝物品格.浅蓝物品格"));
 	TestNotNull(TEXT("象牙按钮主题资产可加载"), NormalArt);
@@ -319,6 +356,11 @@ bool FLxMainMenuBlueprintInteractionTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("悬停设置后保留设置按钮高亮"), OpenSettings->GetStyle().Normal.GetResourceObject() == HighlightArt);
 	TestTrue(TEXT("悬停另一按钮恢复存档按钮普通图像"), OpenWorlds->GetStyle().Normal.GetResourceObject() == NormalArt);
 	OpenWorlds->OnHovered.Broadcast();
+	Continue->OnHovered.Broadcast();
+	TestTrue(TEXT("悬停继续按钮沿用浅蓝主题"), Continue->GetStyle().Normal.GetResourceObject() == HighlightArt);
+	TestTrue(TEXT("悬停继续按钮同步恢复存档普通主题"), OpenWorlds->GetStyle().Normal.GetResourceObject() == NormalArt);
+	OpenWorlds->OnHovered.Broadcast();
+	TestTrue(TEXT("悬停存档按钮同步恢复继续按钮普通主题"), Continue->GetStyle().Normal.GetResourceObject() == NormalArt);
 	int32 TextBlockCount = 0;
 	// 检查整个实例树及嵌入的设置界面，防止仅存在于内存的字体随资产保存丢失。
 	Menu->WidgetTree->ForEachWidgetAndDescendants([this, &TextBlockCount](UWidget* Widget)
@@ -353,6 +395,12 @@ bool FLxMainMenuBlueprintInteractionTest::RunTest(const FString& Parameters)
 	FLxSaveProfile Profile;
 	Profile.ID = FGuid::NewGuid(); Profile.Name = TEXT("临时测试地图"); Profile.SavedAt = FDateTime(2026, 1, 2, 3, 4);
 	Catalog->Worlds.Add(Profile);
+	FLxSaveProfile LastCharacter;
+	LastCharacter.ID = FGuid::NewGuid(); LastCharacter.Name = TEXT("最后保存角色");
+	Catalog->Characters.Add(LastCharacter);
+	Catalog->LastCharacterID = LastCharacter.ID; Catalog->LastWorldID = Profile.ID;
+	TestTrue(TEXT("流程识别有效的最近保存组合"), Flow->CanContinueGame());
+	TestFalse(TEXT("存档弹窗打开时主页继续按钮不可用"), Menu->CanContinueGame());
 	TestNull(TEXT("测试世界没有本地玩家控制器"), Menu->GetOwningPlayer());
 	Menu->RefreshMenu(); Menu->RefreshMenu();
 	if (!TestEqual(TEXT("无本地玩家时重复刷新仍只创建一个蓝图条目"), WorldList->GetChildrenCount(), 1)) return false;
@@ -381,6 +429,7 @@ bool FLxMainMenuBlueprintInteractionTest::RunTest(const FString& Parameters)
 	ReturnFromWorlds->OnClicked.Broadcast();
 	TestEqual(TEXT("存档返回事件显示主界面"), Panels->GetActiveWidgetIndex(), 0);
 	TestTrue(TEXT("关闭弹窗恢复主界面操作"), Home->GetIsEnabled());
+	TestFalse(TEXT("目录缺少最后保存地图时继续按钮不可用"), Menu->CanContinueGame());
 	OpenSettings->OnClicked.Broadcast();
 	TestEqual(TEXT("打开设置事件显示设置页"), Panels->GetActiveWidgetIndex(), 2);
 	TestTrue(TEXT("设置弹窗打开后主界面仍可见"), Home->IsVisible());
